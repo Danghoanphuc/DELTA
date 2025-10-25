@@ -1,12 +1,17 @@
+// frontend/src/pages/customer/CustomerOrdersPage.tsx (VÀ CÁC TRANG KHÁC)
 import { Sidebar } from "@/components/Sidebar";
+import { MobileNav } from "@/components/MobileNav";
 
 export const CustomerOrdersPage = () => (
   <div className="min-h-screen bg-gray-50">
     <Sidebar />
-    <div className="ml-20 p-8">
-      <h1 className="text-2xl font-bold">Đơn hàng của tôi</h1>
-      <p>Nơi bạn theo dõi các đơn hàng đã đặt.</p>
-      {/* Nội dung trang đơn hàng sẽ ở đây */}
+    <MobileNav />
+    <div className="lg:ml-20 pt-16 lg:pt-0 p-4 md:p-8">
+      <h1 className="text-xl md:text-2xl font-bold mb-4">Đơn hàng của tôi</h1>
+      <p className="text-sm md:text-base text-gray-600">
+        Nơi bạn theo dõi các đơn hàng đã đặt.
+      </p>
+      {/* Content */}
     </div>
   </div>
 );

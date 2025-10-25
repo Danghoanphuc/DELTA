@@ -1,3 +1,4 @@
+// frontend/src/components/CategoryCards.tsx (RESPONSIVE)
 import {
   FileText,
   CreditCard,
@@ -36,7 +37,7 @@ export function CategoryCards() {
       bgColor: "bg-emerald-50",
     },
     {
-      name: "In Hộp sản phẩm",
+      name: "In Hộp",
       icon: Package,
       color: "from-amber-400 to-orange-500",
       bgColor: "bg-amber-50",
@@ -62,25 +63,24 @@ export function CategoryCards() {
   ];
 
   return (
-    <div className="w-full px-8">
-      <h2 className="mb-3 text-gray-800 font-semibold text-lg">
+    <div className="w-full px-4 md:px-8">
+      <h2 className="mb-3 text-gray-800 font-semibold text-base md:text-lg">
         Khám phá kho mẫu
       </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-2 md:gap-3">
         {categories.map((category, index) => (
           <button
             key={index}
-            className={`${category.bgColor} rounded-2xl p-4 flex items-center justify-between transition-all duration-[200ms] hover:shadow-lg hover:-translate-y-1 border border-gray-200 hover:border-blue-100`}
+            className={`${category.bgColor} rounded-xl md:rounded-2xl p-3 md:p-4 flex items-center justify-between transition-all duration-200 hover:shadow-lg hover:-translate-y-1 border border-gray-200 hover:border-blue-100`}
           >
-            {/* Text bên trái */}
-            <h3 className="text-gray-800 font-medium">{category.name}</h3>
-
-            {/* Icon bên phải */}
+            <h3 className="text-gray-800 font-medium text-xs md:text-sm">
+              {category.name}
+            </h3>
             <div
-              className={`w-12 h-12 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center shadow-md`}
+              className={`w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center shadow-md`}
             >
-              <category.icon size={24} className="text-white" />
+              <category.icon size={20} className="text-white md:w-6 md:h-6" />
             </div>
           </button>
         ))}
