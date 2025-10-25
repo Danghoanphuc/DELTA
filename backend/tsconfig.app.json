@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    /* --- Cơ bản --- */
+    "target": "ES2022", // Output JavaScript version (hiện đại)
+    "module": "NodeNext", // Dùng module system mới của Node.js (cho import/export)
+    "moduleResolution": "NodeNext", // Cách Node.js tìm module
+    "outDir": "./dist", // Thư mục chứa code JavaScript sau khi biên dịch
+    "rootDir": "./src", // Thư mục gốc chứa code TypeScript
+    "esModuleInterop": true, // Cho phép import kiểu CommonJS (vd: require) dễ hơn
+    "forceConsistentCasingInFileNames": true, // Bắt lỗi phân biệt hoa/thường tên file
+
+    /* --- Strictness & Type Checking --- */
+    "strict": true, // Bật tất cả các kiểm tra kiểu nghiêm ngặt (Rất nên dùng!)
+    "skipLibCheck": true, // Bỏ qua kiểm tra kiểu của các file .d.ts trong node_modules
+
+    /* --- Type Roots (Để nhận diện file .d.ts) --- */
+    "typeRoots": ["./node_modules/@types", "./src/types"] // Thêm src/types vào đây!
+  },
+  "include": ["src/**/*"], // Chỉ biên dịch các file trong thư mục src
+  "exclude": ["node_modules", "dist"] // Bỏ qua các thư mục này
+}

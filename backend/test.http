@@ -1,0 +1,58 @@
+### 1. Đăng ký user mới
+# @name signUp
+POST http://localhost:5001/api/auth/signup
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "email": "test@example.com",
+  "password": "password123",
+  "displayName": "Test User"
+}
+
+### 2. Xác thực email
+# Bạn phải vào check email (hoặc console nếu bạn log token ra)
+# và dán token đó vào đây
+POST http://localhost:5001/api/auth/verify-email
+Content-Type: application/json
+
+{
+  "token": "PASTE_VERIFICATION_TOKEN_HERE"
+}
+
+### 3. Đăng nhập
+# @name signIn
+POST http://localhost:5001/api/auth/signin
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "password123"
+}
+
+### 4. Lấy Access Token từ response bên trên
+# Dán token vào đây (bỏ "Bearer " đi)
+@accessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGZiNjllZTIwMjNjODFlMmQ4MWNmZjYiLCJpYXQiOjE3NjEzMTEyODgsImV4cCI6MTc2MTMxMzA4OH0.st4f5cLMZrBsjKzLyqYoV0DUVrPrkh1_wNFRBHqnIOg
+### 5. Test protected route (Lấy lịch sử chat)
+GET http://localhost:5001/api/chat/history
+Authorization: Bearer {{accessToken}}
+
+### 6. Test Chatbot (cũng là protected route)
+POST http://localhost:5001/api/chat/message
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "message": "Tìm cho tôi nhà in áo thun GIÁ RẺ ở GẦN ĐÂY",
+  "latitude": 10.9791,  
+  "longitude": 106.6822 
+}
+
+### 7. Làm mới token (Refresh)
+# REST Client tự động quản lý cookie.
+# Nó sẽ gửi cookie "refreshToken" mà nó nhận được từ lúc signIn.
+# @name refresh
+POST http://localhost:5001/api/auth/refresh
+
+### 8. Đăng xuất (Sign out)
+POST http://localhost:5001/api/auth/signout
