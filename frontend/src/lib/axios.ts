@@ -1,61 +1,63 @@
-import { useAuthStore } from "../stores/useAuthStore";
+// frontend/src/lib/axios.ts
 import axios from "axios";
+import { useAuthStore } from "@/stores/useAuthStore"; // Đảm bảo đường dẫn này đúng
+
+// Lấy URL backend từ biến môi trường, fallback về localhost nếu không có
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
 const api = axios.create({
-  baseURL:
-    import.meta.env.MODE === "development"
-      ? "http://localhost:5001/api" // Dùng cho local
-      : import.meta.env.VITE_API_URL + "/api", // Dùng cho production (Render)
+  // Nối '/api' nếu backend routes của bạn bắt đầu bằng /api
+  // Nếu VITE_API_URL đã bao gồm /api thì chỉ cần API_BASE_URL
+  baseURL: API_BASE_URL + "/api",
   withCredentials: true,
 });
 
-// gắn access token vào req header
-api.interceptors.request.use((config) => {
-  const { accessToken } = useAuthStore.getState();
+// --- Interceptors giữ nguyên ---
+// Gắn access token vào req header
+api.interceptors.request.use(
+  (config) => {
+    const { accessToken } = useAuthStore.getState();
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-  if (accessToken) {
-    config.headers.Authorization = `Bearer ${accessToken}`;
-  }
-
-  return config;
-});
-
-// tự động gọi refresh api khi access token hết hạn
+// Tự động gọi refresh api khi access token hết hạn (401 Unauthorized)
+// (Kiểm tra mã lỗi backend trả về khi token hết hạn là 401 hay 403 và sửa lại nếu cần)
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const originalRequest = error.config;
 
-    // những api không cần check
+    // Kiểm tra lỗi 401, chưa retry, và không phải là request refresh
     if (
-      originalRequest.url.includes("/auth/signin") ||
-      originalRequest.url.includes("/auth/signup") ||
-      originalRequest.url.includes("/auth/refresh")
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      originalRequest.url !== "/auth/refresh"
     ) {
-      return Promise.reject(error);
-    }
-
-    originalRequest._retryCount = originalRequest._retryCount || 0;
-
-    // Cân nhắc: Backend của bạn trả về 403 (Forbidden) hay 401 (Unauthorized)
-    // khi accessToken hết hạn? Hãy đảm bảo nó khớp với 403 ở đây.
-    if (error.response?.status === 403 && originalRequest._retryCount < 4) {
-      originalRequest._retryCount += 1;
-
+      originalRequest._retry = true;
+      console.log("Access token expired, attempting refresh...");
       try {
-        const res = await api.post("/auth/refresh", { withCredentials: true });
-        const newAccessToken = res.data.accessToken;
+        const refreshRes = await api.post("/auth/refresh"); // Không cần baseURL ở đây nữa
+        const newAccessToken = refreshRes.data.accessToken;
 
         useAuthStore.getState().setAccessToken(newAccessToken);
 
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        return api(originalRequest);
+        return api(originalRequest); // Gửi lại request cũ với token mới
       } catch (refreshError) {
-        useAuthStore.getState().clearState();
+        console.error("Failed to refresh token:", refreshError);
+        useAuthStore.getState().clearState(); // Đăng xuất nếu refresh lỗi
+        // Chuyển hướng về trang đăng nhập (có thể cần xử lý khác tùy logic app)
+        if (typeof window !== "undefined") {
+          window.location.href = "/signin";
+        }
         return Promise.reject(refreshError);
       }
     }
-
     return Promise.reject(error);
   }
 );

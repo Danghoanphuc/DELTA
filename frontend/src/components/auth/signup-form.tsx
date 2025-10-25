@@ -14,7 +14,7 @@ import { useState } from "react";
 import { SocialButton } from "@/components/ui/SocialButton";
 import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
 import { toast } from "sonner";
-import api from "@/lib/axios"; // 👈 Đảm bảo import API từ đúng đường dẫn
+import api from "@/lib/axios"; //
 
 // --- (KHÔNG THAY ĐỔI) Zod Schema của bạn (đã nâng cấp) ---
 const signUpSchema = z

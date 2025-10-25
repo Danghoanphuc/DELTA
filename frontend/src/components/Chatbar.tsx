@@ -1,7 +1,7 @@
 // src/components/Chatbar.tsx
 import { Paperclip, Image, Send } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-import api from "@/lib/api";
+import api from "@/lib/axios";
 import { toast } from "sonner";
 import { ChatMessage } from "@/types/chat";
 import { ChatMessages } from "@/components/ChatMessages";

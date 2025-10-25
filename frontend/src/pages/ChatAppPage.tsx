@@ -1,7 +1,7 @@
 // src/pages/ChatAppPage.tsx (HOÀN CHỈNH - Khôi Phục Layout & Chat Mới)
 
 import { useState, useEffect } from "react";
-import api from "@/lib/api"; //
+import api from "@/lib/axios"; //
 import { ChatMessage } from "@/types/chat"; //
 
 import { Sidebar } from "@/components/Sidebar"; //

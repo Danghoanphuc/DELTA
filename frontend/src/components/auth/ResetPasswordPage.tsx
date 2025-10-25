@@ -1,7 +1,7 @@
 // src/pages/ResetPasswordPage.tsx
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { api } from "@/services/api"; //
+import api from "@/lib/axios"; //
 import { toast } from "sonner";
 
 const ResetPasswordPage = () => {
