@@ -1,22 +1,19 @@
-// src/pages/printer/SettingsPage.tsx (ĐÃ SỬA LỖI ĐƯỜNG DẪN)
+// src/pages/printer/SettingsPage.tsx (ĐÃ HOÀN NGUYÊN ALIAS PATH)
 
 import * as z from "zod";
-// 👈 SỬA LỖI TS6133: Xóa FieldValues không sử dụng
-import { useForm, SubmitHandler } from "react-hook-form";
+import { useForm, SubmitHandler } from "react-hook-form"; // Xóa FieldValues không dùng
 import { zodResolver } from "@hookform/resolvers/zod";
-// 👈 SỬA LỖI: Quay lại sử dụng alias path
-import { useAuthStore } from "@/stores/useAuthStore";
-import api from "@/lib/axios";
+import { useAuthStore } from "@/stores/useAuthStore"; // 👈 Hoàn nguyên alias
+import api from "@/lib/axios"; // 👈 Hoàn nguyên alias
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
 import { Building2, MapPin, Phone, Mail, Printer } from "lucide-react";
-// 👈 SỬA LỖI: Quay lại sử dụng alias path
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // 👈 Hoàn nguyên alias
+import { Input } from "@/components/ui/input"; // 👈 Hoàn nguyên alias
+import { Button } from "@/components/ui/button"; // 👈 Hoàn nguyên alias
+import { Textarea } from "@/components/ui/textarea"; // 👈 Hoàn nguyên alias
+import { Label } from "@/components/ui/label"; // 👈 Hoàn nguyên alias
 import {
   Form,
   FormControl,
@@ -25,15 +22,15 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from "@/components/ui/form"; // 👈 Hoàn nguyên alias
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@/components/ui/select"; // 👈 Hoàn nguyên alias
+import { ScrollArea } from "@/components/ui/scroll-area"; // 👈 Hoàn nguyên alias
 
 // 1. Schema (Giữ nguyên)
 const settingsSchema = z.object({
@@ -73,7 +70,7 @@ export function SettingsPage() {
 
   // 2. Khởi tạo Form
   const form = useForm<SettingsFormValues>({
-    resolver: zodResolver(settingsSchema), // 👈 SỬA LỖI TS2322: Đã khớp
+    resolver: zodResolver(settingsSchema), // 👈 Lỗi TS2322 đã được giải quyết
     defaultValues: {
       displayName: user.displayName || "",
       phone: user.phone || "",
@@ -87,7 +84,7 @@ export function SettingsPage() {
     },
   });
 
-  // 3. Hàm Submit (Giữ nguyên SubmitHandler type)
+  // 3. Hàm Submit
   const onSubmit: SubmitHandler<SettingsFormValues> = async (values) => {
     try {
       const payload = {
@@ -149,7 +146,7 @@ export function SettingsPage() {
 
   return (
     <Form {...form}>
-      {/* 👈 SỬA LỖI TS2345: Bỏ generic type ở đây */}
+      {/* 👈 SỬA LỖI TS2345: Bỏ generic type khỏi thẻ form */}
       <form onSubmit={form.handleSubmit(onSubmit)} className="h-full">
         <ScrollArea className="h-full flex-1 bg-gray-50">
           <div className="p-8 max-w-6xl mx-auto">
@@ -173,7 +170,7 @@ export function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* 👈 SỬA LỖI TS2719: Các FormField bên dưới đã khớp type */}
+                  {/* 👈 SỬA LỖI TS2719: Các FormField đã khớp type */}
                   <FormField
                     control={form.control}
                     name="displayName"

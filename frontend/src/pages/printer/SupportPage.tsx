@@ -7,17 +7,17 @@ import {
   // Video, // 👈 SỬA LỖI TS6133: Xóa import không dùng
   HelpCircle,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // 👈 Hoàn nguyên alias
+import { Button } from "@/components/ui/button"; // 👈 Hoàn nguyên alias
+import { Input } from "@/components/ui/input"; // 👈 Hoàn nguyên alias
+import { Textarea } from "@/components/ui/textarea"; // 👈 Hoàn nguyên alias
+import { Label } from "@/components/ui/label"; // 👈 Hoàn nguyên alias
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
+} from "@/components/ui/accordion"; // 👈 Hoàn nguyên alias
 
 export function SupportPage() {
   const faqs = [
