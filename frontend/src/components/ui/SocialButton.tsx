@@ -1,6 +1,9 @@
+// frontend/src/components/ui/SocialButton.tsx
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { toast } from "sonner";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 type SocialProvider = "google";
@@ -9,13 +12,10 @@ interface SocialButtonProps {
   provider: SocialProvider;
   className?: string;
 }
-declare global {
-  interface Window {
-    loginPopup?: Window | null;
-  }
-}
 
 export function SocialButton({ provider, className }: SocialButtonProps) {
+  const { setAccessToken, setUser, fetchMe } = useAuthStore();
+
   const providerConfig = {
     google: {
       name: "Google",
@@ -23,11 +23,7 @@ export function SocialButton({ provider, className }: SocialButtonProps) {
       borderColor: "border-gray-200 hover:border-gray-300",
       textColor: "text-gray-700",
       icon: (
-        <svg
-          className="w-5 h-5"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
+        <svg className="w-5 h-5" viewBox="0 0 24 24">
           <path
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
             fill="#4285F4"
@@ -51,39 +47,67 @@ export function SocialButton({ provider, className }: SocialButtonProps) {
 
   const config = providerConfig[provider];
 
-  // ✅ Lắng nghe message từ popup (chỉ đăng ký 1 lần)
+  // ✅ Lắng nghe message từ popup OAuth
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // Kiểm tra origin an toàn (chỉ chấp nhận từ server API)
-      if (!event.origin.includes(API_BASE_URL.replace(/^https?:\/\//, "")))
+      // Kiểm tra origin an toàn
+      const allowedOrigins = [
+        API_BASE_URL,
+        window.location.origin,
+        "http://localhost:5001",
+        "https://delta-j7qn.onrender.com",
+      ];
+
+      if (
+        !allowedOrigins.some((origin) =>
+          event.origin.includes(origin.replace(/^https?:\/\//, ""))
+        )
+      ) {
+        console.warn("⚠️ Message từ origin không hợp lệ:", event.origin);
         return;
+      }
 
       try {
         const data =
           typeof event.data === "string" ? JSON.parse(event.data) : event.data;
 
-        if (data?.accessToken) {
-          console.log("✅ Đăng nhập thành công:", data.user);
-          localStorage.setItem("accessToken", data.accessToken);
-          localStorage.setItem("user", JSON.stringify(data.user));
+        if (data?.type === "GOOGLE_AUTH_SUCCESS" && data?.accessToken) {
+          console.log("✅ Nhận được auth data từ popup:", data.user?.email);
 
-          // Đóng popup (nếu còn mở)
-          if (window.loginPopup && !window.loginPopup.closed)
-            window.loginPopup.close();
+          // 1. Lưu accessToken vào store
+          setAccessToken(data.accessToken);
+          console.log("✅ Đã lưu accessToken vào store");
 
-          // Redirect sang chatbot (hoặc dashboard)
-          window.location.href = "/";
+          // 2. Lưu user vào store
+          if (data.user) {
+            setUser(data.user);
+            console.log("✅ Đã lưu user vào store");
+          }
+
+          // 3. Fetch thông tin user đầy đủ
+          fetchMe(true).then(() => {
+            console.log("✅ Đã fetch user info");
+            toast.success(
+              `Chào mừng ${data.user?.displayName || "bạn"} đến với PrintZ! 🎉`
+            );
+
+            // 4. Chuyển hướng về trang chủ
+            setTimeout(() => {
+              window.location.href = "/";
+            }, 1000);
+          });
         }
       } catch (err) {
-        console.error("Lỗi xử lý message:", err);
+        console.error("❌ Lỗi xử lý message:", err);
+        toast.error("Đăng nhập thất bại, vui lòng thử lại!");
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, []);
+  }, [setAccessToken, setUser, fetchMe]);
 
-  // ✅ Hàm mở popup đúng route
+  // ✅ Hàm mở popup OAuth
   const openOAuthPopup = () => {
     const width = 600;
     const height = 700;
@@ -92,11 +116,26 @@ export function SocialButton({ provider, className }: SocialButtonProps) {
 
     const oauthUrl = `${API_BASE_URL}/api/auth/google`;
 
-    window.loginPopup = window.open(
+    console.log("🔄 Mở popup OAuth:", oauthUrl);
+
+    const popup = window.open(
       oauthUrl,
       "googleLogin",
-      `width=${width},height=${height},left=${left},top=${top},toolbar=no,location=no,status=no,menubar=no,scrollbars=no,resizable=no`
+      `width=${width},height=${height},left=${left},top=${top},toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`
     );
+
+    if (!popup) {
+      toast.error("Không thể mở cửa sổ đăng nhập. Vui lòng cho phép popup!");
+      return;
+    }
+
+    // Kiểm tra popup có bị đóng giữa chừng không
+    const checkPopup = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkPopup);
+        console.log("ℹ️ Popup đã đóng");
+      }
+    }, 1000);
   };
 
   return (
