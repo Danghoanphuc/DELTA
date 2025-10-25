@@ -25,7 +25,8 @@ const PORT = process.env.PORT || 5001;
 // 1. Định nghĩa WhiteList
 const whiteList = [
   "https://www.printz.vn", // Domain production
-  "http://localhost:5173", // Domain frontend dev (thay 5173 bằng port của bạn)
+  "http://localhost:5173",
+  "https://your-project-name.vercel.app", // Domain frontend dev (thay 5173 bằng port của bạn)
 ];
 
 // 2. Tạo Cấu hình CORS
@@ -33,10 +34,11 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Kiểm tra xem origin (nguồn) của request có nằm trong whitelist không
     // Hoặc cho phép nếu origin là 'undefined' (ví dụ: request từ Postman, REST Client)
-    if (whiteList.indexOf(origin) !== -1 || !origin) {
+    if (!origin || whiteList.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error("Not allowed by CORS")); // Chặn nếu không có trong whitelist
+      console.error(`CORS Blocked Origin: ${origin}`); // Log lỗi để debug
+      callback(new Error(`Origin ${origin} Not allowed by CORS`));
     }
   },
   credentials: true, // Cho phép gửi cookie
