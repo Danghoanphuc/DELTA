@@ -26,7 +26,7 @@ const PORT = process.env.PORT || 5001;
 const whiteList = [
   "https://www.printz.vn", // Domain production
   "http://localhost:5173",
-  "https://your-project-name.vercel.app", // Domain frontend dev (thay 5173 bằng port của bạn)
+  "https://delta-j7qn.onrender.com", // Domain frontend dev (thay 5173 bằng port của bạn)
 ];
 
 // 2. Tạo Cấu hình CORS
@@ -39,11 +39,16 @@ const corsOptions = {
     ];
 
     // ✅ Cho phép request không có origin (postMessage, popup)
-    if (!origin || whiteList.indexOf(origin) !== -1) {
+    if (
+      !origin ||
+      whiteList.some((allowed) =>
+        origin.includes(allowed.replace(/^https?:\/\//, ""))
+      )
+    ) {
       callback(null, true);
     } else {
-      console.error(`❌ CORS Blocked Origin: ${origin}`);
-      callback(new Error(`Origin ${origin} Not allowed by CORS`));
+      console.error(`❌ CORS Blocked: ${origin}`);
+      callback(new Error(`Origin ${origin} not allowed`));
     }
   },
   credentials: true,
