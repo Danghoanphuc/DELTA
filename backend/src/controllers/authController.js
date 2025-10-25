@@ -188,10 +188,12 @@ export const signIn = async (req, res) => {
 // --- CONTROLLER LÀM MỚI (REFRESH) ---
 // =============================================
 export const refresh = async (req, res) => {
-  console.log("--- Hàm refresh: Đã nhận được yêu cầu!");
+  console.log("🍪 Cookies nhận được:", req.cookies); // ✅ Thêm log
+  console.log("📋 Headers:", req.headers); // ✅ Thêm log
   try {
     const refreshToken = req.cookies?.refreshToken;
     if (!refreshToken) {
+      console.log("❌ Không tìm thấy refreshToken trong cookies");
       return res.status(401).json({ message: "Không được phép: Thiếu token" });
     }
 

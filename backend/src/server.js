@@ -32,18 +32,24 @@ const whiteList = [
 // 2. Tạo Cấu hình CORS
 const corsOptions = {
   origin: function (origin, callback) {
-    // Kiểm tra xem origin (nguồn) của request có nằm trong whitelist không
-    // Hoặc cho phép nếu origin là 'undefined' (ví dụ: request từ Postman, REST Client)
+    const whiteList = [
+      "https://www.printz.vn",
+      "http://localhost:5173",
+      "https://your-frontend.vercel.app", // Thay bằng domain frontend của bạn
+    ];
+
+    // ✅ Cho phép request không có origin (postMessage, popup)
     if (!origin || whiteList.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.error(`CORS Blocked Origin: ${origin}`); // Log lỗi để debug
+      console.error(`❌ CORS Blocked Origin: ${origin}`);
       callback(new Error(`Origin ${origin} Not allowed by CORS`));
     }
   },
-  credentials: true, // Cho phép gửi cookie
+  credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  exposedHeaders: ["Set-Cookie"], // ✅ Thêm dòng này
 };
 
 // 3. Sử dụng các middleware

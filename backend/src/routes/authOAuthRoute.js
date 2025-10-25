@@ -38,6 +38,7 @@ const createSessionAndSendTokens = async (req, res, user) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: REFRESH_TOKEN_TTL,
+      domain: process.env.NODE_ENV === "production" ? ".printz.vn" : undefined,
     });
 
     // ✅ Gửi dữ liệu về popup frontend qua postMessage
