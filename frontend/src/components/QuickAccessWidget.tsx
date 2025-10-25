@@ -1,12 +1,12 @@
-// src/components/QuickAccessWidget.tsx (HOÀN CHỈNH - Đã sửa lỗi)
+// src/components/QuickAccessWidget.tsx (ĐÃ SỬA)
 
-import { useState } from "react";
+// 👈 SỬA LỖI TS6133: Xóa 'useState' vì không được sử dụng
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
-} from "@/components/ui/hover-card"; //
-import { Button } from "@/components/ui/button"; //
+} from "@/components/ui/hover-card";
+import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import {
   MessageSquarePlus,
@@ -14,8 +14,8 @@ import {
   History,
   PanelRightOpen,
 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area"; //
-import { ChatMessage } from "@/types/chat"; //
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChatMessage } from "@/types/chat";
 
 interface QuickAccessWidgetProps {
   recentMessages: ChatMessage[];
@@ -26,8 +26,6 @@ export function QuickAccessWidget({
   recentMessages,
   onNewChat,
 }: QuickAccessWidgetProps) {
-  // Hàm handleNewChat đã chuyển lên App Component, ở đây chỉ gọi prop onNewChat
-
   return (
     <HoverCard openDelay={100} closeDelay={150}>
       <HoverCardTrigger asChild>
@@ -42,12 +40,10 @@ export function QuickAccessWidget({
       <HoverCardContent
         side="left"
         align="end"
-        className="w-72 p-3 bg-white rounded-lg shadow-xl border border-gray-100" // Đảm bảo width đủ lớn
+        className="w-72 p-3 bg-white rounded-lg shadow-xl border border-gray-100"
         sideOffset={5}
       >
         <div className="flex flex-col space-y-2">
-          {" "}
-          {/* Đảm bảo nội dung hiển thị */}
           <h4 className="font-semibold text-sm text-gray-800 px-1 mb-1">
             Truy cập nhanh
           </h4>
@@ -55,7 +51,7 @@ export function QuickAccessWidget({
           <Button
             variant="ghost"
             className="w-full justify-start text-gray-700 hover:bg-blue-50 hover:text-blue-700"
-            onClick={onNewChat} // Gọi hàm từ props
+            onClick={onNewChat}
           >
             <MessageSquarePlus size={18} className="mr-2" />
             Chat mới

@@ -1,9 +1,12 @@
+// src/pages/printer/SettingsPage.tsx (ĐÃ SỬA)
+
 import * as z from "zod";
-import { useForm } from "react-hook-form";
+// 👈 SỬA LỖI TS2345, TS2719: Import SubmitHandler
+import { useForm, SubmitHandler, FieldValues } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-// Sửa đường dẫn import thành relative path
-import { useAuthStore } from "../../stores/useAuthStore";
-import api from "../../lib/axios"; // Sử dụng instance Axios đã cấu hình và sửa thành relative path
+// 👈 SỬA LỖI: Dùng alias path
+import { useAuthStore } from "@/stores/useAuthStore";
+import api from "@/lib/axios"; // 👈 SỬA LỖI: Dùng alias path
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom"; // Import useNavigate
 
@@ -31,7 +34,7 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-// 1. Schema - Dựa trên backend (Đã loại bỏ longitude/latitude)
+// 1. Schema - (Giữ nguyên, chỉ sửa lại optional)
 const settingsSchema = z.object({
   displayName: z.string().min(2, "Tên xưởng in phải có ít nhất 2 ký tự"),
   phone: z.string().optional().or(z.literal("")), // Cho phép chuỗi rỗng
@@ -46,8 +49,8 @@ const settingsSchema = z.object({
 type SettingsFormValues = z.infer<typeof settingsSchema>;
 
 export function SettingsPage() {
-  const { user, setUser, loading: authLoading } = useAuthStore(); // Lấy cả trạng thái loading
-  const navigate = useNavigate(); // Hook để điều hướng
+  const { user, setUser, loading: authLoading } = useAuthStore();
+  const navigate = useNavigate();
 
   // --- Thêm kiểm tra Loading và User ---
   if (authLoading) {
@@ -58,21 +61,18 @@ export function SettingsPage() {
     );
   }
 
-  // Nếu không loading mà vẫn không có user, hoặc user không phải printer
   if (!user || user.role !== "printer") {
-    // Điều hướng về trang chủ hoặc trang đăng nhập nếu chưa đăng nhập
     navigate(user ? "/" : "/signin");
-    // Có thể hiển thị thông báo lỗi ngắn gọn trước khi điều hướng
     toast.error(
       user ? "Bạn không có quyền truy cập trang này." : "Vui lòng đăng nhập."
     );
-    return null; // Trả về null để tránh render phần còn lại
+    return null;
   }
   // --- Kết thúc kiểm tra ---
 
-  // 2. Khởi tạo Form (sau khi đã chắc chắn có user)
+  // 2. Khởi tạo Form
   const form = useForm<SettingsFormValues>({
-    resolver: zodResolver(settingsSchema),
+    resolver: zodResolver(settingsSchema), // 👈 SỬA LỖI TS2322: Đã khớp
     defaultValues: {
       displayName: user.displayName || "",
       phone: user.phone || "",
@@ -86,18 +86,17 @@ export function SettingsPage() {
     },
   });
 
-  // 3. Hàm Submit
-  const onSubmit = async (values: SettingsFormValues) => {
+  // 3. Hàm Submit (👈 SỬA LỖI TS2345: Gõ tường minh SubmitHandler)
+  const onSubmit: SubmitHandler<SettingsFormValues> = async (values) => {
     try {
-      // Chuẩn bị payload gửi lên backend
       const payload = {
         displayName: values.displayName,
-        phone: values.phone || undefined, // Gửi undefined nếu rỗng để backend không cập nhật
+        phone: values.phone || undefined,
         specialties:
           values.specialties
             ?.split(",")
             .map((s) => s.trim())
-            .filter(Boolean) || [], // Chuyển chuỗi thành mảng, loại bỏ phần tử rỗng
+            .filter(Boolean) || [],
         priceTier: values.priceTier,
         productionSpeed: values.productionSpeed,
         address: {
@@ -105,18 +104,14 @@ export function SettingsPage() {
           ward: values.addressWard || undefined,
           district: values.addressDistrict || undefined,
           city: values.addressCity || undefined,
-          // Không gửi location ở đây vì controller không xử lý
         },
       };
 
-      // Gọi API - Sửa endpoint thành "/printer/profile"
-      const response = await api.put("/printer/profile", payload);
-
-      // Cập nhật lại thông tin user trong store Zustand
+      const response = await api.put("/printer/profile", payload); // 👈 Sửa endpoint
       setUser(response.data.printer);
       toast.success("Cập nhật hồ sơ thành công!");
 
-      // Cập nhật defaultValues của form sau khi lưu thành công
+      // Reset form về giá trị mới sau khi cập nhật
       form.reset({
         displayName: response.data.printer.displayName || "",
         phone: response.data.printer.phone || "",
@@ -129,15 +124,14 @@ export function SettingsPage() {
         productionSpeed: response.data.printer.productionSpeed || "standard",
       });
     } catch (err: any) {
-      console.error("Lỗi cập nhật profile:", err);
-      // Hiển thị lỗi cụ thể từ backend nếu có
+      console.error(err);
       const errMsg =
         err.response?.data?.message || "Cập nhật thất bại. Vui lòng thử lại.";
       toast.error(errMsg);
     }
   };
 
-  // Hàm reset form về giá trị hiện tại của user state
+  // Hàm reset
   const handleReset = () => {
     form.reset({
       displayName: user.displayName || "",
@@ -154,9 +148,8 @@ export function SettingsPage() {
   };
 
   return (
-    // 4. Bọc Form và ScrollArea
     <Form {...form}>
-      {/* Thêm thẻ form và onSubmit */}
+      {/* 👈 SỬA LỖI TS2345: Bỏ <SettingsFormValues> ở đây */}
       <form onSubmit={form.handleSubmit(onSubmit)} className="h-full">
         <ScrollArea className="h-full flex-1 bg-gray-50">
           <div className="p-8 max-w-6xl mx-auto">
@@ -180,6 +173,7 @@ export function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* 👈 SỬA LỖI TS2719: Đã khớp type */}
                   <FormField
                     control={form.control}
                     name="displayName"
@@ -286,7 +280,7 @@ export function SettingsPage() {
                     <Input
                       id="email"
                       type="email"
-                      value={user.email || ""} // User chắc chắn tồn tại ở đây
+                      value={user.email || ""}
                       disabled
                       className="mt-1 bg-gray-100 cursor-not-allowed"
                       title="Không thể thay đổi email đăng nhập"
@@ -408,16 +402,14 @@ export function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* (Các Card "Giờ làm việc", "Thông báo" tĩnh giữ nguyên - nếu có) */}
-
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 mt-8">
               <Button
                 type="button"
                 variant="outline"
                 className="w-full sm:w-auto"
-                onClick={handleReset} // Sử dụng hàm handleReset đã tạo
-                disabled={form.formState.isSubmitting} // Vô hiệu hóa khi đang gửi
+                onClick={handleReset}
+                disabled={form.formState.isSubmitting}
               >
                 Hủy thay đổi
               </Button>
@@ -426,7 +418,7 @@ export function SettingsPage() {
                 className="w-full sm:flex-1 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
                 disabled={
                   form.formState.isSubmitting || !form.formState.isDirty
-                } // Vô hiệu hóa khi đang gửi hoặc chưa có gì thay đổi
+                }
               >
                 {form.formState.isSubmitting ? "Đang lưu..." : "Lưu Cài Đặt"}
               </Button>

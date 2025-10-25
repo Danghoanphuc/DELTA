@@ -1,7 +1,7 @@
-// src/components/HeroSection.tsx (Bản Chuẩn - Đã Sửa Lỗi Gạch Đỏ)
+// src/components/HeroSection.tsx (ĐÃ SỬA)
 
-import { ChatBar } from "@/components/Chatbar"; //
-import { ChatMessage } from "@/types/chat"; //
+import { ChatBar } from "@/components/Chatbar";
+import { ChatMessage } from "@/types/chat";
 
 // Interface định nghĩa các props mà HeroSection nhận từ ChatAppPage
 interface HeroSectionProps {
@@ -43,10 +43,12 @@ export function HeroSection({
       </div>
 
       {/* Chat Bar (Truyền props xuống) */}
+      {/* SỬA LỖI TS2322:
+        Đổi 'initialMessages={messages}' thành 'messages={messages}'
+        để khớp với interface 'ChatBarProps' trong 'Chatbar.tsx'
+      */}
       <ChatBar
-        // 👇 *** SỬA LỖI Ở ĐÂY ***
-        initialMessages={messages} // 👈 Đổi tên prop "messages" thành "initialMessages"
-        // *** ------------------ ***
+        messages={messages}
         isLoadingAI={isLoadingAI}
         isExpanded={isExpanded}
         setIsExpanded={setIsExpanded}

@@ -1,17 +1,20 @@
-// src/pages/printer/PrinterDashboard.tsx
+// src/pages/printer/PrinterDashboard.tsx (ĐÃ SỬA)
 import {
-  TrendingUp,
+  // TrendingUp, // 👈 SỬA LỖI TS6133: Xóa import không dùng
   Package,
   ShoppingCart,
   DollarSign,
   Users,
-  Clock,
+  // Clock, // 👈 SỬA LỖI TS6133: Xóa import không dùng
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // 👈 Sửa đường dẫn
+import {
+  Card,
+  CardContent,
+  // CardHeader, // 👈 SỬA LỖI TS6133: Xóa import không dùng
+  // CardTitle, // 👈 SỬA LỖI TS6133: Xóa import không dùng
+} from "@/components/ui/card";
 
 export function PrinterDashboard() {
-  // ... (Toàn bộ code JSX từ file PrinterDashboard.tsx của bạn) ...
-  // (Tôi chỉ sao chép nội dung file của bạn vào đây)
   const stats = [
     {
       title: "Doanh thu tháng này",
@@ -46,30 +49,34 @@ export function PrinterDashboard() {
       bgColor: "bg-orange-50",
     },
   ];
-  // ... (v.v... toàn bộ code) ...
+
   return (
     <div className="flex-1 overflow-auto bg-gray-50">
       <div className="p-8 max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-gray-900 mb-2">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Dashboard</h1>
           <p className="text-gray-600">
             Chào mừng trở lại! Đây là tổng quan về dịch vụ in ấn của bạn.
           </p>
         </div>
         {/* Stats Grid */}
-        <div className="grid grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat, index) => (
             <Card
               key={index}
-              className="border-none shadow-sm hover:shadow-md transition-shadow"
+              className="border-none shadow-sm hover:shadow-md transition-shadow bg-white"
             >
+              {/* CardHeader và CardTitle không thực sự cần thiết ở đây, 
+                  chỉ dùng CardContent là đủ */}
               <CardContent className="p-6">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
-                    <h3 className="text-gray-900 mb-2">{stat.value}</h3>
-                    <span className={`text-sm ${stat.color}`}>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                      {stat.value}
+                    </h3>
+                    <span className={`text-sm font-medium ${stat.color}`}>
                       {stat.change}
                     </span>
                   </div>
@@ -83,7 +90,7 @@ export function PrinterDashboard() {
             </Card>
           ))}
         </div>
-        {/* ... (Phần còn lại của file PrinterDashboard.tsx) ... */}
+        {/* (Phần còn lại của trang, ví dụ biểu đồ...) */}
       </div>
     </div>
   );
