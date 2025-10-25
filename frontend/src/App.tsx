@@ -2,8 +2,7 @@
 
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { Toaster, toast } from "sonner"; //
-
+import { Toaster } from "sonner";
 import SignInPage from "./pages/SignInPage"; //
 import SignUpPage from "./pages/SignUpPage"; //
 import VerifyEmailPage from "./components/auth/VerifyEmailPage"; //

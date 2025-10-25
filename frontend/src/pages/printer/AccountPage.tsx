@@ -1,13 +1,12 @@
 // src/pages/printer/AccountPage.tsx (NÂNG CẤP)
 
-import { User, Lock, Bell, CreditCard, LogOut } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { User, LogOut } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Switch } from "@/components/ui/switch";
-import { toast } from "sonner"; // 👈 Thêm
-import { ScrollArea } from "@/components/ui/scroll-area"; // 👈 Thêm
+import { toast } from "sonner";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // 👇 *** THÊM IMPORT ***
 import { useAuthStore } from "@/stores/useAuthStore";

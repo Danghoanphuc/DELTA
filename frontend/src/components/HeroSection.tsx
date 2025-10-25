@@ -1,8 +1,9 @@
-// src/components/HeroSection.tsx (HOÀN CHỈNH - Khôi Phục 3 Nút)
+// src/components/HeroSection.tsx (Bản Chuẩn - Đã Sửa Lỗi Gạch Đỏ)
 
 import { ChatBar } from "@/components/Chatbar"; //
 import { ChatMessage } from "@/types/chat"; //
 
+// Interface định nghĩa các props mà HeroSection nhận từ ChatAppPage
 interface HeroSectionProps {
   messages: ChatMessage[];
   isLoadingAI: boolean;
@@ -24,8 +25,6 @@ export function HeroSection({
 }: HeroSectionProps) {
   return (
     <div className="w-full pt-5 pb-4 px-8">
-      {" "}
-      {/* Padding gốc */}
       {/* Hero Heading (Giữ nguyên) */}
       <div className="text-center mb-8">
         <h1
@@ -42,14 +41,18 @@ export function HeroSection({
           nơi.
         </h2>
       </div>
+
       {/* Chat Bar (Truyền props xuống) */}
       <ChatBar
-        messages={messages}
+        // 👇 *** SỬA LỖI Ở ĐÂY ***
+        initialMessages={messages} // 👈 Đổi tên prop "messages" thành "initialMessages"
+        // *** ------------------ ***
         isLoadingAI={isLoadingAI}
         isExpanded={isExpanded}
         setIsExpanded={setIsExpanded}
         onSendMessage={onSendMessage}
       />
+
       {/* Quick Action Tabs (Khôi phục) */}
       <div className="flex items-center justify-center gap-4 mt-8">
         <button className="px-6 py-2 rounded-full border-2 border-purple-200 bg-purple-50 text-purple-700 transition-all hover:border-purple-300 hover:bg-purple-100">

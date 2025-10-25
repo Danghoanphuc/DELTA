@@ -1,8 +1,11 @@
+// src/stores/useAuthStore.ts (SỬA LẠI)
+
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { toast } from "sonner";
 import { authService } from "@/services/authService";
 import type { AuthState } from "@/types/store";
+import { User } from "@/types/user"; // 👈 Thêm import User
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -13,13 +16,27 @@ export const useAuthStore = create<AuthState>()(
 
       // --- Setter cơ bản ---
       setAccessToken: (accessToken) => set({ accessToken }),
+      setUser: (user: User) => set({ user }), // 👈 *** THÊM HÀM setUser ***
       clearState: () => set({ accessToken: null, user: null, loading: false }),
 
-      // --- Đăng ký ---
-      signUp: async (...args) => {
+      // --- Đăng ký (SỬA LẠI THAM SỐ) ---
+      signUp: async (
+        username,
+        password,
+        email,
+        firstName, // 👈 Sửa ...args thành tham số rõ ràng
+        lastName
+      ) => {
         try {
           set({ loading: true });
-          const res = await authService.signUp(...args);
+          // 👇 *** Sửa lại cách gọi hàm ***
+          const res = await authService.signUp(
+            username,
+            password,
+            email,
+            firstName,
+            lastName
+          );
           if (import.meta.env.DEV) console.log("✅ [Signup]", res);
           toast.success("Đăng ký thành công! Hãy đăng nhập để tiếp tục.");
         } catch (err: any) {

@@ -1,3 +1,5 @@
+// src/types/user.ts
+
 export interface User {
   _id: string;
   username: string;
@@ -7,9 +9,9 @@ export interface User {
   avatarUrl?: string; // Dấu ? nghĩa là 'optional' (có thể có hoặc không)
   isVerified: boolean;
 
-  // --- BỔ SUNG CÁC TRƯỜNG CÒN THIẾU TẠI ĐÂY ---
+  // --- Các trường bổ sung cho Nhà in (printer) ---
   phone?: string;
-  bio?: string;
+  bio?: string; // (Bạn có thể thêm/bớt các trường này)
 
   specialties?: string[]; // Mảng các chuỗi
 

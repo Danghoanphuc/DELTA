@@ -1,5 +1,4 @@
-// src/components/Chatbar.tsx (ĐIỀU CHỈNH LẦN CUỐI)
-
+// src/components/Chatbar.tsx
 import { Paperclip, Image, Send } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import api from "@/lib/api";
@@ -7,33 +6,21 @@ import { toast } from "sonner";
 import { ChatMessage } from "@/types/chat";
 import { ChatMessages } from "@/components/ChatMessages";
 
-export function ChatBar() {
+// --- Thêm interface props ---
+interface ChatBarProps {
+  initialMessages?: ChatMessage[]; // 👈 optional, nếu HeroSection truyền xuống
+}
+
+export function ChatBar({ initialMessages = [] }: ChatBarProps) {
   const [message, setMessage] = useState("");
-  // 👇 Bắt đầu ở trạng thái `false` (thu gọn)
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(false); // trạng thái mở rộng
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // --- Sử dụng initialMessages để khởi tạo state ---
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
 
-  // --- Tải Lịch sử Chat ---
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const res = await api.get("/api/chat/history");
-        setMessages(res.data.messages);
-
-        // 👇 *** ĐÃ XÓA BỎ LOGIC TỰ ĐỘNG MỞ RỘNG ***
-        // (Chúng ta muốn nó luôn thu gọn khi mới tải)
-      } catch (err) {
-        toast.error("Không thể tải lịch sử trò chuyện.");
-      }
-    };
-    fetchHistory();
-  }, []);
-
-  // --- (Hàm này giữ nguyên) ---
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
     if (textareaRef.current) {
@@ -43,35 +30,32 @@ export function ChatBar() {
     }
   };
 
-  // --- Gợi ý (Giữ nguyên) ---
   const suggestedPrompts = [
     { text: "Gợi ý : " },
     { text: "Làm 100 card visit cho công ty", color: "blue" },
     { text: "In poster sự kiện 60x90cm", color: "pink" },
   ];
 
-  // 👇 *** KHÔI PHỤC LOGIC CLICK RA NGOÀI ***
-  // Thu gọn khi click ra ngoài
+  // --- Mới: Thu gọn khi click/touch ra ngoài ---
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      // Nếu có lịch sử chat VÀ click ra ngoài -> thu gọn
-      if (
-        messages.length > 0 &&
-        chatRef.current &&
-        !chatRef.current.contains(event.target as Node)
-      ) {
+    const handleOutside = (event: Event) => {
+      if (chatRef.current && !chatRef.current.contains(event.target as Node)) {
         setExpanded(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [messages.length]); // Thêm dependency
 
-  // --- HÀM GỬI TIN NHẮN (NÂNG CẤP) ---
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("touchstart", handleOutside); // mobile support
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("touchstart", handleOutside);
+    };
+  }, []);
+
   const handleSend = async () => {
     if (!message.trim() || isLoadingAI) return;
 
-    // 👇 *** MỞ RỘNG KHI GỬI ***
     setExpanded(true);
 
     const textToSend = message.trim();
@@ -84,12 +68,9 @@ export function ChatBar() {
     setMessages((prev) => [...prev, userMessage]);
 
     setMessage("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "40px";
-    }
+    if (textareaRef.current) textareaRef.current.style.height = "40px";
     setIsLoadingAI(true);
 
-    // ... (Toàn bộ logic try/catch/finally giữ nguyên) ...
     try {
       const position = await new Promise<GeolocationPosition | null>(
         (resolve) => {
@@ -108,9 +89,8 @@ export function ChatBar() {
 
       const res = await api.post("/api/chat/message", payload);
       const aiResponseText = res.data?.content?.text;
-      if (!aiResponseText) {
-        throw new Error("Phản hồi từ AI không hợp lệ");
-      }
+      if (!aiResponseText) throw new Error("Phản hồi từ AI không hợp lệ");
+
       const aiMessage: ChatMessage = {
         _id: `temp-ai-${Date.now()}`,
         senderType: "AI",
@@ -133,13 +113,11 @@ export function ChatBar() {
       ref={chatRef}
       className={`w-full max-w-4xl mx-auto rounded-3xl transition-all duration-500
         hover:border-gray-300 hover:shadow-lg hover:shadow-gray-200
-        ${
-          // 👇 *** SỬA LẠI CHIỀU CAO CHÍNH XÁC ***
-          expanded ? "h-[550px]" : "h-[290px]"
-        }`}
+        ${expanded ? "h-[550px]" : "h-[290px]"}
+      `}
     >
       <div className="relative bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl border border-gray-200/50 p-6 h-full flex flex-col">
-        {/* Header (Giữ nguyên) */}
+        {/* Header */}
         <div className="flex items-start gap-3 mb-4">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center flex-shrink-0">
             <span className="text-lg">🤖</span>
@@ -162,13 +140,12 @@ export function ChatBar() {
           </div>
         </div>
 
-        {/* --- Nội dung chat cuộn --- */}
+        {/* Nội dung chat */}
         <div className="flex-1 overflow-hidden mb-3 -mx-6 px-2">
           <ChatMessages messages={messages} isLoadingAI={isLoadingAI} />
         </div>
 
-        {/* Suggested Prompts (Chỉ hiện khi chưa chat và chưa gõ) */}
-        {/* 👇 *** BỎ `!expanded` ĐỂ NÓ LUÔN HIỆN KHI THU GỌN *** */}
+        {/* Suggested Prompts */}
         {messages.length === 0 && message.length === 0 && (
           <div className="flex flex-wrap gap-2 mb-3">
             {suggestedPrompts.map((prompt, index) => (
@@ -176,11 +153,10 @@ export function ChatBar() {
                 key={index}
                 onClick={() => {
                   setMessage(prompt.text);
-                  setExpanded(true); // 👈 Mở rộng ngay khi click
+                  setExpanded(true);
                   textareaRef.current?.focus();
                 }}
-                className={`
-                  px-3 py-1.5 rounded-full text-xs border transition-all flex items-center gap-1
+                className={`px-3 py-1.5 rounded-full text-xs border transition-all flex items-center gap-1
                   bg-${prompt.color}-50 hover:bg-${prompt.color}-100 text-${prompt.color}-700 border-${prompt.color}-200
                   hover:shadow-md
                 `}
@@ -191,13 +167,13 @@ export function ChatBar() {
           </div>
         )}
 
-        {/* Footer + Textarea dính đáy */}
+        {/* Footer + Textarea */}
         <div className="flex-shrink-0 border-t border-gray-200 pt-3">
           <textarea
             ref={textareaRef}
             value={message}
             onChange={handleInput}
-            onFocus={() => setExpanded(true)} // 👈 Mở rộng khi focus
+            onFocus={() => setExpanded(true)}
             placeholder="Hãy nói cho PrintZ biết bạn muốn in gì nhé…"
             className="w-full border rounded-3xl px-3 py-2 mb-2 outline-none placeholder:text-gray-400 overflow-hidden disabled:bg-gray-50"
             style={{ fontSize: "16px", minHeight: "40px", maxHeight: "200px" }}
@@ -210,7 +186,7 @@ export function ChatBar() {
             }}
           />
 
-          {/* ... (Toàn bộ code nút bấm giữ nguyên) ... */}
+          {/* Nút bấm */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 mb-2">
               {[

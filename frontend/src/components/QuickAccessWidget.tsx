@@ -26,12 +26,10 @@ export function QuickAccessWidget({
   recentMessages,
   onNewChat,
 }: QuickAccessWidgetProps) {
-  const [isOpen, setIsOpen] = useState(false);
-
   // Hàm handleNewChat đã chuyển lên App Component, ở đây chỉ gọi prop onNewChat
 
   return (
-    <HoverCard openDelay={100} closeDelay={150} onOpenChange={setIsOpen}>
+    <HoverCard openDelay={100} closeDelay={150}>
       <HoverCardTrigger asChild>
         <button
           className="fixed top-6 right-0 z-40 bg-white px-3 py-2 rounded-l-lg shadow-md border border-r-0 border-gray-200 hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700"
