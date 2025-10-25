@@ -91,7 +91,7 @@ export function ChatBar({
       ref={chatRef}
       className={`w-full max-w-4xl mx-auto rounded-2xl md:rounded-3xl transition-all duration-500
         hover:border-gray-300 hover:shadow-lg hover:shadow-gray-200
-        ${isExpanded ? "h-[450px] md:h-[550px]" : "h-[250px] md:h-[290px]"} 
+        ${isExpanded ? "h-[450px] md:h-[590px]" : "h-[250px] md:h-[290px]"} 
       `}
     >
       <div className="relative bg-white/90 backdrop-blur-lg rounded-2xl md:rounded-3xl shadow-xl border border-gray-200/50 p-4 md:p-6 h-full flex flex-col">
@@ -144,7 +144,7 @@ export function ChatBar({
         )}
 
         {/* Input Area */}
-        <div className="flex-shrink-0 border-t border-gray-200 pt-2 md:pt-3">
+        <div className="flex-shrink-0 border-gray-200 pt-2 md:pt-3">
           <textarea
             ref={textareaRef}
             value={message}
@@ -152,7 +152,7 @@ export function ChatBar({
             onFocus={() => setIsExpanded(true)}
             placeholder="Bạn muốn in gì?"
             className="w-full border rounded-2xl md:rounded-3xl px-3 py-2 mb-2 outline-none text-sm md:text-base placeholder:text-gray-400 overflow-hidden disabled:bg-gray-50"
-            style={{ minHeight: "40px", maxHeight: "120px" }}
+            style={{ minHeight: "30px", maxHeight: "130px" }}
             disabled={isLoadingAI}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -189,7 +189,7 @@ export function ChatBar({
                 "Đang nghĩ..."
               ) : (
                 <>
-                  <Send size={16} className="md:w-[18px] md:h-[18px]" />
+                  <Send size={14} className="md:w-[18px] md:h-[18px]" />
                   <span className="hidden sm:inline">Gửi</span>
                 </>
               )}
