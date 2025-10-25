@@ -1,14 +1,14 @@
-// src/pages/printer/SettingsPage.tsx (ĐÃ SỬA)
+// src/pages/printer/SettingsPage.tsx (ĐÃ SỬA LỖI TYPESCRIPT)
 
 import * as z from "zod";
-// 👈 SỬA LỖI TS2345, TS2719: Import SubmitHandler
-import { useForm, SubmitHandler, FieldValues } from "react-hook-form";
+// 👈 SỬA LỖI TS6133: Xóa FieldValues không sử dụng
+import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-// 👈 SỬA LỖI: Dùng alias path
-import { useAuthStore } from "@/stores/useAuthStore";
-import api from "@/lib/axios"; // 👈 SỬA LỖI: Dùng alias path
+// 👈 SỬA LỖI: Dùng đường dẫn tương đối để đảm bảo Vercel tìm thấy file
+import { useAuthStore } from "../../stores/useAuthStore";
+import api from "../../lib/axios";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom"; // Import useNavigate
+import { useNavigate } from "react-router-dom";
 
 import { Building2, MapPin, Phone, Mail, Printer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,10 +34,10 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-// 1. Schema - (Giữ nguyên, chỉ sửa lại optional)
+// 1. Schema (Giữ nguyên)
 const settingsSchema = z.object({
   displayName: z.string().min(2, "Tên xưởng in phải có ít nhất 2 ký tự"),
-  phone: z.string().optional().or(z.literal("")), // Cho phép chuỗi rỗng
+  phone: z.string().optional().or(z.literal("")),
   addressStreet: z.string().optional().or(z.literal("")),
   addressWard: z.string().optional().or(z.literal("")),
   addressDistrict: z.string().optional().or(z.literal("")),
@@ -52,7 +52,7 @@ export function SettingsPage() {
   const { user, setUser, loading: authLoading } = useAuthStore();
   const navigate = useNavigate();
 
-  // --- Thêm kiểm tra Loading và User ---
+  // --- Kiểm tra Loading và User (Giữ nguyên) ---
   if (authLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -86,7 +86,7 @@ export function SettingsPage() {
     },
   });
 
-  // 3. Hàm Submit (👈 SỬA LỖI TS2345: Gõ tường minh SubmitHandler)
+  // 3. Hàm Submit (Giữ nguyên SubmitHandler type)
   const onSubmit: SubmitHandler<SettingsFormValues> = async (values) => {
     try {
       const payload = {
@@ -107,11 +107,10 @@ export function SettingsPage() {
         },
       };
 
-      const response = await api.put("/printer/profile", payload); // 👈 Sửa endpoint
+      const response = await api.put("/printer/profile", payload);
       setUser(response.data.printer);
       toast.success("Cập nhật hồ sơ thành công!");
 
-      // Reset form về giá trị mới sau khi cập nhật
       form.reset({
         displayName: response.data.printer.displayName || "",
         phone: response.data.printer.phone || "",
@@ -149,7 +148,7 @@ export function SettingsPage() {
 
   return (
     <Form {...form}>
-      {/* 👈 SỬA LỖI TS2345: Bỏ <SettingsFormValues> ở đây */}
+      {/* 👈 SỬA LỖI TS2345: Bỏ generic type ở đây */}
       <form onSubmit={form.handleSubmit(onSubmit)} className="h-full">
         <ScrollArea className="h-full flex-1 bg-gray-50">
           <div className="p-8 max-w-6xl mx-auto">
@@ -173,7 +172,7 @@ export function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* 👈 SỬA LỖI TS2719: Đã khớp type */}
+                  {/* 👈 SỬA LỖI TS2719: Các FormField bên dưới đã khớp type */}
                   <FormField
                     control={form.control}
                     name="displayName"

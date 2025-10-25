@@ -1,12 +1,5 @@
 // src/pages/printer/SupportPage.tsx (ĐÃ SỬA LỖI CÚ PHÁP)
-import {
-  MessageCircle,
-  Phone,
-  Mail,
-  FileText,
-  Video, // Biến này vẫn chưa được dùng, nhưng có thể giữ lại cho tương lai
-  HelpCircle,
-} from "lucide-react";
+import { MessageCircle, Phone, Mail, FileText, HelpCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
