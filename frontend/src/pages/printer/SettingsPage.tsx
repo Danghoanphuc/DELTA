@@ -1,16 +1,17 @@
-// src/pages/printer/SettingsPage.tsx (ĐÃ SỬA LỖI TYPESCRIPT)
+// src/pages/printer/SettingsPage.tsx (ĐÃ SỬA LỖI ĐƯỜNG DẪN)
 
 import * as z from "zod";
 // 👈 SỬA LỖI TS6133: Xóa FieldValues không sử dụng
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-// 👈 SỬA LỖI: Dùng đường dẫn tương đối để đảm bảo Vercel tìm thấy file
-import { useAuthStore } from "../../stores/useAuthStore";
-import api from "../../lib/axios";
+// 👈 SỬA LỖI: Quay lại sử dụng alias path
+import { useAuthStore } from "@/stores/useAuthStore";
+import api from "@/lib/axios";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
 import { Building2, MapPin, Phone, Mail, Printer } from "lucide-react";
+// 👈 SỬA LỖI: Quay lại sử dụng alias path
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

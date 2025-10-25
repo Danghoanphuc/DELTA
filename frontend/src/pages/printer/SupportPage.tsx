@@ -1,11 +1,17 @@
-// src/pages/printer/SupportPage.tsx (ĐÃ SỬA LỖI CÚ PHÁP)
-import { MessageCircle, Phone, Mail, FileText, HelpCircle } from "lucide-react";
+// src/pages/printer/SupportPage.tsx (ĐÃ SỬA)
+import {
+  MessageCircle,
+  Phone,
+  Mail,
+  FileText,
+  // Video, // 👈 SỬA LỖI TS6133: Xóa import không dùng
+  HelpCircle,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label"; // Thêm import Label
-// Thêm import Accordion (Giả sử bạn đã có component này)
+import { Label } from "@/components/ui/label";
 import {
   Accordion,
   AccordionContent,
@@ -14,7 +20,6 @@ import {
 } from "@/components/ui/accordion";
 
 export function SupportPage() {
-  // Sử dụng biến 'faqs'
   const faqs = [
     {
       question: "Làm thế nào để thêm sản phẩm mới?",
@@ -33,7 +38,6 @@ export function SupportPage() {
     },
   ];
 
-  // Dữ liệu mẫu cho các phương thức liên hệ
   const contactMethods = [
     {
       icon: MessageCircle,
@@ -58,8 +62,6 @@ export function SupportPage() {
     },
   ];
 
-  // (Biến `Video` chưa dùng, nhưng ta bỏ qua lỗi đó vì nó có thể dùng sau)
-
   return (
     <div className="flex-1 overflow-auto bg-gray-50">
       <div className="p-8 max-w-6xl mx-auto">
@@ -71,7 +73,7 @@ export function SupportPage() {
           </p>
         </div>
 
-        {/* --- SỬA LỖI CÚ PHÁP: Thêm JSX sử dụng component --- */}
+        {/* --- Phần JSX --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {contactMethods.map((method) => (
             <Card key={method.title} className="border-none shadow-sm bg-white">
@@ -83,10 +85,6 @@ export function SupportPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-gray-500 mb-4">{method.desc}</p>
-                {/* SỬA LỖI CÚ PHÁP TẠI ĐÂY: 
-                  Chuyển text vào bên trong component Button 
-                  và sử dụng method.button
-                */}
                 <Button
                   className={`w-full bg-${method.color}-600 hover:bg-${method.color}-700`}
                 >
@@ -97,9 +95,6 @@ export function SupportPage() {
           ))}
         </div>
 
-        {/* SỬA LỖI UNUSED: 
-          Thêm phần JSX còn lại để sử dụng Accordion, Input, Textarea...
-        */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* FAQ */}
           <Card className="border-none shadow-sm bg-white">
@@ -110,7 +105,6 @@ export function SupportPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Sử dụng Accordion và biến 'faqs' */}
               <Accordion type="single" collapsible className="w-full">
                 {faqs.map((faq, index) => (
                   <AccordionItem value={`item-${index}`} key={index}>
@@ -132,7 +126,6 @@ export function SupportPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                {/* Sử dụng Label và Input */}
                 <Label htmlFor="subject">Tiêu đề</Label>
                 <Input
                   id="subject"
@@ -141,7 +134,6 @@ export function SupportPage() {
                 />
               </div>
               <div>
-                {/* Sử dụng Label và Textarea */}
                 <Label htmlFor="message">Nội dung</Label>
                 <Textarea
                   id="message"
