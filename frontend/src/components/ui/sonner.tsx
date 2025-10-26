@@ -1,16 +1,40 @@
-"use client"
+// frontend/src/components/ui/sonner.tsx (ĐÃ SỬA)
+"use client"; // Giữ lại directive này nếu cần cho các component khác dùng nó
 
-import { useTheme } from "next-themes"
-import { Toaster as Sonner } from "sonner"
+// Bỏ import useTheme từ next-themes
+// import { useTheme } from "next-themes"
+import { Toaster as Sonner } from "sonner";
+import React, { useState, useEffect } from "react"; // Thêm import React và hooks
 
-type ToasterProps = React.ComponentProps<typeof Sonner>
+type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  // Bỏ useTheme()
+  // const { theme = "system" } = useTheme()
+
+  // Sử dụng state để lưu theme, mặc định là 'light'
+  const [effectiveTheme, setEffectiveTheme] = useState<"light" | "dark">(
+    "light"
+  );
+
+  useEffect(() => {
+    // Kiểm tra media query khi component mount và khi theme hệ thống thay đổi
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = () => {
+      setEffectiveTheme(mediaQuery.matches ? "dark" : "light");
+    };
+
+    handleChange(); // Kiểm tra lần đầu
+    mediaQuery.addEventListener("change", handleChange); // Lắng nghe thay đổi
+
+    // Cleanup listener
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []); // Chỉ chạy 1 lần khi mount
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      // Sử dụng state theme đã xác định
+      theme={effectiveTheme} // Truyền 'light' hoặc 'dark'
       className="toaster group"
       toastOptions={{
         classNames: {
@@ -25,7 +49,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       {...props}
     />
-  )
-}
+  );
+};
 
-export { Toaster }
+export { Toaster };

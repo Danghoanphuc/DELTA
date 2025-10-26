@@ -1,4 +1,4 @@
-// frontend/src/stores/useCartStore.ts
+// frontend/src/stores/useCartStore.ts (IMPROVED VERSION)
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
@@ -9,6 +9,7 @@ import api from "@/lib/axios";
 interface CartState {
   cart: Cart | null;
   isLoading: boolean;
+  error: string | null;
 
   // Actions
   fetchCart: () => Promise<void>;
@@ -21,6 +22,10 @@ interface CartState {
   getCartItemCount: () => number;
   getCartTotal: () => number;
   isInCart: (productId: string) => boolean;
+
+  // Internal helpers
+  _updateCartLocally: (cart: Cart) => void;
+  _removeItemLocally: (cartItemId: string) => void;
 }
 
 export const useCartStore = create<CartState>()(
@@ -28,35 +33,72 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       cart: null,
       isLoading: false,
+      error: null,
+
+      // ==================== INTERNAL HELPERS ====================
+      _updateCartLocally: (cart: Cart) => {
+        set({ cart, error: null });
+      },
+
+      _removeItemLocally: (cartItemId: string) => {
+        const currentCart = get().cart;
+        if (!currentCart) return;
+
+        const updatedItems = currentCart.items.filter(
+          (item) => item._id !== cartItemId
+        );
+
+        const updatedCart: Cart = {
+          ...currentCart,
+          items: updatedItems,
+          totalItems: updatedItems.reduce(
+            (sum, item) => sum + item.quantity,
+            0
+          ),
+          totalAmount: updatedItems.reduce(
+            (sum, item) => sum + item.subtotal,
+            0
+          ),
+        };
+
+        set({ cart: updatedCart });
+      },
 
       // ==================== FETCH CART ====================
       fetchCart: async () => {
         try {
-          set({ isLoading: true });
+          set({ isLoading: true, error: null });
           const res = await api.get("/cart");
           set({ cart: res.data.cart });
         } catch (err: any) {
           console.error("❌ [FetchCart Error]", err);
-          // Không toast lỗi nếu giỏ hàng trống
+          const errorMsg =
+            err.response?.data?.message || "Không thể tải giỏ hàng";
+          set({ error: errorMsg });
+
+          // Chỉ toast nếu không phải lỗi 404 (giỏ hàng trống)
           if (err.response?.status !== 404) {
-            toast.error("Không thể tải giỏ hàng");
+            toast.error(errorMsg);
           }
         } finally {
           set({ isLoading: false });
         }
       },
 
-      // ==================== ADD TO CART ====================
+      // ==================== ADD TO CART (OPTIMISTIC) ====================
       addToCart: async (payload: AddToCartPayload) => {
         try {
-          set({ isLoading: true });
+          set({ isLoading: true, error: null });
           const res = await api.post("/cart/add", payload);
-          set({ cart: res.data.cart });
-          toast.success("Đã thêm vào giỏ hàng! 🛒");
+
+          // Update cart with server response
+          get()._updateCartLocally(res.data.cart);
+          toast.success("✅ Đã thêm vào giỏ hàng!");
         } catch (err: any) {
           console.error("❌ [AddToCart Error]", err);
           const msg =
             err.response?.data?.message || "Không thể thêm vào giỏ hàng";
+          set({ error: msg });
           toast.error(msg);
           throw err;
         } finally {
@@ -64,22 +106,60 @@ export const useCartStore = create<CartState>()(
         }
       },
 
-      // ==================== UPDATE CART ITEM ====================
+      // ==================== UPDATE CART ITEM (OPTIMISTIC) ====================
       updateCartItem: async (cartItemId: string, quantity: number) => {
         if (quantity < 1) {
           toast.error("Số lượng phải lớn hơn 0");
           return;
         }
 
+        // Optimistic update
+        const currentCart = get().cart;
+        if (!currentCart) return;
+
+        const oldCart = { ...currentCart };
+
         try {
-          set({ isLoading: true });
+          // Update locally first (optimistic)
+          const updatedItems = currentCart.items.map((item) => {
+            if (item._id === cartItemId) {
+              const newSubtotal =
+                (item.selectedPrice?.pricePerUnit || 0) * quantity;
+              return { ...item, quantity, subtotal: newSubtotal };
+            }
+            return item;
+          });
+
+          const optimisticCart: Cart = {
+            ...currentCart,
+            items: updatedItems,
+            totalItems: updatedItems.reduce(
+              (sum, item) => sum + item.quantity,
+              0
+            ),
+            totalAmount: updatedItems.reduce(
+              (sum, item) => sum + item.subtotal,
+              0
+            ),
+          };
+
+          set({ cart: optimisticCart });
+
+          // Then update on server
+          set({ isLoading: true, error: null });
           const res = await api.put("/cart/update", { cartItemId, quantity });
-          set({ cart: res.data.cart });
-          toast.success("Đã cập nhật giỏ hàng");
+
+          // Sync with server response
+          get()._updateCartLocally(res.data.cart);
         } catch (err: any) {
           console.error("❌ [UpdateCart Error]", err);
+
+          // Rollback on error
+          set({ cart: oldCart });
+
           const msg =
             err.response?.data?.message || "Không thể cập nhật giỏ hàng";
+          set({ error: msg });
           toast.error(msg);
           throw err;
         } finally {
@@ -87,17 +167,34 @@ export const useCartStore = create<CartState>()(
         }
       },
 
-      // ==================== REMOVE FROM CART ====================
+      // ==================== REMOVE FROM CART (OPTIMISTIC) ====================
       removeFromCart: async (cartItemId: string) => {
+        const currentCart = get().cart;
+        if (!currentCart) return;
+
+        const oldCart = { ...currentCart };
+
         try {
-          set({ isLoading: true });
+          // Optimistic removal
+          get()._removeItemLocally(cartItemId);
+
+          toast.success("🗑️ Đã xóa khỏi giỏ hàng");
+
+          // Then update on server
+          set({ isLoading: true, error: null });
           const res = await api.delete(`/cart/remove/${cartItemId}`);
-          set({ cart: res.data.cart });
-          toast.success("Đã xóa khỏi giỏ hàng");
+
+          // Sync with server
+          get()._updateCartLocally(res.data.cart);
         } catch (err: any) {
           console.error("❌ [RemoveFromCart Error]", err);
+
+          // Rollback on error
+          set({ cart: oldCart });
+
           const msg =
             err.response?.data?.message || "Không thể xóa khỏi giỏ hàng";
+          set({ error: msg });
           toast.error(msg);
           throw err;
         } finally {
@@ -108,13 +205,14 @@ export const useCartStore = create<CartState>()(
       // ==================== CLEAR CART ====================
       clearCart: async () => {
         try {
-          set({ isLoading: true });
+          set({ isLoading: true, error: null });
           await api.delete("/cart/clear");
           set({ cart: null });
-          toast.success("Đã xóa toàn bộ giỏ hàng");
         } catch (err: any) {
           console.error("❌ [ClearCart Error]", err);
-          toast.error("Không thể xóa giỏ hàng");
+          const msg = err.response?.data?.message || "Không thể xóa giỏ hàng";
+          set({ error: msg });
+          toast.error(msg);
           throw err;
         } finally {
           set({ isLoading: false });
@@ -122,14 +220,10 @@ export const useCartStore = create<CartState>()(
       },
 
       // ==================== HELPERS ====================
-
       getCartItemCount: () => {
         const cart = get().cart;
         if (!cart) return 0;
-        return (
-          cart.totalItems ||
-          cart.items.reduce((sum, item) => sum + item.quantity, 0)
-        );
+        return cart.items.reduce((sum, item) => sum + item.quantity, 0);
       },
 
       getCartTotal: () => {
@@ -149,6 +243,11 @@ export const useCartStore = create<CartState>()(
       partialize: (state) => ({
         cart: state.cart,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (import.meta.env.DEV) {
+          console.log("♻️ [Rehydrate CartStore]", state?.cart);
+        }
+      },
     }
   )
 );

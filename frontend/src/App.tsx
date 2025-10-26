@@ -1,4 +1,4 @@
-// frontend/src/App.tsx (CẬP NHẬT - THÊM SHOP & CHECKOUT ROUTES)
+// frontend/src/App.tsx (UPDATED - THÊM ORDER DETAIL ROUTES)
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import { Toaster } from "sonner";
@@ -16,8 +16,9 @@ import { TrendsPage } from "./pages/customer/TrendsPage";
 import { CustomerOrdersPage } from "./pages/customer/CustomerOrdersPage";
 import { CustomerDesignsPage } from "./pages/customer/CustomerDesignsPage";
 import { CustomerSettingsPage } from "./pages/customer/CustomerSettingsPage";
-import { ShopPage } from "./pages/customer/ShopPage"; // <-- MỚI
-import { CheckoutPage } from "./pages/customer/CheckoutPage"; // <-- MỚI
+import { ShopPage } from "./pages/customer/ShopPage";
+import { CheckoutPage } from "./pages/customer/CheckoutPage";
+import { OrderDetailPage } from "./pages/OrderDetailPage"; // <-- MỚI
 import { useAuthStore } from "@/stores/useAuthStore";
 
 function App() {
@@ -25,7 +26,6 @@ function App() {
 
   useEffect(() => {
     const handleOAuthMessage = async (event: MessageEvent) => {
-      // Verify the origin of the message for security
       const validOrigins = [
         import.meta.env.VITE_SERVER_URL,
         "http://localhost:5001",
@@ -42,7 +42,6 @@ function App() {
 
         if (accessToken) {
           setAccessToken(accessToken);
-          // Fetch user data to update the store
           try {
             await fetchMe(true);
           } catch (error) {
@@ -58,7 +57,6 @@ function App() {
 
   return (
     <>
-      {/* Toast với vị trí phù hợp mobile */}
       <Toaster richColors position="top-center" />
       <Routes>
         {/* Public Routes */}
@@ -73,8 +71,16 @@ function App() {
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<RootPage />} />
-          <Route path="/shop" element={<ShopPage />} /> {/* <-- MỚI */}
-          <Route path="/checkout" element={<CheckoutPage />} /> {/* <-- MỚI */}
+          <Route path="/shop" element={<ShopPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+
+          {/* Order Detail Routes - Universal */}
+          <Route path="/orders/:orderId" element={<OrderDetailPage />} />
+          <Route
+            path="/printer/orders/:orderId"
+            element={<OrderDetailPage />}
+          />
+
           <Route path="/orders" element={<CustomerOrdersPage />} />
           <Route path="/designs" element={<CustomerDesignsPage />} />
           <Route path="/settings" element={<CustomerSettingsPage />} />
