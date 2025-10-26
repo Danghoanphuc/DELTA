@@ -1,21 +1,22 @@
-// frontend/src/components/ui/SocialButton.tsx (CẬP NHẬT)
-import { useEffect } from "react";
+// frontend/src/components/ui/SocialButton.tsx (ĐÃ SỬA)
+
+// KHẮC PHỤC: Xóa import 'useEffect' không được sử dụng
+// import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/stores/useAuthStore";
 import { toast } from "sonner";
-import { Mail } from "lucide-react"; // <-- THÊM
+import { Mail } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
-type SocialProvider = "google" | "email"; // <-- THÊM "email"
-type AuthRole = "customer" | "printer"; // <-- THÊM
+type SocialProvider = "google" | "email";
+type AuthRole = "customer" | "printer";
 
 interface SocialButtonProps {
   provider: SocialProvider;
-  role: AuthRole; // <-- THÊM role
+  role: AuthRole;
   className?: string;
-  onClick?: () => void; // <-- THÊM onClick cho nút Email
-  children?: React.ReactNode; // <-- THÊM children
+  onClick?: () => void;
+  children?: React.ReactNode;
 }
 
 export function SocialButton({
@@ -25,8 +26,6 @@ export function SocialButton({
   onClick,
   children,
 }: SocialButtonProps) {
-  const { setAccessToken, setUser, fetchMe } = useAuthStore();
-
   const providerConfig = {
     google: {
       name: "Google",
@@ -54,7 +53,6 @@ export function SocialButton({
         </svg>
       ),
     },
-    // (MỚI) Định nghĩa cho nút email
     email: {
       name: "Tiếp tục với Email",
       bgColor: "bg-gray-900 hover:bg-gray-800",
@@ -66,69 +64,7 @@ export function SocialButton({
 
   const config = providerConfig[provider];
 
-  // ✅ Lắng nghe message từ popup OAuth
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      // Kiểm tra origin an toàn
-      const allowedOrigins = [
-        API_BASE_URL,
-        window.location.origin,
-        "http://localhost:5001",
-        "https://delta-j7qn.onrender.com",
-      ];
-
-      if (
-        !allowedOrigins.some((origin) =>
-          event.origin.includes(origin.replace(/^https?:\/\//, ""))
-        )
-      ) {
-        console.warn("⚠️ Message từ origin không hợp lệ:", event.origin);
-        return;
-      }
-
-      try {
-        const data =
-          typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-
-        if (data?.type === "GOOGLE_AUTH_SUCCESS" && data?.accessToken) {
-          console.log("✅ Nhận được auth data từ popup:", data.user?.email);
-
-          // 1. Lưu accessToken vào store
-          setAccessToken(data.accessToken);
-          console.log("✅ Đã lưu accessToken vào store");
-
-          // 2. Lưu user vào store
-          if (data.user) {
-            setUser(data.user);
-            console.log("✅ Đã lưu user vào store");
-          }
-
-          // 3. Fetch thông tin user đầy đủ
-          fetchMe(true).then(() => {
-            console.log("✅ Đã fetch user info");
-            toast.success(
-              `Chào mừng ${data.user?.displayName || "bạn"} đến với PrintZ! 🎉`
-            );
-
-            // 4. Chuyển hướng về trang chủ
-            setTimeout(() => {
-              window.location.href = "/";
-            }, 1000);
-          });
-        }
-      } catch (err) {
-        console.error("❌ Lỗi xử lý message:", err);
-        toast.error("Đăng nhập thất bại, vui lòng thử lại!");
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, [setAccessToken, setUser, fetchMe]);
-
-  // ✅ Hàm mở popup OAuth (CẬP NHẬT)
   const openOAuthPopup = () => {
-    // Nếu là 'email', chỉ cần gọi onClick
     if (provider === "email" && onClick) {
       onClick();
       return;
@@ -138,8 +74,6 @@ export function SocialButton({
     const height = 700;
     const left = window.screen.width / 2 - width / 2;
     const top = window.screen.height / 2 - height / 2;
-
-    // ✅ GẮN VAI TRÒ (role) VÀO URL
     const oauthUrl = `${API_BASE_URL}/api/auth/google?role=${role}`;
 
     console.log(`🔄 Mở popup OAuth: ${oauthUrl}`);
@@ -155,7 +89,6 @@ export function SocialButton({
       return;
     }
 
-    // Kiểm tra popup có bị đóng giữa chừng không
     const checkPopup = setInterval(() => {
       if (popup.closed) {
         clearInterval(checkPopup);
@@ -181,7 +114,6 @@ export function SocialButton({
       <span className="flex-shrink-0 transition-transform duration-200 group-hover:scale-110">
         {config.icon}
       </span>
-      {/* (SỬA) Dùng children nếu có, nếu không thì dùng config.name */}
       <span className="flex-1 text-center font-semibold">
         {children || config.name}
       </span>
