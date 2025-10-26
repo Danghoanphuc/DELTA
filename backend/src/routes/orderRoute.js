@@ -1,6 +1,6 @@
 // backend/src/routes/orderRoute.js (ĐÃ CẬP NHẬT HOÀN CHỈNH)
 import express from "express";
-import { isAuthenticated } from "../middleware/authMiddleware.js";
+import { protect } from "../middleware/authMiddleware.js";
 import {
   createOrder,
   getMyOrders, // Customer get their orders
@@ -13,7 +13,7 @@ import {
 const router = express.Router();
 
 // Tất cả API đơn hàng đều yêu cầu đăng nhập
-router.use(isAuthenticated);
+router.use(protect);
 
 // === CUSTOMER ROUTES ===
 router.post("/", createOrder); // POST /api/orders (Customer tạo đơn)

@@ -5,7 +5,7 @@ import { connectDB } from "./libs/db.js";
 import authRoute from "./routes/authRoute.js";
 import userRoute from "./routes/userRoute.js";
 import cookieParser from "cookie-parser";
-import { isAuthenticated } from "./middleware/authMiddleware.js";
+import { protect } from "./middleware/authMiddleware.js";
 import passport from "passport";
 import session from "express-session";
 import "./config/passport-setup.js";
@@ -96,10 +96,10 @@ app.get("/", (req, res) => {
 
 // API Routes
 app.use("/api/auth", authRoute);
-app.use("/api/users", isAuthenticated, userRoute);
+app.use("/api/users", protect, userRoute);
 app.use("/api/auth", authOAuthRoute);
 app.use("/api/chat", chatRoute);
-app.use("/api/printer", isAuthenticated, printerRoute);
+app.use("/api/printer", protect, printerRoute);
 app.use("/api/products", productRoute);
 app.use("/api/orders", orderRoute);
 app.use("/api/cart", cartRoute);

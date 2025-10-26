@@ -1,6 +1,6 @@
 // backend/src/routes/cartRoute.js - ĐÃ CẬP NHẬT ĐẦY ĐỦ
 import express from "express";
-import { isAuthenticated } from "../middleware/authMiddleware.js";
+import { protect } from "../middleware/authMiddleware.js";
 import {
   getCart,
   addToCart,
@@ -13,7 +13,7 @@ import {
 const router = express.Router();
 
 // Bảo vệ tất cả các route giỏ hàng, user phải đăng nhập
-router.use(isAuthenticated);
+router.use(protect);
 
 // === CART ROUTES ===
 router.route("/").get(getCart); // GET /api/cart - Lấy giỏ hàng
