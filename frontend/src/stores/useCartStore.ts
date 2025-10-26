@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { toast } from "sonner";
-import { Cart, CartItem, AddToCartPayload } from "@/types/cart";
+import { Cart, AddToCartPayload } from "@/types/cart";
 import api from "@/lib/axios";
 
 interface CartState {

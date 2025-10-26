@@ -1,6 +1,5 @@
 // frontend/src/components/printer/AddProductForm.tsx (FIXED API ENDPOINT)
 
-import React from "react";
 import { useForm, useFieldArray, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -29,8 +28,8 @@ import api from "@/lib/axios"; // Assuming axios instance is correctly configure
 
 // --- (Schemas remain the same) ---
 const pricingSchema = z.object({
-  minQuantity: z.coerce.number().min(1, "Số lượng phải > 0"),
-  pricePerUnit: z.coerce.number().min(100, "Giá phải > 100"),
+  minQuantity: z.number().min(1, "Số lượng phải > 0"),
+  pricePerUnit: z.number().min(100, "Giá phải > 100"),
 });
 
 const productFormSchema = z.object({

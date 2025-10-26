@@ -1,7 +1,7 @@
 // frontend/src/components/shop/ProductCard.tsx
 
 import { useState } from "react";
-import { ShoppingCart, Eye, Heart, MapPin } from "lucide-react";
+import { ShoppingCart, Eye, Heart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

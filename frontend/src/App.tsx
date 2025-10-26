@@ -38,7 +38,7 @@ function App() {
 
       if (event.data?.type === "GOOGLE_AUTH_SUCCESS") {
         console.log("✅ OAuth message received");
-        const { accessToken, user } = event.data;
+        const { accessToken } = event.data;
 
         if (accessToken) {
           setAccessToken(accessToken);

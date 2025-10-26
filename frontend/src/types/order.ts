@@ -1,7 +1,5 @@
 // frontend/src/types/order.ts
 
-import { CartItem } from "./cart";
-
 // ==================== ORDER STATUS ====================
 
 export type OrderStatus =
