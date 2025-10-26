@@ -14,102 +14,109 @@ import chatRoute from "./routes/chatRoute.js";
 import printerRoute from "./routes/printerRoute.js";
 import productRoute from "./routes/productRoute.js";
 import orderRoute from "./routes/orderRoute.js";
-const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 ngày
+import cartRoute from "./routes/cartRoute.js";
+
+const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 days
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// ... (code khác của app)
-
-// 1. Định nghĩa WhiteList
+// CORS Configuration
 const whiteList = [
-  "https://www.printz.vn", // Domain production
+  "https://www.printz.vn",
   "http://localhost:5173",
-  "https://delta-j7qn.onrender.com", // Domain frontend dev (thay 5173 bằng port của bạn)
+  "https://delta-j7qn.onrender.com",
 ];
 
-// 2. Tạo Cấu hình CORS
 const corsOptions = {
   origin: function (origin, callback) {
-    const whiteList = [
-      "https://www.printz.vn",
-      "http://localhost:5173",
-      "https://your-frontend.vercel.app", // Thay bằng domain frontend của bạn
-    ];
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
 
-    // ✅ Cho phép request không có origin (postMessage, popup)
-    if (
-      !origin ||
-      whiteList.some((allowed) =>
-        origin.includes(allowed.replace(/^https?:\/\//, ""))
-      )
-    ) {
+    // Check if origin is in whitelist
+    const isAllowed = whiteList.some((allowed) => {
+      const normalizedOrigin = origin.replace(/^https?:\/\//, "");
+      const normalizedAllowed = allowed.replace(/^https?:\/\//, "");
+      return normalizedOrigin === normalizedAllowed;
+    });
+
+    if (isAllowed) {
       callback(null, true);
     } else {
       console.error(`❌ CORS Blocked: ${origin}`);
-      callback(new Error(`Origin ${origin} not allowed`));
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
     }
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  exposedHeaders: ["Set-Cookie"], // ✅ Thêm dòng này
+  exposedHeaders: ["Set-Cookie"],
 };
 
-// 3. Sử dụng các middleware
-app.use(cors(corsOptions)); // <-- SỬ DỤNG CẤU HÌNH Ở TRÊN
+// Middleware setup
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
-// ... (code các routes của bạn)
-
-// --- (MỚI) Cấu hình Express Session ---
-// Passport dùng session để lưu thông tin user giữa các request
+// Express Session Configuration
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "your_fallback_session_secret", // 👈 Thêm biến SESSION_SECRET vào Render
+    secret: process.env.SESSION_SECRET || "your_fallback_session_secret",
     resave: false,
-    saveUninitialized: false, // Chỉ lưu session khi có gì đó thay đổi
+    saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === "production", // Chỉ gửi cookie qua HTTPS khi ở production
-      httpOnly: true, // Ngăn JavaScript truy cập cookie
-      maxAge: REFRESH_TOKEN_TTL, // Có thể dùng lại biến thời gian hết hạn refresh token
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Quan trọng cho cross-site
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      maxAge: REFRESH_TOKEN_TTL,
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     },
   })
 );
 
-// --- (MỚI) Khởi tạo Passport ---
-app.use(passport.initialize()); // Bật Passport
-app.use(passport.session()); // Cho Passport dùng session
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
 
-// --- NGƯỜI ĐƯA TIN CỦA BẾP TRƯỞNG ---
-app.use((req, res, next) => {
-  console.log(
-    `--- Máy chủ: Vừa nhận được 1 yêu cầu ${req.method} đến ${req.path}`
-  );
-  next();
-});
+// Request logging middleware (only in development)
+if (process.env.NODE_ENV !== "production") {
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
+  });
+}
 
-// --- MÓN ĂN THỬ NGHIỆM CHO TRÌNH DUYỆT ---
+// Health check route
 app.get("/", (req, res) => {
-  console.log("--- Máy chủ: Đang xử lý yêu cầu GET /");
-  res.status(200).json({ message: "Nhà bếp đang hoạt động!" });
+  res.status(200).json({ message: "Server is running!", status: "healthy" });
 });
 
-// --- Điều phối ---
+// API Routes
 app.use("/api/auth", authRoute);
-app.use("/api/users", isAuthenticated, userRoute); //app.use("tên-khu-vực-VIP", baoVe, boiBanCuaKhuVucDo);
+app.use("/api/users", isAuthenticated, userRoute);
 app.use("/api/auth", authOAuthRoute);
 app.use("/api/chat", chatRoute);
 app.use("/api/printer", printerRoute);
 app.use("/api/products", productRoute);
 app.use("/api/orders", orderRoute);
-// --- Khởi động ---
+app.use("/api/cart", cartRoute);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error("Error:", err.message);
+  res.status(err.status || 500).json({
+    message: err.message || "Internal server error",
+    ...(process.env.NODE_ENV !== "production" && { stack: err.stack }),
+  });
+});
+
+// Start server
 connectDB().then(() => {
   app.listen(PORT, () => {
-    console.log(`Server bắt đầu trên cổng ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📍 Environment: ${process.env.NODE_ENV || "development"}`);
   });
 });

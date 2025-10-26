@@ -1,5 +1,7 @@
-// backend/src/models/Product.js (MỚI)
+// backend/src/models/Product.js
+
 import mongoose from "mongoose";
+
 const ProductSchema = new mongoose.Schema(
   {
     printerId: {
@@ -8,7 +10,7 @@ const ProductSchema = new mongoose.Schema(
       required: true,
     },
 
-    // --- Thông tin cơ bản ---
+    // Basic information
     name: { type: String, required: true },
     category: {
       type: String,
@@ -26,7 +28,7 @@ const ProductSchema = new mongoose.Schema(
       required: true,
     },
 
-    // --- Mô tả ---
+    // Description & Images
     description: { type: String, maxlength: 3000 },
     images: [
       {
@@ -36,7 +38,7 @@ const ProductSchema = new mongoose.Schema(
       },
     ],
 
-    // --- Giá & Số lượng ---
+    // Pricing tiers
     pricing: [
       {
         minQuantity: { type: Number, required: true },
@@ -45,40 +47,42 @@ const ProductSchema = new mongoose.Schema(
       },
     ],
 
-    // --- Thông số kỹ thuật ---
+    // Specifications
     specifications: {
-      material: String, // Giấy, vải, nhựa...
-      size: String, // A4, A5, custom...
-      color: String, // 4 màu, đen trắng...
-      finishing: String, // Cán màng, UV...
+      material: String, // Paper, fabric, plastic, etc.
+      size: String, // A4, A5, custom, etc.
+      color: String, // 4-color, black & white, etc.
+      finishing: String, // Lamination, UV coating, etc.
     },
 
-    // --- Thời gian sản xuất ---
+    // Production time
     productionTime: {
-      min: Number, // Số ngày tối thiểu
+      min: Number, // Minimum days
       max: Number,
     },
 
-    // --- Tùy chọn ---
+    // Customization options
     customization: {
       allowFileUpload: { type: Boolean, default: true },
-      acceptedFileTypes: [String], // pdf, ai, psd...
+      acceptedFileTypes: [String], // pdf, ai, psd, etc.
       hasDesignService: { type: Boolean, default: false },
       designServiceFee: Number,
     },
 
-    // --- Trạng thái ---
+    // Status
     isActive: { type: Boolean, default: true },
     stock: { type: Number, default: 0 },
 
-    // --- Metadata ---
+    // Metadata
     totalSold: { type: Number, default: 0 },
     views: { type: Number, default: 0 },
-    rating: { type: Number, default: 0 },
+    rating: { type: Number, default: 0, min: 0, max: 5 },
   },
   { timestamps: true }
 );
 
+// Indexes for efficient queries
 ProductSchema.index({ printerId: 1, category: 1 });
 ProductSchema.index({ name: "text", description: "text" });
+
 export const Product = mongoose.model("Product", ProductSchema);

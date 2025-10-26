@@ -1,58 +1,50 @@
-// backend/src/controllers/authController.js (BẢN SỬA LỖI CUỐI CÙNG)
+// backend/src/controllers/authController.js
 
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { User } from "../models/User.js";
 import Session from "../models/session.js";
-// ✅ ĐẢM BẢO IMPORT PrinterProfile (rất quan trọng)
 import { PrinterProfile } from "../models/PrinterProfile.js";
 import { sendVerificationEmail } from "../libs/email.js";
 
 const ACCESS_TOKEN_TTL = "30m";
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000;
 
-// --- HÀM TIỆN ÍCH TẠO TOKEN ---
+// === UTILITY FUNCTIONS ===
+
 export const generateAccessToken = (userId) => {
   return jwt.sign({ userId: userId }, process.env.ACCESS_TOKEN_SECRET, {
     expiresIn: ACCESS_TOKEN_TTL,
   });
 };
 
-// =============================================
-// --- CONTROLLER ĐĂNG KÝ (SIGN UP) ---
-// (Đã đồng bộ với AuthFlow)
-// =============================================
-export const signUp = async (req, res) => {
-  console.log("--- Hàm signUp: Đã nhận được yêu cầu!");
-  try {
-    // Frontend (AuthFlow) gửi 4 trường
-    const { username, password, email, displayName } = req.body;
-    console.log("--- Dữ liệu nhận được:", req.body);
+// === CONTROLLERS ===
 
-    // (AuthFlow đảm bảo username == email)
+// @desc    Sign up as customer
+// @route   POST /api/auth/signup
+// @access  Public
+export const signUp = async (req, res) => {
+  try {
+    const { username, password, email, displayName } = req.body;
+
     if (!password || !email || !displayName) {
-      console.log("--- BÁO CÁO: Dữ liệu đầu vào KHÔNG HỢP LỆ!");
       return res.status(400).json({
-        message: "Không thể thiếu password, email, và displayName",
+        message: "Missing required fields: password, email, and displayName",
       });
     }
 
     const duplicateEmail = await User.findOne({ email });
     if (duplicateEmail) {
-      console.log("--- BÁO CÁO: Email đã tồn tại.");
-      return res.status(409).json({ message: "Email này đã được sử dụng" });
+      return res.status(409).json({ message: "Email already in use" });
     }
 
-    console.log("--- Bước 3: Bắt đầu băm mật khẩu và tạo token...");
     const hashedPassword = await bcrypt.hash(password, 10);
     const verificationToken = crypto.randomBytes(32).toString("hex");
     const verificationTokenExpiresAt = new Date(Date.now() + 3600000);
 
-    console.log("--- Bước 4: Bắt đầu tạo user mới...");
-
     const newUser = await User.create({
-      username: email, // Bắt buộc gán username = email
+      username: email,
       hashedPassword,
       email,
       displayName,
@@ -61,25 +53,22 @@ export const signUp = async (req, res) => {
       role: "customer",
     });
 
-    console.log("--- Bước 5: Đã tạo user và lưu token thành công!");
     await sendVerificationEmail(newUser.email, verificationToken);
     return res.sendStatus(201);
   } catch (error) {
-    console.error("Lỗi khi gọi signUp", error);
-    return res.status(500).json({ message: "Lỗi hệ thống" });
+    console.error("Error in signUp:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// =============================================
-// --- CONTROLLER XÁC THỰC EMAIL ---
-// (Đã đồng bộ, trả về email)
-// =============================================
+// @desc    Verify email
+// @route   POST /api/auth/verify-email
+// @access  Public
 export const verifyEmail = async (req, res) => {
-  console.log("--- Hàm verifyEmail: Đã nhận được yêu cầu!");
   try {
     const { token } = req.body;
     if (!token) {
-      return res.status(400).json({ message: "Thiếu token" });
+      return res.status(400).json({ message: "Token is required" });
     }
 
     const user = await User.findOne({
@@ -90,7 +79,7 @@ export const verifyEmail = async (req, res) => {
     if (!user) {
       return res
         .status(400)
-        .json({ message: "Token không hợp lệ hoặc đã hết hạn" });
+        .json({ message: "Invalid or expired verification token" });
     }
 
     user.isVerified = true;
@@ -98,67 +87,46 @@ export const verifyEmail = async (req, res) => {
     user.verificationTokenExpiresAt = undefined;
     await user.save();
 
-    console.log("--- THÀNH CÔNG: User đã xác thực email!");
     return res.status(200).json({ email: user.email });
   } catch (error) {
-    console.error("Lỗi khi gọi verifyEmail", error);
-    return res.status(500).json({ message: "Lỗi hệ thống" });
+    console.error("Error in verifyEmail:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// =============================================
-// --- CONTROLLER ĐĂNG NHẬP (SIGN IN) ---
-// (Đã đồng bộ, CHỈ DÙNG EMAIL)
-// =============================================
+// @desc    Sign in
+// @route   POST /api/auth/signin
+// @access  Public
 export const signIn = async (req, res) => {
-  console.log("--- Anh Đầu bếp signIn: Đã nhận được phiếu order!");
-  // ✅ <--- THÊM DÒNG NÀY ĐỂ DEBUG ---
-  console.log("🔍 [signIn] Received req.body:", req.body);
-  // ✅ <--- HẾT DÒNG THÊM ---
   try {
-    // 1. Frontend (authService) gửi { email, password }
     const { email, password } = req.body;
 
     if (!email || !password) {
-      console.log("--- BÁO CÁO: Thiếu email hoặc password.");
-      return res.status(400).json({ message: "Thiếu email hoặc password." });
+      return res.status(400).json({ message: "Email and password are required" });
     }
 
-    console.log(
-      `--- Bước 1: Đang tìm user trong kho (bằng email: ${email})...`
-    );
-
-    // 2. Tìm user bằng 'email'
     const user = await User.findOne({ email: email }).select("+hashedPassword");
 
     if (!user) {
-      console.log(`--- BÁO CÁO: Không tìm thấy user với email: ${email}`);
       return res
         .status(401)
-        .json({ message: "Tài khoản hoặc mật khẩu chưa chính xác" });
+        .json({ message: "Invalid email or password" });
     }
 
-    // 3. Kiểm tra xác thực
     if (!user.isVerified) {
-      console.log("--- BÁO CÁO: User cố đăng nhập nhưng chưa xác thực email.");
       return res
         .status(403)
-        .json({ message: "Bạn cần xác thực email trước khi đăng nhập." });
+        .json({ message: "Please verify your email before signing in" });
     }
 
-    console.log("--- Bước 2: Đã tìm thấy user, đang so sánh mật khẩu...");
-    const passWordCorrect = await bcrypt.compare(password, user.hashedPassword);
+    const passwordCorrect = await bcrypt.compare(password, user.hashedPassword);
 
-    if (!passWordCorrect) {
-      console.log("--- BÁO CÁO: Sai mật khẩu.");
+    if (!passwordCorrect) {
       return res
         .status(401)
-        .json({ message: "Tài khoản hoặc mật khẩu chưa chính xác" });
+        .json({ message: "Invalid email or password" });
     }
 
-    console.log("--- Bước 3: Mật khẩu chính xác. Đang tạo tokens...");
-
-    // 4. Tạo tokens (giữ nguyên)
     const accessToken = generateAccessToken(user._id);
     const refreshToken = crypto.randomBytes(64).toString("hex");
 
@@ -175,35 +143,30 @@ export const signIn = async (req, res) => {
       maxAge: REFRESH_TOKEN_TTL,
     });
 
-    console.log("--- Bước 4: Đã tạo tokens và gửi cookie. Trả về phản hồi.");
     res.status(200).json({
-      message: `User ${user.displayName} đã logged In`,
+      message: `Welcome back, ${user.displayName}!`,
       accessToken,
     });
   } catch (error) {
-    console.error("Lỗi khi gọi signIn", error);
-    return res.status(500).json({ message: "Lỗi hệ thống" });
+    console.error("Error in signIn:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// =============================================
-// --- CONTROLLER LÀM MỚI (REFRESH) ---
-// =============================================
+// @desc    Refresh access token
+// @route   POST /api/auth/refresh
+// @access  Public (with refreshToken cookie)
 export const refresh = async (req, res) => {
-  console.log("🍪 Cookies nhận được:", req.cookies);
-  // (Log headers không cần thiết, có thể xóa)
-  // console.log("📋 Headers:", req.headers);
   try {
     const refreshToken = req.cookies?.refreshToken;
     if (!refreshToken) {
-      console.log("❌ Không tìm thấy refreshToken trong cookies");
-      return res.status(401).json({ message: "Không được phép: Thiếu token" });
+      return res.status(401).json({ message: "Unauthorized: Missing refresh token" });
     }
 
     const session = await Session.findOne({ refreshToken: refreshToken });
     if (!session) {
       return res.status(403).json({
-        message: "Không được phép: Token không hợp lệ hoặc đã bị thu hồi",
+        message: "Forbidden: Invalid or revoked token",
       });
     }
 
@@ -211,71 +174,60 @@ export const refresh = async (req, res) => {
       await Session.deleteOne({ _id: session._id });
       return res
         .status(403)
-        .json({ message: "Hết hạn: Token đã hết hạn, vui lòng đăng nhập lại" });
+        .json({ message: "Expired: Token has expired, please sign in again" });
     }
 
     const newAccessToken = generateAccessToken(session.userId);
-    console.log("✅ Token đã được làm mới thành công!");
     return res.status(200).json({
       accessToken: newAccessToken,
     });
   } catch (error) {
-    console.error("Lỗi khi refresh token", error);
-    return res.status(500).json({ message: "Lỗi hệ thống" });
+    console.error("Error in refresh:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// =============================================
-// --- CONTROLLER ĐĂNG XUẤT (SIGN OUT) ---
-// =============================================
+// @desc    Sign out
+// @route   POST /api/auth/signout
+// @access  Public
 export const signOut = async (req, res) => {
-  console.log("--- Hàm signOut: Đã nhận được yêu cầu!");
   try {
     const token = req.cookies?.refreshToken;
     if (token) {
       await Session.deleteOne({ refreshToken: token });
       res.clearCookie("refreshToken");
-      console.log("[DEBUG] 🧹 Đã đăng xuất và xóa token/session.");
     }
     return res.sendStatus(204);
   } catch (error) {
-    console.error("Lỗi khi gọi signOut", error);
-    return res.status(500).json({ message: "Lỗi hệ thống" });
+    console.error("Error in signOut:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// =============================================
-// --- CONTROLLER ĐĂNG KÝ NHÀ IN ---
-// (Đã đồng bộ)
-// =============================================
+// @desc    Sign up as printer
+// @route   POST /api/auth/signup-printer
+// @access  Public
 export const signUpPrinter = async (req, res) => {
-  console.log("--- Hàm signUpPrinter: Đã nhận được yêu cầu!");
   try {
-    // Frontend (AuthFlow) gửi 3 trường này
     const { email, password, displayName } = req.body;
-    console.log("--- Dữ liệu nhận được:", req.body);
 
     if (!password || !email || !displayName) {
       return res.status(400).json({
-        message:
-          "Không thể thiếu email, password, và Tên xưởng in (displayName)",
+        message: "Missing required fields: email, password, and displayName",
       });
     }
 
     const duplicateEmail = await User.findOne({ email });
     if (duplicateEmail) {
-      return res.status(409).json({ message: "Email này đã được sử dụng" });
+      return res.status(409).json({ message: "Email already in use" });
     }
 
-    console.log("--- Bước 3 (Printer): Băm mật khẩu và tạo token...");
     const hashedPassword = await bcrypt.hash(password, 10);
     const verificationToken = crypto.randomBytes(32).toString("hex");
     const verificationTokenExpiresAt = new Date(Date.now() + 3600000);
 
-    console.log("--- Bước 4 (Printer): Bắt đầu tạo User (role: printer)...");
-
     const newUser = new User({
-      username: email, // Bắt buộc gán username = email
+      username: email,
       hashedPassword,
       email,
       displayName,
@@ -283,8 +235,6 @@ export const signUpPrinter = async (req, res) => {
       verificationToken,
       verificationTokenExpiresAt,
     });
-
-    console.log("--- Bước 5 (Printer): Bắt đầu tạo PrinterProfile...");
 
     const newProfile = new PrinterProfile({
       userId: newUser._id,
@@ -296,13 +246,11 @@ export const signUpPrinter = async (req, res) => {
     await newUser.save();
     await newProfile.save();
 
-    console.log("--- Bước 6 (Printer): Đã tạo User và Profile!");
-
     await sendVerificationEmail(newUser.email, verificationToken);
 
     return res.sendStatus(201);
   } catch (error) {
-    console.error("Lỗi khi gọi signUpPrinter", error);
-    return res.status(500).json({ message: "Lỗi hệ thống" });
+    console.error("Error in signUpPrinter:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };

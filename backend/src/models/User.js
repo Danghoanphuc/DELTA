@@ -45,12 +45,7 @@ const UserSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// (Giữ nguyên các index cũ, chúng vẫn hữu ích)
-UserSchema.index({ "address.location": "2dsphere" });
-UserSchema.index({
-  "address.city": "text",
-  "address.district": "text",
-  displayName: "text",
-});
+// Text search index for user search functionality
+UserSchema.index({ displayName: "text", email: "text" });
 
 export const User = mongoose.model("User", UserSchema);

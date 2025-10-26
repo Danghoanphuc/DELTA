@@ -1,29 +1,29 @@
-// backend/src/models/Order.js (ĐÃ SỬA LỖI)
-import mongoose from "mongoose"; // <--- BƯỚC 1: THÊM IMPORT
+// backend/src/models/Order.js
+
+import mongoose from "mongoose";
 
 const OrderSchema = new mongoose.Schema(
   {
-    // --- Người đặt ---
+    // Customer and Printer
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-
     printerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
 
-    // --- Chi tiết đơn hàng ---
+    // Order items
     items: [
       {
         productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
         productName: String,
         quantity: { type: Number, required: true },
         pricePerUnit: { type: Number, required: true },
-        specifications: Object, // Lưu snapshot thông số
+        specifications: Object, // Snapshot of product specifications
         customization: {
           notes: String,
           designFiles: [{ url: String, fileName: String }],
@@ -32,13 +32,13 @@ const OrderSchema = new mongoose.Schema(
       },
     ],
 
-    // --- Tổng tiền ---
+    // Pricing
     subtotal: { type: Number, required: true },
     shippingFee: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
     total: { type: Number, required: true },
 
-    // --- Địa chỉ giao hàng ---
+    // Shipping address
     shippingAddress: {
       recipientName: String,
       phone: String,
@@ -49,24 +49,24 @@ const OrderSchema = new mongoose.Schema(
       notes: String,
     },
 
-    // --- Trạng thái ---
+    // Order status
     status: {
       type: String,
       enum: [
-        "pending", // Chờ xác nhận
-        "confirmed", // Đã xác nhận
-        "designing", // Đang thiết kế
-        "printing", // Đang in
-        "ready", // Sẵn sàng giao
-        "shipping", // Đang giao
-        "completed", // Hoàn thành
-        "cancelled", // Đã hủy
-        "refunded", // Đã hoàn tiền
+        "pending", // Awaiting confirmation
+        "confirmed", // Confirmed
+        "designing", // Design in progress
+        "printing", // Printing
+        "ready", // Ready for delivery
+        "shipping", // In transit
+        "completed", // Completed
+        "cancelled", // Cancelled
+        "refunded", // Refunded
       ],
       default: "pending",
     },
 
-    // --- Lịch sử trạng thái ---
+    // Status history
     statusHistory: [
       {
         status: String,
@@ -76,7 +76,7 @@ const OrderSchema = new mongoose.Schema(
       },
     ],
 
-    // --- Thanh toán ---
+    // Payment information
     payment: {
       method: {
         type: String,
@@ -92,17 +92,15 @@ const OrderSchema = new mongoose.Schema(
       transactionId: String,
     },
 
-    // --- Thời gian ---
+    // Timestamps
     estimatedDelivery: Date,
     completedAt: Date,
   },
   { timestamps: true }
 );
 
+// Indexes for efficient queries
 OrderSchema.index({ customerId: 1, status: 1 });
 OrderSchema.index({ printerId: 1, status: 1 });
 
-// --- (BƯỚC 2 & 3: TẠO VÀ EXPORT MODEL) ---
 export const Order = mongoose.model("Order", OrderSchema);
-
-// (BƯỚC 4: ĐÃ XÓA DẤU } THỪA)

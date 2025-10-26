@@ -1,6 +1,6 @@
-// backend/src/config/passport-setup.js (ĐÃ SỬA LỖI)
+// backend/src/config/passport-setup.js
+
 import passport from "passport";
-// 1. SỬA LỖI IMPORT: Import trực tiếp "Strategy"
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { User } from "../models/User.js";
 import { PrinterProfile } from "../models/PrinterProfile.js";
@@ -8,24 +8,31 @@ import crypto from "crypto";
 
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:5001";
 
-// CẬP NHẬT: findOrCreateUser giờ nhận `req`
+/**
+ * Find or create user from OAuth provider
+ * @param {Object} req - Express request object
+ * @param {Object} profile - OAuth profile
+ * @param {String} provider - OAuth provider name (e.g., "google")
+ * @param {Function} done - Passport callback
+ */
 const findOrCreateUser = async (req, profile, provider, done) => {
   try {
     let email = profile.emails?.[0]?.value || profile._json?.email || null;
     if (!email) {
-      return done(new Error(`[${provider}] Không lấy được email.`), null);
+      return done(new Error(`[${provider}] Could not retrieve email`), null);
     }
 
-    // Đọc vai trò từ session (do middleware rememberOAuthRole gán)
+    // Get role from session (set by rememberOAuthRole middleware)
     const role = req.session.oauthRole || "customer";
-    // Xóa session sau khi dùng
+    // Clean up session after use
     if (req.session.oauthRole) delete req.session.oauthRole;
 
-    console.log(`[Passport] FindOrCreate cho: ${email}, Vai trò: ${role}`);
+    console.log(`[Passport] FindOrCreate for: ${email}, Role: ${role}`);
 
+    // Check if user already exists
     let user = await User.findOne({ email });
     if (user) {
-      // User đã tồn tại
+      // User exists, update OAuth ID if missing
       if (!user[`${provider}Id`]) {
         user[`${provider}Id`] = profile.id;
         await user.save();
@@ -33,12 +40,10 @@ const findOrCreateUser = async (req, profile, provider, done) => {
       return done(null, user);
     }
 
-    // User chưa tồn tại -> Tạo mới
+    // User doesn't exist, create new user
     const displayName =
       profile.displayName ||
-      `${profile.name?.givenName || ""} ${
-        profile.name?.familyName || ""
-      }`.trim() ||
+      `${profile.name?.givenName || ""} ${profile.name?.familyName || ""}`.trim() ||
       email.split("@")[0];
 
     const avatarUrl = profile.photos?.[0]?.value || "";
@@ -52,13 +57,14 @@ const findOrCreateUser = async (req, profile, provider, done) => {
       [`${provider}Id`]: profile.id,
       email,
       displayName,
-      isVerified: true,
+      isVerified: true, // Auto-verify OAuth users
       avatarUrl,
       username: tempUsername,
-      role: role, // GÁN VAI TRÒ ĐÚNG
+      role: role,
+      authMethod: provider,
     });
 
-    // Nếu là nhà in, tạo luôn PrinterProfile
+    // If printer role, create PrinterProfile
     if (role === "printer") {
       const newProfile = new PrinterProfile({
         userId: newUser._id,
@@ -66,39 +72,44 @@ const findOrCreateUser = async (req, profile, provider, done) => {
       });
       newUser.printerProfile = newProfile._id;
       await newProfile.save();
-      console.log(`[Passport] Đã tạo PrinterProfile cho ${email}`);
+      console.log(`[Passport] Created PrinterProfile for ${email}`);
     }
 
     await newUser.save();
+    console.log(`[Passport] Created new user: ${email}`);
     return done(null, newUser);
   } catch (err) {
+    console.error(`[Passport] Error in findOrCreateUser:`, err);
     return done(err, null);
   }
 };
 
+// Configure Google OAuth Strategy
 passport.use(
-  // 2. SỬA LỖI KHỞI TẠO: Bỏ ".Strategy"
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: `${SERVER_URL}/api/auth/google/callback`, // ⚠️ Phải trùng với Google Console
+      callbackURL: `${SERVER_URL}/api/auth/google/callback`,
       scope: ["profile", "email"],
-      passReqToCallback: true, // Cho phép truyền `req` vào callback
+      passReqToCallback: true, // Pass req to callback
     },
-    // CẬP NHẬT: Thêm `req` vào
     (req, accessToken, refreshToken, profile, done) => {
       findOrCreateUser(req, profile, "google", done);
     }
   )
 );
 
+// Serialize user for session
 passport.serializeUser((user, done) => done(null, user.id));
+
+// Deserialize user from session
 passport.deserializeUser(async (id, done) => {
   try {
     const user = await User.findById(id);
     done(null, user);
   } catch (err) {
+    console.error("[Passport] Error deserializing user:", err);
     done(err, null);
   }
 });

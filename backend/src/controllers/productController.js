@@ -13,7 +13,14 @@ export const getAllProducts = async (req, res) => {
     if (req.query.category) {
       filter.category = req.query.category;
     }
-
+    if (req.query.search) {
+      // Sử dụng $text search
+      filter.$text = {
+        $search: req.query.search,
+        $caseSensitive: false,
+        $diacriticSensitive: false,
+      };
+    }
     const products = await Product.find(filter)
       .populate({
         path: "printerId", // Lấy thông tin nhà in
@@ -62,6 +69,9 @@ export const getProductById = async (req, res) => {
 // @access  Private (Chỉ Printer)
 export const createProduct = async (req, res) => {
   try {
+    console.log("--- Hàm createProduct: Đã nhận được yêu cầu ---"); // Thêm log để xác nhận hàm được gọi
+    console.log("User:", req.user?._id, "Role:", req.user?.role); // Kiểm tra user
+    console.log("Request Body:", req.body); // In ra dữ liệu nhận được
     // 1. Kiểm tra vai trò
     if (req.user.role !== "printer") {
       return res
