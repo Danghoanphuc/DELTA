@@ -144,13 +144,14 @@ export const createProduct = async (req, res) => {
       pricing: pricing,
       specifications: specifications || {},
       productionTime: productionTime || { min: 1, max: 3 },
-      customization: customization || {
-        allowFileUpload: true,
-        acceptedFileTypes: ["pdf", "ai", "psd", "png", "jpg"],
-        hasDesignService: false,
-      },
-      isActive: true, // Mặc định là active
-      stock: 999, // Stock mặc định
+      customization:
+        customization ||
+        {
+          /*...*/
+        },
+      isActive: true,
+      // Cập nhật stock: Nếu frontend gửi thì dùng, không thì mặc định 999
+      stock: typeof stock === "number" && stock >= 0 ? stock : 999,
     };
 
     console.log(
