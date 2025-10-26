@@ -1,4 +1,4 @@
-// src/components/auth/AuthFlow.tsx (ĐÃ SỬA LỖI VALIDATION)
+// src/components/auth/AuthFlow.tsx
 
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
