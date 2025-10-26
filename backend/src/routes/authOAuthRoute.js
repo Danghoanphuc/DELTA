@@ -108,7 +108,23 @@ router.get(
     session: false,
   })
 );
+// ✅ (Middleware MỚI) Ghi nhớ vai trò OAuth
+const rememberOAuthRole = (req, res, next) => {
+  const role = req.query.role === "printer" ? "printer" : "customer";
+  req.session.oauthRole = role; // Lưu vai trò vào session
+  console.log(`✅ OAuth: Ghi nhớ vai trò: ${role}`);
+  next();
+};
 
+// ✅ Route khởi tạo (CẬP NHẬT)
+router.get(
+  "/google",
+  rememberOAuthRole, // <-- Chạy middleware MỚI trước
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+    session: false,
+  })
+);
 // ✅ Route callback sau khi xác thực Google
 router.get(
   "/google/callback",

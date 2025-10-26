@@ -1,26 +1,28 @@
-// backesrc/routes/authRoute.js
+// backend/src/routes/authRoute.js (ĐÃ SỬA LỖI 404)
 import express from "express";
-import passport from "passport";
+// (Bỏ import passport vì không dùng trực tiếp ở đây)
 import {
   signUp,
-  signIn,
+  signIn, // signIn đã được import
   signOut,
   refresh,
   verifyEmail,
-} from "../controllers/authController.js";
+  signUpPrinter,
+} from "../controllers/authController.js"; // Đảm bảo import signIn
 const router = express.Router();
-// --- NGƯỜI ĐƯA TIN CỦA BỒI BÀN ---
-// "Bồi bàn" sẽ la lên trước khi chuyển phiếu cho "Đầu bếp"
+
+// Middleware cho /signup (Giữ nguyên)
 router.use("/signup", (req, res, next) => {
   console.log(`📨 [ROUTER] ${req.method} ${req.originalUrl}`);
-  next(); // Cho yêu cầu đi tiếp đến "Đầu bếp signUp"
+  next();
 });
 
-// Quy tắc của Bồi bàn
-router.post("/signup", signUp);
-router.post("/signin", signIn);
-router.post("/signout", signOut);
-router.post("/refresh", refresh);
-router.post("/verify-email", verifyEmail);
+// Định nghĩa các routes
+router.post("/signup", signUp); // Đăng ký khách hàng
+router.post("/signup-printer", signUpPrinter); // Đăng ký nhà in
+router.post("/signin", signIn); // ✅ <-- THÊM LẠI DÒNG NÀY
+router.post("/signout", signOut); // Đăng xuất
+router.post("/refresh", refresh); // Làm mới token
+router.post("/verify-email", verifyEmail); // Xác thực email
 
 export default router;

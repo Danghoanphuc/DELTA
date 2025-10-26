@@ -1,9 +1,12 @@
+// backend/src/controllers/authController.js (BẢN SỬA LỖI CUỐI CÙNG)
+
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { User } from "../models/User.js";
 import Session from "../models/session.js";
-// 1. Thêm import hàm gửi email (Giả sử đường dẫn này đúng)
+// ✅ ĐẢM BẢO IMPORT PrinterProfile (rất quan trọng)
+import { PrinterProfile } from "../models/PrinterProfile.js";
 import { sendVerificationEmail } from "../libs/email.js";
 
 const ACCESS_TOKEN_TTL = "30m";
@@ -17,62 +20,50 @@ export const generateAccessToken = (userId) => {
 };
 
 // =============================================
-// --- CONTROLLER ĐĂNG KÝ (SIGN UP) --- (HÀM ĐÃ SỬA)
+// --- CONTROLLER ĐĂNG KÝ (SIGN UP) ---
+// (Đã đồng bộ với AuthFlow)
 // =============================================
 export const signUp = async (req, res) => {
   console.log("--- Hàm signUp: Đã nhận được yêu cầu!");
   try {
+    // Frontend (AuthFlow) gửi 4 trường
     const { username, password, email, displayName } = req.body;
     console.log("--- Dữ liệu nhận được:", req.body);
 
-    if (!username || !password || !email || !displayName) {
+    // (AuthFlow đảm bảo username == email)
+    if (!password || !email || !displayName) {
       console.log("--- BÁO CÁO: Dữ liệu đầu vào KHÔNG HỢP LỆ!");
       return res.status(400).json({
-        message: "Không thể thiếu username, password, email, và displayName",
+        message: "Không thể thiếu password, email, và displayName",
       });
     }
 
-    // (Kiểm tra duplicate giữ nguyên)
     const duplicateEmail = await User.findOne({ email });
     if (duplicateEmail) {
       console.log("--- BÁO CÁO: Email đã tồn tại.");
       return res.status(409).json({ message: "Email này đã được sử dụng" });
     }
-    const duplicateUsername = await User.findOne({ username });
-    if (duplicateUsername) {
-      console.log("--- BÁO CÁO: Username đã tồn tại.");
-      return res.status(409).json({ message: "Username đã tồn tại" });
-    }
 
     console.log("--- Bước 3: Bắt đầu băm mật khẩu và tạo token...");
-
-    // 1. TẠO MỌI THỨ TRƯỚC
     const hashedPassword = await bcrypt.hash(password, 10);
     const verificationToken = crypto.randomBytes(32).toString("hex");
-    const verificationTokenExpiresAt = new Date(Date.now() + 3600000); // 1 giờ
+    const verificationTokenExpiresAt = new Date(Date.now() + 3600000);
 
-    console.log("--- Bước 4: Bắt đầu tạo user mới (Full data)...");
+    console.log("--- Bước 4: Bắt đầu tạo user mới...");
 
-    // 2. TẠO USER 1 LẦN DUY NHẤT VỚI TẤT CẢ DỮ LIỆU
     const newUser = await User.create({
-      username,
+      username: email, // Bắt buộc gán username = email
       hashedPassword,
       email,
       displayName,
-      verificationToken, // <--- LƯU NGAY LẬP TỨC
-      verificationTokenExpiresAt, // <--- LƯU NGAY LẬP TỨC
+      verificationToken,
+      verificationTokenExpiresAt,
+      role: "customer",
     });
 
     console.log("--- Bước 5: Đã tạo user và lưu token thành công!");
-
-    // 3. Gọi hàm gửi email
-    console.log("--- Bước 6: Đang gửi email xác thực...");
-    // Gửi token (lấy từ biến, không phải từ newUser)
     await sendVerificationEmail(newUser.email, verificationToken);
-
-    // 4. Trả về thành công
-    console.log("--- Bước 7: Đã gửi email, trả về 201.");
-    return res.sendStatus(201); // 201 Created
+    return res.sendStatus(201);
   } catch (error) {
     console.error("Lỗi khi gọi signUp", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
@@ -81,12 +72,12 @@ export const signUp = async (req, res) => {
 
 // =============================================
 // --- CONTROLLER XÁC THỰC EMAIL ---
+// (Đã đồng bộ, trả về email)
 // =============================================
 export const verifyEmail = async (req, res) => {
   console.log("--- Hàm verifyEmail: Đã nhận được yêu cầu!");
   try {
     const { token } = req.body;
-
     if (!token) {
       return res.status(400).json({ message: "Thiếu token" });
     }
@@ -97,7 +88,6 @@ export const verifyEmail = async (req, res) => {
     }).select("+verificationToken +verificationTokenExpiresAt");
 
     if (!user) {
-      console.log("--- BÁO CÁO: Token không hợp lệ hoặc đã hết hạn.");
       return res
         .status(400)
         .json({ message: "Token không hợp lệ hoặc đã hết hạn" });
@@ -109,7 +99,7 @@ export const verifyEmail = async (req, res) => {
     await user.save();
 
     console.log("--- THÀNH CÔNG: User đã xác thực email!");
-    return res.sendStatus(200);
+    return res.status(200).json({ email: user.email });
   } catch (error) {
     console.error("Lỗi khi gọi verifyEmail", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
@@ -118,28 +108,37 @@ export const verifyEmail = async (req, res) => {
 
 // =============================================
 // --- CONTROLLER ĐĂNG NHẬP (SIGN IN) ---
+// (Đã đồng bộ, CHỈ DÙNG EMAIL)
 // =============================================
 export const signIn = async (req, res) => {
   console.log("--- Anh Đầu bếp signIn: Đã nhận được phiếu order!");
+  // ✅ <--- THÊM DÒNG NÀY ĐỂ DEBUG ---
+  console.log("🔍 [signIn] Received req.body:", req.body);
+  // ✅ <--- HẾT DÒNG THÊM ---
   try {
-    const { username, password } = req.body;
+    // 1. Frontend (authService) gửi { email, password }
+    const { email, password } = req.body;
 
-    if (!username || !password) {
-      return res
-        .status(400)
-        .json({ message: "Thiếu user name hoặc password." });
+    if (!email || !password) {
+      console.log("--- BÁO CÁO: Thiếu email hoặc password.");
+      return res.status(400).json({ message: "Thiếu email hoặc password." });
     }
 
-    console.log("--- Bước 1: Đang tìm user trong kho...");
-    const user = await User.findOne({ username }).select("+hashedPassword");
+    console.log(
+      `--- Bước 1: Đang tìm user trong kho (bằng email: ${email})...`
+    );
+
+    // 2. Tìm user bằng 'email'
+    const user = await User.findOne({ email: email }).select("+hashedPassword");
 
     if (!user) {
+      console.log(`--- BÁO CÁO: Không tìm thấy user với email: ${email}`);
       return res
         .status(401)
         .json({ message: "Tài khoản hoặc mật khẩu chưa chính xác" });
     }
 
-    // --- 7. Thêm kiểm tra: User đã xác thực email chưa? ---
+    // 3. Kiểm tra xác thực
     if (!user.isVerified) {
       console.log("--- BÁO CÁO: User cố đăng nhập nhưng chưa xác thực email.");
       return res
@@ -151,12 +150,15 @@ export const signIn = async (req, res) => {
     const passWordCorrect = await bcrypt.compare(password, user.hashedPassword);
 
     if (!passWordCorrect) {
+      console.log("--- BÁO CÁO: Sai mật khẩu.");
       return res
         .status(401)
         .json({ message: "Tài khoản hoặc mật khẩu chưa chính xác" });
     }
 
     console.log("--- Bước 3: Mật khẩu chính xác. Đang tạo tokens...");
+
+    // 4. Tạo tokens (giữ nguyên)
     const accessToken = generateAccessToken(user._id);
     const refreshToken = crypto.randomBytes(64).toString("hex");
 
@@ -169,7 +171,7 @@ export const signIn = async (req, res) => {
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: REFRESH_TOKEN_TTL,
     });
 
@@ -188,8 +190,9 @@ export const signIn = async (req, res) => {
 // --- CONTROLLER LÀM MỚI (REFRESH) ---
 // =============================================
 export const refresh = async (req, res) => {
-  console.log("🍪 Cookies nhận được:", req.cookies); // ✅ Thêm log
-  console.log("📋 Headers:", req.headers); // ✅ Thêm log
+  console.log("🍪 Cookies nhận được:", req.cookies);
+  // (Log headers không cần thiết, có thể xóa)
+  // console.log("📋 Headers:", req.headers);
   try {
     const refreshToken = req.cookies?.refreshToken;
     if (!refreshToken) {
@@ -237,6 +240,69 @@ export const signOut = async (req, res) => {
     return res.sendStatus(204);
   } catch (error) {
     console.error("Lỗi khi gọi signOut", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
+// =============================================
+// --- CONTROLLER ĐĂNG KÝ NHÀ IN ---
+// (Đã đồng bộ)
+// =============================================
+export const signUpPrinter = async (req, res) => {
+  console.log("--- Hàm signUpPrinter: Đã nhận được yêu cầu!");
+  try {
+    // Frontend (AuthFlow) gửi 3 trường này
+    const { email, password, displayName } = req.body;
+    console.log("--- Dữ liệu nhận được:", req.body);
+
+    if (!password || !email || !displayName) {
+      return res.status(400).json({
+        message:
+          "Không thể thiếu email, password, và Tên xưởng in (displayName)",
+      });
+    }
+
+    const duplicateEmail = await User.findOne({ email });
+    if (duplicateEmail) {
+      return res.status(409).json({ message: "Email này đã được sử dụng" });
+    }
+
+    console.log("--- Bước 3 (Printer): Băm mật khẩu và tạo token...");
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const verificationTokenExpiresAt = new Date(Date.now() + 3600000);
+
+    console.log("--- Bước 4 (Printer): Bắt đầu tạo User (role: printer)...");
+
+    const newUser = new User({
+      username: email, // Bắt buộc gán username = email
+      hashedPassword,
+      email,
+      displayName,
+      role: "printer",
+      verificationToken,
+      verificationTokenExpiresAt,
+    });
+
+    console.log("--- Bước 5 (Printer): Bắt đầu tạo PrinterProfile...");
+
+    const newProfile = new PrinterProfile({
+      userId: newUser._id,
+      businessName: displayName,
+    });
+
+    newUser.printerProfile = newProfile._id;
+
+    await newUser.save();
+    await newProfile.save();
+
+    console.log("--- Bước 6 (Printer): Đã tạo User và Profile!");
+
+    await sendVerificationEmail(newUser.email, verificationToken);
+
+    return res.sendStatus(201);
+  } catch (error) {
+    console.error("Lỗi khi gọi signUpPrinter", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };

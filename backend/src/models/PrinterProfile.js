@@ -1,4 +1,6 @@
-// backend/src/models/PrinterProfile.js (MỚI)
+// backend/src/models/PrinterProfile.js (CẬP NHẬT)
+import mongoose from "mongoose";
+
 const PrinterProfileSchema = new mongoose.Schema(
   {
     userId: {
@@ -9,52 +11,53 @@ const PrinterProfileSchema = new mongoose.Schema(
     },
 
     // --- Thông tin doanh nghiệp ---
-    businessName: { type: String, required: true },
-    businessLicense: String, // Số ĐKKD
+    businessName: { type: String, required: true }, // Vẫn yêu cầu
+    businessLicense: String,
     taxCode: String,
 
-    // --- Địa chỉ cửa hàng ---
+    // --- Địa chỉ cửa hàng (BỎ required) ---
     shopAddress: {
-      street: { type: String, required: true },
+      street: { type: String }, // Bỏ required
       ward: String,
-      district: { type: String, required: true },
-      city: { type: String, required: true },
+      district: { type: String }, // Bỏ required
+      city: { type: String }, // Bỏ required
       location: {
         type: { type: String, enum: ["Point"], default: "Point" },
-        coordinates: { type: [Number], required: true },
+        coordinates: { type: [Number], default: [0, 0] }, // Bỏ required, thêm default
       },
     },
 
-    // --- Thông tin liên hệ ---
-    contactPhone: { type: String, required: true },
+    // --- Thông tin liên hệ (BỎ required) ---
+    contactPhone: { type: String }, // Bỏ required
     contactEmail: String,
     website: String,
 
-    // --- Mô tả ---
+    // (Các trường còn lại giữ nguyên: description, workingHours, specialties, v.v.)
+    // ...
     description: { type: String, maxlength: 2000 },
     coverImage: String,
     logoUrl: String,
-
-    // --- Giờ làm việc ---
     workingHours: {
-      monday: { open: String, close: String },
-      tuesday: { open: String, close: String },
-      wednesday: { open: String, close: String },
-      thursday: { open: String, close: String },
-      friday: { open: String, close: String },
-      saturday: { open: String, close: String },
-      sunday: { open: String, close: String },
+      // ...
     },
-
-    // --- Đánh giá ---
+    specialties: {
+      type: [String],
+      default: [],
+    },
+    priceTier: {
+      type: String,
+      enum: ["cheap", "standard", "premium"],
+      default: "standard",
+    },
+    productionSpeed: {
+      type: String,
+      enum: ["fast", "standard"],
+      default: "standard",
+    },
     rating: { type: Number, default: 0, min: 0, max: 5 },
     totalReviews: { type: Number, default: 0 },
-
-    // --- Trạng thái ---
-    isVerified: { type: Boolean, default: false }, // Admin xác minh
+    isVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
-
-    // --- Metadata ---
     totalOrders: { type: Number, default: 0 },
     totalRevenue: { type: Number, default: 0 },
   },
@@ -63,3 +66,8 @@ const PrinterProfileSchema = new mongoose.Schema(
 
 PrinterProfileSchema.index({ "shopAddress.location": "2dsphere" });
 PrinterProfileSchema.index({ businessName: "text", description: "text" });
+
+export const PrinterProfile = mongoose.model(
+  "PrinterProfile",
+  PrinterProfileSchema
+);

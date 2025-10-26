@@ -1,14 +1,21 @@
-// backend/src/routes/printerRoute.js
+// backend/src/routes/printerRoute.js (CẬP NHẬT)
 
 import express from "express";
-import { updatePrinterProfile } from "../controllers/printerController.js";
+import {
+  updatePrinterProfile,
+  getMyPrinterProfile, // <-- THÊM IMPORT
+} from "../controllers/printerController.js";
 import { isAuthenticated } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Định nghĩa route: PUT /api/printer/profile
-// 1. Phải đăng nhập (isAuthenticated)
-// 2. Chạy hàm updatePrinterProfile
-router.put("/profile", isAuthenticated, updatePrinterProfile);
+// Tất cả route trong file này đều yêu cầu đăng nhập
+router.use(isAuthenticated);
+
+// Cập nhật hồ sơ
+router.put("/profile", updatePrinterProfile);
+
+// (MỚI) Lấy hồ sơ (cho frontend)
+router.get("/my-profile", getMyPrinterProfile);
 
 export default router;

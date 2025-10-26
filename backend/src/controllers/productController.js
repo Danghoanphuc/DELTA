@@ -1,6 +1,62 @@
 // src/controllers/productController.js
 import { Product } from "../models/Product.js";
 
+// --- (HÀM MỚI 1 - CÔNG KHAI) ---
+// @desc    Lấy tất cả sản phẩm công khai (cho khách)
+// @route   GET /api/products
+// @access  Public
+export const getAllProducts = async (req, res) => {
+  try {
+    // (Sau này có thể thêm filter, search, pagination tại đây)
+    // Ví dụ: Lọc theo category
+    const filter = { isActive: true };
+    if (req.query.category) {
+      filter.category = req.query.category;
+    }
+
+    const products = await Product.find(filter)
+      .populate({
+        path: "printerId", // Lấy thông tin nhà in
+        select: "displayName avatarUrl", // Chỉ lấy 2 trường này
+      })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ products });
+  } catch (error) {
+    console.error("Lỗi khi lấy tất cả sản phẩm:", error);
+    res.status(500).json({ message: "Lỗi hệ thống." });
+  }
+};
+
+// --- (HÀM MỚI 2 - CÔNG KHAI) ---
+// @desc    Lấy chi tiết 1 sản phẩm (cho khách)
+// @route   GET /api/products/:id
+// @access  Public
+export const getProductById = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id).populate({
+      path: "printerId",
+      select: "displayName avatarUrl rating specialties", // Lấy thêm thông tin nhà in
+    });
+
+    if (!product || !product.isActive) {
+      return res.status(404).json({ message: "Không tìm thấy sản phẩm." });
+    }
+
+    // (Sau này có thể thêm logic tăng "views" tại đây)
+
+    res.status(200).json({ product });
+  } catch (error) {
+    console.error("Lỗi khi lấy chi tiết sản phẩm:", error);
+    if (error.kind === "ObjectId") {
+      return res.status(404).json({ message: "ID sản phẩm không hợp lệ." });
+    }
+    res.status(500).json({ message: "Lỗi hệ thống." });
+  }
+};
+
+// --- (CÁC HÀM CŨ - CỦA NHÀ IN) ---
+
 // @desc    Tạo sản phẩm mới
 // @route   POST /api/products
 // @access  Private (Chỉ Printer)
@@ -67,5 +123,3 @@ export const getMyProducts = async (req, res) => {
     res.status(500).json({ message: "Lỗi hệ thống." });
   }
 };
-
-// ... (Bạn có thể thêm updateProduct và deleteProduct ở đây sau) ...

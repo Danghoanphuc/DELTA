@@ -13,6 +13,7 @@ import authOAuthRoute from "./routes/authOAuthRoute.js";
 import chatRoute from "./routes/chatRoute.js";
 import printerRoute from "./routes/printerRoute.js";
 import productRoute from "./routes/productRoute.js";
+import orderRoute from "./routes/orderRoute.js";
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 ngày
 
 dotenv.config();
@@ -105,6 +106,7 @@ app.use("/api/auth", authOAuthRoute);
 app.use("/api/chat", chatRoute);
 app.use("/api/printer", printerRoute);
 app.use("/api/products", productRoute);
+app.use("/api/orders", orderRoute);
 // --- Khởi động ---
 connectDB().then(() => {
   app.listen(PORT, () => {

@@ -1,4 +1,6 @@
-// backend/src/models/Order.js (MỚI)
+// backend/src/models/Order.js (ĐÃ SỬA LỖI)
+import mongoose from "mongoose"; // <--- BƯỚC 1: THÊM IMPORT
+
 const OrderSchema = new mongoose.Schema(
   {
     // --- Người đặt ---
@@ -99,3 +101,8 @@ const OrderSchema = new mongoose.Schema(
 
 OrderSchema.index({ customerId: 1, status: 1 });
 OrderSchema.index({ printerId: 1, status: 1 });
+
+// --- (BƯỚC 2 & 3: TẠO VÀ EXPORT MODEL) ---
+export const Order = mongoose.model("Order", OrderSchema);
+
+// (BƯỚC 4: ĐÃ XÓA DẤU } THỪA)
