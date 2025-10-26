@@ -1,17 +1,19 @@
+// frontend/src/services/authService.ts (FIXED)
+
 import api from "@/lib/axios";
 
 export const authService = {
   signUp: async (email: string, password: string, displayName: string) => {
     const res = await api.post(
       "/auth/signup",
-      { username: email, password, email, displayName }, // Gửi username = email
+      { username: email, password, email, displayName },
       { withCredentials: true }
     );
     return res.data;
   },
-  // --- (HÀM MỚI) ---
+
   signUpPrinter: async (
-    displayName: string, // Tên xưởng in
+    displayName: string,
     email: string,
     password: string
   ) => {
@@ -22,11 +24,11 @@ export const authService = {
     );
     return res.data;
   },
+
   signIn: async (email: string, password: string) => {
-    // Tham số phải là email
     const res = await api.post(
       "/auth/signin",
-      { email, password }, // <-- Dữ liệu gửi đi PHẢI LÀ { email, password }
+      { email, password },
       { withCredentials: true }
     );
     return res.data;
@@ -44,6 +46,6 @@ export const authService = {
 
   refresh: async () => {
     const res = await api.post("/auth/refresh", {}, { withCredentials: true });
-    return res.data; // backend nên trả { accessToken }
+    return res.data;
   },
 };

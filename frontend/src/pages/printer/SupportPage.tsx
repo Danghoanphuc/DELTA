@@ -1,23 +1,17 @@
-// src/pages/printer/SupportPage.tsx (ĐÃ SỬA)
-import {
-  MessageCircle,
-  Phone,
-  Mail,
-  FileText,
-  // Video, // 👈 SỬA LỖI TS6133: Xóa import không dùng
-  HelpCircle,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // 👈 Hoàn nguyên alias
-import { Button } from "@/components/ui/button"; // 👈 Hoàn nguyên alias
-import { Input } from "@/components/ui/input"; // 👈 Hoàn nguyên alias
-import { Textarea } from "@/components/ui/textarea"; // 👈 Hoàn nguyên alias
-import { Label } from "@/components/ui/label"; // 👈 Hoàn nguyên alias
+// frontend/src/pages/printer/SupportPage.tsx (FIXED - Tailwind Dynamic Classes)
+
+import { MessageCircle, Phone, Mail, FileText, HelpCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"; // 👈 Hoàn nguyên alias
+} from "@/components/ui/accordion";
 
 export function SupportPage() {
   const faqs = [
@@ -44,23 +38,42 @@ export function SupportPage() {
       title: "Chat trực tuyến",
       desc: "Trò chuyện ngay với hỗ trợ viên (Phản hồi trong 2 phút)",
       button: "Bắt đầu chat",
-      color: "blue",
+      color: "blue" as const,
     },
     {
       icon: Phone,
       title: "Gọi Hotline",
       desc: "1900 1234 (Phản hồi ngay lập tức, 24/7)",
       button: "Gọi ngay",
-      color: "green",
+      color: "green" as const,
     },
     {
       icon: Mail,
       title: "Gửi Email",
       desc: "hotro@printz.vn (Phản hồi trong 24 giờ)",
       button: "Gửi email",
-      color: "gray",
+      color: "gray" as const,
     },
   ];
+
+  // ✅ FIXED: Tailwind color map (không dùng dynamic class names)
+  const getColorClasses = (color: "blue" | "green" | "gray") => {
+    const colorMap = {
+      blue: {
+        button: "bg-blue-600 hover:bg-blue-700 text-white",
+        icon: "text-blue-500",
+      },
+      green: {
+        button: "bg-green-600 hover:bg-green-700 text-white",
+        icon: "text-green-500",
+      },
+      gray: {
+        button: "bg-gray-600 hover:bg-gray-700 text-white",
+        icon: "text-gray-500",
+      },
+    };
+    return colorMap[color];
+  };
 
   return (
     <div className="flex-1 overflow-auto bg-gray-50">
@@ -73,28 +86,34 @@ export function SupportPage() {
           </p>
         </div>
 
-        {/* --- Phần JSX --- */}
+        {/* Contact Methods */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {contactMethods.map((method) => (
-            <Card key={method.title} className="border-none shadow-sm bg-white">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-base font-medium">
-                  {method.title}
-                </CardTitle>
-                <method.icon size={20} className={`text-${method.color}-500`} />
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-500 mb-4">{method.desc}</p>
-                <Button
-                  className={`w-full bg-${method.color}-600 hover:bg-${method.color}-700`}
-                >
-                  {method.button}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+          {contactMethods.map((method) => {
+            const colors = getColorClasses(method.color);
+            return (
+              <Card
+                key={method.title}
+                className="border-none shadow-sm bg-white"
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-base font-medium">
+                    {method.title}
+                  </CardTitle>
+                  <method.icon className={`w-5 h-5 ${colors.icon}`} />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-500 mb-4">{method.desc}</p>
+                  {/* ✅ FIXED: Use color classes from map */}
+                  <Button className={`w-full ${colors.button}`}>
+                    {method.button}
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
+        {/* FAQ and Support Form */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* FAQ */}
           <Card className="border-none shadow-sm bg-white">
@@ -116,7 +135,7 @@ export function SupportPage() {
             </CardContent>
           </Card>
 
-          {/* Gửi Yêu cầu */}
+          {/* Support Form */}
           <Card className="border-none shadow-sm bg-white">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-800">
@@ -147,7 +166,6 @@ export function SupportPage() {
             </CardContent>
           </Card>
         </div>
-        {/* --- Hết phần sửa lỗi --- */}
       </div>
     </div>
   );
