@@ -1,6 +1,6 @@
-// src/pages/printer/ProductManagement.tsx (NÂNG CẤP)
+// src/pages/printer/ProductManagement.tsx (ĐÃ SỬA API ENDPOINT)
 
-import { useState, useEffect } from "react"; // <-- Đã có
+import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, Box } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,26 +14,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import api from "@/lib/axios"; // <-- THÊM
-import { toast } from "sonner"; // <-- THÊM
-import { PrinterProduct } from "@/types/product"; // <-- THÊM TYPE MỚI
-import { AddProductForm } from "@/components/printer/AddProductForm"; // <-- THÊM FORM MỚI
+import api from "@/lib/axios"; // Giữ nguyên
+import { toast } from "sonner";
+import { PrinterProduct } from "@/types/product";
+import { AddProductForm } from "@/components/printer/AddProductForm";
 
 export function ProductManagement() {
   const [selectedTab, setSelectedTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [products, setProducts] = useState<PrinterProduct[]>([]); // <-- STATE THẬT
-  const [loading, setLoading] = useState(true); // <-- STATE LOADING
-  const [showAddForm, setShowAddForm] = useState(false); // <-- STATE ĐIỀU HƯỚNG
+  const [products, setProducts] = useState<PrinterProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   // Hàm tải sản phẩm
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/api/products/my-products"); // <-- API THẬT
+      // *** SỬA Ở ĐÂY: Bỏ "/api" ***
+      const res = await api.get("/products/my-products"); // <-- Sửa từ "/api/products/my-products"
       setProducts(res.data.products);
     } catch (err: any) {
-      console.error(err);
+      console.error("Fetch My Products Error:", err); // Log lỗi chi tiết
       toast.error("Không thể tải danh sách sản phẩm");
     } finally {
       setLoading(false);
@@ -44,6 +45,8 @@ export function ProductManagement() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  // ... (Phần còn lại của component giữ nguyên) ...
 
   // Lọc sản phẩm (tạm thời ở frontend)
   const filteredProducts = products.filter((p) => {
@@ -111,6 +114,7 @@ export function ProductManagement() {
                 <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
                   <TabsList>
                     <TabsTrigger value="all">Tất cả</TabsTrigger>
+                    {/* // TODO: Lấy category động */}
                     <TabsTrigger value="flyer">Tờ rơi</TabsTrigger>
                     <TabsTrigger value="sticker">Sticker</TabsTrigger>
                     <TabsTrigger value="business-card">Danh thiếp</TabsTrigger>
@@ -158,7 +162,7 @@ function ProductTable({
   TrashIcon,
   BoxIcon,
 }: {
-  products: PrinterProduct[]; // <-- DÙNG TYPE THẬT
+  products: PrinterProduct[];
   loading: boolean;
   getDisplayPrice: (product: PrinterProduct) => string;
   EditIcon: any;

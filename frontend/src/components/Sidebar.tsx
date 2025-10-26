@@ -4,7 +4,7 @@ import {
   Home,
   Lightbulb,
   TrendingUp,
-  Package,
+  // Package, // <-- XÓA IMPORT NÀY
   FolderOpen,
   Settings,
   ShoppingBag,
@@ -34,11 +34,12 @@ export function Sidebar() {
     { icon: ShoppingBag, label: "Cửa hàng", path: "/shop" },
     { icon: Lightbulb, label: "Cảm hứng", path: "/inspiration" },
     { icon: TrendingUp, label: "Xu hướng", path: "/trends" },
-    { icon: Package, label: "Đơn hàng", path: "/orders" },
+    // { icon: Package, label: "Đơn hàng", path: "/orders" }, // <-- DÒNG NÀY ĐÃ BỊ XÓA
     { icon: FolderOpen, label: "Thiết kế của tôi", path: "/designs" },
     { icon: Settings, label: "Cài đặt", path: "/settings" },
   ];
 
+  // ... (Phần còn lại giữ nguyên) ...
   return (
     <TooltipProvider>
       {/* Chỉ hiển thị trên desktop */}

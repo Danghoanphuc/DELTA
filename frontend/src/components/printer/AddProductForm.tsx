@@ -1,10 +1,16 @@
-"use client";
+// frontend/src/components/printer/AddProductForm.tsx (FIXED API ENDPOINT)
 
 import React from "react";
 import { useForm, useFieldArray, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Form,
   FormField,
@@ -19,9 +25,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Plus, Trash2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import api from "@/lib/axios";
+import api from "@/lib/axios"; // Assuming axios instance is correctly configured
 
-// ---------------- SCHEMA ----------------
+// --- (Schemas remain the same) ---
 const pricingSchema = z.object({
   minQuantity: z.coerce.number().min(1, "Số lượng phải > 0"),
   pricePerUnit: z.coerce.number().min(100, "Giá phải > 100"),
@@ -39,7 +45,6 @@ const productFormSchema = z.object({
   pricing: z.array(pricingSchema).min(1, "Phải có ít nhất 1 bậc giá"),
 });
 
-// ---------------- TYPES ----------------
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
 interface AddProductFormProps {
@@ -47,7 +52,6 @@ interface AddProductFormProps {
   onProductAdded: () => void;
 }
 
-// ---------------- COMPONENT ----------------
 export function AddProductForm({
   onFormClose,
   onProductAdded,
@@ -75,16 +79,18 @@ export function AddProductForm({
 
   const onSubmit: SubmitHandler<ProductFormValues> = async (data) => {
     try {
-      await api.post("/api/products", data);
+      // *** FIX HERE: Remove "/api" prefix ***
+      await api.post("/products", data); // Changed from "/api/products"
       toast.success("Thêm sản phẩm thành công!");
       onProductAdded();
       onFormClose();
     } catch (err: any) {
-      console.error(err);
+      console.error("Add Product Error:", err); // Log the error object
       toast.error(err.response?.data?.message || "Thêm sản phẩm thất bại");
     }
   };
 
+  // ... (Rest of the component JSX remains the same) ...
   return (
     <Card className="border-none shadow-sm bg-white">
       <CardHeader className="flex flex-row items-center gap-4 space-y-0 border-b">
@@ -100,10 +106,10 @@ export function AddProductForm({
             {/* Tên sản phẩm */}
             <FormField
               control={control}
-              name="name"
+              name="category"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tên sản phẩm</FormLabel>
+                  <FormLabel>Danh mục</FormLabel>
                   <FormControl>
                     <Input placeholder="VD: In tờ rơi A5..." {...field} />
                   </FormControl>
@@ -119,9 +125,32 @@ export function AddProductForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Danh mục</FormLabel>
-                  <FormControl>
-                    <Input placeholder="VD: flyer, sticker..." {...field} />
-                  </FormControl>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn một danh mục sản phẩm" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {/* Các giá trị này PHẢI khớp với enum trong models/Product.js */}
+                      <SelectItem value="business-card">
+                        Danh thiếp (Business Card)
+                      </SelectItem>
+                      <SelectItem value="flyer">Tờ rơi (Flyer)</SelectItem>
+                      <SelectItem value="banner">Banner</SelectItem>
+                      <SelectItem value="brochure">Brochure</SelectItem>
+                      <SelectItem value="t-shirt">Áo thun (T-shirt)</SelectItem>
+                      <SelectItem value="mug">Cốc (Mug)</SelectItem>
+                      <SelectItem value="sticker">Sticker</SelectItem>
+                      <SelectItem value="packaging">
+                        Bao bì (Packaging)
+                      </SelectItem>
+                      <SelectItem value="other">Khác</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -206,6 +235,7 @@ export function AddProductForm({
                           <FormControl>
                             <Input type="number" {...field} />
                           </FormControl>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -221,6 +251,7 @@ export function AddProductForm({
                           <FormControl>
                             <Input type="number" {...field} />
                           </FormControl>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -238,9 +269,16 @@ export function AddProductForm({
                   </div>
                 ))}
 
-                {formState.errors.pricing && (
-                  <p className="text-destructive text-sm">
-                    {formState.errors.pricing.message?.toString()}
+                {formState.errors.pricing &&
+                  !formState.errors.pricing.root &&
+                  formState.errors.pricing.message && (
+                    <p className="text-destructive text-sm mt-1">
+                      {formState.errors.pricing.message}
+                    </p>
+                  )}
+                {formState.errors.pricing?.root && (
+                  <p className="text-destructive text-sm mt-1">
+                    {formState.errors.pricing.root.message}
                   </p>
                 )}
               </div>
@@ -276,4 +314,4 @@ export function AddProductForm({
   );
 }
 
-export default AddProductForm;
+// export default AddProductForm; // No need for default export if named export is used consistently

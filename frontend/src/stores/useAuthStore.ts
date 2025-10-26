@@ -108,20 +108,46 @@ export const useAuthStore = create<AuthState>()(
             "width=600,height=700"
           );
 
-          if (!popup) throw new Error("Không thể mở cửa sổ đăng nhập Google!");
+          if (!popup) {
+            throw new Error("Không thể mở cửa sổ đăng nhập Google. Vui lòng kiểm tra popup blocker!");
+          }
 
           const token = await new Promise<string>((resolve, reject) => {
             const timer = setTimeout(() => {
+              popup.close();
               reject(new Error("Hết thời gian chờ đăng nhập Google!"));
-            }, 10000);
+            }, 60000); // Increased to 60 seconds
 
-            window.addEventListener("message", (event) => {
-              if (event.data?.accessToken) {
+            const handleMessage = (event: MessageEvent) => {
+              // Verify origin for security
+              const validOrigins = [
+                import.meta.env.VITE_SERVER_URL,
+                "http://localhost:5001",
+              ];
+              
+              if (!validOrigins.some(origin => event.origin === origin)) {
+                return;
+              }
+
+              if (event.data?.type === "GOOGLE_AUTH_SUCCESS" && event.data?.accessToken) {
                 clearTimeout(timer);
+                window.removeEventListener("message", handleMessage);
                 resolve(event.data.accessToken);
                 popup.close();
               }
-            });
+            };
+
+            window.addEventListener("message", handleMessage);
+
+            // Check if popup was closed by user
+            const checkPopupClosed = setInterval(() => {
+              if (popup.closed) {
+                clearInterval(checkPopupClosed);
+                clearTimeout(timer);
+                window.removeEventListener("message", handleMessage);
+                reject(new Error("Đã hủy đăng nhập!"));
+              }
+            }, 1000);
           });
 
           get().setAccessToken(token);
@@ -130,6 +156,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (err: any) {
           console.error("❌ [Google Login Error]", err);
           toast.error(err.message || "Không thể đăng nhập bằng Google!");
+          throw err;
         } finally {
           set({ loading: false });
         }

@@ -21,18 +21,40 @@ import { CheckoutPage } from "./pages/customer/CheckoutPage"; // <-- MỚI
 import { useAuthStore } from "@/stores/useAuthStore";
 
 function App() {
-  const { setAccessToken } = useAuthStore();
+  const { setAccessToken, fetchMe } = useAuthStore();
 
   useEffect(() => {
-    const handleOAuthMessage = (event: MessageEvent) => {
+    const handleOAuthMessage = async (event: MessageEvent) => {
+      // Verify the origin of the message for security
+      const validOrigins = [
+        import.meta.env.VITE_SERVER_URL,
+        "http://localhost:5001",
+      ];
+
+      if (!validOrigins.some((origin) => event.origin === origin)) {
+        console.warn("⚠️ Invalid message origin:", event.origin);
+        return;
+      }
+
       if (event.data?.type === "GOOGLE_AUTH_SUCCESS") {
-        console.log("✅ OAuth message received in App");
+        console.log("✅ OAuth message received");
+        const { accessToken, user } = event.data;
+
+        if (accessToken) {
+          setAccessToken(accessToken);
+          // Fetch user data to update the store
+          try {
+            await fetchMe(true);
+          } catch (error) {
+            console.error("❌ Error fetching user after OAuth:", error);
+          }
+        }
       }
     };
 
     window.addEventListener("message", handleOAuthMessage);
     return () => window.removeEventListener("message", handleOAuthMessage);
-  }, [setAccessToken]);
+  }, [setAccessToken, fetchMe]);
 
   return (
     <>

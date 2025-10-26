@@ -1,4 +1,4 @@
-// frontend/src/components/MobileNav.tsx
+// frontend/src/components/MobileNav.tsx (ĐÃ CẬP NHẬT)
 import { useState } from "react";
 import {
   Menu,
@@ -6,7 +6,7 @@ import {
   Home,
   Lightbulb,
   TrendingUp,
-  Package,
+  // Package, // <-- XÓA IMPORT NÀY
   FolderOpen,
   Settings,
   ShoppingBag,
@@ -27,11 +27,12 @@ export function MobileNav() {
     { icon: ShoppingBag, label: "Cửa hàng", path: "/shop" },
     { icon: Lightbulb, label: "Cảm hứng", path: "/inspiration" },
     { icon: TrendingUp, label: "Xu hướng", path: "/trends" },
-    { icon: Package, label: "Đơn hàng", path: "/orders" },
+    // { icon: Package, label: "Đơn hàng", path: "/orders" }, // <-- DÒNG NÀY ĐÃ BỊ XÓA
     { icon: FolderOpen, label: "Thiết kế", path: "/designs" },
     { icon: Settings, label: "Cài đặt", path: "/settings" },
   ];
 
+  // ... (Phần còn lại giữ nguyên) ...
   return (
     <>
       {/* Mobile Header */}

@@ -1,4 +1,4 @@
-// frontend/src/pages/customer/CheckoutPage.tsx
+// frontend/src/pages/customer/CheckoutPage.tsx (ĐÃ CẬP NHẬT API ENDPOINT)
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -34,9 +34,8 @@ export function CheckoutPage() {
     notes: "",
   });
 
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "transfer">(
-    "cash"
-  );
+  // Chuyển 'cash' thành 'cod' cho phù hợp với backend enum
+  const [paymentMethod, setPaymentMethod] = useState<"cod" | "transfer">("cod");
   const [customerNotes, setCustomerNotes] = useState("");
 
   // Redirect if cart is empty
@@ -80,6 +79,7 @@ export function CheckoutPage() {
 
     try {
       const orderData = {
+        // Đổi tên items -> itemsPayload để rõ ràng hơn (nhưng backend chỉ cần 'items')
         items: cart!.items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -91,15 +91,18 @@ export function CheckoutPage() {
         customerNotes,
       };
 
-      const res = await api.post("/orders/create", orderData);
+      // *** SỬA ENDPOINT TỪ /orders/create THÀNH /orders ***
+      const res = await api.post("/orders", orderData);
 
       toast.success("Đặt hàng thành công! 🎉");
 
       // Clear cart
       await clearCart();
 
-      // Redirect to order detail
-      navigate(`/orders/${res.data.order._id}`);
+      // Redirect to order detail (Cần tạo trang này sau)
+      // Tạm thời về trang chủ hoặc trang shop
+      navigate(`/shop`); // Hoặc navigate(`/orders/${res.data.order._id}`); nếu có trang detail
+      console.log("Đơn hàng đã tạo:", res.data.order);
     } catch (err: any) {
       console.error("❌ Checkout Error:", err);
       const msg =
@@ -272,14 +275,15 @@ export function CheckoutPage() {
                       value={paymentMethod}
                       onValueChange={(v: any) => setPaymentMethod(v)}
                     >
+                      {/* Đổi value="cash" thành value="cod" */}
                       <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                        <RadioGroupItem value="cash" id="cash" />
-                        <Label htmlFor="cash" className="flex-1 cursor-pointer">
+                        <RadioGroupItem value="cod" id="cod" />
+                        <Label htmlFor="cod" className="flex-1 cursor-pointer">
                           Thanh toán khi nhận hàng (COD)
                         </Label>
                       </div>
                       <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                        <RadioGroupItem value="transfer" id="transfer" />
+                        <RadioGroupItem value="bank-transfer" id="transfer" />
                         <Label
                           htmlFor="transfer"
                           className="flex-1 cursor-pointer"
