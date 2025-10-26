@@ -1,4 +1,4 @@
-// src/types/user.ts (CẬP NHẬT)
+// frontend/src/types/user.ts
 
 export interface User {
   _id: string;
@@ -9,9 +9,7 @@ export interface User {
   avatarUrl?: string;
   isVerified: boolean;
   phone?: string;
-
-  // (MỚI) ID tham chiếu, bản thân profile sẽ được lưu riêng
-  printerProfile?: string;
-
-  // (ĐÃ XÓA) Các trường specialties, priceTier, productionSpeed, address
+  printerProfile?: string; // ID tham chiếu đến PrinterProfile
+  createdAt?: string;
+  updatedAt?: string;
 }

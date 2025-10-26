@@ -1,7 +1,7 @@
-// src/types/store.ts (CẬP NHẬT)
+// frontend/src/types/store.ts
 
 import { User } from "./user";
-import { PrinterProfile } from "./printerProfile"; // <-- Import (đã có từ GĐ1)
+import { PrinterProfile } from "./printerProfile";
 
 export interface AuthState {
   accessToken: string | null;
@@ -9,24 +9,21 @@ export interface AuthState {
   printerProfile: PrinterProfile | null;
   loading: boolean;
 
-  // --- methods ---
+  // --- Setters ---
   setAccessToken: (token: string | null) => void;
   setUser: (user: User) => void;
   setPrinterProfile: (profile: PrinterProfile | null) => void;
   clearState: () => void;
 
-  // 👇 *** SỬA LỖI CHÍNH (ĐỔI 5 THAM SỐ CŨ THÀNH 3 MỚI) *** 👇
+  // --- Actions ---
   signUp: (
     email: string,
     password: string,
     displayName: string
   ) => Promise<void>;
-  // --- (HẾT SỬA LỖI) ---
-
-  signIn: (email: string, password: string) => Promise<void>; // <-- Sửa 'username' thành 'email'
+  signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
-
   fetchMe: (silent?: boolean) => Promise<void>;
   refresh: () => Promise<void>;
 }

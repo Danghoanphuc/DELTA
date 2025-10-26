@@ -1,11 +1,11 @@
-// frontend/src/App.tsx (CẬP NHẬT)
+// frontend/src/App.tsx (CẬP NHẬT - THÊM SHOP & CHECKOUT ROUTES)
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import { Toaster } from "sonner";
 import SignInPage from "./pages/SignInPage";
 import SignUpPage from "./pages/SignUpPage";
-import PrinterSignInPage from "./pages/PrinterSignInPage"; // <-- THÊM IMPORT
-import PrinterSignUpPage from "./pages/PrinterSignUpPage"; // <-- THÊM IMPORT
+import PrinterSignInPage from "./pages/PrinterSignInPage";
+import PrinterSignUpPage from "./pages/PrinterSignUpPage";
 import VerifyEmailPage from "./components/auth/VerifyEmailPage";
 import ResetPasswordPage from "./components/auth/ResetPasswordPage";
 import CheckEmailPage from "./pages/CheckEmailPage";
@@ -16,6 +16,8 @@ import { TrendsPage } from "./pages/customer/TrendsPage";
 import { CustomerOrdersPage } from "./pages/customer/CustomerOrdersPage";
 import { CustomerDesignsPage } from "./pages/customer/CustomerDesignsPage";
 import { CustomerSettingsPage } from "./pages/customer/CustomerSettingsPage";
+import { ShopPage } from "./pages/customer/ShopPage"; // <-- MỚI
+import { CheckoutPage } from "./pages/customer/CheckoutPage"; // <-- MỚI
 import { useAuthStore } from "@/stores/useAuthStore";
 
 function App() {
@@ -40,7 +42,6 @@ function App() {
         {/* Public Routes */}
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/signup" element={<SignUpPage />} />
-        {/* --- (ROUTES MỚI CHO NHÀ IN) --- */}
         <Route path="/printer/signin" element={<PrinterSignInPage />} />
         <Route path="/printer/signup" element={<PrinterSignUpPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
@@ -50,6 +51,8 @@ function App() {
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<RootPage />} />
+          <Route path="/shop" element={<ShopPage />} /> {/* <-- MỚI */}
+          <Route path="/checkout" element={<CheckoutPage />} /> {/* <-- MỚI */}
           <Route path="/orders" element={<CustomerOrdersPage />} />
           <Route path="/designs" element={<CustomerDesignsPage />} />
           <Route path="/settings" element={<CustomerSettingsPage />} />

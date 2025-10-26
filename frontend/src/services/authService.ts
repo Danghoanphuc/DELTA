@@ -1,4 +1,4 @@
-// frontend/src/services/authService.ts (FIXED)
+// frontend/src/services/authService.ts
 
 import api from "@/lib/axios";
 

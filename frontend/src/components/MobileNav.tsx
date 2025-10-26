@@ -9,6 +9,7 @@ import {
   Package,
   FolderOpen,
   Settings,
+  ShoppingBag,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -23,6 +24,7 @@ export function MobileNav() {
 
   const menuItems = [
     { icon: Home, label: "Trang chủ", path: "/" },
+    { icon: ShoppingBag, label: "Cửa hàng", path: "/shop" },
     { icon: Lightbulb, label: "Cảm hứng", path: "/inspiration" },
     { icon: TrendingUp, label: "Xu hướng", path: "/trends" },
     { icon: Package, label: "Đơn hàng", path: "/orders" },
