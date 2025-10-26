@@ -1,5 +1,5 @@
-// backend/src/models/User.js (CẬP NHẬT)
 import mongoose from "mongoose";
+
 const UserSchema = new mongoose.Schema(
   {
     // --- Thông tin cơ bản ---
@@ -14,7 +14,7 @@ const UserSchema = new mongoose.Schema(
       default: "customer",
     },
 
-    // --- (MỚI) Tham chiếu đến hồ sơ nhà in ---
+    // --- Tham chiếu đến hồ sơ nhà in ---
     printerProfile: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "PrinterProfile",
@@ -32,8 +32,6 @@ const UserSchema = new mongoose.Schema(
     displayName: { type: String, required: true },
     avatarUrl: { type: String, default: "" },
     phone: { type: String, unique: true, sparse: true },
-
-    // --- (ĐÃ XÓA) Các trường address, specialties, priceTier, productionSpeed đã được chuyển sang PrinterProfile ---
 
     // --- Xác thực ---
     isVerified: { type: Boolean, default: false },
