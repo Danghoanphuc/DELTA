@@ -3,11 +3,9 @@
 import { useState, useEffect } from "react";
 import {
   Search,
-  Filter,
   Download,
   Eye,
   Check,
-  X,
   Clock,
   Truck,
   Package,
@@ -34,7 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Order, OrderStatus } from "@/types/order";
 import api from "@/lib/axios";
 import { toast } from "sonner";
@@ -87,7 +84,7 @@ export function OrderManagement() {
     newStatus: OrderStatus
   ) => {
     try {
-      const res = await api.put(`/orders/printer/${orderId}/status`, {
+      await api.put(`/orders/printer/${orderId}/status`, {
         status: newStatus,
       });
 

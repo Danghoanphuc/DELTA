@@ -1,4 +1,4 @@
-// frontend/src/pages/OrderDetailPage.tsx (NEW FILE)
+// frontend/src/pages/OrderDetailPage.tsx
 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -11,13 +11,11 @@ import {
   Phone,
   Mail,
   Clock,
-  CheckCircle,
 } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { MobileNav } from "@/components/MobileNav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Order, OrderStatus } from "@/types/order";
 import api from "@/lib/axios";

@@ -13,7 +13,7 @@ export type OrderStatus =
 
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
-export type PaymentMethod = "cash" | "transfer" | "vnpay" | "momo";
+export type PaymentMethod = "cod" | "transfer" | "vnpay" | "momo";
 
 // ==================== ORDER ITEM ====================
 
