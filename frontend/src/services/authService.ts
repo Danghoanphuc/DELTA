@@ -1,29 +1,34 @@
 import api from "@/lib/axios";
 
 export const authService = {
-  signUp: async (
-    username: string,
-    password: string,
-    email: string,
-    firstName: string,
-    lastName: string
-  ) => {
-    const displayName = `${firstName} ${lastName}`.trim();
+  signUp: async (email: string, password: string, displayName: string) => {
     const res = await api.post(
       "/auth/signup",
-      { username, password, email, displayName },
+      { username: email, password, email, displayName }, // Gửi username = email
       { withCredentials: true }
     );
     return res.data;
   },
-
-  signIn: async (username: string, password: string) => {
+  // --- (HÀM MỚI) ---
+  signUpPrinter: async (
+    displayName: string, // Tên xưởng in
+    email: string,
+    password: string
+  ) => {
     const res = await api.post(
-      "/auth/signin",
-      { username, password },
+      "/auth/signup-printer",
+      { displayName, email, password },
       { withCredentials: true }
     );
-    // Backend nên trả: { accessToken, refreshToken (cookie) }
+    return res.data;
+  },
+  signIn: async (email: string, password: string) => {
+    // Tham số phải là email
+    const res = await api.post(
+      "/auth/signin",
+      { email, password }, // <-- Dữ liệu gửi đi PHẢI LÀ { email, password }
+      { withCredentials: true }
+    );
     return res.data;
   },
 

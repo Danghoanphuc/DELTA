@@ -1,19 +1,30 @@
-// frontend/src/components/ui/SocialButton.tsx
+// frontend/src/components/ui/SocialButton.tsx (CẬP NHẬT)
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { toast } from "sonner";
+import { Mail } from "lucide-react"; // <-- THÊM
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
-type SocialProvider = "google";
+type SocialProvider = "google" | "email"; // <-- THÊM "email"
+type AuthRole = "customer" | "printer"; // <-- THÊM
 
 interface SocialButtonProps {
   provider: SocialProvider;
+  role: AuthRole; // <-- THÊM role
   className?: string;
+  onClick?: () => void; // <-- THÊM onClick cho nút Email
+  children?: React.ReactNode; // <-- THÊM children
 }
 
-export function SocialButton({ provider, className }: SocialButtonProps) {
+export function SocialButton({
+  provider,
+  role,
+  className,
+  onClick,
+  children,
+}: SocialButtonProps) {
   const { setAccessToken, setUser, fetchMe } = useAuthStore();
 
   const providerConfig = {
@@ -42,6 +53,14 @@ export function SocialButton({ provider, className }: SocialButtonProps) {
           />
         </svg>
       ),
+    },
+    // (MỚI) Định nghĩa cho nút email
+    email: {
+      name: "Tiếp tục với Email",
+      bgColor: "bg-gray-900 hover:bg-gray-800",
+      borderColor: "border-gray-900",
+      textColor: "text-white",
+      icon: <Mail className="w-5 h-5" />,
     },
   };
 
@@ -107,16 +126,23 @@ export function SocialButton({ provider, className }: SocialButtonProps) {
     return () => window.removeEventListener("message", handleMessage);
   }, [setAccessToken, setUser, fetchMe]);
 
-  // ✅ Hàm mở popup OAuth
+  // ✅ Hàm mở popup OAuth (CẬP NHẬT)
   const openOAuthPopup = () => {
+    // Nếu là 'email', chỉ cần gọi onClick
+    if (provider === "email" && onClick) {
+      onClick();
+      return;
+    }
+
     const width = 600;
     const height = 700;
     const left = window.screen.width / 2 - width / 2;
     const top = window.screen.height / 2 - height / 2;
 
-    const oauthUrl = `${API_BASE_URL}/api/auth/google`;
+    // ✅ GẮN VAI TRÒ (role) VÀO URL
+    const oauthUrl = `${API_BASE_URL}/api/auth/google?role=${role}`;
 
-    console.log("🔄 Mở popup OAuth:", oauthUrl);
+    console.log(`🔄 Mở popup OAuth: ${oauthUrl}`);
 
     const popup = window.open(
       oauthUrl,
@@ -140,10 +166,10 @@ export function SocialButton({ provider, className }: SocialButtonProps) {
 
   return (
     <Button
-      variant="outline"
+      variant={provider === "google" ? "outline" : "default"}
       type="button"
       className={cn(
-        "w-full h-11 gap-2.5 transition-all duration-200",
+        "w-full h-12 gap-2.5 transition-all duration-200",
         config.bgColor,
         config.borderColor,
         config.textColor,
@@ -155,7 +181,10 @@ export function SocialButton({ provider, className }: SocialButtonProps) {
       <span className="flex-shrink-0 transition-transform duration-200 group-hover:scale-110">
         {config.icon}
       </span>
-      <span className="flex-1 text-center">{config.name}</span>
+      {/* (SỬA) Dùng children nếu có, nếu không thì dùng config.name */}
+      <span className="flex-1 text-center font-semibold">
+        {children || config.name}
+      </span>
     </Button>
   );
 }

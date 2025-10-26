@@ -1,9 +1,11 @@
-// frontend/src/App.tsx
+// frontend/src/App.tsx (CẬP NHẬT)
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import { Toaster } from "sonner";
 import SignInPage from "./pages/SignInPage";
 import SignUpPage from "./pages/SignUpPage";
+import PrinterSignInPage from "./pages/PrinterSignInPage"; // <-- THÊM IMPORT
+import PrinterSignUpPage from "./pages/PrinterSignUpPage"; // <-- THÊM IMPORT
 import VerifyEmailPage from "./components/auth/VerifyEmailPage";
 import ResetPasswordPage from "./components/auth/ResetPasswordPage";
 import CheckEmailPage from "./pages/CheckEmailPage";
@@ -38,6 +40,9 @@ function App() {
         {/* Public Routes */}
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/signup" element={<SignUpPage />} />
+        {/* --- (ROUTES MỚI CHO NHÀ IN) --- */}
+        <Route path="/printer/signin" element={<PrinterSignInPage />} />
+        <Route path="/printer/signup" element={<PrinterSignUpPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/check-your-email" element={<CheckEmailPage />} />

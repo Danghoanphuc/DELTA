@@ -64,6 +64,18 @@ export function CategoryCards() {
 
   return (
     <div className="w-full px-4 md:px-8">
+      {/* Quick Action Tabs */}
+      <div className="flex items-center justify-center gap-2 md:gap-4 mt-6 md:mt-8 flex-wrap">
+        <button className="px-4 md:px-6 py-1.5 md:py-2 rounded-full border-2 border-purple-200 bg-purple-50 text-purple-700 transition-all hover:border-purple-300 hover:bg-purple-100 text-xs md:text-sm">
+          Kho mẫu
+        </button>
+        <button className="px-4 md:px-6 py-1.5 md:py-2 rounded-full border-2 border-blue-200 bg-white text-blue-700 transition-all hover:border-blue-300 hover:bg-blue-50 text-xs md:text-sm">
+          Xu hướng
+        </button>
+        <button className="px-4 md:px-6 py-1.5 md:py-2 rounded-full border-2 border-gray-200 bg-white text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50 text-xs md:text-sm">
+          Đơn hàng
+        </button>
+      </div>
       <h2 className="mb-3 text-gray-800 font-semibold text-base md:text-lg">
         Khám phá kho mẫu
       </h2>

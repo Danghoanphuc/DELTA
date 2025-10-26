@@ -1,28 +1,29 @@
-// src/types/store.ts
+// src/types/store.ts (CẬP NHẬT)
 
-import { User } from "./user"; // 👈 *** 1. IMPORT User đầy đủ từ file user.ts ***
-
-// ❌ 2. Xóa interface User đơn giản (nếu có) ở đây
+import { User } from "./user";
+import { PrinterProfile } from "./printerProfile"; // <-- Import (đã có từ GĐ1)
 
 export interface AuthState {
   accessToken: string | null;
-  user: User | null; // 👈 3. Dùng User đầy đủ
+  user: User | null;
+  printerProfile: PrinterProfile | null;
   loading: boolean;
 
   // --- methods ---
   setAccessToken: (token: string | null) => void;
-  setUser: (user: User) => void; // 👈 *** 4. THÊM setUser ***
+  setUser: (user: User) => void;
+  setPrinterProfile: (profile: PrinterProfile | null) => void;
   clearState: () => void;
 
-  // 👇 *** 5. Sửa lỗi cú pháp ...args ***
+  // 👇 *** SỬA LỖI CHÍNH (ĐỔI 5 THAM SỐ CŨ THÀNH 3 MỚI) *** 👇
   signUp: (
-    username: string,
-    password: string,
     email: string,
-    firstName: string,
-    lastName: string
+    password: string,
+    displayName: string
   ) => Promise<void>;
-  signIn: (username: string, password: string) => Promise<void>;
+  // --- (HẾT SỬA LỖI) ---
+
+  signIn: (email: string, password: string) => Promise<void>; // <-- Sửa 'username' thành 'email'
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 

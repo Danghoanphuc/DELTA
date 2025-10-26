@@ -4,10 +4,10 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import api from "@/lib/axios";
 
-const CHECK_EMAIL_STORAGE_KEY = "emailVerifiedStatus"; // Key phải giống bên CheckEmailPage
+// Key để giao tiếp với trang đăng nhập
+const EMAIL_PREFETCH_KEY = "auth-email-prefetch";
 
 const VerifyEmailPage = () => {
-  // ... (useState, useNavigate, countdown state giữ nguyên) ...
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState<"loading" | "success" | "error">(
@@ -18,7 +18,7 @@ const VerifyEmailPage = () => {
     "Link không hợp lệ hoặc đã hết hạn."
   );
 
-  // --- Logic 1: Gọi API ---
+  // --- Logic 1: Gọi API (CẬP NHẬT) ---
   useEffect(() => {
     const token = searchParams.get("token");
     if (!token) {
@@ -28,14 +28,16 @@ const VerifyEmailPage = () => {
 
     api
       .post("/auth/verify-email", { token })
-      .then(() => {
-        // 👇 THÀNH CÔNG: GHI VÀO LOCALSTORAGE 👇
-        localStorage.setItem(CHECK_EMAIL_STORAGE_KEY, "true");
+      .then((res) => {
+        // ✅ LẤY EMAIL TỪ RESPONSE VÀ LƯU LẠI
+        const email = res.data?.email;
+        if (email) {
+          localStorage.setItem(EMAIL_PREFETCH_KEY, email);
+          console.log(`[Verify] Đã prefetch email: ${email}`);
+        }
         setStatus("success");
       })
       .catch((err) => {
-        // 👇 THẤT BẠI: (Tùy chọn) Ghi 'false' hoặc không làm gì 👇
-        localStorage.setItem(CHECK_EMAIL_STORAGE_KEY, "false"); // Để tab kia biết là đã thử nhưng lỗi
         if (err.response?.data?.message) {
           setErrorMessage(err.response.data.message);
         }
@@ -50,11 +52,12 @@ const VerifyEmailPage = () => {
         const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
         return () => clearTimeout(timer);
       } else {
+        // ✅ Chuyển về trang đăng nhập
         navigate("/signin");
       }
     }
     if (status === "error") {
-      const timer = setTimeout(() => navigate("/"), 5000);
+      const timer = setTimeout(() => navigate("/"), 5000); // Về trang chủ nếu lỗi
       return () => clearTimeout(timer);
     }
   }, [status, countdown, navigate]);
