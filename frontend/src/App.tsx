@@ -1,7 +1,8 @@
-// frontend/src/App.tsx (Đã sửa lỗi Google OAuth)
+// frontend/src/App.tsx (✅ FIXED VERSION)
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import { Toaster } from "sonner";
+import { toast } from "sonner";
 import SignInPage from "./pages/SignInPage";
 import SignUpPage from "./pages/SignUpPage";
 import PrinterSignInPage from "./pages/PrinterSignInPage";
@@ -23,58 +24,74 @@ import { ProductDetailPage } from "./pages/customer/ProductDetailPage";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 function App() {
-  // Lấy các hàm từ store
   const { setAccessToken, fetchMe } = useAuthStore();
 
-  // useEffect để lắng nghe tin nhắn từ cửa sổ popup OAuth
   useEffect(() => {
-    // Hàm xử lý tin nhắn
     const handleOAuthMessage = async (event: MessageEvent) => {
-      // Lấy origin của backend API từ biến môi trường
+      // Lấy origin của backend API
       const API_ORIGIN = new URL(
         import.meta.env.VITE_API_URL || "http://localhost:5001"
       ).origin;
 
-      // 1. Kiểm tra nguồn gốc tin nhắn và loại tin nhắn
-      if (
-        event.origin !== API_ORIGIN ||
-        event.data?.type !== "GOOGLE_AUTH_SUCCESS"
-      ) {
-        // Bỏ qua tin nhắn không hợp lệ
+      console.log("📨 [App] Received message from:", event.origin);
+      console.log("📦 [App] Message data:", event.data);
+
+      // 1. Kiểm tra origin và type
+      if (event.origin !== API_ORIGIN) {
+        console.warn(
+          `⚠️ [App] Message from untrusted origin: ${event.origin}, expected: ${API_ORIGIN}`
+        );
         return;
       }
 
-      // Log lại để debug (có thể xóa sau)
-      console.log("✅ [OAuth] Received message:", event.data);
+      if (event.data?.type !== "GOOGLE_AUTH_SUCCESS") {
+        console.log("ℹ️ [App] Ignoring non-auth message");
+        return;
+      }
 
-      // 2. Trích xuất accessToken và user data
+      // 2. Extract data
       const { accessToken, user } = event.data;
 
-      // 3. Kiểm tra dữ liệu và cập nhật store
-      if (accessToken && user) {
+      console.log("🔑 [App] Access Token received:", accessToken ? "✅" : "❌");
+      console.log("👤 [App] User data received:", user ? "✅" : "❌");
+
+      // 3. Validate and update store
+      if (!accessToken || !user) {
+        console.error("❌ [App] Missing accessToken or user data");
+        toast.error("Đăng nhập thất bại. Vui lòng thử lại.");
+        return;
+      }
+
+      try {
         // Lưu accessToken vào store
+        console.log("💾 [App] Saving access token...");
         setAccessToken(accessToken);
-        // Gọi fetchMe để lấy thông tin user đầy đủ nhất từ backend (bao gồm cả printerProfile nếu có)
+
+        // Gọi fetchMe để sync user data
+        console.log("🔄 [App] Fetching user profile...");
         await fetchMe();
-        // Thông báo đăng nhập thành công (tùy chọn)
-        // toast.success("Đăng nhập bằng Google thành công!");
-        // Không cần navigate ở đây, ProtectedRoute sẽ xử lý việc chuyển hướng
-      } else {
-        // Log lỗi nếu thiếu dữ liệu
-        console.error("❌ [OAuth] Missing accessToken or user in message");
-        // Có thể hiển thị thông báo lỗi cho người dùng nếu cần
-        // toast.error("Đăng nhập Google thất bại, vui lòng thử lại.");
+
+        // Hiển thị toast thành công
+        toast.success(`Chào mừng, ${user.displayName}!`, {
+          description: "Đăng nhập thành công",
+        });
+
+        console.log("✅ [App] OAuth authentication completed successfully");
+      } catch (error) {
+        console.error("❌ [App] Error processing auth:", error);
+        toast.error("Có lỗi xảy ra. Vui lòng thử lại.");
       }
     };
 
-    // Đăng ký lắng nghe sự kiện 'message'
+    console.log("🎧 [App] Registering message listener...");
     window.addEventListener("message", handleOAuthMessage);
 
-    // Dọn dẹp listener khi component unmount
-    return () => window.removeEventListener("message", handleOAuthMessage);
-  }, [setAccessToken, fetchMe]); // Dependencies của useEffect
+    return () => {
+      console.log("🔇 [App] Removing message listener...");
+      window.removeEventListener("message", handleOAuthMessage);
+    };
+  }, [setAccessToken, fetchMe]);
 
-  // Phần còn lại của component giữ nguyên
   return (
     <>
       <Toaster richColors position="top-center" />
@@ -94,7 +111,6 @@ function App() {
           <Route path="/shop" element={<ShopPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/products/:productId" element={<ProductDetailPage />} />
-          {/* Order Detail Routes - Universal */}
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
           <Route
             path="/printer/orders/:orderId"
@@ -119,7 +135,6 @@ function App() {
   );
 }
 
-// Wrapper component để sử dụng BrowserRouter
 const AppWrapper = () => (
   <BrowserRouter>
     <App />
