@@ -16,6 +16,8 @@ import printerRoute from "./routes/printerProfileRoute.js";
 import productRoute from "./routes/productRoute.js";
 import orderRoute from "./routes/orderRoute.js";
 import cartRoute from "./routes/cartRoute.js";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 days
 // --- Lấy __dirname trong ES Module ---
