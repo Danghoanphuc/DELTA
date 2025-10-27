@@ -1,10 +1,23 @@
 // config/cloudinary.js - ✅ FIXED VERSION
 import { v2 as cloudinary } from "cloudinary";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
-import dotenv from "dotenv";
 
-dotenv.config();
-
+// Kiểm tra kỹ trước khi config
+if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+  console.error("❌ FATAL: Missing Cloudinary environment variables!");
+  console.log(
+  `Cloudinary Config Check - Cloud Name: ${process.env.CLOUDINARY_CLOUD_NAME}`
+);
+console.log(
+  `Cloudinary Config Check - API Key: ${
+    process.env.CLOUDINARY_API_KEY ? "Loaded" : "MISSING!"
+  }`
+);
+console.log(
+  `Cloudinary Config Check - API Secret: ${
+    process.env.CLOUDINARY_API_SECRET ? "Loaded" : "MISSING!"
+  }`
+);
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,

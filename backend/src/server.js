@@ -1,5 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
+dotenv.config();
 import cors from "cors";
 import { connectDB } from "./libs/db.js";
 import authRoute from "./routes/authRoute.js";
@@ -17,9 +18,10 @@ import orderRoute from "./routes/orderRoute.js";
 import cartRoute from "./routes/cartRoute.js";
 
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 days
-
-dotenv.config();
-
+// --- Lấy __dirname trong ES Module ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// ---
 const app = express();
 const PORT = process.env.PORT || 5001;
 
