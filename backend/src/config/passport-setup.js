@@ -1,117 +1,115 @@
-// backend/src/config/passport-setup.js
+// backend/src/config/passport.js
 
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { User } from "../models/User.js";
 import { PrinterProfile } from "../models/PrinterProfile.js";
-import crypto from "crypto";
+import dotenv from "dotenv";
 
-const SERVER_URL = process.env.SERVER_URL || "http://localhost:5001";
+dotenv.config();
 
 /**
- * Find or create user from OAuth provider
- * @param {Object} req - Express request object
- * @param {Object} profile - OAuth profile
- * @param {String} provider - OAuth provider name (e.g., "google")
- * @param {Function} done - Passport callback
+ * Hàm tìm hoặc tạo user mới từ Google profile
+ * Role sẽ được lấy từ state parameter (không dùng session)
  */
-const findOrCreateUser = async (req, profile, provider, done) => {
+const findOrCreateUser = async (profile, role = "customer") => {
   try {
-    let email = profile.emails?.[0]?.value || profile._json?.email || null;
-    if (!email) {
-      return done(new Error(`[${provider}] Could not retrieve email`), null);
-    }
+    console.log(
+      `🔍 Finding/Creating user with Google ID: ${profile.id}, role: ${role}`
+    );
 
-    // Get role from session (set by rememberOAuthRole middleware)
-    const role = req.session.oauthRole || "customer";
-    // Clean up session after use
-    if (req.session.oauthRole) delete req.session.oauthRole;
-
-    console.log(`[Passport] FindOrCreate for: ${email}, Role: ${role}`);
-
-    // Check if user already exists
-    let user = await User.findOne({ email });
-    if (user) {
-      // User exists, update OAuth ID if missing
-      if (!user[`${provider}Id`]) {
-        user[`${provider}Id`] = profile.id;
-        await user.save();
-      }
-      return done(null, user);
-    }
-
-    // User doesn't exist, create new user
-    const displayName =
-      profile.displayName ||
-      `${profile.name?.givenName || ""} ${profile.name?.familyName || ""}`.trim() ||
-      email.split("@")[0];
-
-    const avatarUrl = profile.photos?.[0]?.value || "";
-    const tempUsername =
-      email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "") +
-      "_" +
-      provider.substring(0, 2) +
-      crypto.randomBytes(2).toString("hex");
-
-    const newUser = new User({
-      [`${provider}Id`]: profile.id,
-      email,
-      displayName,
-      isVerified: true, // Auto-verify OAuth users
-      avatarUrl,
-      username: tempUsername,
-      role: role,
-      authMethod: provider,
+    // 1. Tìm user hiện có
+    let user = await User.findOne({
+      $or: [{ googleId: profile.id }, { email: profile.emails[0].value }],
     });
 
-    // If printer role, create PrinterProfile
+    // 2. Nếu user đã tồn tại
+    if (user) {
+      console.log(`✅ User found: ${user.email}`);
+
+      // Cập nhật Google ID nếu chưa có
+      if (!user.googleId) {
+        user.googleId = profile.id;
+        await user.save();
+      }
+
+      return user;
+    }
+
+    // 3. Tạo user mới
+    console.log(`➕ Creating new user with role: ${role}`);
+
+    const newUser = new User({
+      googleId: profile.id,
+      username: profile.emails[0].value,
+      email: profile.emails[0].value,
+      displayName: profile.displayName || profile.emails[0].value.split("@")[0],
+      avatarUrl: profile.photos?.[0]?.value,
+      role: role,
+      isVerified: true, // Google đã verify email
+    });
+
+    // 4. Nếu là printer, tạo thêm PrinterProfile
     if (role === "printer") {
       const newProfile = new PrinterProfile({
         userId: newUser._id,
-        businessName: displayName,
+        businessName: newUser.displayName,
       });
+
       newUser.printerProfile = newProfile._id;
+
       await newProfile.save();
-      console.log(`[Passport] Created PrinterProfile for ${email}`);
+      console.log(`✅ PrinterProfile created for user ${newUser.email}`);
     }
 
     await newUser.save();
-    console.log(`[Passport] Created new user: ${email}`);
-    return done(null, newUser);
-  } catch (err) {
-    console.error(`[Passport] Error in findOrCreateUser:`, err);
-    return done(err, null);
+    console.log(`✅ New user created: ${newUser.email}`);
+
+    return newUser;
+  } catch (error) {
+    console.error("❌ Error in findOrCreateUser:", error);
+    throw error;
   }
 };
 
-// Configure Google OAuth Strategy
+/**
+ * Config Passport Google Strategy
+ */
 passport.use(
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: `${SERVER_URL}/api/auth/google/callback`,
-      scope: ["profile", "email"],
-      passReqToCallback: true, // Pass req to callback
+      callbackURL: `${
+        process.env.API_URL || "http://localhost:5001"
+      }/api/auth/google/callback`,
+      passReqToCallback: true, // Để truy cập req trong callback
     },
-    (req, accessToken, refreshToken, profile, done) => {
-      findOrCreateUser(req, profile, "google", done);
+    async (req, accessToken, refreshToken, profile, done) => {
+      try {
+        console.log("🎯 Google Strategy Callback triggered");
+        console.log("📧 Google Profile Email:", profile.emails?.[0]?.value);
+
+        // Lấy role từ state parameter (đã encode trong URL)
+        // State format: "role=customer" hoặc "role=printer"
+        const role = req.query.state?.includes("printer")
+          ? "printer"
+          : "customer";
+
+        console.log(`🎭 Detected role from state: ${role}`);
+
+        // Tìm hoặc tạo user
+        const user = await findOrCreateUser(profile, role);
+
+        // Trả về user cho Passport
+        done(null, user);
+      } catch (error) {
+        console.error("❌ Error in Google Strategy:", error);
+        done(error, null);
+      }
     }
   )
 );
 
-// Serialize user for session
-passport.serializeUser((user, done) => done(null, user.id));
-
-// Deserialize user from session
-passport.deserializeUser(async (id, done) => {
-  try {
-    const user = await User.findById(id);
-    done(null, user);
-  } catch (err) {
-    console.error("[Passport] Error deserializing user:", err);
-    done(err, null);
-  }
-});
-
+// Không cần serialize/deserialize vì không dùng session
 export default passport;
