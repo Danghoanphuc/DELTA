@@ -1,157 +1,220 @@
-// src/controllers/productController.js - ĐÃ KHẮC PHỤC 100%
+// src/controllers/productController.js
 import { Product } from "../models/Product.js";
+import { cloudinary } from "../config/cloudinary.js"; // Import cấu hình Cloudinary
+import mongoose from "mongoose";
 
-// --- (HÀM MỚI 1 - CÔNG KHAI) ---
-// @desc    Lấy tất cả sản phẩm công khai (cho khách)
-// @route   GET /api/products
-// @access  Public
+// --- (HÀM CÔNG KHAI - Lấy tất cả sản phẩm cho khách) ---
 export const getAllProducts = async (req, res) => {
   try {
-    // (Sau này có thể thêm filter, search, pagination tại đây)
-    // Ví dụ: Lọc theo category
     const filter = { isActive: true };
-    if (req.query.category) {
+    if (req.query.category && req.query.category !== "all") {
+      // Thêm kiểm tra 'all'
       filter.category = req.query.category;
     }
     if (req.query.search) {
-      // Sử dụng $text search
       filter.$text = {
         $search: req.query.search,
         $caseSensitive: false,
         $diacriticSensitive: false,
       };
     }
+
+    // Sắp xếp
+    let sortOption = { createdAt: -1 }; // Mặc định: mới nhất
+    if (req.query.sort) {
+      switch (req.query.sort) {
+        case "price-asc":
+          // Sắp xếp theo giá thấp nhất của bậc giá đầu tiên (cần cải thiện nếu muốn chính xác hơn)
+          sortOption = { "pricing.0.pricePerUnit": 1 };
+          break;
+        case "price-desc":
+          sortOption = { "pricing.0.pricePerUnit": -1 };
+          break;
+        case "popular":
+          sortOption = { totalSold: -1, views: -1 }; // Ví dụ sắp xếp theo bán chạy/lượt xem
+          break;
+        // case 'newest': // Mặc định
+        // default:
+        //   sortOption = { createdAt: -1 };
+      }
+    }
+
     const products = await Product.find(filter)
       .populate({
-        path: "printerId", // Lấy thông tin nhà in
-        select: "displayName avatarUrl", // Chỉ lấy 2 trường này
+        path: "printerId",
+        select: "displayName avatarUrl",
       })
-      .sort({ createdAt: -1 });
+      .sort(sortOption); // Áp dụng sắp xếp
 
-    res.status(200).json({ products });
+    res.status(200).json({ success: true, products }); // Thêm success: true
   } catch (error) {
-    console.error("Lỗi khi lấy tất cả sản phẩm:", error);
-    res.status(500).json({ message: "Lỗi hệ thống." });
+    console.error("❌ Lỗi khi lấy tất cả sản phẩm:", error);
+    res.status(500).json({ success: false, message: "Lỗi hệ thống." }); // Thêm success: false
   }
 };
 
-// --- (HÀM MỚI 2 - CÔNG KHAI) ---
-// @desc    Lấy chi tiết 1 sản phẩm (cho khách)
-// @route   GET /api/products/:id
-// @access  Public
+// --- (HÀM CÔNG KHAI - Lấy chi tiết 1 sản phẩm cho khách) ---
 export const getProductById = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).populate({
-      path: "printerId",
-      select: "displayName avatarUrl rating specialties", // Lấy thêm thông tin nhà in
+    const productId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "ID sản phẩm không hợp lệ." });
+    }
+
+    // Populate cả printerProfile để lấy thông tin chi tiết hơn
+    const product = await Product.findById(productId).populate({
+      path: "printerId", // User model của nhà in
+      select: "displayName email avatarUrl printerProfile", // Lấy thêm ID profile
+      populate: {
+        path: "printerProfile", // Populate tiếp profile từ User
+        model: "PrinterProfile", // Chỉ định model
+        // select: 'businessName shopAddress rating totalReviews specialties' // Chọn các trường cần thiết từ Profile
+      },
     });
 
     if (!product || !product.isActive) {
-      return res.status(404).json({ message: "Không tìm thấy sản phẩm." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy sản phẩm." });
     }
 
-    // (Sau này có thể thêm logic tăng "views" tại đây)
+    // Map dữ liệu printer profile vào response cho tiện frontend
+    const productResponse = product.toObject(); // Chuyển Mongoose doc thành object thường
+    if (productResponse.printerId && productResponse.printerId.printerProfile) {
+      productResponse.printerInfo = productResponse.printerId.printerProfile;
+      // Không cần trả về lồng nhau nữa
+      // delete productResponse.printerId.printerProfile;
+    }
 
-    res.status(200).json({ product });
+    // (Tùy chọn: Tăng lượt xem)
+    // await Product.findByIdAndUpdate(productId, { $inc: { views: 1 } });
+
+    res.status(200).json({ success: true, product: productResponse }); // Thêm success: true
   } catch (error) {
-    console.error("Lỗi khi lấy chi tiết sản phẩm:", error);
-    if (error.kind === "ObjectId") {
-      return res.status(404).json({ message: "ID sản phẩm không hợp lệ." });
-    }
-    res.status(500).json({ message: "Lỗi hệ thống." });
+    console.error("❌ Lỗi khi lấy chi tiết sản phẩm:", error);
+    // Bỏ kiểm tra error.kind
+    res.status(500).json({ success: false, message: "Lỗi hệ thống." });
   }
 };
 
-// --- (CÁC HÀM CŨ - CỦA NHÀ IN) - ĐÃ FIX ---
-
-// @desc    Tạo sản phẩm mới
-// @route   POST /api/products
-// @access  Private (Chỉ Printer)
+// --- (HÀM NHÀ IN - Tạo sản phẩm mới với Cloudinary) ---
 export const createProduct = async (req, res) => {
   try {
-    console.log("=== CREATE PRODUCT REQUEST ===");
+    console.log("✅✅✅ Controller createProduct ĐÃ ĐƯỢC GỌI ✅✅✅");
     console.log("User ID:", req.user?._id, "Role:", req.user?.role);
-    console.log("Request Body:", JSON.stringify(req.body, null, 2));
+    console.log("Request Body (AFTER Multer):", req.body); // Xem body sau khi multer xử lý
+    console.log("Request Files (AFTER Multer):", req.files); // Xem files sau khi multer xử lý
 
     // 1. Kiểm tra vai trò
     if (req.user.role !== "printer") {
       console.error("❌ Unauthorized: User is not a printer");
-      return res
-        .status(403)
-        .json({ message: "Cấm truy cập: Chỉ nhà in mới được thêm sản phẩm." });
+      return res.status(403).json({
+        success: false,
+        message: "Cấm truy cập: Chỉ nhà in mới được thêm sản phẩm.",
+      });
     }
 
-    // 2. Lấy dữ liệu từ body
+    // 2. Lấy dữ liệu từ body và Parse JSON
     const {
       name,
       category,
       description,
-      images,
-      pricing,
-      specifications,
+      pricing: pricingString,
+      specifications: specString,
       productionTime,
       customization,
+      stock, // Lấy stock nếu có
     } = req.body;
 
-    // 3. Validation chi tiết
+    let parsedSpecifications = {};
+    let parsedPricing = [];
+
+    try {
+      if (specString) parsedSpecifications = JSON.parse(specString);
+      if (pricingString) parsedPricing = JSON.parse(pricingString);
+    } catch (e) {
+      console.error("❌ Lỗi parse JSON:", e);
+      return res.status(400).json({
+        success: false,
+        message: "Định dạng pricing hoặc specifications không hợp lệ.",
+      });
+    }
+
+    // 3. Xử lý ảnh từ req.files (Cloudinary cung cấp)
+    if (!req.files || req.files.length === 0) {
+      console.error("❌ Validation error: No images uploaded");
+      return res
+        .status(400)
+        .json({ success: false, message: "Vui lòng tải lên ít nhất 1 ảnh." });
+    }
+
+    const images = req.files.map((file, index) => ({
+      url: file.path, // secure_url từ Cloudinary
+      publicId: file.filename, // public_id từ Cloudinary
+      isPrimary: index === 0,
+    }));
+    console.log("🖼️ Processed images from Cloudinary:", images);
+
+    // 4. Validation chi tiết
     const errors = [];
-
-    if (!name || name.trim().length === 0) {
-      errors.push("Tên sản phẩm không được để trống");
-    }
-
-    if (!category) {
-      errors.push("Danh mục sản phẩm không được để trống");
-    }
-
-    // Validate pricing array - QUAN TRỌNG!
-    if (!pricing || !Array.isArray(pricing) || pricing.length === 0) {
+    if (!name || name.trim().length < 5)
+      errors.push("Tên sản phẩm phải có ít nhất 5 ký tự"); // Sửa validation
+    if (!category) errors.push("Danh mục sản phẩm không được để trống");
+    if (
+      !parsedPricing ||
+      !Array.isArray(parsedPricing) ||
+      parsedPricing.length === 0
+    ) {
       errors.push("Phải có ít nhất một mức giá");
     } else {
-      pricing.forEach((tier, index) => {
-        if (!tier.minQuantity || tier.minQuantity < 1) {
+      parsedPricing.forEach((tier, index) => {
+        // Sửa validation cho chặt chẽ hơn
+        if (tier.minQuantity === undefined || tier.minQuantity < 1)
           errors.push(
             `Mức giá ${index + 1}: Số lượng tối thiểu phải lớn hơn 0`
           );
-        }
-        if (
-          tier.pricePerUnit === undefined ||
-          tier.pricePerUnit === null ||
-          tier.pricePerUnit < 0
-        ) {
-          errors.push(
-            `Mức giá ${index + 1}: Giá mỗi đơn vị phải lớn hơn hoặc bằng 0`
-          );
-        }
+        if (tier.pricePerUnit === undefined || tier.pricePerUnit < 100)
+          errors.push(`Mức giá ${index + 1}: Giá mỗi đơn vị phải ít nhất 100đ`);
       });
     }
 
     if (errors.length > 0) {
       console.error("❌ Validation errors:", errors);
-      return res.status(400).json({
-        message: "Dữ liệu không hợp lệ",
-        errors: errors,
-      });
+      // Nếu có ảnh đã upload, cần xóa đi (rollback)
+      if (req.files && req.files.length > 0) {
+        console.warn("Rollback Cloudinary upload due to validation errors...");
+        const publicIds = req.files.map((f) => f.filename);
+        cloudinary.api
+          .delete_resources(publicIds)
+          .catch((err) =>
+            console.error("Error rolling back Cloudinary upload:", err)
+          );
+      }
+      return res
+        .status(400)
+        .json({ success: false, message: "Dữ liệu không hợp lệ", errors });
     }
 
-    // 4. Chuẩn bị data để lưu (với default values)
+    // 5. Chuẩn bị data để lưu
     const productData = {
-      printerId: req.user._id,
+      printerId: req.user._id, // QUAN TRỌNG: Gán đúng ID nhà in
       name: name.trim(),
       category,
       description: description?.trim() || "",
-      images: Array.isArray(images) ? images : [],
-      pricing: pricing,
-      specifications: specifications || {},
+      images: images,
+      pricing: parsedPricing,
+      specifications: parsedSpecifications,
       productionTime: productionTime || { min: 1, max: 3 },
-      customization:
-        customization ||
-        {
-          /*...*/
-        },
-      isActive: true,
-      // Cập nhật stock: Nếu frontend gửi thì dùng, không thì mặc định 999
-      stock: typeof stock === "number" && stock >= 0 ? stock : 999,
+      customization: customization || {},
+      isActive: true, // Mặc định là active khi tạo mới
+      stock:
+        typeof stock === "string" && !isNaN(parseInt(stock))
+          ? parseInt(stock)
+          : typeof stock === "number"
+          ? stock
+          : undefined, // Parse stock, nếu ko có thì là undefined (không giới hạn)
     };
 
     console.log(
@@ -159,25 +222,31 @@ export const createProduct = async (req, res) => {
       JSON.stringify(productData, null, 2)
     );
 
-    // 5. Tạo sản phẩm với error handling tốt hơn
+    // 6. Tạo sản phẩm
     let newProduct;
     try {
       newProduct = await Product.create(productData);
       console.log("✅ Product created successfully with ID:", newProduct._id);
     } catch (createError) {
       console.error("❌ MongoDB create error:", createError);
-
-      // Xử lý duplicate key error
-      if (createError.code === 11000) {
-        return res.status(409).json({
-          message: "Sản phẩm này đã tồn tại",
-        });
+      // Rollback Cloudinary upload
+      if (req.files && req.files.length > 0) {
+        console.warn("Rollback Cloudinary upload due to DB create error...");
+        const publicIds = req.files.map((f) => f.filename);
+        cloudinary.api
+          .delete_resources(publicIds)
+          .catch((err) =>
+            console.error("Error rolling back Cloudinary upload:", err)
+          );
       }
-
-      throw createError; // Re-throw để catch block bên ngoài xử lý
+      if (createError.code === 11000)
+        return res
+          .status(409)
+          .json({ success: false, message: "Sản phẩm này đã tồn tại" });
+      throw createError; // Để catch bên ngoài xử lý
     }
 
-    // 6. Populate printer info trước khi trả về
+    // 7. Populate và trả về
     await newProduct.populate({
       path: "printerId",
       select: "displayName avatarUrl",
@@ -189,9 +258,182 @@ export const createProduct = async (req, res) => {
       product: newProduct,
     });
   } catch (error) {
-    console.error("❌ Error creating product:", error);
+    console.error("❌ Error creating product (outer catch):", error);
+    // Đảm bảo rollback nếu lỗi xảy ra ở đây mà ảnh đã upload
+    if (req.files && req.files.length > 0 && !res.headersSent) {
+      // Check headersSent để tránh lỗi double response
+      console.warn(
+        "Outer Catch Rollback: Deleting uploaded Cloudinary images..."
+      );
+      const publicIds = req.files.map((f) => f.filename);
+      cloudinary.api
+        .delete_resources(publicIds)
+        .catch((err) =>
+          console.error(
+            "Outer Catch: Error rolling back Cloudinary upload:",
+            err
+          )
+        );
+    }
+    if (!res.headersSent) {
+      if (error.name === "ValidationError") {
+        const validationErrors = Object.values(error.errors).map(
+          (err) => err.message
+        );
+        return res.status(400).json({
+          success: false,
+          message: "Dữ liệu không hợp lệ",
+          errors: validationErrors,
+        });
+      }
+      if (error.name === "CastError") {
+        return res
+          .status(400)
+          .json({ success: false, message: "ID không hợp lệ" });
+      }
+      res.status(500).json({
+        success: false,
+        message: "Lỗi hệ thống khi tạo sản phẩm.",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
+    }
+  }
+};
 
-    // Chi tiết error nếu là validation error của Mongoose
+// --- (HÀM NHÀ IN - Lấy sản phẩm của tôi) ---
+export const getMyProducts = async (req, res) => {
+  try {
+    if (req.user.role !== "printer") {
+      return res.status(403).json({
+        success: false,
+        message: "Cấm truy cập: Chỉ nhà in mới xem được.",
+      });
+    }
+
+    // Lấy ID nhà in từ user đã được xác thực
+    const printerUserId = req.user._id;
+
+    // Tìm sản phẩm thuộc về nhà in này
+    const products = await Product.find({ printerId: printerUserId }).sort({
+      createdAt: -1, // Sắp xếp mới nhất trước
+    });
+
+    res.status(200).json({
+      success: true,
+      products,
+      count: products.length,
+    });
+  } catch (error) {
+    console.error("❌ Lỗi khi lấy sản phẩm của nhà in:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi hệ thống.",
+    });
+  }
+};
+
+// --- (HÀM NHÀ IN - Cập nhật sản phẩm) ---
+// (Lưu ý: Chưa xử lý upload/xóa ảnh khi cập nhật)
+export const updateProduct = async (req, res) => {
+  try {
+    if (req.user.role !== "printer") {
+      return res.status(403).json({ success: false, message: "Cấm truy cập." });
+    }
+
+    const productId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "ID sản phẩm không hợp lệ." });
+    }
+
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy sản phẩm." });
+    }
+
+    // Kiểm tra ownership
+    if (product.printerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Bạn không có quyền chỉnh sửa sản phẩm này.",
+      });
+    }
+
+    // --- Validation dữ liệu cập nhật ---
+    const { name, category, pricing, ...otherUpdates } = req.body;
+    const errors = [];
+    if (name !== undefined && (!name || name.trim().length < 5))
+      errors.push("Tên sản phẩm phải có ít nhất 5 ký tự");
+    if (category !== undefined && !category)
+      errors.push("Danh mục không được để trống");
+    if (pricing !== undefined) {
+      if (!Array.isArray(pricing) || pricing.length === 0) {
+        errors.push("Phải có ít nhất một mức giá");
+      } else {
+        pricing.forEach((tier, index) => {
+          if (tier.minQuantity === undefined || tier.minQuantity < 1)
+            errors.push(
+              `Mức giá ${index + 1}: Số lượng tối thiểu phải lớn hơn 0`
+            );
+          if (tier.pricePerUnit === undefined || tier.pricePerUnit < 100)
+            errors.push(
+              `Mức giá ${index + 1}: Giá mỗi đơn vị phải ít nhất 100đ`
+            );
+        });
+      }
+    }
+    if (errors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Dữ liệu cập nhật không hợp lệ",
+        errors,
+      });
+    }
+    // --- Kết thúc Validation ---
+
+    // Cập nhật các fields được phép
+    const allowedUpdates = [
+      "name",
+      "category",
+      "description",
+      /* "images", */ "pricing",
+      "specifications",
+      "productionTime",
+      "customization",
+      "isActive",
+      "stock",
+    ];
+
+    allowedUpdates.forEach((field) => {
+      // Chỉ cập nhật nếu field đó có trong req.body
+      if (req.body[field] !== undefined) {
+        // Parse stock nếu là chuỗi
+        if (field === "stock" && typeof req.body.stock === "string") {
+          product.stock = !isNaN(parseInt(req.body.stock))
+            ? parseInt(req.body.stock)
+            : undefined;
+        } else {
+          product[field] = req.body[field];
+        }
+      }
+    });
+
+    // TODO: Xử lý cập nhật ảnh (xóa ảnh cũ trên Cloudinary, upload ảnh mới nếu có)
+
+    const updatedProduct = await product.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật sản phẩm thành công!",
+      product: updatedProduct,
+    });
+  } catch (error) {
+    console.error("❌ Lỗi khi cập nhật sản phẩm:", error);
     if (error.name === "ValidationError") {
       const validationErrors = Object.values(error.errors).map(
         (err) => err.message
@@ -202,145 +444,79 @@ export const createProduct = async (req, res) => {
         errors: validationErrors,
       });
     }
-
-    // Cast error (invalid ObjectId)
-    if (error.name === "CastError") {
-      return res.status(400).json({
-        success: false,
-        message: "ID không hợp lệ",
-      });
-    }
-
     res.status(500).json({
       success: false,
-      message: "Lỗi hệ thống khi tạo sản phẩm.",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      message: "Lỗi hệ thống khi cập nhật sản phẩm.",
     });
   }
 };
 
-// @desc    Lấy tất cả sản phẩm của nhà in
-// @route   GET /api/products/my-products
-// @access  Private (Chỉ Printer)
-export const getMyProducts = async (req, res) => {
-  try {
-    if (req.user.role !== "printer") {
-      return res
-        .status(403)
-        .json({ message: "Cấm truy cập: Chỉ nhà in mới xem được." });
-    }
-
-    const products = await Product.find({ printerId: req.user._id }).sort({
-      createdAt: -1,
-    }); // Sắp xếp mới nhất trước
-
-    res.status(200).json({
-      success: true,
-      products,
-      count: products.length,
-    });
-  } catch (error) {
-    console.error("Lỗi khi lấy sản phẩm:", error);
-    res.status(500).json({
-      success: false,
-      message: "Lỗi hệ thống.",
-    });
-  }
-};
-
-// @desc    Cập nhật sản phẩm
-// @route   PUT /api/products/:id
-// @access  Private (Chỉ Printer - owner)
-export const updateProduct = async (req, res) => {
-  try {
-    if (req.user.role !== "printer") {
-      return res.status(403).json({ message: "Cấm truy cập." });
-    }
-
-    const product = await Product.findById(req.params.id);
-
-    if (!product) {
-      return res.status(404).json({ message: "Không tìm thấy sản phẩm." });
-    }
-
-    // Kiểm tra ownership
-    if (product.printerId.toString() !== req.user._id.toString()) {
-      return res
-        .status(403)
-        .json({ message: "Bạn không có quyền chỉnh sửa sản phẩm này." });
-    }
-
-    // Update các fields được gửi lên
-    const allowedUpdates = [
-      "name",
-      "category",
-      "description",
-      "images",
-      "pricing",
-      "specifications",
-      "productionTime",
-      "customization",
-      "isActive",
-      "stock",
-    ];
-
-    allowedUpdates.forEach((field) => {
-      if (req.body[field] !== undefined) {
-        product[field] = req.body[field];
-      }
-    });
-
-    await product.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Cập nhật sản phẩm thành công!",
-      product,
-    });
-  } catch (error) {
-    console.error("Lỗi khi cập nhật sản phẩm:", error);
-    res.status(500).json({
-      success: false,
-      message: "Lỗi hệ thống.",
-    });
-  }
-};
-
-// @desc    Xóa sản phẩm (soft delete)
-// @route   DELETE /api/products/:id
-// @access  Private (Chỉ Printer - owner)
+// --- (HÀM NHÀ IN - Xóa sản phẩm với Cloudinary) ---
 export const deleteProduct = async (req, res) => {
   try {
     if (req.user.role !== "printer") {
-      return res.status(403).json({ message: "Cấm truy cập." });
+      return res.status(403).json({ success: false, message: "Cấm truy cập." });
     }
 
-    const product = await Product.findById(req.params.id);
+    const productId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "ID sản phẩm không hợp lệ." });
+    }
+
+    const product = await Product.findById(productId);
 
     if (!product) {
-      return res.status(404).json({ message: "Không tìm thấy sản phẩm." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy sản phẩm." });
     }
 
     // Kiểm tra ownership
     if (product.printerId.toString() !== req.user._id.toString()) {
-      return res
-        .status(403)
-        .json({ message: "Bạn không có quyền xóa sản phẩm này." });
+      return res.status(403).json({
+        success: false,
+        message: "Bạn không có quyền xóa sản phẩm này.",
+      });
     }
 
-    // Soft delete
+    // --- Xóa ảnh trên Cloudinary ---
+    const publicIds = product.images
+      ?.map((img) => img.publicId)
+      .filter((id) => !!id);
+    if (publicIds && publicIds.length > 0) {
+      console.log(
+        `🗑️ Đang xóa ${publicIds.length} ảnh trên Cloudinary cho sản phẩm ${product._id}...`
+      );
+      try {
+        const result = await cloudinary.api.delete_resources(publicIds);
+        console.log("✅ Kết quả xóa ảnh Cloudinary:", result);
+      } catch (cloudinaryError) {
+        // Log lỗi nhưng không dừng quá trình xóa product trong DB
+        console.error(
+          "⚠️ Lỗi xóa ảnh Cloudinary khi xóa sản phẩm (bỏ qua):",
+          cloudinaryError
+        );
+      }
+    }
+
+    // --- Xóa sản phẩm khỏi DB ---
+    // Thay vì soft delete, thực hiện hard delete nếu muốn xóa hẳn
+    // await product.deleteOne(); // Hoặc dùng findByIdAndDelete(productId);
+    // Hoặc giữ soft delete:
     product.isActive = false;
     await product.save();
 
     res.status(200).json({
       success: true,
-      message: "Xóa sản phẩm thành công!",
+      message: "Xóa sản phẩm thành công!", // Hoặc "Ẩn sản phẩm thành công!" nếu là soft delete
     });
   } catch (error) {
-    console.error("Lỗi khi xóa sản phẩm:", error);
+    console.error("❌ Lỗi khi xóa sản phẩm:", error);
     res.status(500).json({
       success: false,
-      message: "Lỗi hệ thống.",
+      message: "Lỗi hệ thống khi xóa sản phẩm.",
     });
   }
 };
