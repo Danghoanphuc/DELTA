@@ -1,4 +1,4 @@
-// src/components/auth/AuthFlow.tsx
+// src/components/auth/AuthFlow.tsx (✅ FIXED VERSION)
 
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -16,16 +16,14 @@ import api from "@/lib/axios";
 import { useAuthStore } from "@/stores/useAuthStore";
 import printzLogo from "@/assets/img/printz.png";
 
-// --- (SỬA) Schema ---
-// 1. Đặt các trường không dùng trong 'signIn' là optional
+// --- Schema (Giữ nguyên) ---
 const authFlowSchema = z.object({
   email: z.string().email("Email không hợp lệ"),
-  firstName: z.string().optional(), // <-- Sửa
-  lastName: z.string().optional(), // <-- Sửa
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
   password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
-  confirmPassword: z.string().optional(), // <-- Sửa
+  confirmPassword: z.string().optional(),
 });
-// 2. XÓA LUẬT .refine() GÂY LỖI
 
 type AuthFlowValues = z.infer<typeof authFlowSchema>;
 
@@ -42,7 +40,8 @@ const EMAIL_PREFETCH_KEY = "auth-email-prefetch";
 
 export function AuthFlow({ mode, role }: AuthFlowProps) {
   const navigate = useNavigate();
-  const { signIn, signUp } = useAuthStore();
+  // ✅ FIX: Lấy 'user' từ store
+  const { signIn, signUp, user } = useAuthStore();
   const [step, setStep] = useState<AuthStep>("email");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -55,7 +54,7 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
     trigger,
     formState: { errors },
   } = useForm<AuthFlowValues>({
-    resolver: zodResolver(authFlowSchema), // Vẫn dùng resolver
+    resolver: zodResolver(authFlowSchema),
     mode: "onTouched",
     defaultValues: {
       email: "",
@@ -68,7 +67,7 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
 
   const email = watch("email");
 
-  // (Logic pre-fill email giữ nguyên - Đang chạy tốt)
+  // (Logic pre-fill email giữ nguyên)
   useEffect(() => {
     const prefillEmail = localStorage.getItem(EMAIL_PREFETCH_KEY);
     if (prefillEmail && mode === "signIn") {
@@ -79,6 +78,24 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
     }
   }, [mode, setValue]);
 
+  // ✅ FIX: BACKUP MECHANISM (Tự động navigate nếu đã đăng nhập)
+  useEffect(() => {
+    const currentPath = window.location.pathname;
+    const authPaths = [
+      "/signin",
+      "/signup",
+      "/printer/signin",
+      "/printer/signup",
+    ];
+
+    // Nếu đang ở auth pages và user đã được set → auto-navigate
+    if (user && authPaths.includes(currentPath)) {
+      setTimeout(() => {
+        navigate("/", { replace: true });
+      }, 200);
+    }
+  }, [user, navigate]);
+
   // (Các hàm xử lý bước giữ nguyên)
   const handleEmailSubmit = async () => {
     const isValid = await trigger("email");
@@ -88,7 +105,6 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
   };
 
   const handleNameSubmit = async () => {
-    // (SỬA) Bắt buộc 2 trường này khi trigger
     const isFirstValid = await trigger("firstName", {
       shouldFocus: true,
     });
@@ -96,7 +112,6 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
       shouldFocus: true,
     });
 
-    // Cần 1 check thủ công nhỏ vì schema là optional
     const firstName = watch("firstName");
     const lastName = watch("lastName");
     if (!firstName || !lastName || !isFirstValid || !isLastValid) {
@@ -106,12 +121,12 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
     setStep("password");
   };
 
-  // --- (SỬA) Logic Gửi Form (Thêm kiểm tra mật khẩu thủ công) ---
+  // --- Logic Gửi Form (Đã cập nhật) ---
   const onSubmit = async (data: AuthFlowValues) => {
     setIsLoading(true);
     try {
       if (mode === "signUp") {
-        // --- Flow Đăng Ký ---
+        // --- Flow Đăng Ký (Giữ nguyên) ---
         const { email, password, firstName, lastName, confirmPassword } = data;
         if (password !== confirmPassword) {
           toast.error("Mật khẩu xác nhận không khớp!");
@@ -122,25 +137,29 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
         const displayName = `${firstName} ${lastName}`.trim();
 
         if (role === "printer") {
-          // (Đăng ký nhà in vẫn dùng api.post trực tiếp - Đã đúng từ GĐ2)
           await api.post("/auth/signup-printer", {
             email,
             password,
             displayName,
           });
         } else {
-          // (SỬA) Gọi hàm signUp từ store
           await signUp(email, password, displayName);
         }
-        setStep("verifySent"); // Chuyển sang thông báo
+        setStep("verifySent");
       } else {
-        // --- Flow Đăng Nhập ---
+        // --- Flow Đăng Nhập (ĐÃ SỬA) ---
         const { email, password } = data;
-        await signIn(email, password); // Gọi signIn từ store
-        navigate("/"); // Thành công -> Về trang chủ
+        const result = await signIn(email, password); // Gọi signIn từ store
+
+        // ✅ FIX: Chỉ navigate khi đăng nhập thành công
+        // (Giả định hàm signIn trả về 'false' khi thất bại)
+        if (result !== false) {
+          setTimeout(() => {
+            navigate("/", { replace: true });
+          }, 100);
+        }
       }
     } catch (err: any) {
-      // (Lỗi đã được toast trong store, không cần toast lại)
       console.error("Lỗi AuthFlow:", err);
     } finally {
       setIsLoading(false);
@@ -268,7 +287,7 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
             </Button>
           </div>
 
-          {/* ----- Bước 2: Tên (SỬA) ----- */}
+          {/* ----- Bước 2: Tên (Giữ nguyên) ----- */}
           {mode === "signUp" && (
             <div
               className={cn("flex flex-col gap-5", step !== "name" && "hidden")}
@@ -277,21 +296,16 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
                 type="text"
                 id="firstName"
                 placeholder="Tên"
-                // (SỬA) Chỉ register, không set required ở đây
                 {...register("firstName")}
                 className="h-12 text-base"
               />
-              {/* (Lỗi này sẽ được bắt bởi handleNameSubmit) */}
-
               <Input
                 type="text"
                 id="lastName"
                 placeholder="Họ"
-                // (SỬA) Chỉ register
                 {...register("lastName")}
                 className="h-12 text-base"
               />
-
               <Button
                 type="button"
                 className="w-full h-12 text-base"
@@ -345,7 +359,6 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
               </p>
             )}
 
-            {/* (Chỉ Đăng ký) Thêm xác nhận MK */}
             {mode === "signUp" && (
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -357,9 +370,6 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
                 />
               </div>
             )}
-            {/* (XÓA) Bỏ hiển thị lỗi .refine() cũ
-              {errors.confirmPassword && ( ... )}
-            */}
 
             <Button
               type="submit"

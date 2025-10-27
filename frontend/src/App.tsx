@@ -1,5 +1,5 @@
 // frontend/src/App.tsx (✅ FIXED VERSION)
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom"; // ✅ FIX: Thêm useNavigate
 import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 
 function App() {
   const { setAccessToken, fetchMe } = useAuthStore();
+  const navigate = useNavigate(); // ✅ FIX: Khởi tạo navigate
 
   useEffect(() => {
     const handleOAuthMessage = async (event: MessageEvent) => {
@@ -77,6 +78,11 @@ function App() {
         });
 
         console.log("✅ [App] OAuth authentication completed successfully");
+
+        // ✅ FIX: Navigate về trang chủ sau khi OAuth thành công
+        setTimeout(() => {
+          navigate("/", { replace: true });
+        }, 100);
       } catch (error) {
         console.error("❌ [App] Error processing auth:", error);
         toast.error("Có lỗi xảy ra. Vui lòng thử lại.");
@@ -90,7 +96,7 @@ function App() {
       console.log("🔇 [App] Removing message listener...");
       window.removeEventListener("message", handleOAuthMessage);
     };
-  }, [setAccessToken, fetchMe]);
+  }, [setAccessToken, fetchMe, navigate]); // ✅ FIX: Thêm navigate vào dependencies
 
   return (
     <>
