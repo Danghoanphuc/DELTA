@@ -126,11 +126,13 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
     setIsLoading(true);
     try {
       if (mode === "signUp") {
-        // --- Flow Đăng Ký (Giữ nguyên) ---
+        // --- Flow Đăng Ký ---
         const { email, password, firstName, lastName, confirmPassword } = data;
+
+        // Validation check
         if (password !== confirmPassword) {
           toast.error("Mật khẩu xác nhận không khớp!");
-          setIsLoading(false);
+          // Không cần setIsLoading(false) ở đây, finally sẽ xử lý
           return;
         }
 
@@ -145,27 +147,30 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
         } else {
           await signUp(email, password, displayName);
         }
+        // Chuyển bước sau khi đăng ký thành công
         setStep("verifySent");
       } else {
-        // --- Flow Đăng Nhập (ĐÃ SỬA) ---
+        // --- Flow Đăng Nhập ---
         const { email, password } = data;
-        const result = await signIn(email, password); // Gọi signIn từ store
 
-        // ✅ FIX: Chỉ navigate khi đăng nhập thành công
-        // (Giả định hàm signIn trả về 'false' khi thất bại)
-        if (result !== false) {
-          setTimeout(() => {
-            navigate("/", { replace: true });
-          }, 100);
-        }
+        // 1. Chờ đăng nhập. Nếu thất bại, nó sẽ ném lỗi và nhảy xuống 'catch'.
+        await signIn(email, password);
+
+        // 2. NẾU KHÔNG NÉM LỖI = THÀNH CÔNG.
+        //    Chạy điều hướng ngay lập tức (không cần 'if' check).
+        setTimeout(() => {
+          navigate("/", { replace: true });
+        }, 100);
       }
     } catch (err: any) {
+      // Bất kỳ lỗi nào từ signIn, signUp, api.post đều sẽ bị bắt ở đây
+      // (Giả định: store `signIn` đã tự toast lỗi)
       console.error("Lỗi AuthFlow:", err);
     } finally {
+      // Luôn tắt loading, dù thành công, thất bại hay 'return' sớm
       setIsLoading(false);
     }
   };
-
   // (Hàm renderLinks giữ nguyên)
   const renderLinks = () => {
     if (step === "email") {
