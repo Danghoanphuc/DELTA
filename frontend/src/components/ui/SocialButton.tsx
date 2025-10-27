@@ -1,13 +1,24 @@
-// frontend/src/components/ui/SocialButton.tsx (ĐÃ SỬA)
+// frontend/src/components/ui/SocialButton.tsx (Thêm lưu trữ popup ref)
 
-// KHẮC PHỤC: Xóa import 'useEffect' không được sử dụng
-// import { useEffect } from "react";
+// import { useRef } from "react"; // <-- Thêm useRef
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Mail } from "lucide-react";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+// Lưu trữ tham chiếu popup ở phạm vi module để App.tsx có thể truy cập
+let oauthPopupRef: Window | null = null;
+
+// Hàm để đóng popup từ bên ngoài (ví dụ: từ App.tsx)
+export const closeOAuthPopup = () => {
+  if (oauthPopupRef && !oauthPopupRef.closed) {
+    oauthPopupRef.close();
+    oauthPopupRef = null;
+    console.log("ℹ️ [OAuth] Popup closed by main window.");
+  }
+};
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001"; // Sử dụng import.meta.env ở đây vẫn ổn
 type SocialProvider = "google" | "email";
 type AuthRole = "customer" | "printer";
 
@@ -78,23 +89,26 @@ export function SocialButton({
 
     console.log(`🔄 Mở popup OAuth: ${oauthUrl}`);
 
-    const popup = window.open(
+    // Mở popup và lưu tham chiếu vào biến module
+    oauthPopupRef = window.open(
       oauthUrl,
       "googleLogin",
       `width=${width},height=${height},left=${left},top=${top},toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`
     );
 
-    if (!popup) {
+    if (!oauthPopupRef) {
       toast.error("Không thể mở cửa sổ đăng nhập. Vui lòng cho phép popup!");
       return;
     }
 
-    const checkPopup = setInterval(() => {
-      if (popup.closed) {
-        clearInterval(checkPopup);
-        console.log("ℹ️ Popup đã đóng");
-      }
-    }, 1000);
+    // Không cần interval check nữa vì App.tsx sẽ đóng popup
+    // const checkPopup = setInterval(() => {
+    //   if (oauthPopupRef && oauthPopupRef.closed) {
+    //     clearInterval(checkPopup);
+    //     console.log("ℹ️ Popup đã đóng (tự động hoặc bị chặn)");
+    //     oauthPopupRef = null; // Reset ref
+    //   }
+    // }, 1000);
   };
 
   return (
