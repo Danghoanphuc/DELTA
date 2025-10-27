@@ -11,6 +11,7 @@ dotenv.config();
 
 const router = express.Router();
 
+// Lấy CLIENT_URL từ biến môi trường, đảm bảo nó đúng với URL frontend của bạn
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000;
 
@@ -23,6 +24,7 @@ const createSessionAndSendTokens = async (req, res, user) => {
   try {
     if (!user || !user._id) {
       console.error("❌ Invalid user in OAuth callback");
+      // Redirect về trang frontend với thông báo lỗi
       return res.redirect(`${CLIENT_URL}/signin?error=auth_failed`);
     }
 
@@ -45,9 +47,9 @@ const createSessionAndSendTokens = async (req, res, user) => {
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // Quan trọng cho cross-site cookies
       maxAge: REFRESH_TOKEN_TTL,
-      path: "/",
+      path: "/", // Đảm bảo cookie có sẵn trên toàn bộ domain
     });
 
     console.log("✅ Refresh token cookie set");
@@ -62,69 +64,52 @@ const createSessionAndSendTokens = async (req, res, user) => {
       isVerified: user.isVerified,
     };
 
+    // Gửi HTML chứa script postMessage về cho popup
     res.send(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Sign in successful</title>
-          <style>
-            body {
-              font-family: system-ui, -apple-system, sans-serif;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              min-height: 100vh;
-              margin: 0;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            }
-            .container {
-              background: white;
-              padding: 2rem;
-              border-radius: 1rem;
-              box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-              text-align: center;
-            }
-            .success {
-              color: #10b981;
-              font-size: 3rem;
-              margin-bottom: 1rem;
-            }
-            h1 {
-              color: #1f2937;
-              margin: 0 0 0.5rem 0;
-            }
-            p {
-              color: #6b7280;
-              margin: 0;
-            }
+          <title>Authentication Success</title>
+           <style>
+             /* (Style giữ nguyên như cũ) */
+            body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f0f4f8; }
+            .container { background: white; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
+            h1 { color: #1f2937; margin: 0 0 0.5rem 0; font-size: 1.5rem; }
+            p { color: #6b7280; margin: 0; font-size: 0.9rem;}
+            .spinner { border: 4px solid #e5e7eb; border-top: 4px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 1rem auto; }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
           </style>
         </head>
         <body>
-          <div class="container">
-            <div class="success">✓</div>
-            <h1>Sign in successful!</h1>
-            <p>Redirecting...</p>
-          </div>
+           <div class="container">
+             <div class="spinner"></div>
+             <h1>Authentication successful!</h1>
+             <p>Please wait while we redirect you...</p>
+           </div>
           <script>
-            console.log("🔄 Sending data to parent window...");
-            
+            console.log("🔄 [Popup] Sending data to parent window...");
+            // Gửi dữ liệu về cửa sổ chính (opener)
             if (window.opener) {
               window.opener.postMessage(
                 {
-                  type: "GOOGLE_AUTH_SUCCESS",
-                  accessToken: "${accessToken}",
-                  user: ${JSON.stringify(userData)}
+                  type: "GOOGLE_AUTH_SUCCESS", // Loại message
+                  accessToken: "${accessToken}", // Access token
+                  user: ${JSON.stringify(userData)} // Dữ liệu user
                 },
-                "${CLIENT_URL}"
+                "${CLIENT_URL}" // Chỉ gửi đến origin của frontend
               );
-              console.log("✅ PostMessage sent");
-              
-              setTimeout(() => {
-                window.close();
-              }, 500);
+              console.log("✅ [Popup] PostMessage sent to ${CLIENT_URL}");
+
+              // ---> XÓA DÒNG NÀY ĐỂ TRÁNH LỖI COOP <---
+              // setTimeout(() => {
+              //   window.close();
+              // }, 500); // Đóng popup sau khi gửi
+              // ---> KẾT THÚC XÓA <---
+
             } else {
-              console.error("❌ window.opener not found");
-              alert("Error: Could not connect to main window. Please try again.");
+              // Xử lý lỗi nếu không tìm thấy cửa sổ cha
+              console.error("❌ [Popup] window.opener not found. Cannot send message.");
+              document.body.innerHTML = '<div class="container"><h1>Error</h1><p>Could not communicate with the main window. Please close this window and try again.</p></div>';
             }
           </script>
         </body>
@@ -132,15 +117,17 @@ const createSessionAndSendTokens = async (req, res, user) => {
     `);
   } catch (error) {
     console.error("❌ Error creating session/sending tokens:", error);
+    // Redirect về trang frontend với thông báo lỗi
     res.redirect(`${CLIENT_URL}/signin?error=server_error`);
   }
 };
 
-// Remember OAuth role middleware
+// Middleware để lưu lại role người dùng chọn khi bắt đầu OAuth
 const rememberOAuthRole = (req, res, next) => {
   const role = req.query.role === "printer" ? "printer" : "customer";
+  // Lưu vào session của Express
   req.session.oauthRole = role;
-  console.log(`🔐 OAuth: Saving role: ${role}`);
+  console.log(`🔐 OAuth: Remembering role: ${role}`);
   next();
 };
 
@@ -151,10 +138,10 @@ const rememberOAuthRole = (req, res, next) => {
 // @access  Public
 router.get(
   "/google",
-  rememberOAuthRole,
+  rememberOAuthRole, // Chạy middleware này trước
   passport.authenticate("google", {
-    scope: ["profile", "email"],
-    session: false,
+    scope: ["profile", "email"], // Yêu cầu quyền truy cập profile và email
+    session: false, // Không dùng session của Passport sau khi xác thực
   })
 );
 
@@ -164,11 +151,14 @@ router.get(
 router.get(
   "/google/callback",
   passport.authenticate("google", {
-    session: false,
-    failureRedirect: `${CLIENT_URL}/signin?error=auth_failed`,
+    session: false, // Không tạo session Passport
+    failureRedirect: `${CLIENT_URL}/signin?error=auth_failed`, // Redirect về frontend nếu lỗi
   }),
+  // Middleware chạy sau khi authenticate thành công
   async (req, res) => {
+    // req.user chứa thông tin user từ hàm findOrCreateUser
     console.log("✅ Google OAuth callback successful, user:", req.user?.email);
+    // Gọi hàm helper để tạo session, set cookie và gửi postMessage
     await createSessionAndSendTokens(req, res, req.user);
   }
 );
