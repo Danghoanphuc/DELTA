@@ -1,5 +1,5 @@
 // src/modules/users/user.repository.js
-import { User } from "../../models/User.js";
+import { User } from "../../shared/models/user.model.js";
 
 export class UserRepository {
   async findById(userId) {

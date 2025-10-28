@@ -1,19 +1,27 @@
 // src/modules/cart/cart.routes.js
 import { Router } from "express";
-import { CartController } from "./cart.controller.js";
+// Sửa lại import: Import các hàm cụ thể
+import {
+  getCart,
+  addToCart,
+  updateCartItem,
+  removeFromCart,
+  clearCart,
+} from "./cart.controller.js";
 import { protect } from "../../shared/middleware/index.js";
 
 const router = Router();
-const cartController = new CartController();
+// Bỏ dòng này: const cartController = new CartController();
 
 // Bảo vệ tất cả các route giỏ hàng
 router.use(protect);
 
-router.get("/", cartController.getCart);
-router.post("/add", cartController.addToCart);
-router.put("/update", cartController.updateCartItem);
-router.delete("/remove/:cartItemId", cartController.removeFromCart);
-router.delete("/clear", cartController.clearCart);
-// router.put("/batch-update", cartController.batchUpdateCart); // Bạn có thể thêm lại route này nếu cần
+// Sửa lại cách gọi: Gọi hàm trực tiếp
+router.get("/", getCart);
+router.post("/add", addToCart);
+router.put("/update", updateCartItem);
+router.delete("/remove/:cartItemId", removeFromCart);
+router.delete("/clear", clearCart);
+// router.put("/batch-update", batchUpdateCart); // Nếu bạn có hàm này, cũng import và gọi trực tiếp
 
 export default router;

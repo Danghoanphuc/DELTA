@@ -1,7 +1,7 @@
 // src/modules/chat/chat.repository.js
-import { Conversation } from "../../models/Conversation.js";
-import { Message } from "../../models/Message.js";
-import { User } from "../../models/User.js"; // Cần User để tìm nhà in
+import { Conversation } from "../../shared/models/conversation.model.js";
+import { Message } from "../../shared/models/message.model.js";
+import { User } from "../../shared/models/user.model.js"; // Cần User để tìm nhà in
 
 export class ChatRepository {
   async findConversation(userId) {

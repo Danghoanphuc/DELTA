@@ -1,6 +1,6 @@
 // src/modules/printers/printer.repository.js
-import { User } from "../../models/User.js";
-import { PrinterProfile } from "../../models/PrinterProfile.js";
+import { User } from "../../shared/models/user.model.js";
+import { PrinterProfile } from "../../shared/models/printer-profile.model.js";
 
 export class PrinterRepository {
   async findProfileByUserId(userId) {

@@ -1,4 +1,4 @@
-// backend/src/libs/email.js (ĐÃ CẬP NHẬT)
+// backend/src/libs/email.js
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -70,7 +70,23 @@ export const sendNewOrderNotification = async (
 ) => {
   const orderDetailsLink = `${clientUrl}/printer/orders/${order._id}`; // Tạo bảng chi tiết sản phẩm (Giữ nguyên)
 
-  const itemsHtml = order.items.map(/* ... giữ nguyên ... */).join("");
+  const itemsHtml = order.items
+    .map(
+      (item) => `
+    <tr style="border-bottom: 1px solid #ddd;">
+      <td style="padding: 10px; border-bottom: 1px solid #eee;">${
+        item.productName
+      }</td>
+      <td style="padding: 10px; text-align: center; border-bottom: 1px solid #eee;">${
+        item.quantity
+      }</td>
+      <td style="padding: 10px; text-align: right; border-bottom: 1px solid #eee;">${formatPrice(
+        item.subtotal
+      )}</td>
+    </tr>
+  `
+    )
+    .join("");
 
   console.log(` Chuẩn bị gửi email thông báo đơn hàng mới đến ${printerEmail}`);
 

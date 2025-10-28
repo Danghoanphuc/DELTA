@@ -2,6 +2,7 @@
 import { ProductService } from "./product.service.js";
 import { ApiResponse } from "../../shared/utils/index.js";
 import { API_CODES } from "../../shared/constants/index.js";
+import { Logger } from "../../shared/utils/logger.util.js";
 
 /**
  * ProductController - Handles HTTP requests for products
@@ -87,45 +88,32 @@ export class ProductController {
       next(error);
     }
   };
-
+  // THÊM PHIÊN BẢN ĐÚNG NÀY VÀO
   /**
    * Get a single product by ID
    * GET /api/products/:id
    * @access Public
    */
-  async getProductById(productId) {
-    Logger.debug(`--- Get Product By ID Service ---`);
-    Logger.debug(`1. Received productId: ${productId}`);
-
-    // ✅ Thêm try...catch để bắt lỗi populate từ repository
-    let product;
+  // SỬA 1: Dùng arrow function để giữ 'this'
+  // SỬA 2: Dùng (req, res, next)
+  getProductById = async (req, res, next) => {
     try {
-      product = await this.productRepository.findByIdPopulated(productId);
-    } catch (repoError) {
-      Logger.error(`Error in findByIdPopulated for ${productId}:`, repoError);
-      throw repoError; // Ném lại lỗi để controller bắt
+      // SỬA 3: Lấy 'id' từ req.params (dựa trên product.routes.js)
+      const productId = req.params.id;
+
+      Logger.debug(`[Controller] Nhận yêu cầu GET /api/products/${productId}`);
+
+      // SỬA 4: Gọi 'this.productService' (đã có logic đúng)
+      const product = await this.productService.getProductById(productId);
+
+      // SỬA 5: Trả về JSON response
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ product }));
+    } catch (error) {
+      // SỬA 6: Chuyển lỗi cho middleware
+      Logger.error(`[Controller] Lỗi trong getProductById: ${error.message}`);
+      next(error);
     }
-
-    Logger.debug(
-      "2. Fetched product from repository:",
-      product
-        ? {
-            id: product._id,
-            name: product.name,
-            printerInfo: !!product.printerInfo,
-          }
-        : null
-    );
-
-    // ✅ KIỂM TRA QUAN TRỌNG: Nếu product là null hoặc không active -> Ném lỗi 404
-    if (!product || !product.isActive) {
-      Logger.warn(`Product ${productId} not found or inactive.`);
-      throw new NotFoundException("Sản phẩm", productId); // Ném lỗi 404
-    }
-
-    Logger.success("3. Product found and is active");
-    return product; // Chỉ trả về khi hợp lệ
-  }
+  };
   /**
    * Get all products of the authenticated printer
    * GET /api/products/my-products

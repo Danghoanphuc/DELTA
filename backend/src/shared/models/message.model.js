@@ -1,4 +1,4 @@
-// backend/src/models/Message.js
+// backend/src/shared/models/Message.js
 
 import mongoose from "mongoose";
 

@@ -1,5 +1,5 @@
 // src/modules/orders/order.repository.js
-import { Order } from "../../models/Order.js";
+import { Order } from "../../shared/models/order.model.js";
 
 export class OrderRepository {
   async generateOrderNumber() {

@@ -3,8 +3,8 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { AuthRepository } from "./auth.repository.js";
-import { User } from "../../models/User.js"; // Giả sử model ở /src/models
-import { PrinterProfile } from "../../models/PrinterProfile.js";
+import { User } from "../../shared/models/user.model.js";
+import { PrinterProfile } from "../../shared/models/printer-profile.model.js";
 import { sendVerificationEmail } from "../../libs/email.js"; // Giả sử lib email ở /src/libs
 import {
   ValidationException,

@@ -8,7 +8,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from "../../shared/exceptions/index.js";
-import { Order } from "../../models/Order.js"; // Cần để lấy enum
+import { Order } from "../../shared/models/order.model.js"; // Cần để lấy enum
 import mongoose from "mongoose";
 
 export class OrderService {

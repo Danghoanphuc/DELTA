@@ -2,8 +2,8 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import dotenv from "dotenv";
-import { User } from "../../models/User.js";
-import { PrinterProfile } from "../../models/PrinterProfile.js";
+import { User } from "../../shared/models/user.model.js";
+import { PrinterProfile } from "../../shared/models/printer-profile.model.js";
 
 dotenv.config();
 

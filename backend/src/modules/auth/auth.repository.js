@@ -1,6 +1,6 @@
 // src/modules/auth/auth.repository.js
-import { User } from "../../models/User.js";
-import Session from "../../models/session.js";
+import { User } from "../../shared/models/user.model.js";
+import Session from "../../shared/models/session.model.js";
 
 export class AuthRepository {
   async findUserByEmail(email, selectOptions = "") {

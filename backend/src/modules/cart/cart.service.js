@@ -1,4 +1,5 @@
-// src/modules/cart/cart.service.js
+// src/modules/cart/cart.service.js (✅ FIXED - COMPREHENSIVE VERSION)
+
 import { CartRepository } from "./cart.repository.js";
 import { ProductRepository } from "../products/product.repository.js";
 import {
@@ -6,7 +7,7 @@ import {
   NotFoundException,
 } from "../../shared/exceptions/index.js";
 import mongoose from "mongoose";
-import { Logger } from "../../shared/utils/index.js"; // Đảm bảo Logger được import
+import { Logger } from "../../shared/utils/index.js";
 
 export class CartService {
   constructor() {
@@ -14,142 +15,215 @@ export class CartService {
     this.productRepository = new ProductRepository();
   }
 
+  /**
+   * Get user's cart
+   */
   async getCart(userId) {
+    Logger.debug("=== GET CART SERVICE ===");
+    Logger.debug("User ID:", userId);
+
     const cart = await this.cartRepository.findOrCreate(userId);
-    // Gọi getPopulated để lấy giỏ hàng chi tiết
     const populatedCart = await this.cartRepository.getPopulated(cart._id);
-    // Nếu getPopulated trả về null (do lỗi hoặc không tìm thấy), trả về giỏ hàng cơ bản
-    return populatedCart || cart;
+
+    Logger.debug("Cart retrieved:", {
+      cartId: populatedCart._id,
+      items: populatedCart.items.length,
+    });
+
+    return populatedCart;
   }
 
+  /**
+   * ✅ FIXED: Add to cart with comprehensive validation and error handling
+   */
   async addToCart(userId, itemData) {
-    Logger.debug("--- Add to Cart Service ---");
-    Logger.debug("1. Received itemData:", itemData);
-    Logger.debug("1. Received userId:", userId);
+    Logger.debug("=== ADD TO CART SERVICE START ===");
+    Logger.debug("User ID:", userId);
+    Logger.debug("Item Data:", itemData);
 
     const { productId, quantity, selectedPriceIndex, customization } = itemData;
 
-    // --- Validation (Sản phẩm, giá, số lượng) ---
+    // ========================================
+    // 1. VALIDATE INPUT
+    // ========================================
     if (!productId || !quantity || selectedPriceIndex === undefined) {
-      throw new ValidationException("Thiếu thông tin sản phẩm.");
-    }
-
-    const product = await this.productRepository.findById(productId);
-    if (!product || !product.isActive) {
-      throw new NotFoundException(
-        "Không tìm thấy sản phẩm hoặc sản phẩm đã ngưng kinh doanh."
+      Logger.error("Missing required fields:", {
+        productId,
+        quantity,
+        selectedPriceIndex,
+      });
+      throw new ValidationException(
+        "Thiếu thông tin sản phẩm (productId, quantity, hoặc selectedPriceIndex)."
       );
     }
-    Logger.debug("2. Found product:", { name: product.name, _id: product._id });
 
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      Logger.error("Invalid productId format:", productId);
+      throw new ValidationException("ID sản phẩm không hợp lệ.");
+    }
+
+    // ========================================
+    // 2. VALIDATE PRODUCT EXISTS & ACTIVE
+    // ========================================
+    Logger.debug("Fetching product:", productId);
+    const product = await this.productRepository.findById(productId);
+
+    if (!product) {
+      Logger.error("Product not found:", productId);
+      throw new NotFoundException("Sản phẩm", productId);
+    }
+
+    if (!product.isActive) {
+      Logger.warn("Product is inactive:", {
+        id: productId,
+        name: product.name,
+      });
+      throw new ValidationException("Sản phẩm này đã ngừng kinh doanh.");
+    }
+
+    Logger.debug("Product found:", {
+      id: product._id,
+      name: product.name,
+      isActive: product.isActive,
+    });
+
+    // ========================================
+    // 3. VALIDATE PRICE TIER
+    // ========================================
     const priceTier = product.pricing[selectedPriceIndex];
     if (!priceTier) {
+      Logger.error("Invalid price tier index:", {
+        selectedPriceIndex,
+        availableTiers: product.pricing.length,
+      });
       throw new ValidationException("Mức giá không hợp lệ.");
     }
+
     if (quantity < priceTier.minQuantity) {
+      Logger.warn("Quantity below minimum:", {
+        quantity,
+        minQuantity: priceTier.minQuantity,
+      });
       throw new ValidationException(
         `Số lượng tối thiểu là ${priceTier.minQuantity}.`
       );
     }
-    // --- Kết thúc Validation ---
 
+    Logger.debug("Price tier validated:", priceTier);
+
+    // ========================================
+    // 4. GET OR CREATE CART
+    // ========================================
     const cart = await this.cartRepository.findOrCreate(userId);
-    Logger.debug("3. Found or created cart:", {
+    Logger.debug("Cart retrieved:", {
       cartId: cart._id,
       currentItems: cart.items.length,
     });
 
+    // ========================================
+    // 5. CHECK IF ITEM ALREADY EXISTS
+    // ========================================
     const existingItemIndex = cart.items.findIndex(
       (item) => item.productId.toString() === productId
     );
 
     const subtotal = quantity * priceTier.pricePerUnit;
+    Logger.debug("Calculated subtotal:", subtotal);
 
-    // ✅ Tạo mảng items mới để đảm bảo Mongoose nhận diện thay đổi
-    let newItems = [...cart.items];
-
+    // ========================================
+    // 6. UPDATE OR ADD ITEM
+    // ========================================
     if (existingItemIndex !== -1) {
-      Logger.debug(
-        "4. Updating existing item in cart array (creating new array)"
-      );
-      // Tạo object item mới thay vì sửa trực tiếp
-      newItems[existingItemIndex] = {
-        ...newItems[existingItemIndex].toObject(), // Chuyển subdocument thành object thường để sửa
+      Logger.debug("Item already exists in cart, updating...");
+
+      // Update existing item
+      cart.items[existingItemIndex] = {
+        ...cart.items[existingItemIndex].toObject(),
         quantity: quantity,
-        selectedPrice: priceTier, // Lưu cả priceTier thay vì chỉ selectedPrice
+        selectedPrice: {
+          minQuantity: priceTier.minQuantity,
+          pricePerUnit: priceTier.pricePerUnit,
+          maxQuantity: priceTier.maxQuantity,
+        },
         customization: customization || {},
         subtotal: subtotal,
       };
+
+      Logger.success("Item updated in cart");
     } else {
-      Logger.debug("4. Adding new item to cart array (creating new array)");
-      // Thêm item mới vào mảng
-      newItems.push({
-        _id: new mongoose.Types.ObjectId(), // Tạo _id mới cho subdocument
+      Logger.debug("Adding new item to cart...");
+
+      // Add new item
+      cart.items.push({
+        _id: new mongoose.Types.ObjectId(),
         productId,
         quantity,
-        selectedPrice: priceTier, // Lưu cả priceTier
+        selectedPrice: {
+          minQuantity: priceTier.minQuantity,
+          pricePerUnit: priceTier.pricePerUnit,
+          maxQuantity: priceTier.maxQuantity,
+        },
         customization: customization || {},
         subtotal,
       });
+
+      Logger.success("New item added to cart");
     }
 
-    // ✅ Gán mảng mới vào cart
-    cart.items = newItems;
-
-    Logger.debug(
-      "5. Cart items prepared:",
-      cart.items.map((i) => ({
-        pId: i.productId,
-        qty: i.quantity,
-        sub: i.subtotal,
-      }))
-    );
-
-    // Tính toán lại tổng
+    // ========================================
+    // 7. RECALCULATE TOTALS
+    // ========================================
     cart.calculateTotals();
-    Logger.debug("6. Cart totals calculated:", {
+    Logger.debug("Totals calculated:", {
       totalItems: cart.totalItems,
       totalAmount: cart.totalAmount,
     });
 
-    // Lưu cart vào DB
-    const savedCart = await this.cartRepository.save(cart);
-    Logger.debug("7. Cart saved:", { savedCartId: savedCart._id });
-
-    // Lấy lại cart đã populate để trả về
+    // ========================================
+    // 8. SAVE CART
+    // ========================================
     try {
-      const populatedCart = await this.cartRepository.getPopulated(
-        savedCart._id
-      );
+      const savedCart = await this.cartRepository.save(cart);
+      Logger.success("Cart saved:", { cartId: savedCart._id });
 
-      // *** KIỂM TRA QUAN TRỌNG ***
-      if (!populatedCart) {
-        Logger.error(
-          `Critical: Failed to populate cart ${savedCart._id} after saving. Possible data inconsistency or deleted product referenced.`
+      // ========================================
+      // 9. POPULATE AND RETURN
+      // ========================================
+      try {
+        const populatedCart = await this.cartRepository.getPopulated(
+          savedCart._id
         );
-        // Ném lỗi rõ ràng để controller và error handler bắt được
-        throw new Error(
-          `Không thể lấy thông tin giỏ hàng chi tiết sau khi lưu (ID: ${savedCart._id}). Sản phẩm liên quan có thể đã bị xóa.`
-        );
+
+        if (!populatedCart) {
+          Logger.error(
+            `CRITICAL: Failed to populate cart after save: ${savedCart._id}`
+          );
+          // ✅ FALLBACK: Return unpopulated cart instead of failing
+          Logger.warn("Returning unpopulated cart as fallback");
+          return savedCart;
+        }
+
+        Logger.success("Cart populated successfully");
+        Logger.debug("=== ADD TO CART SERVICE END ===");
+        return populatedCart;
+      } catch (populateError) {
+        Logger.error("Populate error after save:", populateError);
+        // ✅ FALLBACK: Return unpopulated cart
+        Logger.warn("Returning unpopulated cart due to populate error");
+        return savedCart;
       }
-
-      Logger.debug(
-        "8. Final populated cart to return:",
-        JSON.stringify(
-          populatedCart.toObject ? populatedCart.toObject() : populatedCart,
-          null,
-          2
-        )
-      );
-      return populatedCart; // Chỉ trả về khi populate thành công
-    } catch (populateError) {
-      // Logger.error(`Error during populate step for cart ${savedCart._id}:`, populateError); // Tạm comment Logger
-      console.error("!!! ERROR IN addToCart (Populate Catch):", populateError); // Dùng console.error
-      throw populateError;
+    } catch (saveError) {
+      Logger.error("FATAL: Failed to save cart:", saveError);
+      throw new Error("Không thể lưu giỏ hàng. Vui lòng thử lại.");
     }
   }
 
+  /**
+   * Update cart item quantity
+   */
   async updateCartItem(userId, updateData) {
+    Logger.debug("=== UPDATE CART ITEM SERVICE ===");
+
     const { cartItemId, quantity } = updateData;
 
     if (
@@ -158,9 +232,7 @@ export class CartService {
       !quantity ||
       quantity < 1
     ) {
-      throw new ValidationException(
-        "Thông tin cập nhật không hợp lệ (ID item hoặc số lượng)."
-      );
+      throw new ValidationException("Thông tin cập nhật không hợp lệ.");
     }
 
     const cart = await this.cartRepository.findByUserId(userId);
@@ -168,57 +240,34 @@ export class CartService {
       throw new NotFoundException("Không tìm thấy giỏ hàng.");
     }
 
-    // Sử dụng .id() để tìm subdocument an toàn hơn
     const item = cart.items.id(cartItemId);
     if (!item) {
       throw new NotFoundException("Không tìm thấy sản phẩm trong giỏ.");
     }
 
-    // Cần kiểm tra lại minQuantity dựa trên selectedPrice đã lưu
-    if (!item.selectedPrice || quantity < item.selectedPrice.minQuantity) {
-      Logger.warn("Attempted quantity lower than minQuantity for item:", {
-        cartItemId,
+    if (item.selectedPrice && quantity < item.selectedPrice.minQuantity) {
+      Logger.warn("Quantity below minimum:", {
         quantity,
-        minQuantity: item.selectedPrice?.minQuantity,
+        minQuantity: item.selectedPrice.minQuantity,
       });
-      // Vẫn cho phép cập nhật nhưng có thể cân nhắc ném lỗi tùy logic nghiệp vụ
-      // throw new ValidationException(`Số lượng tối thiểu là ${item.selectedPrice.minQuantity}.`);
     }
 
     item.quantity = quantity;
-    // Đảm bảo selectedPrice tồn tại trước khi truy cập pricePerUnit
     item.subtotal = quantity * (item.selectedPrice?.pricePerUnit || 0);
-
-    // ✅ Không cần markModified khi sửa trực tiếp subdocument lấy bằng .id()
-    // cart.markModified('items');
 
     cart.calculateTotals();
     const savedCart = await this.cartRepository.save(cart);
 
-    // Lấy lại và kiểm tra populate
-    try {
-      const populatedCart = await this.cartRepository.getPopulated(
-        savedCart._id
-      );
-      if (!populatedCart) {
-        Logger.error(
-          `Critical: Failed to populate cart ${savedCart._id} after updating item.`
-        );
-        throw new Error(
-          `Không thể lấy thông tin giỏ hàng chi tiết sau khi cập nhật (ID: ${savedCart._id})`
-        );
-      }
-      return populatedCart;
-    } catch (populateError) {
-      Logger.error(
-        `Error during populate step after update for cart ${savedCart._id}:`,
-        populateError
-      );
-      throw populateError;
-    }
+    const populatedCart = await this.cartRepository.getPopulated(savedCart._id);
+    return populatedCart || savedCart;
   }
 
+  /**
+   * Remove item from cart
+   */
   async removeFromCart(userId, cartItemId) {
+    Logger.debug("=== REMOVE FROM CART SERVICE ===");
+
     if (!cartItemId || !mongoose.Types.ObjectId.isValid(cartItemId)) {
       throw new ValidationException("ID sản phẩm không hợp lệ.");
     }
@@ -230,45 +279,29 @@ export class CartService {
 
     const item = cart.items.id(cartItemId);
     if (!item) {
-      // Item không tồn tại, có thể coi là thành công hoặc ném lỗi tùy logic
-      Logger.warn(
-        `Item ${cartItemId} not found in cart ${cart._id} during removal attempt.`
-      );
-      // return await this.cartRepository.getPopulated(cart._id); // Trả về giỏ hàng hiện tại
+      Logger.warn(`Item ${cartItemId} not found in cart during removal`);
       throw new NotFoundException("Sản phẩm không có trong giỏ để xóa.");
     }
 
-    // Sử dụng pull để xóa subdocument hiệu quả
     cart.items.pull({ _id: cartItemId });
-
-    // ✅ Không cần markModified khi dùng pull
-    // cart.markModified('items');
-
     cart.calculateTotals();
     const savedCart = await this.cartRepository.save(cart);
 
-    // Lấy lại và kiểm tra populate
-    try {
-      const populatedCart = await this.cartRepository.getPopulated(
-        savedCart._id
-      );
-      // Không cần kiểm tra null ở đây vì giỏ hàng chắc chắn tồn tại
-      return populatedCart;
-    } catch (populateError) {
-      Logger.error(
-        `Error during populate step after removal for cart ${savedCart._id}:`,
-        populateError
-      );
-      throw populateError;
-    }
+    const populatedCart = await this.cartRepository.getPopulated(savedCart._id);
+    return populatedCart || savedCart;
   }
 
+  /**
+   * Clear entire cart
+   */
   async clearCart(userId) {
+    Logger.debug("=== CLEAR CART SERVICE ===");
+
     const cart = await this.cartRepository.findOrCreate(userId);
-    cart.items = []; // Xóa hết items
-    cart.calculateTotals(); // Reset totals về 0
+    cart.items = [];
+    cart.calculateTotals();
     const savedCart = await this.cartRepository.save(cart);
-    // Không cần populate vì giỏ hàng trống
+
     return savedCart;
   }
 }

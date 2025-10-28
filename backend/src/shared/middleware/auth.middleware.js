@@ -2,7 +2,7 @@
 
 import jwt from "jsonwebtoken";
 // SỬA LỖI: Đường dẫn trỏ về thư mục 'models' gốc, không phải 'shared/models'
-import { User } from "../../models/User.js"; //
+import { User } from "../models/user.model.js"; //
 
 /**
  * Middleware to authenticate requests using JWT (RENAMED from isAuthenticated)
