@@ -1,126 +1,133 @@
+// src/server.js
 import express from "express";
 import dotenv from "dotenv";
-import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
-dotenv.config();
 import cors from "cors";
-import { connectDB } from "./libs/db.js";
-import authRoute from "./routes/authRoute.js";
-import userRoute from "./routes/userRoute.js";
 import cookieParser from "cookie-parser";
-import { protect } from "./middleware/authMiddleware.js";
-import passport from "passport";
 import session from "express-session";
-import "./config/passport-setup.js";
-import authOAuthRoute from "./routes/authOAuthRoute.js";
-import chatRoute from "./routes/chatRoute.js";
-import printerRoute from "./routes/printerProfileRoute.js";
-import productRoute from "./routes/productRoute.js";
-import orderRoute from "./routes/orderRoute.js";
-import cartRoute from "./routes/cartRoute.js";
+import passport from "passport";
+import { validateEnv } from "./config/env.config.js";
 
-const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 days
-// --- Lấy __dirname trong ES Module ---
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-// ---
+dotenv.config();
+validateEnv();
+
+// Infrastructure
+import { connectDB } from "./infrastructure/database/connection.js";
+import "./infrastructure/auth/passport.config.js";
+
+// Middleware
+import { errorHandler } from "./shared/middleware/index.js";
+import { Logger } from "./shared/utils/index.js";
+
+// Routes
+import authRoutes from "./modules/auth/auth.routes.js";
+import authOAuthRoutes from "./modules/auth/auth-oauth.routes.js";
+import userRoutes from "./modules/users/user.routes.js";
+import cartRoutes from "./modules/cart/cart.routes.js";
+import orderRoutes from "./modules/orders/order.routes.js";
+import printerRoutes from "./modules/printers/printer.routes.js";
+import chatRoutes from "./modules/chat/chat.routes.js";
+import { productRoutes } from "./modules/products/index.js";
 const app = express();
 const PORT = process.env.PORT || 5001;
 
 // CORS Configuration
-const whiteList = [
-  "https://www.printz.vn",
-  "http://localhost:5173",
-  "https://delta-j7qn.onrender.com",
-];
-
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) {
-      return callback(null, true);
-    }
+    const whitelist = [
+      process.env.CLIENT_URL,
+      "http://localhost:5173",
+      "https://www.printz.vn",
+    ];
 
-    // Check if origin is in whitelist
-    const isAllowed = whiteList.some((allowed) => {
-      const normalizedOrigin = origin.replace(/^https?:\/\//, "");
-      const normalizedAllowed = allowed.replace(/^https?:\/\//, "");
-      return normalizedOrigin === normalizedAllowed;
-    });
-
-    if (isAllowed) {
+    if (!origin || whitelist.includes(origin)) {
       callback(null, true);
     } else {
-      console.error(`❌ CORS Blocked: ${origin}`);
-      callback(new Error(`Origin ${origin} not allowed by CORS`));
+      callback(new Error("Not allowed by CORS"));
     }
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  exposedHeaders: ["Set-Cookie"],
 };
 
-// Middleware setup
 app.use(cors(corsOptions));
+
+// Body parsing middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Express Session Configuration
+// Session configuration
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "your_fallback_session_secret",
+    secret: process.env.SESSION_SECRET || "fallback-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
-      maxAge: REFRESH_TOKEN_TTL,
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 14 * 24 * 60 * 60 * 1000, // 14 days
     },
   })
 );
 
-// Initialize Passport
+// Passport initialization
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Request logging middleware (only in development)
+// Request logging (development only)
 if (process.env.NODE_ENV !== "production") {
   app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path}`);
+    Logger.debug(`${req.method} ${req.path}`);
     next();
   });
 }
 
-// Health check route
+// Health check
 app.get("/", (req, res) => {
-  res.status(200).json({ message: "Server is running!", status: "healthy" });
+  res.json({
+    message: "PrintZ API v2.0 - Clean Architecture",
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // API Routes
-app.use("/api/auth", authRoute);
-app.use("/api/users", protect, userRoute);
-app.use("/api/auth", authOAuthRoute);
-app.use("/api/chat", chatRoute);
-app.use("/api/printer", protect, printerRoute);
-app.use("/api/products", productRoute);
-app.use("/api/orders", orderRoute);
-app.use("/api/cart", cartRoute);
+app.use("/api/auth", authRoutes);
+app.use("/api/auth", authOAuthRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/printers", printerRoutes);
+app.use("/api/chat", chatRoutes);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error("Error:", err.message);
-  res.status(err.status || 500).json({
-    message: err.message || "Internal server error",
-    ...(process.env.NODE_ENV !== "production" && { stack: err.stack }),
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
+    path: req.path,
   });
 });
+
+// Global error handler (MUST BE LAST)
+app.use(errorHandler);
 
 // Start server
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📍 Environment: ${process.env.NODE_ENV || "development"}`);
-  });
-});
+const startServer = async () => {
+  try {
+    await connectDB();
+
+    app.listen(PORT, () => {
+      Logger.success(`Server running on port ${PORT}`, {
+        env: process.env.NODE_ENV || "development",
+        port: PORT,
+      });
+    });
+  } catch (error) {
+    Logger.error("Failed to start server", error);
+    process.exit(1);
+  }
+};
+
+startServer();
