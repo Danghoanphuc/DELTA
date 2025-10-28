@@ -10,8 +10,9 @@ interface ChatBarProps {
   isLoadingAI: boolean;
   isExpanded: boolean;
   setIsExpanded: (expanded: boolean) => void;
-  onSendMessage: (
-    text: string,
+  onAddUserMessage: (text: string) => ChatMessage;
+  onGetAIResponse: (
+    userMessage: ChatMessage,
     latitude?: number,
     longitude?: number
   ) => Promise<void>;
@@ -22,7 +23,8 @@ export function ChatBar({
   isLoadingAI,
   isExpanded,
   setIsExpanded,
-  onSendMessage,
+  onAddUserMessage,
+  onGetAIResponse,
 }: ChatBarProps) {
   const [message, setMessage] = useState("");
   const chatRef = useRef<HTMLDivElement>(null);
@@ -57,33 +59,37 @@ export function ChatBar({
     };
   }, [setIsExpanded]);
 
-  const handleSend = async () => {
+  const handleSend = () => {
     if (!message.trim() || isLoadingAI) return;
 
     setIsExpanded(true);
     const textToSend = message.trim();
     setMessage("");
-    if (textareaRef.current) textareaRef.current.style.height = "40px";
-
-    try {
-      const position = await new Promise<GeolocationPosition | null>(
-        (resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => resolve(pos),
-            () => resolve(null)
-          );
-        }
-      );
-
-      await onSendMessage(
-        textToSend,
-        position?.coords.latitude,
-        position?.coords.longitude
-      );
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "AI đang gặp lỗi!");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "40px";
     }
+
+    const userMessage = onAddUserMessage(textToSend);
+    textareaRef.current?.focus();
+
+    new Promise<GeolocationPosition | null>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve(pos),
+        () => resolve(null) // Don't reject, just resolve with null
+      );
+    })
+      .then((position) => {
+        onGetAIResponse(
+          userMessage,
+          position?.coords.latitude,
+          position?.coords.longitude
+        );
+      })
+      .catch((err) => {
+        console.error("Error in geolocation promise:", err);
+        toast.error("Lỗi khi lấy vị trí.");
+        onGetAIResponse(userMessage);
+      });
   };
 
   return (

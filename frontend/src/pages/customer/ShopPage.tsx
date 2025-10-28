@@ -42,7 +42,7 @@ export function ShopPage() {
             sort: sortBy,
           },
         });
-        setProducts(res.data.products || []);
+        setProducts(res.data?.data?.products || []);
       } catch (err: any) {
         console.error("❌ Error fetching products:", err);
         toast.error("Không thể tải sản phẩm");
@@ -69,7 +69,7 @@ export function ShopPage() {
               sort: sortBy,
             },
           })
-          .then((res) => setProducts(res.data.products || []))
+          .then((res) => setProducts(res.data?.data?.products || []))
           .catch(() => toast.error("Không thể tìm kiếm"))
           .finally(() => setLoading(false));
       }

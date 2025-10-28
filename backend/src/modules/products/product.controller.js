@@ -93,16 +93,39 @@ export class ProductController {
    * GET /api/products/:id
    * @access Public
    */
-  getProductById = async (req, res, next) => {
+  async getProductById(productId) {
+    Logger.debug(`--- Get Product By ID Service ---`);
+    Logger.debug(`1. Received productId: ${productId}`);
+
+    // ✅ Thêm try...catch để bắt lỗi populate từ repository
+    let product;
     try {
-      const product = await this.productService.getProductById(req.params.id);
-
-      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ product }));
-    } catch (error) {
-      next(error);
+      product = await this.productRepository.findByIdPopulated(productId);
+    } catch (repoError) {
+      Logger.error(`Error in findByIdPopulated for ${productId}:`, repoError);
+      throw repoError; // Ném lại lỗi để controller bắt
     }
-  };
 
+    Logger.debug(
+      "2. Fetched product from repository:",
+      product
+        ? {
+            id: product._id,
+            name: product.name,
+            printerInfo: !!product.printerInfo,
+          }
+        : null
+    );
+
+    // ✅ KIỂM TRA QUAN TRỌNG: Nếu product là null hoặc không active -> Ném lỗi 404
+    if (!product || !product.isActive) {
+      Logger.warn(`Product ${productId} not found or inactive.`);
+      throw new NotFoundException("Sản phẩm", productId); // Ném lỗi 404
+    }
+
+    Logger.success("3. Product found and is active");
+    return product; // Chỉ trả về khi hợp lệ
+  }
   /**
    * Get all products of the authenticated printer
    * GET /api/products/my-products

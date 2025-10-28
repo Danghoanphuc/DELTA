@@ -22,6 +22,7 @@ import { CheckoutPage } from "./pages/customer/CheckoutPage";
 import { OrderDetailPage } from "./pages/OrderDetailPage";
 import { ProductDetailPage } from "./pages/customer/ProductDetailPage";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { ProductManagement } from "./pages/printer/ProductManagement";
 
 function App() {
   const { setAccessToken, fetchMe } = useAuthStore();
@@ -51,7 +52,7 @@ function App() {
       }
 
       // 2. Extract data
-      const { accessToken, user } = event.data;
+      const { accessToken, user } = event.data.payload;
 
       console.log("🔑 [App] Access Token received:", accessToken ? "✅" : "❌");
       console.log("👤 [App] User data received:", user ? "✅" : "❌");
@@ -122,6 +123,7 @@ function App() {
             path="/printer/orders/:orderId"
             element={<OrderDetailPage />}
           />
+          <Route path="/printer/products" element={<ProductManagement />} />
           <Route path="/orders" element={<CustomerOrdersPage />} />
           <Route path="/designs" element={<CustomerDesignsPage />} />
           <Route path="/settings" element={<CustomerSettingsPage />} />

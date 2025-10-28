@@ -52,8 +52,8 @@ export function handleUploadError(err, req, res, next) {
  * Phải được đặt SAU TẤT CẢ các app.use() và routes khác trong server.js.
  */
 export const errorHandler = (err, req, res, next) => {
-  // Log lỗi ra console
-  Logger.error(`[${req.method} ${req.path}]`, err.message);
+  // Logger.error(`[${req.method} ${req.path}]`, err.message); // Tạm comment Logger
+  console.error("!!! ERROR HANDLER ACTIVATED:", err); // Dùng console.error
 
   // 1. Xử lý các lỗi tùy chỉnh (kế thừa từ BaseException)
   if (err instanceof BaseException) {

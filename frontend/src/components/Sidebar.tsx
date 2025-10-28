@@ -62,16 +62,16 @@ export function Sidebar() {
             return (
               <Tooltip key={item.path}>
                 <TooltipTrigger asChild>
-                  <Link to={item.path} title={item.label}>
-                    <button
-                      className={`w-full h-12 rounded-xl flex items-center justify-center transition-all duration-200 ${
-                        isActive
-                          ? "bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 text-white shadow-lg"
-                          : "text-gray-600 hover:bg-gray-100 hover:text-blue-600"
-                      }`}
-                    >
-                      <item.icon size={24} />
-                    </button>
+                  <Link
+                    to={item.path}
+                    title={item.label}
+                    className={`w-full h-12 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                      isActive
+                        ? "bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 text-white shadow-lg"
+                        : "text-gray-600 hover:bg-gray-100 hover:text-blue-600"
+                    }`}
+                  >
+                    <item.icon size={24} />
                   </Link>
                 </TooltipTrigger>
                 <TooltipContent side="right">

@@ -176,11 +176,22 @@ export function AddProductForm({
       formData.append("category", data.category);
       if (data.description) formData.append("description", data.description);
 
-      // Append specifications
-      formData.append("specifications", JSON.stringify(data.specifications));
+      // Append specifications field by field
+      if (data.specifications) {
+        Object.entries(data.specifications).forEach(([key, value]) => {
+          if (value) {
+            formData.append(`specifications[${key}]`, value);
+          }
+        });
+      }
 
-      // Append pricing
-      formData.append("pricing", JSON.stringify(data.pricing));
+      // Append pricing array field by field
+      if (data.pricing) {
+        data.pricing.forEach((tier, index) => {
+          formData.append(`pricing[${index}][minQuantity]`, tier.minQuantity.toString());
+          formData.append(`pricing[${index}][pricePerUnit]`, tier.pricePerUnit.toString());
+        });
+      }
 
       setUploadProgress(30);
 

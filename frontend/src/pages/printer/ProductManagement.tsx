@@ -41,7 +41,9 @@ export function ProductManagement() {
     setLoading(true);
     try {
       const res = await api.get("/products/my-products");
-      setProducts(res.data.products);
+      // FIX: The API wraps the response in a 'data' object.
+      // Also, provide a fallback to an empty array to prevent crashes.
+      setProducts(res.data?.data?.products || []);
     } catch (err: any) {
       // KHẮC PHỤC: Sửa lỗi cú pháp "->" thành "{"
       console.error("Fetch My Products Error:", err);

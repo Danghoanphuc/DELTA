@@ -1,5 +1,6 @@
 // frontend/src/pages/ChatAppPage.tsx (RESPONSIVE)
 import { useState, useEffect } from "react";
+import { flushSync } from "react-dom";
 import api from "@/lib/axios";
 import { ChatMessage } from "@/types/chat";
 
@@ -18,7 +19,9 @@ export default function ChatAppPage() {
     const fetchHistory = async () => {
       try {
         const res = await api.get("/chat/history");
-        setMessages(res.data.messages);
+        setMessages(
+          Array.isArray(res.data?.data?.messages) ? res.data.data.messages : []
+        );
       } catch (err) {
         console.error("Không thể tải lịch sử:", err);
       }
@@ -26,23 +29,33 @@ export default function ChatAppPage() {
     fetchHistory();
   }, []);
 
-  const handleSendMessage = async (
-    textToSend: string,
-    latitude?: number,
-    longitude?: number
-  ) => {
+  const addUserMessageToState = (textToSend: string): ChatMessage => {
     const userMessage: ChatMessage = {
       _id: `temp-user-${Date.now()}`,
       senderType: "User",
       content: { text: textToSend },
     };
-    setMessages((prev) => [...prev, userMessage]);
-    setIsLoadingAI(true);
 
+    flushSync(() => {
+      setMessages((prev) => [...prev, userMessage]);
+      setIsLoadingAI(true);
+    });
+    return userMessage;
+  };
+
+  const getAIResponse = async (
+    userMessage: ChatMessage,
+    latitude?: number,
+    longitude?: number
+  ) => {
     try {
-      const payload = { message: textToSend, latitude, longitude };
+      const payload = {
+        message: userMessage.content.text,
+        latitude,
+        longitude,
+      };
       const res = await api.post("/chat/message", payload);
-      const aiResponseText = res.data?.content?.text;
+      const aiResponseText = res.data?.data?.content?.text;
       if (!aiResponseText) throw new Error("Phản hồi không hợp lệ");
       const aiMessage: ChatMessage = {
         _id: `temp-ai-${Date.now()}`,
@@ -52,6 +65,7 @@ export default function ChatAppPage() {
       setMessages((prev) => [...prev, aiMessage]);
     } catch (err: any) {
       console.error("Lỗi gửi tin nhắn:", err);
+      // remove the user message on failure
       setMessages((prev) => prev.filter((msg) => msg._id !== userMessage._id));
     } finally {
       setIsLoadingAI(false);
@@ -89,7 +103,8 @@ export default function ChatAppPage() {
           isLoadingAI={isLoadingAI}
           isExpanded={isChatExpanded}
           setIsExpanded={setIsChatExpanded}
-          onSendMessage={handleSendMessage}
+          onAddUserMessage={addUserMessageToState}
+          onGetAIResponse={getAIResponse}
         />
 
         {/* Category Cards */}

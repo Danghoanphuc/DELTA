@@ -81,8 +81,8 @@ export const useAuthStore = create<AuthState>()(
           const res = await authService.signIn(email, password);
           if (import.meta.env.DEV) console.log("✅ [Signin]", res);
 
-          if (!res?.accessToken) throw new Error("Thiếu access token!");
-          get().setAccessToken(res.accessToken);
+          if (!res?.data?.accessToken) throw new Error("Thiếu access token!");
+          get().setAccessToken(res.data.accessToken);
           await get().fetchMe(true);
           toast.success("Chào mừng bạn quay lại PrintZ 🎉");
         } catch (err: any) {

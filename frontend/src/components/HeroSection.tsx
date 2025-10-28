@@ -7,8 +7,9 @@ interface HeroSectionProps {
   isLoadingAI: boolean;
   isExpanded: boolean;
   setIsExpanded: (expanded: boolean) => void;
-  onSendMessage: (
-    text: string,
+  onAddUserMessage: (text: string) => ChatMessage;
+  onGetAIResponse: (
+    userMessage: ChatMessage,
     latitude?: number,
     longitude?: number
   ) => Promise<void>;
@@ -19,7 +20,8 @@ export function HeroSection({
   isLoadingAI,
   isExpanded,
   setIsExpanded,
-  onSendMessage,
+  onAddUserMessage,
+  onGetAIResponse,
 }: HeroSectionProps) {
   return (
     <div className=" text-center ">
@@ -32,7 +34,8 @@ export function HeroSection({
         isLoadingAI={isLoadingAI}
         isExpanded={isExpanded}
         setIsExpanded={setIsExpanded}
-        onSendMessage={onSendMessage}
+        onAddUserMessage={onAddUserMessage}
+        onGetAIResponse={onGetAIResponse}
       />
     </div>
   );
