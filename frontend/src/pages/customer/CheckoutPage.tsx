@@ -94,15 +94,23 @@ export function CheckoutPage() {
       // *** SỬA ENDPOINT TỪ /orders/create THÀNH /orders ***
       const res = await api.post("/orders", orderData);
 
-      toast.success("Đặt hàng thành công! 🎉");
+      // KIỂM TRA PHÒNG THỦ
+      // (Giả sử cấu trúc trả về là { success: true, data: { order: {...} } }
+      // hoặc { success: true, order: {...} } )
+      const newOrder = res.data?.data?.order || res.data?.order;
 
-      // Clear cart
-      await clearCart();
-
-      // Redirect to order detail (Cần tạo trang này sau)
-      // Tạm thời về trang chủ hoặc trang shop
-      navigate(`/shop`); // Hoặc navigate(`/orders/${res.data.order._id}`); nếu có trang detail
-      console.log("Đơn hàng đã tạo:", res.data.order);
+      if (newOrder && newOrder._id) {
+        // Chỉ chạy khi backend trả về order hợp lệ
+        toast.success("Đặt hàng thành công! 🎉");
+        await clearCart(); // Chỉ xóa giỏ hàng khi thành công
+        navigate(`/orders/${newOrder._id}`); // Điều hướng đến trang chi tiết đơn hàng mới
+        console.log("Đơn hàng đã tạo:", newOrder);
+      } else {
+        // Nếu backend không trả về order -> báo lỗi
+        console.error("Backend response missing order data:", res.data);
+        throw new Error("Không nhận được thông tin đơn hàng sau khi tạo.");
+      }
+      // --- KẾT THÚC SỬA ---
     } catch (err: any) {
       console.error("❌ Checkout Error:", err);
       const msg =

@@ -147,7 +147,7 @@ export const useCartStore = create<CartState>()(
           }
 
           if (!res.data.cart || !res.data.cart._id) {
-            throw new Error("Invalid cart in response");
+            throw new Error("Giỏ hàng không hợp lệ trong phản hồi");
           }
 
           // ✅ Validate cart has items
@@ -232,7 +232,7 @@ export const useCartStore = create<CartState>()(
           });
 
           // Sync with server response
-          if (res.data?.cart) {
+          if (res.data?.data?.cart) {
             get()._updateCartLocally(res.data.cart);
           }
 

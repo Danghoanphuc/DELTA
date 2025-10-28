@@ -40,10 +40,14 @@ export function ProductDetailPage() {
       setLoading(true);
       try {
         const res = await api.get(`/products/${productId}`);
-        if (!res.data?.product) {
+
+        // SỬA Ở ĐÂY
+        if (!res.data?.data?.product) {
           throw new Error("Product data not found");
         }
-        const fetchedProduct = res.data.product as ProductWithPrinter;
+        // VÀ SỬA Ở ĐÂY
+        const fetchedProduct = res.data.data.product as ProductWithPrinter;
+
         setProduct(fetchedProduct);
         if (fetchedProduct.pricing && fetchedProduct.pricing.length > 0) {
           setSelectedQuantity(fetchedProduct.pricing[0].minQuantity || 1);
