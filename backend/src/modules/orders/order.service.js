@@ -2,7 +2,7 @@
 import { OrderRepository } from "./order.repository.js";
 import { ProductRepository } from "../products/product.repository.js";
 import { UserRepository } from "../users/user.repository.js";
-import { sendNewOrderNotification } from "../../libs/email.js";
+import { sendNewOrderNotification } from "../../infrastructure/email/email.service.js";
 import {
   ValidationException,
   NotFoundException,
