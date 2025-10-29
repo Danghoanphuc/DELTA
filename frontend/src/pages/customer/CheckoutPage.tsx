@@ -85,23 +85,19 @@ export function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
-      // ✅ FIX: Xử lý productId đúng cách
       const orderData = {
         items: cart!.items.map((item) => {
-          // ✅ CRITICAL FIX: Kiểm tra xem productId là object hay string
-          const productId =
-            typeof item.productId === "object" && item.productId !== null
-              ? item.productId._id // Nếu là object, lấy _id
-              : item.productId; // Nếu đã là string, giữ nguyên
+          // Logic cũ (dòng 93-96) đã bị xóa vì nó gây ra lỗi 'never'.
+          // 'item.productId' đã là một string ID,
+          // 'item.product' mới là object.
 
           console.log("🔍 Processing cart item:", {
-            originalProductId: item.productId,
-            extractedProductId: productId,
-            type: typeof productId,
+            originalProductId: item.productId, // Đây đã là string
+            type: typeof item.productId,
           });
 
           return {
-            productId: productId, // ✅ GỬI ĐÚNG STRING ID
+            productId: item.productId, // ✅ GỬI ĐÚNG STRING ID
             quantity: item.quantity,
             pricePerUnit: item.selectedPrice?.pricePerUnit || 0,
             customization: item.customization || {},

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   CheckCircle,
-  Package,
   MapPin,
   Clock,
   Home,
@@ -17,7 +16,6 @@ import { Sidebar } from "@/components/Sidebar";
 import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Order } from "@/types/order";
 import api from "@/lib/axios";
 import { toast } from "sonner";

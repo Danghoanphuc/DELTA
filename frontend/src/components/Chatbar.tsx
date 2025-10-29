@@ -1,9 +1,10 @@
-// frontend/src/components/Chatbar.tsx (RESPONSIVE)
-import { Paperclip, Image, Send } from "lucide-react";
+import { Paperclip, Image, Send, Sparkles } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { ChatMessage } from "../types/chat";
 import { ChatMessages } from "./ChatMessages";
+import { motion } from "motion/react";
+import { Badge } from "./ui/badge";
 
 interface ChatBarProps {
   messages: ChatMessage[];
@@ -40,8 +41,9 @@ export function ChatBar({
   };
 
   const suggestedPrompts = [
-    { text: "Làm 100 card visit", color: "blue" },
-    { text: "In poster 60x90cm", color: "pink" },
+    { text: "Làm 100 card visit", variant: "outline" as const },
+    { text: "In poster 60x90cm", variant: "outline" as const },
+    { text: "Thiết kế brochure", variant: "outline" as const },
   ];
 
   useEffect(() => {
@@ -93,116 +95,171 @@ export function ChatBar({
   };
 
   return (
-    <div
+    <motion.div
       ref={chatRef}
-      className={`w-full max-w-4xl mx-auto rounded-2xl md:rounded-3xl transition-all duration-500
-        hover:border-gray-300 hover:shadow-lg hover:shadow-gray-200
-        ${isExpanded ? "h-[450px] md:h-[590px]" : "h-[250px] md:h-[290px]"} 
-      `}
+      className="w-full mx-auto relative"
+      animate={{
+        maxWidth: isExpanded ? "900px" : "700px",
+      }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
     >
-      <div className="relative bg-white/90 backdrop-blur-lg rounded-2xl md:rounded-3xl shadow-xl border border-gray-200/50 p-4 md:p-6 h-full flex flex-col">
-        {/* Header */}
-        <div className="flex items-start gap-2 md:gap-3 mb-3 md:mb-4">
-          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center flex-shrink-0">
-            <span className="text-base md:text-lg">🤖</span>
-          </div>
-          <div>
-            <p className="text-sm md:text-base text-gray-700 mb-1">
-              Xin chào! Tôi là{" "}
-              <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent font-semibold">
-                PrintZ
-              </span>{" "}
-              👋
-            </p>
-            {messages.length === 0 && (
-              <p className="text-xs text-gray-500 hidden md:block">
-                Tôi là trợ lý in ấn thông minh. Bạn cần in gì?
-              </p>
-            )}
-          </div>
-        </div>
+      <div className="bg-white/80 backdrop-blur-xl rounded-2xl md:rounded-3xl shadow-xl md:shadow-2xl shadow-indigo-200/20 md:shadow-indigo-200/30 border border-slate-200/60 overflow-hidden">
+        {/* Chat Messages Area */}
+        <motion.div
+          initial={false}
+          animate={{
+            height: isExpanded ? "340px" : "110px",
+          }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="overflow-y-auto px-3 md:px-6 pt-3 md:pt-6"
+        >
+          {/* Bot Message Header */}
+          {messages.length === 0 && (
+            <div className="flex gap-2 md:gap-3 mb-3 md:mb-4">
+              <div className="w-7 h-7 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+                <span className="text-white text-sm md:text-lg">🤖</span>
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-0.5 md:mb-1">
+                  <span className="text-xs md:text-sm leading-tight">
+                    Xin chào! Tôi là{" "}
+                    <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                      PrintZ
+                    </span>{" "}
+                  </span>
+                </div>
+                <p className="text-[11px] md:text-xs text-slate-500 leading-tight">
+                  Tôi là trợ lý in ấn thông minh. Bạn cần in gì?
+                </p>
+              </div>
+            </div>
+          )}
 
-        {/* Chat Messages */}
-        <div className="flex-1 overflow-hidden mb-2 md:mb-3 -mx-4 md:-mx-6 px-2">
-          <ChatMessages messages={messages} isLoadingAI={isLoadingAI} />
-        </div>
+          {/* Chat Messages Component */}
+          {messages.length > 0 && (
+            <div className="mb-4">
+              <ChatMessages messages={messages} isLoadingAI={isLoadingAI} />
+            </div>
+          )}
 
-        {/* Suggested Prompts - Hidden on mobile when expanded */}
-        {messages.length === 0 && message.length === 0 && (
-          <div className="flex flex-wrap gap-2 mb-2 md:mb-3">
-            {suggestedPrompts.map((prompt, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  setMessage(prompt.text);
-                  setIsExpanded(true);
-                  textareaRef.current?.focus();
-                }}
-                className={`px-2 py-1 md:px-3 md:py-1.5 rounded-full text-xs border transition-all
-                  bg-${prompt.color}-50 hover:bg-${prompt.color}-100 text-${prompt.color}-700 border-${prompt.color}-200
-                  hover:shadow-md
-                `}
-              >
-                {prompt.text}
-              </button>
-            ))}
-          </div>
-        )}
+          {/* Quick Action Tags */}
+          {messages.length === 0 && message.length === 0 && (
+            <div className="flex gap-1.5 md:gap-2 flex-wrap mb-3 md:mb-4">
+              {suggestedPrompts.map((action, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.5 + index * 0.1 }}
+                >
+                  <Badge
+                    variant={action.variant}
+                    className="cursor-pointer active:scale-95 hover:scale-105 transition-transform text-[11px] md:text-xs py-1 md:py-1.5 px-2 md:px-3"
+                    onClick={() => {
+                      setMessage(action.text);
+                      setIsExpanded(true);
+                      textareaRef.current?.focus();
+                    }}
+                  >
+                    {action.text}
+                  </Badge>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {/* Expanded Content - Hints */}
+          {isExpanded && messages.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="space-y-2 md:space-y-3 mb-3 md:mb-4"
+            >
+              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl md:rounded-2xl p-2.5 md:p-4 border border-indigo-100">
+                <p className="text-[11px] md:text-xs text-slate-700 mb-1.5 md:mb-2">
+                  💡 Gợi ý cho bạn:
+                </p>
+                <ul className="text-[11px] md:text-xs text-slate-600 space-y-1 md:space-y-1.5 ml-3 md:ml-4">
+                  <li>• "Tôi cần in 500 card visit 2 mặt"</li>
+                  <li>• "Thiết kế poster quảng cáo sự kiện"</li>
+                  <li>• "In brochure giới thiệu công ty"</li>
+                </ul>
+              </div>
+            </motion.div>
+          )}
+        </motion.div>
 
         {/* Input Area */}
-        <div className="flex-shrink-0 border-gray-200 pt-2 md:pt-3">
-          <textarea
-            ref={textareaRef}
-            value={message}
-            onChange={handleInput}
-            onFocus={() => setIsExpanded(true)}
-            placeholder="Bạn muốn in gì?"
-            className="w-full border rounded-2xl md:rounded-3xl px-3 py-2 mb-2 outline-none text-sm md:text-base placeholder:text-gray-400 overflow-hidden disabled:bg-gray-50"
-            style={{ minHeight: "30px", maxHeight: "130px" }}
-            disabled={isLoadingAI}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-          />
-
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 md:gap-3">
+        <div className="px-3 md:px-6 pb-3 md:pb-6 pt-2 md:pt-3">
+          <div className="bg-slate-50/80 backdrop-blur-sm rounded-xl md:rounded-2xl border border-slate-200/80 overflow-hidden hover:border-indigo-300 transition-colors focus-within:border-indigo-500 focus-within:ring-2 md:focus-within:ring-4 focus-within:ring-indigo-100">
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={handleInput}
+              onFocus={() => setIsExpanded(true)}
+              placeholder="Bạn muốn in gì?"
+              className="w-full bg-transparent px-3 md:px-4 pt-2.5 md:pt-4 pb-1.5 md:pb-2 outline-none resize-none text-sm md:text-base text-slate-700 placeholder:text-slate-400 disabled:opacity-50"
+              style={{ minHeight: "36px", maxHeight: "120px" }}
+              rows={isExpanded ? 2 : 1}
+              disabled={isLoadingAI}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+            />
+            <div className="flex items-center justify-between px-2.5 md:px-4 pb-2.5 md:pb-3">
+              <div className="flex gap-1.5 md:gap-2">
+                <button
+                  className="w-9 h-9 md:w-8 md:h-8 rounded-lg hover:bg-slate-200/50 active:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed touch-manipulation"
+                  disabled
+                  title="Đính kèm (sắp có)"
+                >
+                  <Paperclip className="w-[18px] h-[18px] md:w-4 md:h-4" />
+                </button>
+                <button
+                  className="w-9 h-9 md:w-8 md:h-8 rounded-lg hover:bg-slate-200/50 active:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed touch-manipulation"
+                  disabled
+                  title="Gửi ảnh (sắp có)"
+                >
+                  <Image className="w-[18px] h-[18px] md:w-4 md:h-4" />
+                </button>
+              </div>
               <button
-                className="p-1.5 md:p-2 rounded-lg text-gray-400 opacity-50 cursor-not-allowed"
-                disabled
-                title="Đính kèm (sắp có)"
+                onClick={handleSend}
+                disabled={isLoadingAI || !message.trim()}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 md:px-5 py-2.5 md:py-2 rounded-xl hover:shadow-lg hover:shadow-indigo-200 transition-all active:scale-95 hover:scale-105 flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 touch-manipulation min-h-[44px] md:min-h-0"
               >
-                <Paperclip size={18} className="md:w-5 md:h-5" />
-              </button>
-              <button
-                className="p-1.5 md:p-2 rounded-lg text-gray-400 opacity-50 cursor-not-allowed"
-                disabled
-                title="Gửi ảnh (sắp có)"
-              >
-                <Image size={18} className="md:w-5 md:h-5" />
+                {isLoadingAI ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span className="hidden sm:inline">Đang nghĩ...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span className="hidden sm:inline">Gửi</span>
+                  </>
+                )}
               </button>
             </div>
-            <button
-              onClick={handleSend}
-              className="px-4 py-2 md:px-6 md:py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl md:rounded-2xl flex items-center gap-2 shadow-md hover:shadow-blue-200 transition-all duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm md:text-base"
-              disabled={isLoadingAI || !message.trim()}
-            >
-              {isLoadingAI ? (
-                "Đang nghĩ..."
-              ) : (
-                <>
-                  <Send size={14} className="md:w-[18px] md:h-[18px]" />
-                  <span className="hidden sm:inline">Gửi</span>
-                </>
-              )}
-            </button>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Quick access hint */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isExpanded ? 0 : 1 }}
+        className="text-center mt-2 md:mt-3 text-[10px] md:text-xs text-slate-400 px-2"
+      >
+        <span className="hidden md:inline">
+          Nhấn vào để mở rộng chat • Nhấn bên ngoài để thu nhỏ
+        </span>
+        <span className="md:hidden">Chạm để mở rộng</span>
+      </motion.div>
+    </motion.div>
   );
 }

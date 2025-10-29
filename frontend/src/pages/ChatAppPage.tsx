@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { flushSync } from "react-dom";
 import api from "@/lib/axios";
 import { ChatMessage } from "@/types/chat";
-
+import { MobileUserAvatar } from "../components/MobileUserAvatar";
 import { Sidebar } from "@/components/Sidebar";
 import { MobileNav } from "@/components/MobileNav";
 import { QuickAccessWidget } from "@/components/QuickAccessWidget";
@@ -80,7 +80,7 @@ export default function ChatAppPage() {
   const recentMessages = messages.slice(-3);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-sky-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-sky-100 ">
       {/* Desktop Sidebar */}
       <Sidebar />
 
@@ -88,7 +88,7 @@ export default function ChatAppPage() {
       <MobileNav />
 
       {/* Main Content */}
-      <div className="lg:ml-20 pt-16 lg:pt-0 relative">
+      <div className="lg:ml-20 pt-0 -mt-0 md:-mt-3 relative">
         {/* Quick Access Widget - Desktop Only */}
         <div className="hidden lg:block">
           <QuickAccessWidget
@@ -96,7 +96,7 @@ export default function ChatAppPage() {
             onNewChat={handleNewChat}
           />
         </div>
-
+        <MobileUserAvatar />
         {/* Hero Section */}
         <HeroSection
           messages={messages}
@@ -109,49 +109,6 @@ export default function ChatAppPage() {
 
         {/* Category Cards */}
         <CategoryCards />
-
-        {/* Features Section */}
-        <div className="w-full px-4 md:px-8 py-8 md:py-12">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="mb-4 md:mb-6 text-gray-800 text-base md:text-lg font-semibold">
-              Tính năng nổi bật
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-              {[
-                {
-                  title: "Tìm nhà in nhanh",
-                  desc: "AI tự động tìm nhà in phù hợp nhất",
-                  icon: "🔍",
-                },
-                {
-                  title: "Báo giá tức thì",
-                  desc: "Nhận báo giá ngay lập tức từ nhiều nhà in",
-                  icon: "💰",
-                },
-                {
-                  title: "Giao hàng tận nơi",
-                  desc: "Theo dõi đơn hàng và nhận hàng tại nhà",
-                  icon: "🚚",
-                },
-              ].map((feature, i) => (
-                <div
-                  key={i}
-                  className="bg-white/60 backdrop-blur-sm rounded-xl md:rounded-2xl p-4 md:p-6 border border-gray-200/50 hover:shadow-lg transition-all"
-                >
-                  <div className="text-3xl md:text-4xl mb-3">
-                    {feature.icon}
-                  </div>
-                  <h3 className="font-semibold text-gray-800 mb-2 text-sm md:text-base">
-                    {feature.title}
-                  </h3>
-                  <p className="text-xs md:text-sm text-gray-600">
-                    {feature.desc}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

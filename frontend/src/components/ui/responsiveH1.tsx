@@ -10,7 +10,7 @@ interface ResponsiveH1Props {
 const ResponsiveH1: React.FC<ResponsiveH1Props> = ({
   children,
   className = "",
-  desktopSize = "56px",
+  desktopSize = "48px",
   mobileSize = "32px",
 }) => {
   const [fontSize, setFontSize] = useState(desktopSize);
@@ -32,7 +32,7 @@ const ResponsiveH1: React.FC<ResponsiveH1Props> = ({
   return (
     <h1
       style={{ fontSize }}
-      className={`bg-gradient-to-r from-blue-500 via-purple-500 to-blue-400 bg-clip-text text-transparent font-semibold leading-loose ${className}`}
+      className={`bg-gradient-to-r from-blue-500 via-purple-500 to-blue-400 bg-clip-text text-transparent font-semi leading-loose ${className}`}
     >
       {children}
     </h1>

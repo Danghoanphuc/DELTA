@@ -1,4 +1,5 @@
-// src/components/printer/OrderTable.tsx (COMPONENT MỚI)
+// src/components/printer/OrderTable.tsx (✅ ĐÃ SỬA HOÀN CHỈNH)
+
 import {
   Table,
   TableBody,
@@ -20,9 +21,11 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Pencil, // <-- Thêm icon
+  Archive, // <-- Thêm icon
 } from "lucide-react";
 
-// ==================== HELPERS (Chuyển vào component con) ====================
+// ==================== HELPERS ====================
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -49,7 +52,11 @@ const getStatusBadge = (status: OrderStatus) => {
   > = {
     pending: { label: "Chờ xác nhận", variant: "secondary", icon: Clock },
     confirmed: { label: "Đã xác nhận", variant: "default", icon: Check },
+    // KHẮC PHỤC: Thêm trạng thái 'designing'
+    designing: { label: "Đang thiết kế", variant: "default", icon: Pencil },
     printing: { label: "Đang in", variant: "default", icon: Package },
+    // KHẮC PHỤC: Thêm trạng thái 'ready'
+    ready: { label: "Sẵn sàng", variant: "default", icon: Archive },
     shipping: { label: "Đang giao", variant: "default", icon: Truck },
     completed: { label: "Hoàn thành", variant: "default", icon: CheckCircle },
     cancelled: { label: "Đã hủy", variant: "destructive", icon: XCircle },
@@ -60,9 +67,20 @@ const getStatusBadge = (status: OrderStatus) => {
     },
   };
 
-  const { label, variant, icon: Icon } = config[status];
+  // KHẮC PHỤC: Thêm kiểm tra an toàn để chống crash
+  const statusConfig = config[status];
+  if (!statusConfig) {
+    return (
+      <Badge variant="outline" className="gap-1">
+        <AlertCircle size={14} />
+        {status}
+      </Badge>
+    );
+  }
+
+  const { label, variant, icon: Icon } = statusConfig;
   return (
-    <Badge variant={variant} className="gap-1">
+    <Badge variant={variant} className="gap-1 whitespace-nowrap">
       <Icon size={14} />
       {label}
     </Badge>
@@ -80,6 +98,15 @@ const getStatusActions = (order: Order) => {
       );
       break;
     case "confirmed":
+      // Giả sử có bước thiết kế
+      actions.push({
+        label: "Thiết kế",
+        status: "designing",
+        variant: "default",
+      });
+      break;
+    // KHẮC PHỤC: Thêm case cho 'designing'
+    case "designing":
       actions.push({
         label: "Bắt đầu in",
         status: "printing",
@@ -87,6 +114,14 @@ const getStatusActions = (order: Order) => {
       });
       break;
     case "printing":
+      actions.push({
+        label: "Sẵn sàng giao",
+        status: "ready",
+        variant: "default",
+      });
+      break;
+    // KHẮC PHỤC: Thêm case cho 'ready'
+    case "ready":
       actions.push({
         label: "Chuyển giao",
         status: "shipping",
@@ -179,7 +214,7 @@ export function OrderTable({
                   {getStatusActions(order).map((action) => (
                     <Button
                       key={action.status}
-                      variant={action.variant || "ghost"}
+                      variant={action.variant || "outline"} // Sửa thành 'outline' cho dễ nhìn
                       size="sm"
                       onClick={() => onUpdateStatus(order._id, action.status)}
                       disabled={loading}
