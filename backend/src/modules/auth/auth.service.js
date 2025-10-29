@@ -5,7 +5,7 @@ import crypto from "crypto";
 import { AuthRepository } from "./auth.repository.js";
 import { User } from "../../shared/models/user.model.js";
 import { PrinterProfile } from "../../shared/models/printer-profile.model.js";
-import { sendVerificationEmail } from "../../libs/email.js"; // Giả sử lib email ở /src/libs
+import { sendVerificationEmail } from "../../infrastructure/email/email.service.js"; // Giả sử lib email ở /src/libs
 import {
   ValidationException,
   ConflictException,
