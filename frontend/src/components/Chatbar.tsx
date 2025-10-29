@@ -111,7 +111,14 @@ export function ChatBar({
             height: isExpanded ? "340px" : "110px",
           }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="overflow-y-auto px-3 md:px-6 pt-3 md:pt-6"
+          className={`overflow-y-auto px-3 md:px-6 pt-3 md:pt-6 ${
+            !isExpanded ? "cursor-pointer" : ""
+          }`}
+          onClick={() => {
+            if (!isExpanded) {
+              setIsExpanded(true);
+            }
+          }}
         >
           {/* Bot Message Header */}
           {messages.length === 0 && (
@@ -155,7 +162,8 @@ export function ChatBar({
                   <Badge
                     variant={action.variant}
                     className="cursor-pointer active:scale-95 hover:scale-105 transition-transform text-[11px] md:text-xs py-1 md:py-1.5 px-2 md:px-3"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation(); // Ngăn không cho sự kiện click lan ra motion.div
                       setMessage(action.text);
                       setIsExpanded(true);
                       textareaRef.current?.focus();
