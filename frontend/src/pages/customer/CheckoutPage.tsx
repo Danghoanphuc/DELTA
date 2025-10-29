@@ -1,4 +1,7 @@
-// frontend/src/pages/customer/CheckoutPage.tsx (ĐÃ CẬP NHẬT API ENDPOINT)
+// frontend/src/pages/customer/CheckoutPage.tsx - ✅ FIXED VERSION
+// ============================================
+// THAY THẾ FILE CŨ BẰNG FILE NÀY
+// ============================================
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -34,8 +37,9 @@ export function CheckoutPage() {
     notes: "",
   });
 
-  // Chuyển 'cash' thành 'cod' cho phù hợp với backend enum
-  const [paymentMethod, setPaymentMethod] = useState<"cod" | "transfer">("cod");
+  const [paymentMethod, setPaymentMethod] = useState<"cod" | "bank-transfer">(
+    "cod"
+  );
   const [customerNotes, setCustomerNotes] = useState("");
 
   // Redirect if cart is empty
@@ -54,9 +58,12 @@ export function CheckoutPage() {
   };
 
   const subtotal = getCartTotal();
-  const shippingFee = 30000; // Tạm thời cố định
+  const shippingFee = 30000;
   const total = subtotal + shippingFee;
 
+  // ============================================
+  // ✅ FIXED SUBMIT HANDLER
+  // ============================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -78,51 +85,79 @@ export function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
+      // ✅ FIX: Xử lý productId đúng cách
       const orderData = {
-        // Đổi tên items -> itemsPayload để rõ ràng hơn (nhưng backend chỉ cần 'items')
-        items: cart!.items.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          pricePerUnit: item.selectedPrice?.pricePerUnit || 0,
-          customization: item.customization,
-        })),
+        items: cart!.items.map((item) => {
+          // ✅ CRITICAL FIX: Kiểm tra xem productId là object hay string
+          const productId =
+            typeof item.productId === "object" && item.productId !== null
+              ? item.productId._id // Nếu là object, lấy _id
+              : item.productId; // Nếu đã là string, giữ nguyên
+
+          console.log("🔍 Processing cart item:", {
+            originalProductId: item.productId,
+            extractedProductId: productId,
+            type: typeof productId,
+          });
+
+          return {
+            productId: productId, // ✅ GỬI ĐÚNG STRING ID
+            quantity: item.quantity,
+            pricePerUnit: item.selectedPrice?.pricePerUnit || 0,
+            customization: item.customization || {},
+          };
+        }),
         shippingAddress,
         paymentMethod,
         customerNotes,
       };
 
-      // *** SỬA ENDPOINT TỪ /orders/create THÀNH /orders ***
+      console.log("📦 Sending order data:", orderData);
+
+      // ✅ GỬI REQUEST TỚI BACKEND
       const res = await api.post("/orders", orderData);
 
-      // KIỂM TRA PHÒNG THỦ
-      // (Giả sử cấu trúc trả về là { success: true, data: { order: {...} } }
-      // hoặc { success: true, order: {...} } )
+      console.log("✅ Order response:", res.data);
+
+      // ✅ KIỂM TRA RESPONSE
       const newOrder = res.data?.data?.order || res.data?.order;
 
       if (newOrder && newOrder._id) {
-        // Chỉ chạy khi backend trả về order hợp lệ
-        toast.success("Đặt hàng thành công! 🎉");
-        await clearCart(); // Chỉ xóa giỏ hàng khi thành công
-        navigate(`/orders/${newOrder._id}`); // Điều hướng đến trang chi tiết đơn hàng mới
-        console.log("Đơn hàng đã tạo:", newOrder);
+        toast.success("🎉 Đặt hàng thành công!");
+
+        // ✅ XÓA GIỎ HÀNG CHỈ KHI THÀNH CÔNG
+        await clearCart();
+
+        // ✅ ĐIỀU HƯỚNG ĐẾN TRANG CHI TIẾT ĐƠN HÀNG
+        setTimeout(() => {
+          navigate(`/order-confirmation/${newOrder._id}`);
+        }, 500);
       } else {
-        // Nếu backend không trả về order -> báo lỗi
-        console.error("Backend response missing order data:", res.data);
+        console.error("❌ Backend response missing order data:", res.data);
         throw new Error("Không nhận được thông tin đơn hàng sau khi tạo.");
       }
-      // --- KẾT THÚC SỬA ---
     } catch (err: any) {
       console.error("❌ Checkout Error:", err);
-      const msg =
-        err.response?.data?.message || "Không thể đặt hàng, vui lòng thử lại";
-      toast.error(msg);
+
+      const errorMsg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Không thể đặt hàng, vui lòng thử lại";
+
+      toast.error(errorMsg);
+
+      // ✅ LOG CHI TIẾT LỖI ĐỂ DEBUG
+      if (err.response) {
+        console.error("Response status:", err.response.status);
+        console.error("Response data:", err.response.data);
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (!cart || cart.items.length === 0) {
-    return null; // Will redirect
+    return null;
   }
 
   return (
@@ -283,7 +318,6 @@ export function CheckoutPage() {
                       value={paymentMethod}
                       onValueChange={(v: any) => setPaymentMethod(v)}
                     >
-                      {/* Đổi value="cash" thành value="cod" */}
                       <div className="flex items-center space-x-2 p-3 border rounded-lg">
                         <RadioGroupItem value="cod" id="cod" />
                         <Label htmlFor="cod" className="flex-1 cursor-pointer">

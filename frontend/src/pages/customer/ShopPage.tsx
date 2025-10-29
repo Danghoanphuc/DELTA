@@ -58,25 +58,24 @@ export function ShopPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       // Re-fetch with search term
-      if (searchTerm) {
-        setLoading(true);
-        api
-          .get("/products", {
-            params: {
-              category:
-                selectedCategory !== "all" ? selectedCategory : undefined,
-              search: searchTerm,
-              sort: sortBy,
-            },
-          })
-          .then((res) => setProducts(res.data?.data?.products || []))
-          .catch(() => toast.error("Không thể tìm kiếm"))
-          .finally(() => setLoading(false));
-      }
+      // KHẮC PHỤC: Xóa 'if (searchTerm)'
+      // Luôn luôn fetch, server sẽ tự xử lý khi 'search' là chuỗi rỗng
+      setLoading(true);
+      api
+        .get("/products", {
+          params: {
+            category: selectedCategory !== "all" ? selectedCategory : undefined,
+            search: searchTerm || undefined, // Gửi undefined nếu searchTerm rỗng
+            sort: sortBy,
+          },
+        })
+        .then((res) => setProducts(res.data?.data?.products || []))
+        .catch(() => toast.error("Không thể tìm kiếm"))
+        .finally(() => setLoading(false));
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchTerm]);
+  }, [searchTerm, selectedCategory, sortBy]); // <-- Thêm dependency cho nhất quán
 
   const categories = [
     { value: "all", label: "Tất cả" },

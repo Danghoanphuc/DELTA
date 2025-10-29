@@ -32,7 +32,7 @@ export function OrderManagement() {
           sort: sortBy,
         },
       });
-      setOrders(res.data.orders || []);
+      setOrders(res.data?.orders || res.data?.data?.orders || []);
     } catch (err: any) {
       console.error("❌ Error fetching orders:", err);
       toast.error("Không thể tải đơn hàng");

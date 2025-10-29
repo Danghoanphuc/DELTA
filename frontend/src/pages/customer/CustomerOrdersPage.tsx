@@ -19,7 +19,7 @@ export const CustomerOrdersPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
-
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   useEffect(() => {
     fetchOrders();
   }, []);
@@ -28,7 +28,8 @@ export const CustomerOrdersPage = () => {
     setLoading(true);
     try {
       const res = await api.get("/orders/my-orders");
-      setOrders(res.data.orders || []);
+      // KHẮC PHỤC 1: Đọc dữ liệu linh hoạt
+      setOrders(res.data?.orders || res.data?.data?.orders || []);
     } catch (err: any) {
       console.error("❌ Error fetching orders:", err);
       toast.error("Không thể tải đơn hàng");
@@ -36,7 +37,29 @@ export const CustomerOrdersPage = () => {
       setLoading(false);
     }
   };
+  const handleCancelOrder = async (orderId: string) => {
+    if (cancellingId) return; // Không cho hủy 2 lần
 
+    setCancellingId(orderId);
+    try {
+      // Giả sử endpoint là: PATCH /orders/:id/cancel
+      await api.patch(`/orders/${orderId}/cancel`);
+
+      toast.success("Đã hủy đơn hàng thành công");
+
+      // Cập nhật UI ngay lập tức
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order._id === orderId ? { ...order, status: "cancelled" } : order
+        )
+      );
+    } catch (err: any) {
+      console.error("❌ Error cancelling order:", err);
+      toast.error("Hủy đơn hàng thất bại. Vui lòng thử lại.");
+    } finally {
+      setCancellingId(null);
+    }
+  };
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
@@ -56,6 +79,7 @@ export const CustomerOrdersPage = () => {
         variant: "default" | "secondary" | "destructive" | "outline";
       }
     > = {
+      // (Các trạng thái cũ giữ nguyên)
       pending: { label: "Chờ xác nhận", variant: "secondary" },
       confirmed: { label: "Đã xác nhận", variant: "default" },
       printing: { label: "Đang in", variant: "default" },
@@ -63,20 +87,45 @@ export const CustomerOrdersPage = () => {
       completed: { label: "Hoàn thành", variant: "default" },
       cancelled: { label: "Đã hủy", variant: "destructive" },
       refunded: { label: "Đã hoàn tiền", variant: "outline" },
+
+      // KHẮC PHỤC: Bổ sung các trạng thái bị thiếu
+      designing: { label: "Đang thiết kế", variant: "default" },
+      ready: { label: "Sẵn sàng giao", variant: "default" },
     };
 
+    // Kiểm tra an toàn phòng trường hợp có trạng thái lạ
     const config = statusConfig[status];
+    if (!config) {
+      return <Badge variant="outline">{status}</Badge>;
+    }
+
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
-
+  // KHẮC PHỤC 2: Thêm các kiểm tra an toàn (safe checks) để chống crash
   const filteredOrders = orders.filter((order) => {
+    // Nếu order bị lỗi, bỏ qua
+    if (!order) {
+      return false;
+    }
+
     const matchesStatus =
       statusFilter === "all" || order.status === statusFilter;
-    const matchesSearch =
-      order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.items.some((item) =>
-        item.productName.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+
+    // Kiểm tra tìm kiếm an toàn
+    const searchTermLower = searchTerm.toLowerCase();
+
+    // Thêm ? (optional chaining) để tránh crash nếu orderNumber là null/undefined
+    const matchesOrderNumber =
+      order.orderNumber?.toLowerCase().includes(searchTermLower) || false;
+
+    // Thêm ? để tránh crash nếu items là null/undefined
+    const matchesProductName =
+      order.items?.some((item) =>
+        item.productName?.toLowerCase().includes(searchTermLower)
+      ) || false;
+
+    const matchesSearch = matchesOrderNumber || matchesProductName;
+
     return matchesStatus && matchesSearch;
   });
 
@@ -215,8 +264,13 @@ export const CustomerOrdersPage = () => {
                             variant="outline"
                             size="sm"
                             className="text-red-600"
+                            // KHẮC PHỤC: Thêm onClick và trạng thái loading
+                            onClick={() => handleCancelOrder(order._id)}
+                            disabled={cancellingId === order._id}
                           >
-                            Hủy đơn
+                            {cancellingId === order._id
+                              ? "Đang hủy..."
+                              : "Hủy đơn"}
                           </Button>
                         )}
                         {order.status === "completed" && (

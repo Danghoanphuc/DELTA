@@ -2,10 +2,13 @@
 
 // ==================== ORDER STATUS ====================
 
+// Đã cập nhật để khớp với 9 trạng thái trong OrderDetailPage
 export type OrderStatus =
-  | "pending" // Chờ xác nhận từ nhà in
+  | "pending" // Chờ xác nhận
   | "confirmed" // Đã xác nhận
+  | "designing" // Đang thiết kế (Đã thêm)
   | "printing" // Đang in
+  | "ready" // Sẵn sàng giao (Đã thêm)
   | "shipping" // Đang giao
   | "completed" // Hoàn thành
   | "cancelled" // Đã hủy
@@ -13,26 +16,39 @@ export type OrderStatus =
 
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
-export type PaymentMethod = "cod" | "transfer" | "vnpay" | "momo";
+// Đã sửa lại tên cho nhất quán với code trong OrderDetailPage
+export type PaymentMethod = "cod" | "bank-transfer" | "momo" | "zalopay";
 
 // ==================== ORDER ITEM ====================
+
+// Đã thêm interface riêng cho thông số
+export interface OrderItemSpecifications {
+  material?: string;
+  size?: string;
+  color?: string;
+  [key: string]: any; // Cho các thông số tùy chọn khác
+}
 
 export interface OrderItem {
   productId: string;
   productName: string;
-  printerId: string;
-  printerName: string;
+  printerId: string; // ID của nhà in cho sản phẩm này
+  printerName: string; // Tên nhà in cho sản phẩm này
   quantity: number;
   pricePerUnit: number;
   subtotal: number;
+
+  // Đã đưa specifications ra ngoài, vì OrderDetailPage truy cập trực tiếp
+  specifications?: OrderItemSpecifications;
+
   customization?: {
     fileUrl?: string;
     notes?: string;
   };
   productSnapshot?: {
     // Lưu lại thông tin sản phẩm tại thời điểm đặt hàng
-    specifications?: any;
-    images?: any[];
+    images?: { url: string; [key: string]: any }[];
+    // specifications cũng có thể vẫn ở đây để lưu trữ bản gốc
   };
 }
 
@@ -48,6 +64,22 @@ export interface ShippingAddress {
   notes?: string;
 }
 
+// ==================== PAYMENT INFO (Đã thêm) ====================
+// Interface này bị thiếu, OrderDetailPage cần 'paidAt'
+export interface OrderPayment {
+  paidAt?: string; // OrderDetailPage dùng 'order.payment.paidAt'
+  transactionId?: string; // Thường sẽ có mã giao dịch
+  [key: string]: any;
+}
+
+// ==================== PRINTER INFO (Đã thêm) ====================
+// Interface này bị thiếu, OrderDetailPage cần 'displayName'
+export interface OrderPrinterInfo {
+  _id: string;
+  displayName: string; // OrderDetailPage dùng 'order.printerId.displayName'
+  [key: string]: any;
+}
+
 // ==================== ORDER ====================
 
 export interface Order {
@@ -57,13 +89,18 @@ export interface Order {
   customerName: string;
   customerEmail: string;
 
+  // printerId có thể là một object được populate (theo cách OrderDetailPage sử dụng)
+  // hoặc chỉ là string nếu đơn hàng này thuộc về 1 nhà in duy nhất
+  // Dựa trên code, nó được dùng khi customer xem -> là 1 object
+  printerId?: OrderPrinterInfo;
+
   items: OrderItem[];
 
   shippingAddress: ShippingAddress;
 
   subtotal: number;
   shippingFee: number;
-  tax: number;
+  tax: number; // Mặc dù không dùng ở trang chi tiết, vẫn nên giữ lại
   discount: number;
   total: number;
 
@@ -71,10 +108,13 @@ export interface Order {
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod;
 
+  // Đã thêm cấu trúc payment object
+  payment: OrderPayment;
+
   // Tracking
   statusHistory?: {
     status: OrderStatus;
-    timestamp: Date;
+    timestamp: string; // OrderDetailPage dùng formatDate, nên là string
     note?: string;
   }[];
 
@@ -83,8 +123,8 @@ export interface Order {
   printerNotes?: string;
 
   // Timeline
-  estimatedDelivery?: Date;
-  deliveredAt?: Date;
+  estimatedDelivery?: string;
+  deliveredAt?: string;
 
   createdAt: string;
   updatedAt: string;
@@ -97,6 +137,7 @@ export interface CreateOrderPayload {
     productId: string;
     quantity: number;
     pricePerUnit: number;
+    specifications?: OrderItemSpecifications; // Cập nhật ở đây
     customization?: {
       fileUrl?: string;
       notes?: string;
@@ -114,8 +155,12 @@ export interface OrderSummary {
   totalOrders: number;
   pending: number;
   confirmed: number;
-  printing: number;
+  printing: number; // 'printing'
   shipping: number;
   completed: number;
   cancelled: number;
+
+  // Có thể thêm các trạng thái mới nếu cần
+  designing?: number;
+  ready?: number;
 }

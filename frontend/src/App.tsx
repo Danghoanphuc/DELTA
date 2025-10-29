@@ -23,6 +23,7 @@ import { OrderDetailPage } from "./pages/OrderDetailPage";
 import { ProductDetailPage } from "./pages/customer/ProductDetailPage";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { ProductManagement } from "./pages/printer/ProductManagement";
+import { OrderConfirmationPage } from "@/pages/customer/OrderConfirmationPage";
 
 function App() {
   const { setAccessToken, fetchMe } = useAuthStore();
@@ -122,6 +123,10 @@ function App() {
           <Route
             path="/printer/orders/:orderId"
             element={<OrderDetailPage />}
+          />
+          <Route
+            path="/order-confirmation/:orderId"
+            element={<OrderConfirmationPage />}
           />
           <Route path="/printer/products" element={<ProductManagement />} />
           <Route path="/orders" element={<CustomerOrdersPage />} />

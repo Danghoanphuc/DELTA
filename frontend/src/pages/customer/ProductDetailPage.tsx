@@ -16,7 +16,7 @@ import { useCartStore } from "@/stores/useCartStore";
 // KHẮC PHỤC: Thêm import Label và Input
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-
+import { Textarea } from "@/components/ui/textarea";
 // Define a combined type for the fetched data
 interface ProductWithPrinter extends PrinterProduct {
   printerInfo?: PrinterProfile;
@@ -30,7 +30,10 @@ export function ProductDetailPage() {
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [selectedPriceIndex, setSelectedPriceIndex] = useState(0);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
-
+  const [customization, setCustomization] = useState({
+    notes: "",
+    fileUrl: "", // Tạm thời để trống, sẽ xử lý upload file sau
+  });
   const { addToCart, isInCart } = useCartStore();
 
   useEffect(() => {
@@ -89,7 +92,6 @@ export function ProductDetailPage() {
   }, [selectedQuantity, product?.pricing]);
 
   const handleAddToCart = async () => {
-    // ... (logic add to cart giữ nguyên) ...
     if (!product || isAddingToCart) return;
     if (isInCart(product._id)) {
       toast.info("Sản phẩm đã có trong giỏ hàng.");
@@ -97,12 +99,16 @@ export function ProductDetailPage() {
     }
     setIsAddingToCart(true);
     try {
+      // KHẮC PHỤC: Gửi kèm customization vào giỏ hàng
       await addToCart({
         productId: product._id,
         quantity: selectedQuantity,
         selectedPriceIndex: selectedPriceIndex,
+        customization: customization, // <-- THÊM DÒNG NÀY
       });
+      toast.success("Đã thêm vào giỏ hàng!"); // Thêm toast cho rõ ràng
     } catch (err) {
+      toast.error("Thêm vào giỏ hàng thất bại"); // Thêm toast lỗi
     } finally {
       setIsAddingToCart(false);
     }
@@ -189,7 +195,7 @@ export function ProductDetailPage() {
                   {" "}
                   <CardTitle className="text-base">Thông số</CardTitle>{" "}
                 </CardHeader>
-                <CardContent className="text-sm text-gray-700 grid grid-cols-2 gap-x-4 gap-y-1">
+                <CardContent className="text-sm text-gray-700 grid grid-cols-1 gap-x-4 gap-y-3">
                   {product.specifications?.material && (
                     <div>
                       <strong>Chất liệu:</strong>{" "}
@@ -213,6 +219,43 @@ export function ProductDetailPage() {
                       ngày
                     </div>
                   )}
+                  <div className="mb-4 space-y-3">
+                    {/* Ghi chú tùy chỉnh */}
+                    <div>
+                      <Label htmlFor="customNotes" className="font-medium">
+                        Ghi chú cho nhà in
+                      </Label>
+                      <Textarea
+                        id="customNotes"
+                        placeholder="VD: In cho tôi 2 mặt, cán màng mờ..."
+                        value={customization.notes}
+                        onChange={(e) =>
+                          setCustomization((prev) => ({
+                            ...prev,
+                            notes: e.target.value,
+                          }))
+                        }
+                        className="mt-1"
+                      />
+                    </div>
+                    {/* Upload file (Phiên bản đơn giản) */}
+                    <div>
+                      <Label htmlFor="fileUpload" className="font-medium">
+                        Tải lên file thiết kế
+                      </Label>
+                      <Input
+                        id="fileUpload"
+                        type="file"
+                        className="mt-1"
+                        // Tạm thời: Bạn sẽ cần một logic xử lý upload file
+                        // và gán URL vào customization.fileUrl
+                        disabled // Tạm vô hiệu hóa cho đến khi có logic upload
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        (Chức năng upload file sẽ được phát triển sau)
+                      </p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
