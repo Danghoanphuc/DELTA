@@ -1,4 +1,4 @@
-import { Paperclip, Image, Send, Sparkles } from "lucide-react";
+import { Paperclip, Image, Send } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { ChatMessage } from "../types/chat";
