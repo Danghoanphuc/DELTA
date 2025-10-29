@@ -13,7 +13,7 @@ import {
   GuestCartItem,
 } from "@/lib/guestCart";
 import { useAuthStore } from "./useAuthStore";
-import { Cart, CartItem, AddToCartPayload } from "@/types/cart";
+import { Cart, AddToCartPayload } from "@/types/cart";
 // ==================== TYPES ====================
 
 interface CartStore {
