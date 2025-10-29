@@ -1,4 +1,4 @@
-// frontend/src/pages/ChatAppPage.tsx (RESPONSIVE)
+// src/pages/ChatAppPage.tsx (Đã sửa)
 import { useState, useEffect } from "react";
 import { flushSync } from "react-dom";
 import api from "@/lib/axios";
@@ -9,11 +9,13 @@ import { MobileNav } from "@/components/MobileNav";
 import { QuickAccessWidget } from "@/components/QuickAccessWidget";
 import { HeroSection } from "@/components/HeroSection";
 import { CategoryCards } from "@/components/CategoryCards";
+import { useAuthStore } from "@/stores/useAuthStore"; // 👈 1. Import AuthStore
 
 export default function ChatAppPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [isChatExpanded, setIsChatExpanded] = useState(false);
+  const accessToken = useAuthStore((s) => s.accessToken);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -26,10 +28,15 @@ export default function ChatAppPage() {
         console.error("Không thể tải lịch sử:", err);
       }
     };
-    fetchHistory();
-  }, []);
+
+    // 👈 3. Chỉ gọi hàm này nếu đã đăng nhập
+    if (accessToken) {
+      fetchHistory();
+    }
+  }, [accessToken]); // 👈 4. Thêm accessToken vào dependency array
 
   const addUserMessageToState = (textToSend: string): ChatMessage => {
+    // ... (phần còn lại giữ nguyên) ...
     const userMessage: ChatMessage = {
       _id: `temp-user-${Date.now()}`,
       senderType: "User",
@@ -44,6 +51,7 @@ export default function ChatAppPage() {
   };
 
   const getAIResponse = async (
+    // ... (phần còn lại giữ nguyên) ...
     userMessage: ChatMessage,
     latitude?: number,
     longitude?: number
@@ -73,6 +81,7 @@ export default function ChatAppPage() {
   };
 
   const handleNewChat = () => {
+    // ... (phần còn lại giữ nguyên) ...
     setMessages([]);
     setIsChatExpanded(false);
   };
@@ -80,6 +89,7 @@ export default function ChatAppPage() {
   const recentMessages = messages.slice(-3);
 
   return (
+    // ... (phần JSX giữ nguyên) ...
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-sky-100 ">
       {/* Desktop Sidebar */}
       <Sidebar />

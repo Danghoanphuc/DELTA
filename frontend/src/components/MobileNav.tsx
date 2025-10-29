@@ -1,4 +1,4 @@
-// frontend/src/components/MobileNav.tsx
+// frontend/src/components/MobileNav.tsx (CODE ĐÚNG)
 import {
   Home,
   Lightbulb,

@@ -23,7 +23,7 @@ interface ProductWithPrinter extends PrinterProduct {
 }
 
 export function ProductDetailPage() {
-  const { productId } = useParams<{ productId: string }>();
+  const { id: productId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [product, setProduct] = useState<ProductWithPrinter | null>(null);
   const [loading, setLoading] = useState(true);

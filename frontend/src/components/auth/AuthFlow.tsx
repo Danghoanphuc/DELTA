@@ -14,7 +14,8 @@ import { SocialButton } from "@/components/ui/SocialButton";
 import { toast } from "sonner";
 import api from "@/lib/axios";
 import { useAuthStore } from "@/stores/useAuthStore";
-import printzLogo from "@/assets/img/printz.png";
+import { useCartStore } from "@/stores/useCartStore";
+import printzLogo from "@/assets/img/logo-printz.png";
 
 // --- Schema (Giữ nguyên) ---
 const authFlowSchema = z.object({
@@ -88,13 +89,19 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
       "/printer/signup",
     ];
 
-    // Nếu đang ở auth pages và user đã được set → auto-navigate
-    if (user && authPaths.includes(currentPath)) {
+    // ⚠️ THÊM ĐIỀU KIỆN: Chỉ chạy nếu KHÔNG đang loading
+    if (user && !isLoading && authPaths.includes(currentPath)) {
       setTimeout(() => {
-        navigate("/", { replace: true });
+        // ⚠️ SỬA LOGIC CHUYỂN HƯỚNG:
+        // Chuyển hướng dựa trên vai trò, giống như logic onSubmit
+        if (user.role === "printer") {
+          navigate("/printer/dashboard", { replace: true });
+        } else {
+          navigate("/", { replace: true });
+        }
       }, 200);
     }
-  }, [user, navigate]);
+  }, [user, navigate, isLoading]);
 
   // (Các hàm xử lý bước giữ nguyên)
   const handleEmailSubmit = async () => {
@@ -126,13 +133,12 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
     setIsLoading(true);
     try {
       if (mode === "signUp") {
-        // --- Flow Đăng Ký ---
+        // --- Flow Đăng Ký (Giữ nguyên) ---
         const { email, password, firstName, lastName, confirmPassword } = data;
 
-        // Validation check
         if (password !== confirmPassword) {
           toast.error("Mật khẩu xác nhận không khớp!");
-          // Không cần setIsLoading(false) ở đây, finally sẽ xử lý
+          setIsLoading(false); // 👈 Thêm
           return;
         }
 
@@ -147,28 +153,46 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
         } else {
           await signUp(email, password, displayName);
         }
-        // Chuyển bước sau khi đăng ký thành công
         setStep("verifySent");
       } else {
-        // --- Flow Đăng Nhập ---
+        // --- Flow Đăng Nhập (ĐÃ SỬA) ---
         const { email, password } = data;
 
-        // 1. Chờ đăng nhập. Nếu thất bại, nó sẽ ném lỗi và nhảy xuống 'catch'.
+        // 1. Đăng nhập
         await signIn(email, password);
 
-        // 2. NẾU KHÔNG NÉM LỖI = THÀNH CÔNG.
-        //    Chạy điều hướng ngay lập tức (không cần 'if' check).
+        // 2. Merge guest cart (Sửa lỗi gọi hàm)
+        try {
+          // Gọi hàm merge từ cart store
+          await useCartStore.getState().mergeGuestCartToServer();
+        } catch (mergeErr) {
+          console.error("Lỗi merge cart:", mergeErr);
+          // Không block, tiếp tục
+        }
+
+        // 3. Lấy user VỪA ĐĂNG NHẬP xong từ store
+        const loggedInUser = useAuthStore.getState().user;
+
+        // 4. Chuyển hướng DỰA TRÊN VAI TRÒ
         setTimeout(() => {
-          navigate("/", { replace: true });
+          if (loggedInUser && loggedInUser.role === "printer") {
+            // Nếu là printer -> vào dashboard
+            navigate("/printer/dashboard", { replace: true });
+          } else {
+            // Nếu là customer (hoặc mặc định) -> về trang chủ
+            navigate("/", { replace: true });
+          }
         }, 100);
       }
     } catch (err: any) {
-      // Bất kỳ lỗi nào từ signIn, signUp, api.post đều sẽ bị bắt ở đây
-      // (Giả định: store `signIn` đã tự toast lỗi)
       console.error("Lỗi AuthFlow:", err);
-    } finally {
-      // Luôn tắt loading, dù thành công, thất bại hay 'return' sớm
+      // Đảm bảo tắt loading nếu có lỗi
       setIsLoading(false);
+    } finally {
+      // Chỉ tắt loading nếu không phải là bước "verifySent"
+      if (step !== "verifySent") {
+        setIsLoading(false);
+      }
     }
   };
   // (Hàm renderLinks giữ nguyên)

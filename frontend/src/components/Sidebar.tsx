@@ -4,10 +4,10 @@ import {
   Home,
   Lightbulb,
   TrendingUp,
-  // Package, // <-- XÓA IMPORT NÀY
   FolderOpen,
   Settings,
   ShoppingBag,
+  LogIn,
 } from "lucide-react";
 import UserAvatarFallback from "@/components/UserAvatarFallback";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -23,8 +23,8 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { Link, useLocation } from "react-router-dom";
-import printzLogo from "@/assets/img/printz.png";
-
+import printzLogo from "@/assets/img/logo-printz.png";
+import { Button } from "./ui/button";
 export function Sidebar() {
   const user = useAuthStore((s) => s.user);
   const location = useLocation();
@@ -89,8 +89,8 @@ export function Sidebar() {
               <UserAvatarFallback
                 name={user?.displayName || user?.username || "G"}
                 size={48}
-                bgColor="bg-indigo-100"
-                textColor="text-indigo-600"
+                bgColor={user ? "bg-indigo-100" : "bg-gray-200"}
+                textColor={user ? "text-indigo-600" : "text-gray-600"}
                 src={user?.avatarUrl}
               />
             </button>
@@ -102,40 +102,65 @@ export function Sidebar() {
             className="w-60 p-4 rounded-lg shadow-lg bg-white border border-gray-100"
             sideOffset={5}
           >
-            <div className="flex items-center space-x-3 mb-4 border-b pb-3">
-              <UserAvatarFallback
-                name={user?.displayName || user?.username || "G"}
-                size={40}
-                bgColor="bg-indigo-100"
-                textColor="text-indigo-600"
-                src={user?.avatarUrl}
-              />
-              <div>
-                <p
-                  className="font-semibold text-sm truncate"
-                  title={user?.displayName}
-                >
-                  {user?.displayName || user?.username}
-                </p>
-                <p
-                  className="text-xs text-gray-500 truncate"
-                  title={user?.email}
-                >
-                  {user?.email}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col space-y-1">
-              <Link
-                to="/settings"
-                className="text-left text-sm px-2 py-1.5 hover:bg-gray-100 rounded block"
-              >
-                Cài đặt tài khoản
-              </Link>
-              <hr className="my-1 border-gray-200" />
-              <Logout />
-            </div>
+            {user ? (
+              <>
+                {/* === TRẠNG THÁI ĐÃ ĐĂNG NHẬP === */}
+                <div className="flex items-center space-x-3 mb-4 border-b pb-3">
+                  <UserAvatarFallback
+                    name={user.displayName || user.username}
+                    size={40}
+                    bgColor="bg-indigo-100"
+                    textColor="text-indigo-600"
+                    src={user.avatarUrl}
+                  />
+                  <div>
+                    <p
+                      className="font-semibold text-sm truncate"
+                      title={user.displayName}
+                    >
+                      {user.displayName || user.username}
+                    </p>
+                    <p
+                      className="text-xs text-gray-500 truncate"
+                      title={user.email}
+                    >
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col space-y-1">
+                  <Link
+                    to="/settings"
+                    className="text-left text-sm px-2 py-1.5 hover:bg-gray-100 rounded block"
+                  >
+                    Cài đặt tài khoản
+                  </Link>
+                  <hr className="my-1 border-gray-200" />
+                  <Logout />
+                </div>
+              </>
+            ) : (
+              <>
+                {/* === TRẠNG THÁI KHÁCH (NGƯỜI LẠ) === */}
+                <div className="text-center mb-4">
+                  <p className="font-semibold text-sm">Chào mừng bạn!</p>
+                  <p className="text-xs text-gray-500">
+                    Vui lòng đăng nhập để trải nghiệm
+                  </p>
+                </div>
+                <div className="flex flex-col space-y-2">
+                  <Button asChild className="w-full">
+                    <Link to="/signin">
+                      <LogIn size={16} className="mr-2" />
+                      Đăng nhập
+                    </Link>
+                  </Button>
+                  <Button variant="outline" asChild className="w-full">
+                    <Link to="/signup">Đăng ký</Link>
+                  </Button>
+                </div>
+              </>
+            )}
           </PopoverContent>
         </Popover>
       </div>
