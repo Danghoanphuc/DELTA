@@ -11,7 +11,7 @@ const ResponsiveH1: React.FC<ResponsiveH1Props> = ({
   children,
   className = "",
   desktopSize = "48px",
-  mobileSize = "32px",
+  mobileSize = "28px",
 }) => {
   const [fontSize, setFontSize] = useState(desktopSize);
 
