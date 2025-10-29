@@ -1,7 +1,11 @@
-// src/modules/products/product.routes.js
+// src/modules/products/product.routes.js (✅ UPDATED - PUBLIC ACCESS)
 import { Router } from "express";
 import { ProductController } from "./product.controller.js";
-import { protect, isPrinter } from "../../shared/middleware/index.js";
+import {
+  protect,
+  isPrinter,
+  optionalAuth,
+} from "../../shared/middleware/index.js";
 import { upload } from "../../infrastructure/storage/multer.config.js";
 
 const router = Router();
@@ -10,9 +14,9 @@ const productController = new ProductController();
 /**
  * Product Routes
  *
- * PUBLIC ROUTES:
- * - GET  /api/products              - Get all products
- * - GET  /api/products/:id          - Get product by ID
+ * ✅ UPDATED: PUBLIC ROUTES for browsing
+ * - GET  /api/products              - Get all products (PUBLIC - no auth needed)
+ * - GET  /api/products/:id          - Get product by ID (PUBLIC - no auth needed)
  *
  * PRIVATE ROUTES (Printer only):
  * - POST   /api/products            - Create product
@@ -22,16 +26,24 @@ const productController = new ProductController();
  */
 
 // ============================================
-// PUBLIC ROUTES (No authentication required)
+// ✅ PUBLIC ROUTES (No authentication required)
 // ============================================
 
 /**
  * @route   GET /api/products
  * @desc    Get all active products (with filters)
  * @query   ?category=...&search=...&sort=...
- * @access  Public
+ * @access  PUBLIC ← Bất kỳ ai cũng có thể xem
  */
 router.get("/", productController.getAllProducts);
+
+/**
+ * @route   GET /api/products/:id
+ * @desc    Get a single product by ID
+ * @param   id - Product ID
+ * @access  PUBLIC ← Bất kỳ ai cũng có thể xem chi tiết
+ */
+router.delete("/:id", protect, isPrinter, productController.deleteProduct);
 
 // ============================================
 // PRIVATE ROUTES (Authentication required)
@@ -60,7 +72,7 @@ router.post(
   "/",
   protect,
   isPrinter,
-  upload.array("images", 5), // Multer middleware for file uploads
+  upload.array("images", 5),
   productController.createProduct
 );
 
@@ -77,18 +89,6 @@ router.put("/:id", protect, isPrinter, productController.updateProduct);
  * @desc    Delete a product (soft delete)
  * @param   id - Product ID
  * @access  Private (Printer only - owner)
- */
-router.delete("/:id", protect, isPrinter, productController.deleteProduct);
-
-// ============================================
-// DYNAMIC ROUTES (Must be last)
-// ============================================
-
-/**
- * @route   GET /api/products/:id
- * @desc    Get a single product by ID
- * @param   id - Product ID
- * @access  Public
  */
 router.get("/:id", productController.getProductById);
 
