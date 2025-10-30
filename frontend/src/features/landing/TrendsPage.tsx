@@ -1,7 +1,7 @@
 import { Card } from "@/shared/components/ui/card";
 import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
 
-import { Calendar, User, ArrowRight, TrendingUp } from "lucide-react";
+import { Calendar, User, TrendingUp } from "lucide-react";
 
 export default function TrendsPage() {
   const featuredPost = {
