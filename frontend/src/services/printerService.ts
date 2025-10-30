@@ -2,7 +2,7 @@
 // NEW FILE: frontend/src/services/printerService.ts
 // ============================================
 
-import api from "@/lib/axios";
+import api from "@/shared/lib/axios";
 import { PrinterProfile } from "@/types/printerProfile";
 
 export const printerService = {

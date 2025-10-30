@@ -2,7 +2,7 @@
 
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import api from "@/lib/axios";
+import api from "@/shared/lib/axios";
 
 // Key để giao tiếp với trang đăng nhập
 const EMAIL_PREFETCH_KEY = "auth-email-prefetch";

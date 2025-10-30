@@ -1,14 +1,14 @@
 // src/components/printer/OrderFilterBar.tsx (COMPONENT MỚI)
 import { Search, Download } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Button } from "@/shared/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/shared/components/ui/select";
 import { OrderStatus } from "@/types/order";
 
 interface OrderFilterBarProps {

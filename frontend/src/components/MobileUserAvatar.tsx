@@ -7,7 +7,7 @@ import {
   Popover,
   PopoverTrigger,
   PopoverContent,
-} from "@/components/ui/popover";
+} from "@/shared/components/ui/popover";
 import { Link } from "react-router-dom";
 
 export function MobileUserAvatar() {

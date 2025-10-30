@@ -1,9 +1,13 @@
 // src/components/printer/UserProfileCard.tsx
 
 import { User as UserIcon } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/shared/components/ui/avatar";
 import { useAuthStore } from "@/stores/useAuthStore";
 import type { User } from "@/types/user";
 

@@ -1,5 +1,5 @@
 // src/components/printer/ProductListHeader.tsx (COMPONENT MỚI)
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/components/ui/button";
 import { Plus } from "lucide-react";
 
 interface ProductListHeaderProps {

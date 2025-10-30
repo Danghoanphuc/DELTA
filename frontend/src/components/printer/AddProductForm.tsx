@@ -10,7 +10,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/shared/components/ui/select";
 import {
   Form,
   FormField,
@@ -18,14 +18,19 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+} from "@/shared/components/ui/form";
+import { Input } from "@/shared/components/ui/input";
+import { Textarea } from "@/shared/components/ui/textarea";
+import { Button } from "@/shared/components/ui/button";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/shared/components/ui/card";
 import { Plus, Trash2, ArrowLeft, ImagePlus, X, Upload } from "lucide-react";
 import { toast } from "sonner";
-import api from "@/lib/axios";
+import api from "@/shared/lib/axios";
 
 // ==================== SCHEMAS ====================
 const pricingSchema = z.object({
@@ -188,8 +193,14 @@ export function AddProductForm({
       // Append pricing array field by field
       if (data.pricing) {
         data.pricing.forEach((tier, index) => {
-          formData.append(`pricing[${index}][minQuantity]`, tier.minQuantity.toString());
-          formData.append(`pricing[${index}][pricePerUnit]`, tier.pricePerUnit.toString());
+          formData.append(
+            `pricing[${index}][minQuantity]`,
+            tier.minQuantity.toString()
+          );
+          formData.append(
+            `pricing[${index}][pricePerUnit]`,
+            tier.pricePerUnit.toString()
+          );
         });
       }
 

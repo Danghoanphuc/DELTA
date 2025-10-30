@@ -1,5 +1,5 @@
 // src/components/printer/AccountActions.tsx (COMPONENT MỚI)
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/components/ui/button";
 import { LogOut } from "lucide-react";
 
 interface AccountActionsProps {

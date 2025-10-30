@@ -1,44 +1,52 @@
-// frontend/src/App.tsx (✅ Sửa lỗi Route Param LẦN NỮA)
+// frontend/src/App.tsx (CẬP NHẬT)
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { useEffect } from "react";
 import { useAuthStore } from "./stores/useAuthStore";
 import { useCartStore } from "./stores/useCartStore";
-import { closeOAuthPopup } from "./components/ui/SocialButton";
+import { closeOAuthPopup } from "./shared/components/ui/SocialButton";
 import { toast } from "sonner";
 
-// ==================== PUBLIC PAGES ====================
-import HomePage from "@/pages/ChatAppPage";
-import { ShopPage } from "./pages/customer/ShopPage";
-import { ProductDetailPage } from "./pages/customer/ProductDetailPage";
-import { InspirationPage } from "./pages/customer/InspirationPage";
-import { TrendsPage } from "./pages/customer/TrendsPage";
+// ==================== PAGE IMPORTS ====================
+// Public Pages
+import SmartLanding from "@/features/landing/SmartLanding"; // ✅ Fixed
+import ChatAppPage from "@/features/chat/pages/ChatAppPage";
+import { ShopPage } from "@/features/shop/pages/ShopPage";
+import { ProductDetailPage } from "@/features/shop/pages/ProductDetailPage";
+import { InspirationPage } from "@/features/customer/pages/InspirationPage";
+import { TrendsPage } from "@/features/customer/pages/TrendsPage";
+import PolicyPage from "@/features/landing/PolicyPage";
+// --- THÊM CÁC IMPORT NÀY ---
+import ContactPage from "@/features/landing/ContactPage";
+import ProcessPage from "@/features/landing/ProcessPage";
+import TemplateLibraryPage from "@/features/landing/TemplateLibraryPage";
+// ----------------------------
 
-// ==================== AUTH PAGES ====================
-import SignInPage from "./pages/SignInPage";
-import SignUpPage from "./pages/SignUpPage";
-import VerifyEmailPage from "./components/auth/VerifyEmailPage";
-import ResetPasswordPage from "./components/auth/ResetPasswordPage";
-import PrinterSignUpPage from "./pages/PrinterSignUpPage";
-import PrinterSignInPage from "./pages/PrinterSignInPage";
+// Auth Pages
+import SignInPage from "@/features/auth/pages/SignInPage";
+import SignUpPage from "@/features/customer/pages/SignUpPage";
+import VerifyEmailPage from "@/components/auth/VerifyEmailPage";
+import ResetPasswordPage from "@/components/auth/ResetPasswordPage";
+import PrinterSignUpPage from "@/features/auth/pages/PrinterSignUpPage";
+import PrinterSignInPage from "@/features/auth/pages/PrinterSignInPage";
+import CheckEmailPage from "@/features/auth/pages/CheckEmailPage";
 
-// ==================== PROTECTED PAGES ====================
-import { CheckoutPage } from "./pages/customer/CheckoutPage";
-import { CustomerOrdersPage } from "./pages/customer/CustomerOrdersPage";
-import { OrderDetailPage } from "./pages/OrderDetailPage";
-import { CustomerDesignsPage } from "./pages/customer/CustomerDesignsPage";
-import { CustomerSettingsPage } from "./pages/customer/CustomerSettingsPage";
-import { OrderConfirmationPage } from "./pages/customer/OrderConfirmationPage";
+// Protected Pages
+import { CheckoutPage } from "@/features/customer/pages/CheckoutPage";
+import { CustomerOrdersPage } from "@/features/customer/pages/CustomerOrdersPage";
+import { OrderDetailPage } from "@/features/shop/pages/OrderDetailPage";
+import { CustomerDesignsPage } from "@/features/customer/pages/CustomerDesignsPage";
+import { CustomerSettingsPage } from "@/features/customer/pages/CustomerSettingsPage";
+import { OrderConfirmationPage } from "@/features/customer/pages/OrderConfirmationPage";
 
-// ==================== PRINTER PAGES ====================
-import PrinterApp from "./pages/PrinterApp";
+// Printer Pages
+import PrinterApp from "@/features/printer/pages/PrinterApp";
 
-// Lấy API_ORIGIN từ .env
 const API_ORIGIN = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
 function App() {
-  // Logic lắng nghe tín hiệu từ Google OAuth Popup
+  // ... (Phần logic listener giữ nguyên) ...
   const { setAccessToken } = useAuthStore();
   const mergeGuestCart = useCartStore((s) => s.mergeGuestCartToServer);
 
@@ -73,14 +81,23 @@ function App() {
       <Toaster position="top-center" richColors />
       <Routes>
         {/* ==================== PUBLIC ROUTES ==================== */}
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<SmartLanding />} />
+        <Route path="/app" element={<ChatAppPage />} />
         <Route path="/shop" element={<ShopPage />} />
-        {/* ✅ SỬA LẠI Ở ĐÂY */}
         <Route path="/products/:id" element={<ProductDetailPage />} />
         <Route path="/inspiration" element={<InspirationPage />} />
         <Route path="/trends" element={<TrendsPage />} />
+        <Route path="/policy" element={<PolicyPage />} />
+        <Route path="/check-email" element={<CheckEmailPage />} />
+
+        {/* --- THÊM CÁC ROUTE MỚI CHO LANDING PAGE --- */}
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/process" element={<ProcessPage />} />
+        <Route path="/templates" element={<TemplateLibraryPage />} />
+        {/* ---------------------------------------------- */}
 
         {/* ==================== AUTH ROUTES ==================== */}
+        {/* ... (Phần còn lại giữ nguyên) ... */}
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/printer/signup" element={<PrinterSignUpPage />} />

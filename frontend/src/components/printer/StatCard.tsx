@@ -1,5 +1,5 @@
 // src/components/printer/StatCard.tsx (COMPONENT MỚI)
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/shared/components/ui/card";
 import { LucideIcon } from "lucide-react";
 
 interface StatCardProps {

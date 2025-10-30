@@ -1,5 +1,5 @@
 // src/components/printer/OrderStatsGrid.tsx (COMPONENT MỚI)
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/shared/components/ui/card";
 
 interface OrderStats {
   total: number;

@@ -5,8 +5,8 @@ import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
-} from "@/components/ui/hover-card";
-import { Button } from "@/components/ui/button";
+} from "@/shared/components/ui/hover-card";
+import { Button } from "@/shared/components/ui/button";
 import { Link } from "react-router-dom";
 import {
   MessageSquarePlus,
@@ -14,7 +14,7 @@ import {
   History,
   PanelRightOpen,
 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { ChatMessage } from "@/types/chat";
 
 interface QuickAccessWidgetProps {

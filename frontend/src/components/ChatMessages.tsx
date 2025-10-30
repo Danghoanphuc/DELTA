@@ -1,12 +1,12 @@
 // src/components/ChatMessages.tsx (Bản hoàn chỉnh)
 
 import { useEffect, useRef } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area"; //
+import { ScrollArea } from "@/shared/components/ui/scroll-area"; //
 import { ChatMessage } from "@/types/chat"; //
-import { cn } from "@/lib/utils"; //
+import { cn } from "@/shared/lib/utils"; //
 import UserAvatarFallback from "@/components/UserAvatarFallback"; // Import component tùy chỉnh
 import { useAuthStore } from "@/stores/useAuthStore"; //
-
+import zinAvatar from "@/assets/img/zin-avatar.png";
 interface ChatMessagesProps {
   messages: ChatMessage[];
   isLoadingAI: boolean;
@@ -14,8 +14,12 @@ interface ChatMessagesProps {
 
 // Icon Bot
 const BotAvatar = () => (
-  <div className="w-8 h-8 rounded-full bg-gradient-to-br  from-purple-500 to-blue-500 flex items-center justify-center flex-shrink-0">
-    <span className="text-lg">🤖</span>
+  <div className="w-7 h-7 md:w-10 md:h-10 rounded-xl md:rounded-2xl flex items-center justify-center overflow-hidden flex-shrink-0 shadow-lg">
+    <img
+      src={zinAvatar}
+      alt="Zin AI Avatar"
+      className="w-full h-full object-cover"
+    />
   </div>
 );
 

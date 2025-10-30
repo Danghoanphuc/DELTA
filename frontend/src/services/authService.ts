@@ -1,6 +1,6 @@
 // frontend/src/services/authService.ts
 
-import api from "@/lib/axios";
+import api from "@/shared/lib/axios";
 
 export const authService = {
   signUp: async (email: string, password: string, displayName: string) => {

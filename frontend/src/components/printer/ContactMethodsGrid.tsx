@@ -1,7 +1,12 @@
 // src/components/printer/ContactMethodsGrid.tsx (COMPONENT MỚI)
 import { MessageCircle, Phone, Mail } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
 
 export function ContactMethodsGrid() {
   const contactMethods = [

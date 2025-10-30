@@ -1,6 +1,6 @@
 // frontend/src/stores/useCartStore.ts (UPDATED VERSION)
 import { create } from "zustand";
-import api from "@/lib/axios";
+import api from "@/shared/lib/axios";
 import { toast } from "sonner";
 import {
   getGuestCart,
@@ -11,7 +11,7 @@ import {
   getGuestCartItemCount,
   isProductInGuestCart,
   GuestCartItem,
-} from "@/lib/guestCart";
+} from "@/shared/lib/guestCart";
 import { useAuthStore } from "./useAuthStore";
 import { Cart, AddToCartPayload } from "@/types/cart";
 // ==================== TYPES ====================

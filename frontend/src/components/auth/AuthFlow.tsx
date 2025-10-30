@@ -1,18 +1,18 @@
 // src/components/auth/AuthFlow.tsx (✅ FIXED VERSION)
 
 import { useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { cn } from "@/shared/lib/utils";
+import { Button } from "@/shared/components/ui/button";
+import { Card } from "@/shared/components/ui/card";
+import { Input } from "@/shared/components/ui/input";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, Link } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
-import { SocialButton } from "@/components/ui/SocialButton";
+import { SocialButton } from "@/shared/components/ui/SocialButton";
 import { toast } from "sonner";
-import api from "@/lib/axios";
+import api from "@/shared/lib/axios";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useCartStore } from "@/stores/useCartStore";
 import printzLogo from "@/assets/img/logo-printz.png";
