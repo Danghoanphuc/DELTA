@@ -230,7 +230,7 @@ export function ChatBar({
                   </p>
                   <ul className="text-[11px] md:text-xs text-slate-600 space-y-1 md:space-y-1.5 ml-3 md:ml-4">
                     <li>• "Tôi cần in 500 card visit 2 mặt"</li>
-                    <li>• "Thiết kế poster quảng cáo sự kiện"</li>
+                    <li>• "In poster quảng cáo sự kiện"</li>
                     <li>• "In brochure giới thiệu công ty"</li>
                   </ul>
                 </div>
