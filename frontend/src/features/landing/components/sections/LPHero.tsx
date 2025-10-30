@@ -8,10 +8,8 @@ import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
 export function LPHero() {
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-      {/* ... (phần nền sọc giữ nguyên) ... */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZHRoPSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgxNDcsMTUxLDIzNCwwLjEpIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-40"></div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 relative">
+      {/* 👇 Đã thay thế py-20 md:py-32 */}
+      <div className="max-w-7xl mx-auto px-14 sm:px-6 lg:px-8 pt-8 pb-32 md:pt-16 md:pb-48 relative">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           {/* 2. Thêm class 'fade-in-up' cho khối text */}
           <div
@@ -34,7 +32,7 @@ export function LPHero() {
 
             <div className="flex flex-col sm:flex-row gap-4">
               <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-6 rounded-full">
-                Khám phá Kho mẫu
+                Bắt đầu miễn phí
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
               <Button

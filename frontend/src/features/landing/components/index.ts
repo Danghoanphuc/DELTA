@@ -1,3 +1,3 @@
 export { Header } from "./LandingHeader";
 export { Footer } from "./LandingFooter";
-export { HeroSection } from "./HeroSection";
+export { HeroSection } from "../../chat/pages/HeroSection";

@@ -7,7 +7,7 @@ import { MobileUserAvatar } from "../../../components/MobileUserAvatar";
 import { Sidebar } from "@/components/Sidebar";
 import { MobileNav } from "@/components/MobileNav";
 import { QuickAccessWidget } from "@/components/QuickAccessWidget";
-import { HeroSection } from "@/features/landing/components/HeroSection";
+import { HeroSection } from "@/features/chat/pages/HeroSection";
 import { CategoryCards } from "@/components/CategoryCards";
 import { useAuthStore } from "@/stores/useAuthStore"; // 👈 1. Import AuthStore
 
