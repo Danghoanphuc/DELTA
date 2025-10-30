@@ -1,7 +1,7 @@
 // src/features/landing/components/sections/LPAiUsp.tsx (CẬP NHẬT)
 
 import { Button } from "@/shared/components/ui/button";
-import { Sparkles, CheckCircle, MessageCircle } from "lucide-react";
+import { CheckCircle, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom"; // 1. IMPORT useNavigate
 import { Card, CardContent } from "@/shared/components/ui/card";
 import zinAvatar from "@/assets/img/zin-avatar.png";

@@ -1,6 +1,6 @@
 import { Card } from "@/shared/components/ui/card";
 import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
-import Link from "next-link";
+
 import { Calendar, User, ArrowRight, TrendingUp } from "lucide-react";
 
 export default function TrendsPage() {
@@ -176,12 +176,6 @@ export default function TrendsPage() {
                   <span className="text-sm text-purple-600">
                     {featuredPost.readTime}
                   </span>
-                  <Link href={`/blog/${featuredPost.id}`}>
-                    <button className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700">
-                      Đọc thêm
-                      <ArrowRight className="w-5 h-5" />
-                    </button>
-                  </Link>
                 </div>
               </div>
             </div>
@@ -230,13 +224,6 @@ export default function TrendsPage() {
                   <p className="text-slate-600 mb-4 line-clamp-2">
                     {post.excerpt}
                   </p>
-                  <Link
-                    href={`/blog/${post.id}`}
-                    className="text-purple-600 hover:text-purple-700 inline-flex items-center gap-2 text-sm"
-                  >
-                    Đọc thêm
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
                 </div>
               </Card>
             ))}

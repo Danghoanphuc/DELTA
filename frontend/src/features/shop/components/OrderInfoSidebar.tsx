@@ -111,10 +111,8 @@ export const OrderInfoSidebar = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {order.statusHistory?.map((history, index) => (
-            <div key={index} className="flex gap-3">
-              {/* ... (Render timeline) ... */}
-            </div>
+          {order.statusHistory?.map((_, index) => (
+            <div key={index} className="flex gap-3"></div>
           ))}
         </div>
       </CardContent>

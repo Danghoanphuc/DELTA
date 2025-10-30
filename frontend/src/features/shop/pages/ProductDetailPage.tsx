@@ -1,5 +1,4 @@
 // features/shop/pages/ProductDetailPage.tsx
-import React from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/shared/components/ui/button";
