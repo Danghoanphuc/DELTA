@@ -123,9 +123,7 @@ export class CartService {
     // ========================================
     // 5. CHECK IF ITEM ALREADY EXISTS
     // ========================================
-    const existingItemIndex = cart.items.findIndex(
-      (item) => item.productId.toString() === productId
-    );
+    cart.items[existingItemIndex].customization = customization || {};
 
     const subtotal = quantity * priceTier.pricePerUnit;
     Logger.debug("Calculated subtotal:", subtotal);

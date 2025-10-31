@@ -10,15 +10,15 @@ import { validateEnv } from "./config/env.config.js";
 dotenv.config();
 validateEnv();
 
-// Infrastructure
+//======================== Infrastructure =========================
 import { connectDB } from "./infrastructure/database/connection.js";
 import "./infrastructure/auth/passport.config.js";
 
-// Middleware
+//========================= Middleware ==============================
 import { errorHandler } from "./shared/middleware/index.js";
 import { Logger } from "./shared/utils/index.js";
 
-// Routes
+//========================== Routes ==========================
 import authRoutes from "./modules/auth/auth.routes.js";
 import authOAuthRoutes from "./modules/auth/auth-oauth.routes.js";
 import userRoutes from "./modules/users/user.routes.js";
@@ -27,10 +27,12 @@ import orderRoutes from "./modules/orders/order.routes.js";
 import printerRoutes from "./modules/printers/printer.routes.js";
 import chatRoutes from "./modules/chat/chat.routes.js";
 import { productRoutes } from "./modules/products/index.js";
+import designRoutes from "./modules/designs/design.routes.js";
+import studioRoutes from "./modules/printer-studio/studio.routes.js";
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// CORS Configuration
+// ==================== CORS Configuration =======================
 const corsOptions = {
   origin: function (origin, callback) {
     const whitelist = [
@@ -51,12 +53,12 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Body parsing middleware
+// ================= Body parsing middleware ====================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Session configuration
+//==================== Session configuration ===================
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "fallback-secret",
@@ -70,7 +72,7 @@ app.use(
   })
 );
 
-// Passport initialization
+//================ Passport initialization ==========================
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -82,7 +84,7 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
-// Health check
+//============================ Health check ======================
 app.get("/", (req, res) => {
   res.json({
     message: "PrintZ API v2.0 - Clean Architecture",
@@ -91,7 +93,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// API Routes
+//==================== API Routes ===============================
 app.use("/api/auth", authRoutes);
 app.use("/api/auth", authOAuthRoutes);
 app.use("/api/users", userRoutes);
@@ -100,8 +102,10 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/printers", printerRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/designs", designRoutes);
+app.use("/api/printer-studio", studioRoutes);
 
-// 404 handler
+//==================== 404 handler ==================================
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -110,10 +114,10 @@ app.use((req, res) => {
   });
 });
 
-// Global error handler (MUST BE LAST)
+//========================== Global error handler (MUST BE LAST)
 app.use(errorHandler);
 
-// Start server
+//============================== Start server
 const startServer = async () => {
   try {
     await connectDB();

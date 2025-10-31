@@ -49,9 +49,16 @@ const OrderSchema = new mongoose.Schema(
         quantity: { type: Number, required: true, min: 1 },
         pricePerUnit: { type: Number, required: true, min: 0 },
         specifications: Object,
+        // Sửa trường customization
         customization: {
           notes: String,
           designFiles: [{ url: String, fileName: String }],
+
+          // TRƯỜNG MỚI QUAN TRỌNG:
+          customizedDesignId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "CustomizedDesign",
+          },
         },
         subtotal: { type: Number, required: true, min: 0 },
         productSnapshot: {

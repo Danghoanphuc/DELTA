@@ -23,6 +23,12 @@ const CartItemSchema = new mongoose.Schema({
     hasFileUpload: Boolean,
     fileUrl: String,
     notes: String,
+
+    // TRƯỜNG MỚI QUAN TRỌNG:
+    customizedDesignId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CustomizedDesign",
+    },
   },
   // Auto-calculated subtotal
   subtotal: {

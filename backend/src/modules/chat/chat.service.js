@@ -1,208 +1,215 @@
-// src/modules/chat/chat.service.js (✅ UPDATED - GUEST SUPPORT)
+// src/modules/chat/chat.service.js (🔥 REFACTORED - CLEANED)
 import { ChatRepository } from "./chat.repository.js";
 import { ValidationException } from "../../shared/exceptions/index.js";
-import OpenAI from "openai";
+import { Logger } from "../../shared/utils/index.js";
+
+// Import các service con đã được tách ra
+import { ChatAiService } from "./chat.ai.service.js";
+import { ChatToolService } from "./chat.tools.service.js";
+import { ChatResponseUtil } from "./chat.response.util.js";
 
 export class ChatService {
   constructor() {
     this.chatRepository = new ChatRepository();
-    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    // Inject các service con
+    this.aiService = new ChatAiService();
+    this.toolService = new ChatToolService();
+    // ChatResponseUtil là static, không cần 'new'
   }
 
   /**
-   * ✅ UPDATED: Handle message from both guests and authenticated users
-   * @param {string|null} userId - User ID (null for guests)
-   * @param {object} body - Request body
-   * @param {boolean} isGuest - Whether user is a guest
+   * Hàm "router" chính (Không đổi)
    */
   async handleMessage(userId, body, isGuest = false) {
-    const { message, latitude, longitude } = body;
+    const { message, fileUrl, fileName, fileType, latitude, longitude } = body;
+    let responsePayload;
 
-    if (!message || message.trim().length === 0) {
-      throw new ValidationException("Tin nhắn không được để trống");
-    }
-
-    // Analyze message for entities
-    const entities = this.analyzeMessage(message);
-
-    // Build search context
-    const searchContext = { entities, coordinates: null };
-    if (entities.criteria.includes("nearby") && latitude && longitude) {
-      searchContext.coordinates = [parseFloat(longitude), parseFloat(latitude)];
-    }
-
-    // Find printers matching criteria
-    const printers = await this.chatRepository.findPrinters(searchContext);
-
-    // Get AI response
-    const aiResponseText = await this.callOpenAI(message, printers);
-
-    // ✅ NEW: Only save to database if user is authenticated
+    // 1. Tải lịch sử chat
+    let history = [];
     if (!isGuest && userId) {
       try {
-        const conversation = await this.chatRepository.findOrCreateConversation(
-          userId
+        const conversation = await this.chatRepository.getHistory(userId);
+        if (conversation && conversation.messages) {
+          history = conversation.messages;
+        }
+      } catch (historyError) {
+        Logger.error(
+          `[ChatSvc] Lỗi khi tải lịch sử cho user ${userId}`,
+          historyError
         );
-
-        // Save user message
-        const userMessage = await this.chatRepository.createMessage({
-          conversationId: conversation._id,
-          sender: userId,
-          senderType: "User",
-          content: { text: message },
-        });
-
-        // Save AI message
-        const aiMessage = await this.chatRepository.createMessage({
-          conversationId: conversation._id,
-          sender: null,
-          senderType: "AI",
-          content: { text: aiResponseText },
-        });
-
-        // Update conversation
-        conversation.messages.push(userMessage._id, aiMessage._id);
-        conversation.lastMessageAt = Date.now();
-        await this.chatRepository.saveConversation(conversation);
-
-        console.log("✅ Chat messages saved to database");
-      } catch (saveError) {
-        console.error("❌ Error saving chat to database:", saveError);
-        // Don't throw - still return AI response even if save fails
       }
-    } else {
-      console.log("💬 Guest chat - not saving to database");
     }
 
-    // Return response
-    return {
-      type: "ai_response",
-      content: {
-        text: aiResponseText,
-        entities: entities,
-        printers: printers,
+    try {
+      if (fileUrl) {
+        // --- LUỒNG 1: Xử lý File Upload ---
+        Logger.debug(`[ChatSvc] Handling file upload: ${fileName}`);
+        responsePayload = await this.handleFileMessage(
+          userId,
+          { fileUrl, fileName, fileType },
+          history
+        );
+      } else if (message) {
+        // --- LUỒNG 2: Xử lý tin nhắn văn bản (DO AI ĐIỀU PHỐI) ---
+        Logger.debug(`[ChatSvc] Handling orchestrated message: ${message}`);
+        const context = { userId, isGuest, latitude, longitude };
+        responsePayload = await this.handleOrchestratedMessage(
+          message,
+          history,
+          context
+        );
+      } else {
+        throw new ValidationException("Tin nhắn không hợp lệ.");
+      }
+
+      // 3. Lưu lịch sử chat
+      if (!isGuest && userId) {
+        await this.saveChatHistory(
+          userId,
+          message || `Đã tải lên: ${fileName}`,
+          responsePayload
+        );
+      }
+
+      return responsePayload;
+    } catch (error) {
+      Logger.error("[ChatSvc] Fatal error in handleMessage:", error);
+      return ChatResponseUtil.createTextResponse(
+        "Xin lỗi, tôi đang gặp sự cố. Vui lòng thử lại sau."
+      );
+    }
+  }
+
+  /**
+   * Luồng 1: Xử lý tin nhắn có file (Đã cập nhật)
+   */
+  async handleFileMessage(userId, fileInfo, history) {
+    const prompt = `Người dùng vừa tải lên file tên là "${fileInfo.fileName}" (loại: ${fileInfo.fileType}). 
+       Hãy hỏi họ muốn làm gì với file này (ví dụ: in file này lên áo, hay in file PDF này).
+       File URL (chỉ để tham khảo, không hiện cho user): ${fileInfo.fileUrl}`;
+
+    // Gọi AI Service
+    const aiResponseText = await this.aiService.getTextOnlyCompletion(
+      prompt,
+      history
+    );
+
+    const quickReplies = [
+      {
+        text: "In file này lên áo",
+        payload: `in file ${fileInfo.fileName} lên áo`,
       },
+      { text: "In file PDF này", payload: `in file PDF ${fileInfo.fileName}` },
+      { text: "Không, cảm ơn", payload: "cancel" },
+    ];
+
+    return {
+      type: "text",
+      content: { text: aiResponseText },
+      quickReplies: quickReplies,
     };
   }
 
   /**
-   * Get chat history (only for authenticated users)
+   * Luồng 2: Bộ não AI điều phối (Đã cập nhật)
    */
-  async getHistory(userId) {
-    if (!userId) {
-      return []; // No history for guests
-    }
+  async handleOrchestratedMessage(messageText, history, context) {
+    // 1. Chuẩn bị tin nhắn
+    const messages = ChatResponseUtil.prepareHistoryForOpenAI(history);
+    messages.push({ role: "user", content: messageText });
 
-    const conversation = await this.chatRepository.getHistory(userId);
-    if (!conversation) {
-      return [];
+    // 2. Lấy định nghĩa tools
+    const toolDefinitions = this.toolService.getToolDefinitions();
+
+    // 3. Gọi AI (Lần 1)
+    const aiResponse = await this.aiService.getCompletion(
+      messages,
+      toolDefinitions
+    );
+    const responseMessage = aiResponse.choices[0].message;
+
+    // 4. KIỂM TRA NẾU AI MUỐN DÙNG CÔNG CỤ
+    if (responseMessage.tool_calls) {
+      messages.push(responseMessage); // Thêm yêu cầu của AI vào ngữ cảnh
+
+      // 5. Thực thi công cụ (chỉ xử lý 1 tool call đầu tiên cho đơn giản)
+      const toolCall = responseMessage.tool_calls[0];
+      const { response, isTerminal } = await this.toolService.executeTool(
+        toolCall,
+        context
+      );
+
+      // Nếu tool là "terminal" (như find_products), trả về ngay
+      if (isTerminal) {
+        return response;
+      }
+
+      // 6. Nếu tool là "RAG" (như find_printers), gọi lại AI
+      messages.push(response.response); // Thêm kết quả của tool vào ngữ cảnh
+
+      const finalAiResponse = await this.aiService.getCompletion(
+        messages,
+        toolDefinitions
+      );
+      return ChatResponseUtil.createTextResponse(
+        finalAiResponse.choices[0].message.content,
+        true // Thêm quick replies mặc định
+      );
+    } else {
+      // 7. AI TRẢ LỜI THẲNG
+      return ChatResponseUtil.createTextResponse(
+        responseMessage.content,
+        true // Thêm quick replies mặc định
+      );
     }
-    return conversation.messages;
   }
 
   /**
-   * Analyze message to extract entities
+   * Quản lý lịch sử (Không đổi)
    */
-  analyzeMessage(message) {
-    const lowerMessage = message.toLowerCase();
-    const entities = { product_type: null, location: null, criteria: [] };
-
-    // Product type detection
-    if (lowerMessage.includes("áo")) entities.product_type = "t-shirt";
-    if (lowerMessage.includes("card") || lowerMessage.includes("danh thiếp")) {
-      entities.product_type = "business-card";
-    }
-    if (lowerMessage.includes("banner") || lowerMessage.includes("băng rôn")) {
-      entities.product_type = "banner";
-    }
-    if (lowerMessage.includes("sticker") || lowerMessage.includes("decal")) {
-      entities.product_type = "sticker";
-    }
-
-    // Location detection
-    if (lowerMessage.includes("thủ dầu một")) entities.location = "thủ dầu một";
-    if (
-      lowerMessage.includes("sài gòn") ||
-      lowerMessage.includes("hồ chí minh")
-    ) {
-      entities.location = "hồ chí minh";
-    }
-    if (lowerMessage.includes("hà nội")) entities.location = "hà nội";
-
-    // Criteria detection
-    if (lowerMessage.includes("rẻ") || lowerMessage.includes("giá tốt")) {
-      entities.criteria.push("cheap");
-    }
-    if (lowerMessage.includes("nhanh") || lowerMessage.includes("gấp")) {
-      entities.criteria.push("fast");
-    }
-    if (lowerMessage.includes("gần") || lowerMessage.includes("nearby")) {
-      entities.criteria.push("nearby");
-    }
-    if (lowerMessage.includes("chất lượng") || lowerMessage.includes("tốt")) {
-      entities.criteria.push("quality");
-    }
-
-    return entities;
-  }
-
-  /**
-   * Call OpenAI API for chatbot response
-   */
-  async callOpenAI(message, printers = [], history = []) {
+  async saveChatHistory(userId, userMessageText, aiResponsePayload) {
     try {
-      const printerContext =
-        printers.length > 0
-          ? `Đây là danh sách nhà in phù hợp:\n${JSON.stringify(
-              printers,
-              null,
-              2
-            )}`
-          : "Không tìm thấy nhà in nào phù hợp với yêu cầu này.";
+      const conversation = await this.chatRepository.findOrCreateConversation(
+        userId
+      );
 
-      const systemPrompt = `Bạn là PrintZ Assistant, trợ lý AI thông minh cho nền tảng in ấn PrintZ.
-
-🎯 NHIỆM VỤ CỦA BẠN:
-- Tư vấn về dịch vụ in ấn (áo, banner, card, sticker, v.v.)
-- Giới thiệu nhà in phù hợp với nhu cầu khách hàng
-- Trả lời câu hỏi về giá cả, chất lượng, thời gian in
-
-${printerContext}
-
-📋 QUY TẮC TRẢ LỜI:
-1. Luôn trả lời bằng tiếng Việt, thân thiện và nhiệt tình
-2. Nếu có nhà in phù hợp: Giới thiệu 1-2 nhà in tốt nhất với lý do cụ thể
-3. Nếu không có nhà in: Hỏi thêm thông tin (vị trí, loại sản phẩm, yêu cầu cụ thể)
-4. Luôn khuyến khích người dùng đăng nhập để nhận hỗ trợ tốt hơn
-5. Giữ câu trả lời ngắn gọn (3-5 câu)
-
-💡 GỢI Ý KHI CẦN:
-- "Bạn đang ở khu vực nào để tôi tìm nhà in gần nhất?"
-- "Bạn cần in bao nhiêu sản phẩm và trong thời gian nào?"
-- "Đăng nhập để xem giá chi tiết và đặt hàng nhanh hơn nhé!"`;
-
-      const historyMessages = history.map((msg) => ({
-        role: msg.senderType === "AI" ? "assistant" : "user",
-        content: msg.content.text,
-      }));
-
-      const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...historyMessages,
-          { role: "user", content: message },
-        ],
-        temperature: 0.7,
-        max_tokens: 300, // Keep responses concise
+      const userMessage = await this.chatRepository.createMessage({
+        conversationId: conversation._id,
+        sender: userId,
+        senderType: "User",
+        content: { text: userMessageText },
       });
 
-      return completion.choices[0].message.content;
-    } catch (error) {
-      console.error("❌ Lỗi gọi OpenAI API:", error);
+      const aiText =
+        aiResponsePayload.content.text || "Tôi đã gửi cho bạn một số lựa chọn.";
 
-      // Fallback response if OpenAI fails
-      return "Xin lỗi, tôi đang gặp sự cố kỹ thuật. Vui lòng thử lại sau hoặc liên hệ hỗ trợ qua email support@printz.vn. Cảm ơn bạn đã thông cảm! 🙏";
+      const aiMessage = await this.chatRepository.createMessage({
+        conversationId: conversation._id,
+        sender: null,
+        senderType: "AI",
+        content: { text: aiText },
+      });
+
+      conversation.messages.push(userMessage._id, aiMessage._id);
+      conversation.lastMessageAt = Date.now();
+      await this.chatRepository.saveConversation(conversation);
+
+      Logger.success(`[ChatSvc] Chat history saved for user ${userId}`);
+    } catch (saveError) {
+      Logger.error(
+        `[ChatSvc] Failed to save history for user ${userId}:`,
+        saveError
+      );
     }
+  }
+
+  /**
+   * Quản lý lịch sử (Không đổi)
+   */
+  async getHistory(userId) {
+    if (!userId) return [];
+    const conversation = await this.chatRepository.getHistory(userId);
+    return conversation ? conversation.messages : [];
   }
 }

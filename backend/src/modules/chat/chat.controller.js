@@ -1,7 +1,8 @@
-// src/modules/chat/chat.controller.js (✅ UPDATED - GUEST SUPPORT)
+// src/modules/chat/chat.controller.js (✅ UPDATED - UPLOAD SUPPORT)
 import { ChatService } from "./chat.service.js";
 import { ApiResponse } from "../../shared/utils/index.js";
 import { API_CODES } from "../../shared/constants/index.js";
+import { Logger } from "../../shared/utils/index.js"; // ✅ MỚI
 
 export class ChatController {
   constructor() {
@@ -9,29 +10,72 @@ export class ChatController {
   }
 
   /**
-   * ✅ UPDATED: Handle chat message from both guests and authenticated users
+   * ✅ UPDATED: Handle text message (standard or slash command)
    */
   handleChatMessage = async (req, res, next) => {
     try {
       const isGuest = !req.user;
       const userId = req.user?._id || null;
 
-      console.log(
-        `💬 Chat message from ${isGuest ? "GUEST" : "USER " + userId}`
+      Logger.debug(
+        `[ChatCtrl] 💬 Message from ${isGuest ? "GUEST" : "USER " + userId}`
       );
 
+      // 🔥 THAY ĐỔI: Chuyển toàn bộ req.body cho service
       const response = await this.chatService.handleMessage(
         userId,
-        req.body,
+        req.body, // Gửi cả body (có thể chứa message, latitude, longitude...)
         isGuest
       );
 
       res.status(API_CODES.SUCCESS).json(
         ApiResponse.success({
-          ...response,
+          ...response, // Trả về response có cấu trúc (text, cards, quick replies)
           isGuest,
           savedToHistory: !isGuest,
-          message: isGuest ? "Đăng nhập để lưu lịch sử trò chuyện" : undefined,
+        })
+      );
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * ✅ MỚI: Handle file upload (Ý tưởng 3)
+   */
+  handleChatUpload = async (req, res, next) => {
+    try {
+      // User đã được xác thực bởi 'protect' middleware
+      const userId = req.user._id;
+
+      if (!req.file) {
+        return res
+          .status(API_CODES.BAD_REQUEST)
+          .json(ApiResponse.error("Không có file nào được tải lên."));
+      }
+
+      Logger.debug(
+        `[ChatCtrl] 📁 File upload from USER ${userId}: ${req.file.path}`
+      );
+
+      // Tạo payload đặc biệt cho service
+      const body = {
+        fileUrl: req.file.path,
+        fileName: req.file.originalname,
+        fileType: req.file.mimetype,
+      };
+
+      const response = await this.chatService.handleMessage(
+        userId,
+        body,
+        false // Không phải guest
+      );
+
+      res.status(API_CODES.SUCCESS).json(
+        ApiResponse.success({
+          ...response,
+          isGuest: false,
+          savedToHistory: true,
         })
       );
     } catch (error) {

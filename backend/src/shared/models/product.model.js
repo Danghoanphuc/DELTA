@@ -27,7 +27,10 @@ const ProductSchema = new mongoose.Schema(
       ],
       required: true,
     },
-
+    assets: {
+      modelUrl: { type: String }, // Link đến file .glb (Phôi 3D)
+      dielineUrl: { type: String }, // Link đến file .svg (Khuôn 2D)
+    },
     // Description & Images
     description: { type: String, maxlength: 3000 },
     images: [

@@ -26,3 +26,25 @@ export const upload = multer({
     }
   },
 });
+
+export const uploadDesignTemplate = multer({
+  storage: cloudinaryStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (file.fieldname === "previewImage") {
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        const error = new Error("Chỉ chấp nhận file ảnh (JPEG, PNG, WEBP) cho preview.");
+        error.code = "INVALID_FILE_TYPE";
+        cb(error, false);
+      }
+    } else {
+        // For other potential files if needed in the future
+        cb(null, true);
+    }
+  },
+});
