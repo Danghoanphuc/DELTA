@@ -12,7 +12,8 @@ export function LPBlog() {
       title: "Xu hướng thiết kế in ấn 2025",
       excerpt: "Khám phá những xu hướng mới nhất trong ngành in ấn",
       // 1. Thay ảnh
-      image: "https", // Ảnh đề xuất:
+      image:
+        "https://images.unsplash.com/photo-1554415707-6e85c753bcd6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
       date: "15/10/2025",
     },
     {
@@ -20,7 +21,8 @@ export function LPBlog() {
       title: "Bí quyết chọn card visit ấn tượng",
       excerpt: "Hướng dẫn chi tiết để tạo card visit chuyên nghiệp",
       // 2. Thay ảnh
-      image: "https", // Ảnh đề xuất:
+      image:
+        "https://images.unsplash.com/photo-1579642984744-4dd0fe83c38c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
       date: "10/10/2025",
     },
     {
@@ -28,7 +30,8 @@ export function LPBlog() {
       title: "In áo thun theo yêu cầu - Mọi điều bạn cần biết",
       excerpt: "Từ chọn vải đến kỹ thuật in, tất cả đều có trong bài viết này",
       // 3. Thay ảnh
-      image: "https", // Ảnh đề xuất:
+      image:
+        "https://images.unsplash.com/photo-1600328759671-85927887458d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
       date: "05/10/2025",
     },
   ];

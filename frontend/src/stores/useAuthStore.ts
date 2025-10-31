@@ -1,4 +1,4 @@
-// frontend/src/stores/useAuthStore.ts (ĐÃ SỬA)
+// frontend/src/stores/useAuthStore.ts (✅ FIXED VERSION)
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
@@ -28,8 +28,7 @@ interface AuthState {
     displayName: string
   ) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  // KHẮC PHỤC: Xóa signInWithGoogle khỏi interface (store không nên xử lý UI popup)
-  // signInWithGoogle: () => Promise<void>;
+  // ✅ FIX: Removed signInWithGoogle - OAuth logic handled by components
   signOut: () => Promise<void>;
   fetchMe: (silent?: boolean) => Promise<void>;
   refresh: () => Promise<void>;
@@ -99,9 +98,6 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      // --- KHẮC PHỤC: Xóa toàn bộ hàm signInWithGoogle ---
-      // (Logic này sẽ được App.tsx (listener) và SocialButton (opener) xử lý)
-
       // --- SIGN OUT ---
       signOut: async () => {
         try {
@@ -133,7 +129,7 @@ export const useAuthStore = create<AuthState>()(
               set({ printerProfile: profile });
             } catch (profileError) {
               console.error("❌ [FetchProfile Error]", profileError);
-              toast.error("Không thể tải hồ sơ xưởng in.");
+              if (!silent) toast.error("Không thể tải hồ sơ xưởng in.");
               set({ printerProfile: null });
             }
           }

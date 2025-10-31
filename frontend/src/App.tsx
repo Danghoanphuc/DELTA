@@ -38,11 +38,12 @@ import { CustomerOrdersPage } from "@/features/customer/pages/CustomerOrdersPage
 import { OrderDetailPage } from "@/features/shop/pages/OrderDetailPage";
 import { CustomerDesignsPage } from "@/features/customer/pages/CustomerDesignsPage";
 import { CustomerSettingsPage } from "@/features/customer/pages/CustomerSettingsPage";
+import { DesignEditorPage } from "@/features/editor/DesignEditorPage";
 import { OrderConfirmationPage } from "@/features/customer/pages/OrderConfirmationPage";
 
 // Printer Pages
 import PrinterApp from "@/features/printer/pages/PrinterApp";
-
+import { PrinterStudio } from "@/features/printer/pages/PrinterStudio";
 const API_ORIGIN = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
 function App() {
@@ -117,9 +118,14 @@ function App() {
           <Route path="/designs" element={<CustomerDesignsPage />} />
           <Route path="/settings" element={<CustomerSettingsPage />} />
           <Route path="/printer/dashboard" element={<PrinterApp />} />
+          <Route path="/design-editor" element={<DesignEditorPage />} />
           <Route
             path="/printer/orders/:orderId"
             element={<OrderDetailPage />}
+          />
+          <Route
+            path="/printer/studio/:productId"
+            element={<PrinterStudio />} // Component Phần 4
           />
         </Route>
 

@@ -39,6 +39,11 @@ export interface ProductCustomization {
   designServiceFee?: number;
 }
 
+export interface ProductAssets {
+  modelUrl?: string;
+  dielineUrl?: string;
+}
+
 // Đây là type cho sản phẩm trong trang quản lý của nhà in
 export interface PrinterProduct {
   _id: string;
@@ -61,4 +66,8 @@ export interface PrinterProduct {
   rating?: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Product extends PrinterProduct {
+  assets: ProductAssets;
 }

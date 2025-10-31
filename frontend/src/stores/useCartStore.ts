@@ -1,4 +1,4 @@
-// frontend/src/stores/useCartStore.ts (UPDATED VERSION)
+// frontend/src/stores/useCartStore.ts (✅ REFACTORED VERSION)
 import { create } from "zustand";
 import api from "@/shared/lib/axios";
 import { toast } from "sonner";
@@ -12,10 +12,9 @@ import {
   isProductInGuestCart,
   GuestCartItem,
 } from "@/shared/lib/guestCart";
-import { useAuthStore } from "./useAuthStore";
 import { Cart, AddToCartPayload } from "@/types/cart";
-// ==================== TYPES ====================
 
+// ==================== TYPES ====================
 interface CartStore {
   cart: Cart | null;
   isLoading: boolean;
@@ -43,9 +42,9 @@ interface CartStore {
   mergeGuestCartToServer: () => Promise<void>;
 
   // Helpers
-  getCartItemCount: () => number;
+  getCartItemCount: (isAuthenticated: boolean) => number;
   getCartTotal: () => number;
-  isInCart: (productId: string) => boolean;
+  isInCart: (productId: string, isAuthenticated: boolean) => boolean;
 }
 
 // ==================== STORE ====================
@@ -55,13 +54,6 @@ export const useCartStore = create<CartStore>((set, get) => ({
 
   // ==================== SERVER CART (Authenticated) ====================
   fetchCart: async () => {
-    const { accessToken } = useAuthStore.getState();
-
-    // Nếu chưa login, không fetch
-    if (!accessToken) {
-      return;
-    }
-
     set({ isLoading: true });
     try {
       const res = await api.get("/cart");
@@ -75,22 +67,6 @@ export const useCartStore = create<CartStore>((set, get) => ({
   },
 
   addToCart: async (payload: AddToCartPayload) => {
-    const { accessToken } = useAuthStore.getState();
-
-    // Nếu chưa login -> thêm vào guest cart
-    if (!accessToken) {
-      const guestItemPayload: GuestCartItem = {
-        ...payload,
-        selectedPriceIndex: payload.selectedPriceIndex ?? 0,
-      };
-
-      // Truyền object đã hợp lệ vào
-      get().addToGuestCartLocal(guestItemPayload);
-      toast.success("✅ Đã thêm vào giỏ hàng");
-      return;
-    }
-
-    // Nếu đã login -> gọi API
     set({ isLoading: true });
     try {
       const res = await api.post("/cart/add", payload);
@@ -106,9 +82,6 @@ export const useCartStore = create<CartStore>((set, get) => ({
   },
 
   updateCartItem: async (cartItemId: string, newQuantity: number) => {
-    const { accessToken } = useAuthStore.getState();
-    if (!accessToken) return;
-
     set({ isLoading: true });
     try {
       const res = await api.put(`/cart/update/${cartItemId}`, {
@@ -125,9 +98,6 @@ export const useCartStore = create<CartStore>((set, get) => ({
   },
 
   removeFromCart: async (cartItemId: string) => {
-    const { accessToken } = useAuthStore.getState();
-    if (!accessToken) return;
-
     set({ isLoading: true });
     try {
       const res = await api.delete(`/cart/remove/${cartItemId}`);
@@ -143,12 +113,6 @@ export const useCartStore = create<CartStore>((set, get) => ({
   },
 
   clearCart: async () => {
-    const { accessToken } = useAuthStore.getState();
-    if (!accessToken) {
-      clearGuestCart();
-      return;
-    }
-
     try {
       await api.delete("/cart/clear");
       set({ cart: null });
@@ -162,7 +126,6 @@ export const useCartStore = create<CartStore>((set, get) => ({
   // ==================== GUEST CART (Local) ====================
   addToGuestCartLocal: (item: GuestCartItem) => {
     addToGuestCart(item);
-    // Force re-render nếu cần (optional, vì guest cart không có trong state)
   },
 
   updateGuestCartLocal: (
@@ -179,20 +142,16 @@ export const useCartStore = create<CartStore>((set, get) => ({
 
   // ==================== MERGE LOGIC ====================
   mergeGuestCartToServer: async () => {
-    const { accessToken } = useAuthStore.getState();
-    if (!accessToken) return;
-
     const guestCart = getGuestCart();
     if (guestCart.items.length === 0) return;
 
     try {
-      // Gọi API merge cart (backend endpoint: POST /cart/merge)
       const res = await api.post("/cart/merge", {
         items: guestCart.items,
       });
 
       set({ cart: res.data.cart });
-      clearGuestCart(); // Xóa guest cart sau khi merge thành công
+      clearGuestCart();
       toast.success(
         `✅ Đã hợp nhất ${guestCart.items.length} sản phẩm vào giỏ hàng`
       );
@@ -203,16 +162,14 @@ export const useCartStore = create<CartStore>((set, get) => ({
   },
 
   // ==================== HELPERS ====================
-  getCartItemCount: () => {
-    const { accessToken } = useAuthStore.getState();
+  // ✅ FIX: Pass isAuthenticated as parameter instead of reading from authStore
+  getCartItemCount: (isAuthenticated: boolean) => {
     const { cart } = get();
 
-    if (!accessToken) {
-      // Guest user -> đếm từ localStorage
+    if (!isAuthenticated) {
       return getGuestCartItemCount();
     }
 
-    // Authenticated user -> đếm từ cart state
     return cart?.items.reduce((sum, item) => sum + item.quantity, 0) || 0;
   },
 
@@ -221,16 +178,42 @@ export const useCartStore = create<CartStore>((set, get) => ({
     return cart?.totalAmount || 0;
   },
 
-  isInCart: (productId: string) => {
-    const { accessToken } = useAuthStore.getState();
+  isInCart: (productId: string, isAuthenticated: boolean) => {
     const { cart } = get();
 
-    if (!accessToken) {
-      // Guest user
+    if (!isAuthenticated) {
       return isProductInGuestCart(productId);
     }
 
-    // Authenticated user
     return cart?.items.some((item) => item.productId === productId) || false;
   },
 }));
+
+// ==================== HELPER HOOK ====================
+// ✅ Custom hook để tự động route giữa guest và server cart
+import { useAuthStore } from "./useAuthStore";
+
+export const useCartActions = () => {
+  const { accessToken } = useAuthStore();
+  const store = useCartStore();
+  const isAuthenticated = !!accessToken;
+
+  return {
+    ...store,
+    // ✅ Wrapper methods tự động chọn guest hoặc server
+    addToCart: async (payload: AddToCartPayload) => {
+      if (!isAuthenticated) {
+        const guestItem: GuestCartItem = {
+          ...payload,
+          selectedPriceIndex: payload.selectedPriceIndex ?? 0,
+        };
+        store.addToGuestCartLocal(guestItem);
+        toast.success("✅ Đã thêm vào giỏ hàng");
+      } else {
+        await store.addToCart(payload);
+      }
+    },
+    getCartItemCount: () => store.getCartItemCount(isAuthenticated),
+    isInCart: (productId: string) => store.isInCart(productId, isAuthenticated),
+  };
+};

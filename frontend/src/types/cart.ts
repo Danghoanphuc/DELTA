@@ -17,6 +17,7 @@ export interface CartItem {
     hasFileUpload: boolean;
     fileUrl?: string;
     notes?: string;
+    customizedDesignId?: string;
   };
   subtotal: number; // quantity * pricePerUnit
 }
@@ -41,6 +42,7 @@ export interface AddToCartPayload {
     hasFileUpload?: boolean;
     fileUrl?: string;
     notes?: string;
+    customizedDesignId?: string;
   };
 }
 

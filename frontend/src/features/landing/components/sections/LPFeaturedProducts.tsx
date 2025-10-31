@@ -11,21 +11,24 @@ export function LPFeaturedProducts() {
       title: "Card Visit Sang trọng",
       price: "99.000đ",
       // 1. Thay ảnh
-      image: "https", // Ảnh đề xuất:
+      image:
+        "https://images.unsplash.com/photo-1615861036892-627e0a291d35?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
     },
     {
       id: 2,
       title: "Áo thun In hình",
       price: "149.000đ",
       // 2. Thay ảnh
-      image: "https", // Ảnh đề xuất:
+      image:
+        "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
     },
     {
       id: 3,
       title: "Túi vải Canvas",
       price: "129.000đ",
       // 3. Thay ảnh
-      image: "https", // Ảnh đề xuất:
+      image:
+        "https://images.unsplash.com/photo-1596205244525-3c1682b1373b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
     },
   ];
 

@@ -1,6 +1,7 @@
 // src/components/printer/ProductTable.tsx (COMPONENT MỚI)
 import { useState } from "react";
-import { Search, Edit, Trash2 } from "lucide-react";
+import { Search, Edit, Trash2, Brush } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
@@ -127,6 +128,16 @@ export function ProductTable({
                         )}
                       </TableCell>
                       <TableCell className="text-right space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                          title="Tạo mẫu thiết kế từ phôi này"
+                        >
+                          <Link to={`/printer/studio/${product._id}`}>
+                            <Brush size={16} className="text-blue-600" />
+                          </Link>
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
