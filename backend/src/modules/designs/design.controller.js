@@ -15,7 +15,7 @@ export class DesignController {
       const template = await this.designService.createTemplate(
         req.user._id,
         req.body,
-        req.file // Use req.file for single file uploads
+        req.files
       );
       res
         .status(API_CODES.CREATED)

@@ -15,18 +15,18 @@ export class DesignService {
 
   // === Template (Printer) ===
 
-  async createTemplate(printerId, body, file) {
+  async createTemplate(printerId, body, files) {
     Logger.debug(`[Service.createTemplate] Bắt đầu...`);
 
     // 1. Parse JSON data from designData field
     let designData;
     try {
-      designData = JSON.parse(body.designData);
     } catch (e) {
       throw new ValidationException("Dữ liệu designData JSON không hợp lệ.");
     }
-
-    const { name, description, editorData, baseProductId, isPublic, tags } = designData;
+    const { name, description, editorData, baseProductId, isPublic, tags } =
+      body;
+    designData;
 
     if (!name || !editorData || !baseProductId) {
       throw new ValidationException(
@@ -35,12 +35,15 @@ export class DesignService {
     }
 
     // 2. Validate file (from Multer)
-    if (!file) {
-      throw new ValidationException("Thiếu file ảnh xem trước (previewImage).");
+    if (!files || !files.previewFile || !files.productionFile) {
+      throw new ValidationException(
+        "Thiếu file ảnh xem trước (previewFile) hoặc file sản xuất (productionFile)."
+      );
     }
 
-    // 3. Get file URL
-    const previewImageUrl = file.path;
+    // 3. Get file URLs
+    const previewImageUrl = files.previewFile[0].path;
+    const productionFileUrl = files.productionFile[0].path; // Lấy URL file SVG
 
     // 4. (Optional) Validate base product exists
     // const baseProduct = await this.productRepo.findById(baseProductId);
@@ -51,15 +54,15 @@ export class DesignService {
     // 5. Create Design Template data package
     const template = await this.designRepository.createTemplate({
       name,
-      description, // Add description if it exists in the model
-      editorData,      
+      description,
+      editorData,
       printerId,
       baseProductId,
-      isPublic: isPublic || false,
+      isPublic: isPublic === "true", // Chuyển 'true' (string từ FormData) thành boolean
       tags: tags || [],
       preview: {
         thumbnailUrl: previewImageUrl,
-        embed3DUrl: null, // To be updated later
+        embed3DUrl: null, // Sẽ cập nhật sau
       },
     });
 

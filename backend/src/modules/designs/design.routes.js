@@ -6,11 +6,10 @@ import { uploadDesignTemplate } from "../../infrastructure/storage/multer.config
 
 const router = Router();
 const designController = new DesignController();
-// const templateUploadFields = [
-//   { name: "productionFile", maxCount: 1 }, // File SVG/PDF chuẩn in
-//   { name: "previewFile", maxCount: 1 }, // File PNG xem trước
-// ];
-
+const templateUploadFields = [
+  { name: "previewFile", maxCount: 1 }, // Tên khớp với frontend (File 1)
+  { name: "productionFile", maxCount: 1 }, // Tên khớp với frontend (File 1)
+];
 // --- Printer Routes (Quản lý "Kho mẫu") ---
 router.get(
   "/customized/my-designs",
@@ -22,7 +21,7 @@ router.post(
   "/templates",
   protect,
   isPrinter,
-  uploadDesignTemplate.single("previewImage"),
+  uploadDesignTemplate.fields(templateUploadFields),
   designController.createTemplate
 );
 
