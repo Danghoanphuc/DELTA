@@ -1,9 +1,10 @@
 // src/features/customer/components/DesignCard.tsx
-import { Card, CardContent } from "@/shared/components/ui/card"; //
+import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Edit, Trash2 } from "lucide-react";
 import { MyCustomDesign } from "../hooks/useMyDesigns";
 import { toast } from "sonner";
+import { Link } from "react-router-dom"; // <-- ĐÃ IMPORT
 
 interface DesignCardProps {
   design: MyCustomDesign;
@@ -27,14 +28,19 @@ export const DesignCard = ({ design }: DesignCardProps) => {
           </div>
         )}
         <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* SỬA NÚT SỬA TẠI ĐÂY */}
           <Button
             size="icon"
             variant="secondary"
             className="w-8 h-8 rounded-full"
-            onClick={() => toast.info("Tính năng 'Sửa' đang được phát triển")}
+            asChild // <-- THÊM asChild
           >
-            <Edit size={16} />
+            {/* Chuyển hướng đến editor với ID thiết kế */}
+            <Link to={`/design-editor?customizedDesignId=${design._id}`}>
+              <Edit size={16} />
+            </Link>
           </Button>
+
           <Button
             size="icon"
             variant="destructive"

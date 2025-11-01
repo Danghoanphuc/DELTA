@@ -20,14 +20,17 @@ export function DesignEditorPage() {
 
   const productId = searchParams.get("productId");
   const templateId = searchParams.get("templateId");
+  const customizedDesignId = searchParams.get("customizedDesignId"); // <-- SỬA 1: Đọc ID thiết kế
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fabricCanvasRef = useRef<Canvas | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false); // <-- SỬA 2: Thêm state cho chế độ vẽ
 
   // --- 1. KHỞI TẠO CANVAS ---
   useEffect(() => {
+    // ... (Giữ nguyên)
     const canvasEl = canvasRef.current;
     if (!canvasEl) return;
 
@@ -58,12 +61,28 @@ export function DesignEditorPage() {
 
   // --- 2. TẢI DỮ LIỆU (NẾU CÓ) ---
   useEffect(() => {
-    const loadTemplate = async () => {
-      if (!templateId || !fabricCanvasRef.current) return;
+    // SỬA 3: Cập nhật logic tải
+    const loadData = async () => {
+      if (!fabricCanvasRef.current) return;
+
+      // Nếu không có ID nào thì không làm gì cả
+      if (!templateId && !customizedDesignId) return;
 
       try {
-        const res = await api.get(`/designs/templates/${templateId}`);
-        const editorData = res.data?.data?.template?.editorData;
+        let editorData = null;
+
+        if (templateId) {
+          // Logic tải template
+          const res = await api.get(`/designs/templates/${templateId}`);
+          editorData = res.data?.data?.template?.editorData;
+        } else if (customizedDesignId) {
+          // Logic tải thiết kế đã lưu của người dùng
+          const res = await api.get(
+            `/designs/customized/${customizedDesignId}`
+          );
+          editorData = res.data?.data?.design?.editorData;
+        }
+
         if (editorData) {
           fabricCanvasRef.current.loadFromJSON(editorData, () => {
             fabricCanvasRef.current?.renderAll();
@@ -71,15 +90,16 @@ export function DesignEditorPage() {
         }
       } catch (err) {
         toast.error("Không thể tải mẫu thiết kế này");
-        navigate("/templates");
+        navigate(-1); // Quay lại
       }
     };
 
-    loadTemplate();
-  }, [templateId, navigate]);
+    loadData();
+  }, [templateId, customizedDesignId, navigate]); // <-- SỬA 4: Thêm dependency
 
   // --- 3. CÁC HÀM CỦA THANH CÔNG CỤ ---
   const addText = () => {
+    // ... (Giữ nguyên)
     if (!fabricCanvasRef.current) return;
     const text = new IText("Sửa chữ này", {
       left: 100,
@@ -92,6 +112,7 @@ export function DesignEditorPage() {
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // ... (Giữ nguyên)
     const file = e.target.files?.[0];
     if (!file || !fabricCanvasRef.current) return;
 
@@ -111,8 +132,27 @@ export function DesignEditorPage() {
     reader.readAsDataURL(file);
   };
 
+  // SỬA 5: Thêm hàm bật/tắt vẽ
+  const toggleDrawingMode = () => {
+    if (!fabricCanvasRef.current) return;
+
+    const newDrawingMode = !isDrawing;
+    setIsDrawing(newDrawingMode);
+    fabricCanvasRef.current.isDrawingMode = newDrawingMode;
+
+    if (newDrawingMode) {
+      // Cấu hình bút vẽ cơ bản
+      fabricCanvasRef.current.freeDrawingBrush.color = "#000000";
+      fabricCanvasRef.current.freeDrawingBrush.width = 5;
+      toast.info("Đã bật chế độ vẽ. Vẽ trực tiếp lên canvas.");
+    } else {
+      toast.info("Đã tắt chế độ vẽ.");
+    }
+  };
+
   // --- 4. HÀM LƯU VÀ THÊM VÀO GIỎ HÀNG ---
   const handleSaveAndAddToCart = async () => {
+    // ... (Giữ nguyên)
     if (!fabricCanvasRef.current || !productId) {
       toast.error("Lỗi: Không tìm thấy sản phẩm để thêm vào giỏ hàng.");
       return;
@@ -175,6 +215,7 @@ export function DesignEditorPage() {
       <div className="w-full md:w-60 bg-white p-4 border-r flex-shrink-0">
         <h2 className="text-lg font-semibold mb-4">Công cụ</h2>
         <div className="space-y-2">
+          {/* ... (Nút Thêm chữ) ... */}
           <Button
             variant="outline"
             className="w-full justify-start"
@@ -183,6 +224,7 @@ export function DesignEditorPage() {
             <Text size={18} className="mr-2" /> Thêm chữ
           </Button>
 
+          {/* ... (Nút Tải ảnh) ... */}
           <Label
             htmlFor="file-upload"
             className={cn(
@@ -200,8 +242,14 @@ export function DesignEditorPage() {
             className="hidden"
           />
 
-          <Button variant="outline" className="w-full justify-start" disabled>
-            <Brush size={18} className="mr-2" /> Vẽ hình
+          {/* SỬA 6: Cập nhật nút Vẽ hình */}
+          <Button
+            variant={isDrawing ? "default" : "outline"} // Thay đổi style khi active
+            className="w-full justify-start"
+            onClick={toggleDrawingMode} // Bỏ disabled
+          >
+            <Brush size={18} className="mr-2" />
+            {isDrawing ? "Tắt chế độ vẽ" : "Vẽ hình"}
           </Button>
         </div>
 

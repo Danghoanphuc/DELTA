@@ -128,16 +128,18 @@ export function ProductTable({
                         )}
                       </TableCell>
                       <TableCell className="text-right space-x-2">
+                        {/* ✅ ĐÃ SỬA: Dùng size="icon" và variant="ghost" cho nút cọ vẽ */}
                         <Button
-                          variant="outline"
-                          size="sm"
+                          variant="ghost"
+                          size="icon"
                           asChild
                           title="Tạo mẫu thiết kế từ phôi này"
                         >
                           <Link to={`/printer/studio/${product._id}`}>
-                            <Brush size={16} className="text-blue-600" />
+                            <Brush size={18} className="text-blue-600" />
                           </Link>
                         </Button>
+
                         <Button
                           variant="ghost"
                           size="icon"
