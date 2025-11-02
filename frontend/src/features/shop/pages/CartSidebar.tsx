@@ -6,7 +6,7 @@ import { Button } from "@/shared/components/ui/button";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { useCartStore } from "@/stores/useCartStore";
 import { useAuthStore } from "@/stores/useAuthStore"; // ✅ THÊM
-import { LoginPopup } from "@/components/auth/LoginPopup"; // ✅ THÊM
+import { LoginPopup } from "@/features/auth/components/LoginPopup"; // ✅ THÊM
 import { getGuestCart } from "@/shared/lib/guestCart"; // ✅ THÊM
 import { Link } from "react-router-dom";
 import { toast } from "sonner";

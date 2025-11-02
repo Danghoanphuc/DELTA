@@ -8,7 +8,7 @@ import { Badge } from "@/shared/components/ui/badge";
 import { PrinterProduct } from "@/types/product";
 import { useCartStore } from "@/stores/useCartStore";
 import { useAuthStore } from "@/stores/useAuthStore"; // ✅ THÊM
-import { LoginPopup } from "@/components/auth/LoginPopup"; // ✅ THÊM
+import { LoginPopup } from "@/features/auth/components/LoginPopup"; // ✅ THÊM
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 

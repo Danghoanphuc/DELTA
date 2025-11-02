@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import api from "@/shared/lib/axios";
 import { toast } from "sonner";
 import { PrinterProduct } from "@/types/product";
-import { AddProductForm } from "@/components/printer/AddProductForm";
-import { EditProductModal } from "@/components/printer/EditProductModal";
+import { AddProductFlow } from "@/features/printer/add-product-flow/AddProductFlow";
+import { EditProductModal } from "@/features/printer/components/EditProductModal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,8 +16,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
-import { ProductListHeader } from "@/components/printer/ProductListHeader";
-import { ProductTable } from "@/components/printer/ProductTable";
+import { ProductListHeader } from "@/features/printer/components/ProductListHeader";
+import { ProductTable } from "@/features/printer/components/ProductTable";
 
 export function ProductManagement() {
   const [products, setProducts] = useState<PrinterProduct[]>([]);
@@ -107,7 +107,7 @@ export function ProductManagement() {
 
         {/* Conditional Render */}
         {showAddForm ? (
-          <AddProductForm
+          <AddProductFlow
             onFormClose={() => setShowAddForm(false)}
             onProductAdded={onProductAdded}
           />

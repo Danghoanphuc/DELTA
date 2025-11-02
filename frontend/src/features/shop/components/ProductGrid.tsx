@@ -1,6 +1,6 @@
 // features/shop/components/ProductGrid.tsx
 import { Filter } from "lucide-react";
-import { ProductCard } from "@/components/shop/ProductCard";
+import { ProductCard } from "@/features/shop/pages/ProductCard";
 import { PrinterProduct } from "@/types/product";
 
 interface ProductGridProps {

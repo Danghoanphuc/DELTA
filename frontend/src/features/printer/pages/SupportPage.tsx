@@ -1,7 +1,7 @@
 // frontend/src/pages/printer/SupportPage.tsx (ĐÃ REFACTOR)
-import { ContactMethodsGrid } from "@/components/printer/ContactMethodsGrid";
-import { FaqAccordion } from "@/components/printer/FaqAccordion";
-import { SupportFormCard } from "@/components/printer/SupportFormCard";
+import { ContactMethodsGrid } from "@/features/printer/components/ContactMethodsGrid";
+import { FaqAccordion } from "@/features/printer/components/FaqAccordion";
+import { SupportFormCard } from "@/features/printer/components/SupportFormCard";
 
 export function SupportPage() {
   return (

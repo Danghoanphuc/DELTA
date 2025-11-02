@@ -1,203 +1,149 @@
 // src/features/editor/DesignEditorPage.tsx
-import React, { useRef, useEffect, useState } from "react";
-// Import đúng cho Fabric v6
-import { Canvas, Rect, IText, FabricImage } from "fabric";
+// ✅ BẢN SỬA LỖI CUỐI CÙNG: TRÌ HOÃN RENDER TOÀN BỘ EDITOR 2D
 
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { Button } from "@/shared/components/ui/button";
+import { Save, ArrowLeft, Loader2 } from "lucide-react";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/shared/components/ui/tabs";
+import {
+  FabricCanvasEditor,
+  FabricCanvasEditorRef,
+} from "./components/FabricCanvasEditor";
+import ProductViewer3D from "./components/ProductViewer3D";
+import { EditorToolbar } from "./components/EditorToolbar";
 import api from "@/shared/lib/axios";
 import { useCartStore } from "@/stores/useCartStore";
-import { toast } from "sonner";
-import { Button, buttonVariants } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
-import { cn } from "@/shared/lib/utils";
-import { Text, Image, Save, Brush } from "lucide-react";
+import { Product } from "@/types/product";
+
+// Skeleton (Loading)
+const EditorLoadingSkeleton = () => (
+  <div className="flex h-screen w-full items-center justify-center bg-gray-100">
+    <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+    <p className="ml-4 text-gray-600">Đang tải dữ liệu sản phẩm...</p>
+  </div>
+);
+
+// ✅ THÊM SKELETON CHO CANVAS
+const CanvasWaitingSkeleton = () => (
+  <div className="w-full h-full min-h-[600px] flex items-center justify-center bg-gray-50 shadow-inner rounded-lg">
+    <div className="text-center space-y-3">
+      <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto" />
+      <p className="text-sm text-gray-600">Đang chờ phôi 3D tải xong...</p>
+    </div>
+  </div>
+);
 
 export function DesignEditorPage() {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { addToCart } = useCartStore();
 
+  const [searchParams] = useSearchParams();
   const productId = searchParams.get("productId");
-  const templateId = searchParams.get("templateId");
-  const customizedDesignId = searchParams.get("customizedDesignId"); // <-- SỬA 1: Đọc ID thiết kế
 
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const fabricCanvasRef = useRef<Canvas | null>(null);
-
+  const [product, setProduct] = useState<Product | null>(null);
+  const [activeSurfaceKey, setActiveSurfaceKey] = useState<string | null>(null);
+  const [textures, setTextures] = useState<Record<string, string | null>>({});
+  const editorRefs = useRef<Record<string, FabricCanvasEditorRef | null>>({});
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isDrawing, setIsDrawing] = useState(false); // <-- SỬA 2: Thêm state cho chế độ vẽ
 
-  // --- 1. KHỞI TẠO CANVAS ---
+  // State chìa khóa
+  const [isModelLoaded, setIsModelLoaded] = useState(false);
+
+  // === TẢI DỮ LIỆU SẢN PHẨM (Giữ nguyên) ===
   useEffect(() => {
-    // ... (Giữ nguyên)
-    const canvasEl = canvasRef.current;
-    if (!canvasEl) return;
-
-    const canvas = new Canvas(canvasEl, {
-      width: 500,
-      height: 500,
-      backgroundColor: "#ffffff",
-    });
-    fabricCanvasRef.current = canvas;
-
-    const rect = new Rect({
-      left: 10,
-      top: 10,
-      width: 480,
-      height: 480,
-      fill: "transparent",
-      stroke: "#f0f0f0",
-      strokeWidth: 2,
-      selectable: false,
-    });
-    canvas.add(rect);
-
-    return () => {
-      canvas.dispose();
-      fabricCanvasRef.current = null;
-    };
-  }, []);
-
-  // --- 2. TẢI DỮ LIỆU (NẾU CÓ) ---
-  useEffect(() => {
-    // SỬA 3: Cập nhật logic tải
-    const loadData = async () => {
-      if (!fabricCanvasRef.current) return;
-
-      // Nếu không có ID nào thì không làm gì cả
-      if (!templateId && !customizedDesignId) return;
-
-      try {
-        let editorData = null;
-
-        if (templateId) {
-          // Logic tải template
-          const res = await api.get(`/designs/templates/${templateId}`);
-          editorData = res.data?.data?.template?.editorData;
-        } else if (customizedDesignId) {
-          // Logic tải thiết kế đã lưu của người dùng
-          const res = await api.get(
-            `/designs/customized/${customizedDesignId}`
-          );
-          editorData = res.data?.data?.design?.editorData;
-        }
-
-        if (editorData) {
-          fabricCanvasRef.current.loadFromJSON(editorData, () => {
-            fabricCanvasRef.current?.renderAll();
-          });
-        }
-      } catch (err) {
-        toast.error("Không thể tải mẫu thiết kế này");
-        navigate(-1); // Quay lại
-      }
-    };
-
-    loadData();
-  }, [templateId, customizedDesignId, navigate]); // <-- SỬA 4: Thêm dependency
-
-  // --- 3. CÁC HÀM CỦA THANH CÔNG CỤ ---
-  const addText = () => {
-    // ... (Giữ nguyên)
-    if (!fabricCanvasRef.current) return;
-    const text = new IText("Sửa chữ này", {
-      left: 100,
-      top: 100,
-      fontSize: 24,
-      fill: "#000000",
-    });
-    fabricCanvasRef.current.add(text);
-    fabricCanvasRef.current.setActiveObject(text);
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // ... (Giữ nguyên)
-    const file = e.target.files?.[0];
-    if (!file || !fabricCanvasRef.current) return;
-
-    const reader = new FileReader();
-    reader.onload = async (f) => {
-      try {
-        // Fabric v6: Sử dụng FabricImage.fromURL với async/await
-        const img = await FabricImage.fromURL(f.target?.result as string);
-        img.scaleToWidth(150);
-        fabricCanvasRef.current?.add(img);
-        fabricCanvasRef.current?.renderAll();
-      } catch (error) {
-        console.error("Lỗi khi tải ảnh:", error);
-        toast.error("Không thể tải ảnh lên");
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // SỬA 5: Thêm hàm bật/tắt vẽ
-  const toggleDrawingMode = () => {
-    if (!fabricCanvasRef.current) return;
-
-    const newDrawingMode = !isDrawing;
-    setIsDrawing(newDrawingMode);
-    fabricCanvasRef.current.isDrawingMode = newDrawingMode;
-
-    if (newDrawingMode) {
-      // Cấu hình bút vẽ cơ bản
-      fabricCanvasRef.current.freeDrawingBrush.color = "#000000";
-      fabricCanvasRef.current.freeDrawingBrush.width = 5;
-      toast.info("Đã bật chế độ vẽ. Vẽ trực tiếp lên canvas.");
-    } else {
-      toast.info("Đã tắt chế độ vẽ.");
-    }
-  };
-
-  // --- 4. HÀM LƯU VÀ THÊM VÀO GIỎ HÀNG ---
-  const handleSaveAndAddToCart = async () => {
-    // ... (Giữ nguyên)
-    if (!fabricCanvasRef.current || !productId) {
-      toast.error("Lỗi: Không tìm thấy sản phẩm để thêm vào giỏ hàng.");
+    if (!productId) {
+      toast.error("Lỗi: Không tìm thấy ID sản phẩm.");
+      navigate("/shop");
       return;
     }
-    setIsSaving(true);
-
-    try {
-      const editorData = fabricCanvasRef.current.toJSON();
-
-      // Fabric v6: toBlob đã được hỗ trợ native và trả về Promise<Blob>
-      const blob = await fabricCanvasRef.current.toBlob({
-        format: "png",
-        quality: 0.8,
-      });
-
-      if (!blob) {
-        throw new Error("Không thể tạo ảnh preview");
+    const fetchProduct = async () => {
+      try {
+        setIsLoading(true);
+        const res = await api.get(`/products/${productId}`);
+        const fetchedProduct: Product = res.data?.data?.product;
+        if (!fetchedProduct || !fetchedProduct.assets?.surfaces?.length) {
+          throw new Error(
+            "Sản phẩm này không hỗ trợ chỉnh sửa (thiếu 'surfaces')."
+          );
+        }
+        setProduct(fetchedProduct);
+        const firstSurface = fetchedProduct.assets.surfaces[0];
+        setActiveSurfaceKey(firstSurface.key);
+        const initialTextures: Record<string, string | null> = {};
+        for (const surface of fetchedProduct.assets.surfaces) {
+          initialTextures[surface.materialName] = null;
+        }
+        setTextures(initialTextures);
+      } catch (err: any) {
+        toast.error(err.message || "Không thể tải dữ liệu sản phẩm.");
+        navigate("/shop");
+      } finally {
+        setIsLoading(false);
       }
+    };
+    fetchProduct();
+  }, [productId, navigate]);
 
-      const finalPreviewImageUrl = URL.createObjectURL(blob);
+  // === HANDLERS (Giữ nguyên) ===
+  const handleSurfaceUpdate = useCallback(
+    (materialKey: string, base64DataUrl: string) => {
+      setTextures((prevTextures) => ({
+        ...prevTextures,
+        [materialKey]: base64DataUrl,
+      }));
+    },
+    []
+  );
+  const handleToolbarImageUpload = (file: File) => {
+    console.log("Image added via toolbar:", file.name);
+  };
+  const getActiveEditorRef = () => {
+    if (!activeSurfaceKey) return null;
+    return editorRefs.current[activeSurfaceKey];
+  };
 
+  // === LƯU VÀ THÊM VÀO GIỎ (Giữ nguyên) ===
+  const handleSaveAndAddToCart = async () => {
+    // ... (Toàn bộ logic lưu giữ nguyên)
+    if (!product || !product.assets?.surfaces) return;
+    setIsSaving(true);
+    try {
+      const editorDataPerSurface: Record<string, any> = {};
+      for (const surface of product.assets.surfaces) {
+        const editor = editorRefs.current[surface.key];
+        if (editor) {
+          editorDataPerSurface[surface.key] = JSON.parse(editor.getJSON());
+        }
+      }
+      const finalPreviewImageUrl =
+        textures[product.assets.surfaces[0].materialName] ||
+        product.images?.[0]?.url;
       const res = await api.post("/designs/customized", {
-        editorData,
-        finalPreviewImageUrl,
-        baseTemplateId: templateId || undefined,
+        baseProductId: product._id,
+        editorData: editorDataPerSurface,
+        finalPreviewImageUrl: finalPreviewImageUrl,
       });
-
-      const customizedDesignId = res.data?.data?.design?._id;
-      if (!customizedDesignId) {
+      const newCustomizedDesignId = res.data?.data?.design?._id;
+      if (!newCustomizedDesignId) {
         throw new Error("Không nhận được ID thiết kế đã lưu");
       }
-
-      const quantity = 100; // Tạm thời
-      const selectedPriceIndex = 0;
-
       await addToCart({
-        productId: productId,
-        quantity: quantity,
-        selectedPriceIndex: selectedPriceIndex,
+        productId: product._id,
+        quantity: product.pricing[0]?.minQuantity || 1,
+        selectedPriceIndex: 0,
         customization: {
-          notes: "Thiết kế từ trình editor",
-          customizedDesignId: customizedDesignId,
+          notes: `Thiết kế tùy chỉnh ${product.name}`,
+          customizedDesignId: newCustomizedDesignId,
         },
       });
-
       toast.success("Đã lưu thiết kế và thêm vào giỏ hàng!");
       navigate("/checkout");
     } catch (err) {
@@ -208,78 +154,106 @@ export function DesignEditorPage() {
     }
   };
 
-  // --- 5. RENDER ---
+  // ==================== RENDER (ĐÃ THAY ĐỔI) ====================
+  if (isLoading || !product) {
+    return <EditorLoadingSkeleton />;
+  }
+
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-gray-100">
-      {/* Thanh công cụ (Toolbar) */}
-      <div className="w-full md:w-60 bg-white p-4 border-r flex-shrink-0">
-        <h2 className="text-lg font-semibold mb-4">Công cụ</h2>
-        <div className="space-y-2">
-          {/* ... (Nút Thêm chữ) ... */}
-          <Button
-            variant="outline"
-            className="w-full justify-start"
-            onClick={addText}
-          >
-            <Text size={18} className="mr-2" /> Thêm chữ
+    <div className="flex h-screen bg-gray-100">
+      <EditorToolbar
+        editorRef={{ current: getActiveEditorRef() }}
+        onImageUpload={handleToolbarImageUpload}
+      />
+
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Bar (Giữ nguyên) */}
+        <div className="h-16 bg-white border-b flex items-center justify-between px-6 flex-shrink-0">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowLeft />
           </Button>
-
-          {/* ... (Nút Tải ảnh) ... */}
-          <Label
-            htmlFor="file-upload"
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "w-full cursor-pointer justify-start"
-            )}
-          >
-            <Image size={18} className="mr-2" /> Tải ảnh lên
-          </Label>
-          <Input
-            id="file-upload"
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="hidden"
-          />
-
-          {/* SỬA 6: Cập nhật nút Vẽ hình */}
+          <h1 className="text-lg font-semibold">{product.name}</h1>
           <Button
-            variant={isDrawing ? "default" : "outline"} // Thay đổi style khi active
-            className="w-full justify-start"
-            onClick={toggleDrawingMode} // Bỏ disabled
-          >
-            <Brush size={18} className="mr-2" />
-            {isDrawing ? "Tắt chế độ vẽ" : "Vẽ hình"}
-          </Button>
-        </div>
-
-        {/* Nút Save/Hoàn tất */}
-        <div className="mt-8 border-t pt-4">
-          <Button
-            className="w-full bg-blue-600 hover:bg-blue-700"
+            className="bg-blue-600 hover:bg-blue-700"
             onClick={handleSaveAndAddToCart}
-            disabled={isSaving || !productId}
+            disabled={isSaving}
           >
-            {isSaving ? (
-              "Đang xử lý..."
-            ) : (
-              <>
-                <Save size={18} className="mr-2" />
-                {productId ? "Lưu & Thêm vào giỏ" : "Thiếu ID sản phẩm"}
-              </>
-            )}
+            {isSaving ? <Loader2 className="animate-spin" /> : <Save />}
+            Lưu & Thêm vào giỏ
           </Button>
-          {!productId && (
-            <p className="text-xs text-red-500 mt-2">
-              Lỗi: Không tìm thấy productId. Vui lòng thử lại từ trang sản phẩm.
-            </p>
-          )}
         </div>
-      </div>
 
-      {/* Vùng Canvas */}
-      <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
-        <canvas ref={canvasRef} className="shadow-lg" />
+        {/* Main Content (Giữ nguyên) */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* 2D Editor (ĐÃ SỬA) */}
+          <div className="flex-1 flex flex-col items-center justify-center p-4 overflow-auto bg-gray-200">
+            <Tabs
+              value={activeSurfaceKey || ""}
+              onValueChange={setActiveSurfaceKey}
+              className="w-full max-w-[600px] flex flex-col"
+            >
+              <TabsList className="mb-2">
+                {product.assets.surfaces.map((surface) => (
+                  <TabsTrigger key={surface.key} value={surface.key}>
+                    {surface.name}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              {product.assets.surfaces.map((surface) => (
+                <TabsContent
+                  key={surface.key}
+                  value={surface.key}
+                  className="m-0"
+                  style={{ width: 600, height: 600 }} // Đảm bảo kích thước
+                >
+                  {/* ✅ SỬA LỖI: CHỈ RENDER EDITOR 2D KHI 3D ĐÃ SẴN SÀNG */}
+                  {!isModelLoaded ? (
+                    <>
+                      {/* Thêm log này để kiểm tra */}
+                      {console.log(
+                        `--- [2D] ĐANG CHỜ 3D (Surface: ${surface.key}) ---`
+                      )}
+                      <CanvasWaitingSkeleton />
+                    </>
+                  ) : (
+                    <>
+                      {/* Thêm log này để kiểm tra */}
+                      {console.log(
+                        `--- [2D] 3D ĐÃ XONG, ĐANG RENDER 2D EDITOR (Surface: ${surface.key}) ---`
+                      )}
+                      <FabricCanvasEditor
+                        ref={(el) => (editorRefs.current[surface.key] = el)}
+                        materialKey={surface.materialName}
+                        dielineSvgUrl={surface.dielineSvgUrl}
+                        onCanvasUpdate={handleSurfaceUpdate}
+                        onObjectChange={() => {
+                          // Callback
+                        }}
+                        width={600}
+                        height={600}
+                        isReadyToLoad={isModelLoaded}
+                      />
+                    </>
+                  )}
+                </TabsContent>
+              ))}
+            </Tabs>
+          </div>
+
+          {/* 3D Viewer (Giữ nguyên) */}
+          <div className="w-full h-full bg-gray-100">
+            <ProductViewer3D
+              modelUrl={product.assets.modelUrl!}
+              textures={textures}
+              // ✅ THÊM LOG VÀO ĐÂY
+              onModelLoaded={() => {
+                console.log("✅✅✅ 3D ĐÃ TẢI XONG (onModelLoaded fired)!");
+                setIsModelLoaded(true);
+              }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

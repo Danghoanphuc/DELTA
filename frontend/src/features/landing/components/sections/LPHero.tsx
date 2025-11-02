@@ -3,7 +3,7 @@
 import { Button } from "@/shared/components/ui/button";
 import { ArrowRight, MessageCircle } from "lucide-react";
 // 1. Import ImageWithFallback
-import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
+import { ImageWithFallback } from "@/features/figma/ImageWithFallback";
 
 export function LPHero() {
   return (

@@ -10,10 +10,10 @@ import {
 import { Order, OrderStatus } from "@/types/order";
 import api from "@/shared/lib/axios";
 import { toast } from "sonner";
-import { OrderStatsGrid } from "@/components/printer/OrderStatsGrid";
-import { OrderFilterBar } from "@/components/printer/OrderFilterBar";
-import { OrderTable } from "@/components/printer/OrderTable";
-import { OrderEmptyState } from "@/components/printer/OrderEmptyState";
+import { OrderStatsGrid } from "@/features/printer/components/OrderStatsGrid";
+import { OrderFilterBar } from "@/features/printer/components/OrderFilterBar";
+import { OrderTable } from "@/features/printer/components/OrderTable";
+import { OrderEmptyState } from "@/features/printer/components/OrderEmptyState";
 // KHẮC PHỤC: Xóa import 'Package' không được sử dụng
 // import { Package } from "lucide-react";
 

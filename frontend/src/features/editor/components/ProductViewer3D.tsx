@@ -1,4 +1,4 @@
-// src/features/editor/components/ProductViewer3D.tsx (✅ BẢN VÁ "ÉP" VẬT LIỆU)
+// src/features/editor/components/ProductViewer3D.tsx (BẢN SỬA LỖI onModelLoaded)
 
 import React, { Suspense, useMemo, useEffect, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -11,13 +11,17 @@ import {
 } from "@react-three/drei";
 import * as THREE from "three";
 
+// =================================================================
+// ✅ SỬA LỖI: Thêm `dimensions` vào interface
+// =================================================================
 interface ProductViewer3DProps {
   modelUrl: string;
-  textureData: string | null;
+  textures: Record<string, string | null>;
   className?: string;
+  dimensions?: { length?: number; width?: number; height?: number };
+  onModelLoaded?: () => void;
 }
 
-// Hook auto-fit (đã sửa ở bước trước, giữ nguyên)
 const useCameraAutoFit = (
   groupRef: React.RefObject<THREE.Group>,
   modelScene: THREE.Scene | null
@@ -65,96 +69,162 @@ const useCameraAutoFit = (
   }, [size, camera]);
 };
 
-// Texture cache (giữ nguyên)
+// Texture cache (Giữ nguyên)
 const textureCache = new Map<string, THREE.Texture>();
 
 /**
- * Model component
+ * Model component (NÂNG CẤP)
  */
 function Model({
   modelUrl,
-  textureData,
+  textures = {}, // ✅ Vá lỗi 1: Giá trị mặc định
+  dimensions,
+  onModelLoaded, // ✅ Nhận prop dimensions
 }: {
   modelUrl: string;
-  textureData: string | null;
+  textures: Record<string, string | null>;
+  // ✅ Thêm dimensions vào props type của Model
+  dimensions?: { length?: number; width?: number; height?: number };
+  onModelLoaded?: () => void;
 }) {
   const group = useRef<THREE.Group>(null);
   const gltf = useGLTF(modelUrl);
+  useEffect(() => {
+    if (gltf.scene) {
+      onModelLoaded?.(); // Báo cho component cha: "Tôi đã tải xong!"
+    }
+  }, [gltf.scene, onModelLoaded]);
+  // (Logic lưu originalMaterials giữ nguyên)
+  const originalMaterials = useRef<Record<string, THREE.Material>>({});
+  useEffect(() => {
+    gltf.scene.traverse((child) => {
+      if (
+        child instanceof THREE.Mesh &&
+        child.material &&
+        !originalMaterials.current[child.material.name]
+      ) {
+        originalMaterials.current[child.material.name] = child.material.clone();
+      }
+    });
+  }, [gltf.scene]);
 
   useCameraAutoFit(group, gltf.scene);
 
-  // Logic load texture (giữ nguyên)
-  const texture = useMemo(() => {
-    if (!textureData) return null;
-    if (textureCache.has(textureData)) {
-      return textureCache.get(textureData)!;
+  // (Logic useMemo - loadedTextures giữ nguyên)
+  const loadedTextures = useMemo(() => {
+    const newTextures: Record<string, THREE.Texture> = {};
+    for (const materialName in textures) {
+      const textureData = textures[materialName];
+      if (textureData) {
+        if (textureCache.has(textureData)) {
+          newTextures[materialName] = textureCache.get(textureData)!;
+        } else {
+          const loader = new THREE.TextureLoader();
+          const loadedTexture = loader.load(textureData);
+          loadedTexture.encoding = THREE.sRGBEncoding;
+          loadedTexture.flipY = false;
+          loadedTexture.needsUpdate = true;
+          textureCache.set(textureData, loadedTexture);
+          newTextures[materialName] = loadedTexture;
+        }
+      }
     }
-    const loader = new THREE.TextureLoader();
-    const loadedTexture = loader.load(textureData);
-    loadedTexture.encoding = THREE.sRGBEncoding;
-    loadedTexture.flipY = false;
-    loadedTexture.needsUpdate = true;
-    if (textureCache.size > 5) {
+    if (textureCache.size > 10) {
       const firstKey = Array.from(textureCache.keys())[0];
-      const oldTex = textureCache.get(firstKey);
-      if (oldTex) oldTex.dispose();
+      textureCache.get(firstKey)?.dispose();
       textureCache.delete(firstKey);
     }
-    textureCache.set(textureData, loadedTexture);
-    return loadedTexture;
-  }, [textureData]);
+    return newTextures;
+  }, [textures]);
 
-  // =================================================================
-  // ✅✅✅ BẢN VÁ MỚI NẰM Ở ĐÂY ✅✅✅
-  // Chúng ta sẽ "ép" vật liệu mới thay vì "clone" vật liệu cũ
-  // =================================================================
+  // (useEffect áp dụng texture giữ nguyên)
   useEffect(() => {
-    if (!texture) return;
+    let materialsUpdated = false;
 
-    // 1. Tạo một vật liệu (Material) mới hoàn toàn
-    const newMaterial = new THREE.MeshStandardMaterial({
-      map: texture, // <-- Dán texture (con lạc đà)
-      metalness: 0.1, // Giảm độ bóng (cho giống cốc sứ)
-      roughness: 0.8, // Tăng độ nhám
-    });
-
-    // 2. Duyệt qua model 3D
     gltf.scene.traverse((child) => {
-      // 3. Nếu child là một Mesh (vật thể thấy được)
-      if (child instanceof THREE.Mesh) {
-        // 4. ÉP nó phải dùng vật liệu mới của chúng ta
-        child.material = newMaterial;
+      if (child instanceof THREE.Mesh && child.material) {
+        const materialName = child.material.name;
+        const newTexture = loadedTextures[materialName];
+        const originalMaterial = originalMaterials.current[materialName];
+
+        if (newTexture) {
+          if (!(child.material instanceof THREE.MeshStandardMaterial)) {
+            const newStandardMaterial = new THREE.MeshStandardMaterial({
+              map: newTexture,
+              metalness: 0.1,
+              roughness: 0.8,
+            });
+            newStandardMaterial.name = materialName;
+            child.material = newStandardMaterial;
+          } else {
+            (child.material as THREE.MeshStandardMaterial).map = newTexture;
+          }
+          child.material.needsUpdate = true;
+          materialsUpdated = true;
+        } else if (textures.hasOwnProperty(materialName) && originalMaterial) {
+          child.material = originalMaterial;
+          materialsUpdated = true;
+        }
       }
     });
 
-    // 5. Cleanup (dọn dẹp khi texture thay đổi)
-    return () => {
-      // Dọn dẹp vật liệu cũ (nếu có)
-      gltf.scene.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          if (child.material instanceof THREE.MeshStandardMaterial) {
-            child.material.dispose();
-          }
-        }
-      });
-      // Dọn dẹp vật liệu mới
-      newMaterial.map?.dispose();
-      newMaterial.dispose();
-    };
-  }, [gltf.scene, texture]); // <-- Chạy lại khi texture thay đổi
+    if (materialsUpdated) {
+      console.log("3D Viewer: Materials updated.");
+    }
+  }, [gltf.scene, loadedTextures, textures]);
+
+  // =================================================================
+  useEffect(() => {
+    if (!group.current || !gltf.scene) return;
+
+    // Chỉ tính kích thước gốc 1 LẦN
+    if (!group.current.userData.originalBox) {
+      // KIỂM TRA MỚI: Đảm bảo model đã có geometry (children)
+      if (group.current.children.length === 0) {
+        console.warn("3D Model: Đang chờ geometry, tạm dừng scale...");
+        return; // Thoát ra, chờ lần render sau
+      }
+
+      const box = new THREE.Box3().setFromObject(group.current);
+      const size = box.getSize(new THREE.Vector3());
+
+      // KIỂM TRA MỚI: Đảm bảo kích thước hợp lệ
+      if (size.x === 0 || size.y === 0 || size.z === 0) {
+        console.warn("3D Model: Kích thước vẫn = 0, đang chờ render...");
+        return; // Kích thước chưa sẵn sàng, thoát ra
+      }
+
+      // Kích thước đã hợp lệ, LƯU NÓ LẠI
+      group.current.userData.originalBox = size;
+    }
+
+    // Logic scale (giữ nguyên)
+    const originalSize = group.current.userData.originalBox as THREE.Vector3;
+    const scaleX = (dimensions?.width || originalSize.x) / originalSize.x;
+    const scaleY = (dimensions?.height || originalSize.y) / originalSize.y;
+    const scaleZ = (dimensions?.length || originalSize.z) / originalSize.z;
+
+    // Áp dụng scale
+    group.current.scale.set(scaleX, scaleY, scaleZ);
+  }, [dimensions, gltf.scene]); // Phụ thuộc giữ nguyên
 
   return <primitive ref={group} object={gltf.scene} />;
 }
 
-// ✅ MAIN COMPONENT (Đã xóa prop 'camera' ở bước trước)
+// ✅ MAIN COMPONENT (Đã cập nhật prop)
 export default function ProductViewer3D({
   modelUrl,
-  textureData,
+  textures = {}, // ✅ Vá lỗi 2: Giá trị mặc định
   className,
+  dimensions, // ✅ Truyền prop dimensions
+  onModelLoaded, // <--- ✅ SỬA LỖI Ở ĐÂY: Thêm vào
 }: ProductViewer3DProps) {
   return (
     <div className={`w-full h-full bg-gray-100 rounded-lg ${className || ""}`}>
-      <Canvas gl={{ preserveDrawingBuffer: true }}>
+      <Canvas
+        gl={{ preserveDrawingBuffer: true, antialias: true }}
+        dpr={[1, 2]}
+      >
         <Suspense
           fallback={
             <Html center>
@@ -165,14 +235,21 @@ export default function ProductViewer3D({
           }
         >
           <Environment preset="studio" />
-          <Model modelUrl={modelUrl} textureData={textureData} />
+          <ambientLight intensity={0.8} />
+          <directionalLight position={[5, 5, 5]} intensity={1} />
+
+          <Model
+            modelUrl={modelUrl}
+            textures={textures}
+            dimensions={dimensions}
+            onModelLoaded={onModelLoaded} // ✅ Truyền vào Model
+          />
           <OrbitControls
             enablePan={false}
             enableZoom={true}
             minDistance={0.5}
             maxDistance={50}
             autoRotate={false}
-            // Thêm các thuộc tính giảm độ nhạy
             enableDamping={true}
             dampingFactor={0.1}
             zoomSpeed={0.7}

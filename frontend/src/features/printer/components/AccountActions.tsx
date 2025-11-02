@@ -10,12 +10,14 @@ export function AccountActions({ onLogout }: AccountActionsProps) {
   return (
     <div className="space-y-3">
       <div className="flex gap-3">
-        <Button variant="outline" className="flex-1" disabled>
+        <Button variant="outline" className="flex-1">
+          {" "}
+          {/* SỬA: Bỏ 'disabled' */}
           Hủy thay đổi
         </Button>
         <Button
           className="flex-1 bg-gradient-to-r from-orange-400 to-red-500 hover:from-orange-500 hover:to-red-600"
-          disabled
+          // SỬA: Bỏ 'disabled'
         >
           Lưu thay đổi
         </Button>

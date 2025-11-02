@@ -1,5 +1,5 @@
-// frontend/src/features/printer/pages/PrinterStudio.tsx
-// ✅ COMPLETE STUDIO PAGE - READY FOR PRODUCTION
+// src/features/printer/pages/PrinterStudio.tsx
+// ✅ BẢN SỬA LỖI CUỐI CÙNG (Dùng display:none để tránh UNMOUNT)
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -39,20 +39,13 @@ type TemplateFormData = {
   isPublic: boolean;
   tags: string;
 };
-
 interface PhoiAssets {
   modelUrl: string;
   dielineUrl: string;
 }
+import { Product } from "@/types/product";
 
-interface BaseProduct {
-  _id: string;
-  name: string;
-  description?: string;
-  assets: PhoiAssets;
-}
-
-// Utility
+// Utility (Giữ nguyên)
 function dataURLtoBlob(dataurl: string): Blob {
   const arr = dataurl.split(",");
   const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
@@ -65,166 +58,185 @@ function dataURLtoBlob(dataurl: string): Blob {
   return new Blob([u8arr], { type: mime });
 }
 
+// Skeleton cho Canvas (Giữ nguyên)
+const CanvasWaitingSkeleton = () => (
+  <div className="w-full h-full min-h-[600px] flex items-center justify-center bg-gray-50 shadow-inner rounded-lg">
+    <div className="text-center space-y-3">
+      <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto" />
+      <p className="text-sm text-gray-600">Đang chờ phôi 3D tải xong...</p>
+    </div>
+  </div>
+);
+
 export function PrinterStudio() {
   const navigate = useNavigate();
   const { productId } = useParams();
   const editorRef = useRef<FabricCanvasEditorRef>(null);
 
-  // ==================== STATE ====================
-  const [baseProduct, setBaseProduct] = useState<BaseProduct | null>(null);
+  // ==================== STATE (Giữ nguyên) ====================
+  const [baseProduct, setBaseProduct] = useState<Product | null>(null);
   const [phoiAssets, setPhoiAssets] = useState<PhoiAssets | null>(null);
   const [textureData, setTextureData] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewMode, setPreviewMode] = useState<"2d" | "3d">("3d");
 
-  // Form
+  const [is3DMainLoaded, setIs3DMainLoaded] = useState(false);
+  const [is2DReady, setIs2DReady] = useState(false);
+
+  // Form (Giữ nguyên)
   const {
     register,
     handleSubmit,
     formState: { errors },
     watch,
   } = useForm<TemplateFormData>({
-    defaultValues: {
-      name: "",
-      description: "",
-      isPublic: true,
-      tags: "",
-    },
+    defaultValues: { name: "", description: "", isPublic: true, tags: "" },
   });
-
   const watchedName = watch("name");
   const watchedDescription = watch("description");
 
-  // ==================== FETCH PRODUCT ====================
+  // ==================== FETCH PRODUCT (Giữ nguyên) ====================
   useEffect(() => {
-    if (!productId) {
-      toast.error("Lỗi: Không tìm thấy productId");
-      navigate("/printer/dashboard/products");
-      return;
-    }
-
     let isCancelled = false;
     const controller = new AbortController();
-
-    const fetchBaseProduct = async () => {
+    const fetchAssets = async () => {
       try {
         setIsLoading(true);
-        const res = await api.get(`/products/${productId}`, {
-          signal: controller.signal,
-        });
-
-        if (isCancelled) return;
-
-        const product = res.data?.data?.product;
-
-        if (
-          !product ||
-          !product.assets?.modelUrl ||
-          !product.assets?.dielineUrl
-        ) {
-          throw new Error("Phôi thiếu file 3D/Dieline");
+        let modelUrl: string | undefined;
+        let dielineUrl: string | undefined;
+        let productName: string | undefined;
+        let productData: Product | null = null;
+        if (productId === "new") {
+          const tempData = localStorage.getItem("tempProductAssets");
+          console.log("--- BƯỚC 2a: NHẬN DỮ LIỆU THÔ ---");
+          console.log("Dữ liệu thô từ localStorage (tempData):", tempData);
+          if (!tempData)
+            throw new Error("Không tìm thấy dữ liệu phôi tạm thời");
+          const parsed = JSON.parse(tempData);
+          modelUrl = parsed.assets?.modelUrl;
+          dielineUrl = parsed.assets?.surfaces?.[0]?.dielineSvgUrl;
+          productName = `Phôi ${parsed.category} (Tạm)`;
+          console.log("--- BƯỚC 2b: KIỂM TRA PARSING ---");
+          console.log("modelUrl sau khi parse:", modelUrl);
+          console.log("dielineUrl sau khi parse (PHÔI 2D):", dielineUrl);
+          if (!modelUrl || !dielineUrl)
+            throw new Error(
+              "Dữ liệu phôi tạm thời không đầy đủ (thiếu model/surface)"
+            );
+          productData = {
+            _id: "temp",
+            name: productName,
+            assets: parsed.assets,
+          } as any;
+        } else {
+          const res = await api.get(`/products/${productId}`, {
+            signal: controller.signal,
+          });
+          if (isCancelled) return;
+          const product: Product = res.data?.data?.product;
+          productData = product;
+          modelUrl = product?.assets?.modelUrl;
+          dielineUrl = product?.assets?.surfaces?.[0]?.dielineSvgUrl;
+          if (!product || !modelUrl || !dielineUrl)
+            throw new Error(
+              "Phôi này thiếu file 3D hoặc file Dieline SVG (surfaces)."
+            );
         }
-
-        setBaseProduct(product);
-        setPhoiAssets({
-          modelUrl: product.assets.modelUrl,
-          dielineUrl: product.assets.dielineUrl,
-        });
+        setBaseProduct(productData);
+        setPhoiAssets({ modelUrl, dielineUrl });
       } catch (err: any) {
         if (err.name === "AbortError" || err.name === "CanceledError") return;
-
         if (!isCancelled) {
           toast.error(err.message || "Không thể tải dữ liệu Phôi");
           navigate("/printer/dashboard/products");
         }
       } finally {
-        if (!isCancelled) {
-          setIsLoading(false);
-        }
+        if (!isCancelled) setIsLoading(false);
       }
     };
-
-    fetchBaseProduct();
-
+    fetchAssets();
     return () => {
       isCancelled = true;
       controller.abort();
     };
   }, [productId, navigate]);
 
-  // ==================== CANVAS UPDATE ====================
-  const handleCanvasUpdate = useCallback((base64Image: string) => {
-    setTextureData(base64Image);
-  }, []);
+  // ==================== HANDLERS (Giữ nguyên) ====================
+  const handleCanvasUpdate = useCallback(
+    (base64Image: string, jsonData: object) => {
+      setTextureData(base64Image);
+    },
+    []
+  );
 
-  // ==================== IMAGE UPLOAD ====================
+  // ✅ Giữ nguyên useCallback VỚI DEPENDENCY RỖNG
+  const handleDielineLoaded = useCallback(() => {
+    console.log("✅ 2D Editor (Main) Loaded. Unlocking 3D Sidebar.");
+    setIs2DReady(true);
+  }, []); // <-- Dependency rỗng là đúng
+
   const handleImageUpload = (file: File) => {
     toast.success(`Đã tải ảnh: ${file.name}`);
   };
 
-  // ==================== SNAPSHOT CREATION ====================
   const createCanvasSnapshot = useCallback((): {
     json: string;
     previewBlob: Blob;
     productionBlob: Blob;
   } | null => {
     if (!editorRef.current) return null;
-
     const canvas = editorRef.current.getCanvas();
     if (!canvas) return null;
-
     canvas.discardActiveObject();
     canvas.renderAll();
-
     const json = editorRef.current.getJSON();
     const parsedJson = JSON.parse(json);
-
     if (!parsedJson.objects || parsedJson.objects.length === 0) {
       toast.error("Canvas trống! Hãy thêm ít nhất 1 đối tượng.");
       return null;
     }
-
     const previewDataURL = canvas.toDataURL({ format: "png", quality: 0.8 });
     const previewBlob = dataURLtoBlob(previewDataURL);
-
     const svgString = canvas.toSVG();
     const productionBlob = new Blob([svgString], { type: "image/svg+xml" });
-
     return { json, previewBlob, productionBlob };
   }, []);
 
-  // ==================== SUBMIT ====================
+  // ==================== SUBMIT (Giữ nguyên) ====================
   const onSubmit = async (data: TemplateFormData) => {
-    if (!editorRef.current || !productId) {
+    if (!editorRef.current) {
       toast.error("Lỗi: Trình chỉnh sửa chưa sẵn sàng");
       return;
     }
-
+    const baseProductId = baseProduct?._id;
+    if (!baseProductId) {
+      toast.error("Lỗi: Không tìm thấy ID Phôi (Base Product ID).");
+      return;
+    }
+    if (productId === "new") {
+      toast.warning("Lưu ý: Bạn đang tạo mẫu từ phôi tạm.", {
+        description: "Mẫu này sẽ được liên kết với phôi sau khi phôi được tạo.",
+      });
+    }
     setIsSubmitting(true);
-    toast.info("Đang tạo snapshot...");
-
+    toast.info("Đang tạo snapshot 2D...");
     const snapshot = createCanvasSnapshot();
     if (!snapshot) {
       setIsSubmitting(false);
       return;
     }
-
     try {
-      if (snapshot.previewBlob.size > 5 * 1024 * 1024) {
-        throw new Error("Preview image quá lớn (>5MB)");
-      }
-
+      if (snapshot.previewBlob.size > 5 * 1024 * 1024)
+        throw new Error("Ảnh xem trước quá lớn (>5MB)");
       const formData = new FormData();
       formData.append("name", data.name);
       formData.append("description", data.description);
       formData.append("isPublic", String(data.isPublic));
-      formData.append("baseProductId", productId);
+      formData.append("baseProductId", baseProductId);
       formData.append("editorData", snapshot.json);
       formData.append("previewFile", snapshot.previewBlob, "preview.png");
       formData.append("productionFile", snapshot.productionBlob, "design.svg");
-
-      // Tags
       if (data.tags) {
         const tagsArray = data.tags
           .split(",")
@@ -232,14 +244,13 @@ export function PrinterStudio() {
           .filter(Boolean);
         formData.append("tags", JSON.stringify(tagsArray));
       }
-
-      toast.info("Đang upload...");
+      toast.info("Đang upload dữ liệu mẫu...");
       await api.post("/designs/templates", formData, {
         headers: { "Content-Type": "multipart/form-data" },
         timeout: 30000,
       });
-
       toast.success("🎉 Đăng bán mẫu thành công!");
+      localStorage.removeItem("tempProductAssets");
       navigate("/printer/dashboard/products");
     } catch (err: any) {
       console.error(err);
@@ -249,7 +260,7 @@ export function PrinterStudio() {
     }
   };
 
-  // ==================== LOADING STATE ====================
+  // ==================== LOADING STATE (Giữ nguyên) ====================
   if (isLoading || !phoiAssets) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -261,25 +272,28 @@ export function PrinterStudio() {
     );
   }
 
-  // ==================== RENDER ====================
+  // ==================== RENDER (ĐÃ SỬA) ====================
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
       className="flex h-screen bg-gray-100"
     >
-      {/* LEFT: TOOLBAR */}
+      {/* LEFT: TOOLBAR (Giữ nguyên) */}
       <EditorToolbar editorRef={editorRef} onImageUpload={handleImageUpload} />
 
-      {/* CENTER: EDITOR */}
+      {/* CENTER: EDITOR (Đã sửa) */}
       <div className="flex-1 flex flex-col">
-        {/* Top Bar */}
+        {/* Top Bar (Giữ nguyên) */}
         <div className="h-16 bg-white border-b flex items-center px-6 justify-between">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
               size="icon"
               type="button"
-              onClick={() => navigate("/printer/dashboard/products")}
+              onClick={() => {
+                localStorage.removeItem("tempProductAssets");
+                navigate("/printer/dashboard/products");
+              }}
             >
               <ArrowLeft size={20} />
             </Button>
@@ -290,10 +304,9 @@ export function PrinterStudio() {
               <p className="text-xs text-gray-500">Phôi: {baseProduct?.name}</p>
             </div>
           </div>
-
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs">
-              Tự động lưu
+              {productId === "new" ? "Chế độ tạo mới" : "Chế độ chỉnh sửa"}
             </Badge>
             <Button
               type="submit"
@@ -302,40 +315,73 @@ export function PrinterStudio() {
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Đang lưu...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang lưu...
                 </>
               ) : (
                 <>
-                  <Save size={18} className="mr-2" />
-                  Lưu & Đăng bán
+                  <Save size={18} className="mr-2" /> Lưu & Đăng bán
                 </>
               )}
             </Button>
           </div>
         </div>
 
-        {/* Canvas Area */}
+        {/* Canvas Area (✅ SỬA LỖI: Dùng `display: none`) */}
         <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
-          {previewMode === "2d" ? (
-            <FabricCanvasEditor
-              ref={editorRef}
-              dielineUrl={phoiAssets.dielineUrl}
-              onCanvasUpdate={handleCanvasUpdate}
-              width={600}
-              height={600}
-            />
-          ) : (
-            <div className="w-full h-full max-w-4xl max-h-[800px]">
+          {/* Wrapper cho cả 2D và 3D Main */}
+          <div className="w-full h-full max-w-4xl max-h-[800px] relative">
+            {/* 3D Viewer (Main) - LUÔN RENDER, chỉ ẩn đi */}
+            <div
+              style={{
+                display: previewMode === "3d" ? "block" : "none",
+                width: "100%",
+                height: "100%",
+              }}
+            >
               <ProductViewer3D
                 modelUrl={phoiAssets.modelUrl}
-                textureData={textureData}
+                textures={{ Dieline: textureData }}
+                onModelLoaded={() => {
+                  if (!is3DMainLoaded) {
+                    console.log(
+                      "✅ 3D View (Main) Loaded. Unlocking 2D background load."
+                    );
+                    setIs3DMainLoaded(true);
+                  }
+                }}
               />
             </div>
-          )}
+
+            {/* 2D Editor (Main) - Chỉ render sau khi 3D-Main đã tải */}
+            {/* và LUÔN RENDER (chỉ ẩn đi) sau khi đã tải */}
+            {is3DMainLoaded && (
+              <div
+                style={{
+                  display: previewMode === "2d" ? "block" : "none",
+                  width: "600px", // Đảm bảo kích thước
+                  height: "600px", // Đảm bảo kích thước
+                }}
+              >
+                <FabricCanvasEditor
+                  ref={editorRef}
+                  dielineImageUrl={phoiAssets.dielineUrl}
+                  onCanvasUpdate={handleCanvasUpdate}
+                  width={600}
+                  height={600}
+                  isReadyToLoad={is3DMainLoaded}
+                  onDielineLoaded={handleDielineLoaded}
+                />
+              </div>
+            )}
+
+            {/* Skeleton nếu user chuyển sang 2D quá nhanh */}
+            {previewMode === "2d" && !is3DMainLoaded && (
+              <CanvasWaitingSkeleton />
+            )}
+          </div>
         </div>
 
-        {/* Bottom Bar - Preview Toggle */}
+        {/* Bottom Bar - Preview Toggle (Giữ nguyên) */}
         <div className="h-16 bg-white border-t flex items-center justify-center px-6">
           <div className="flex items-center gap-2">
             <Button
@@ -357,10 +403,10 @@ export function PrinterStudio() {
         </div>
       </div>
 
-      {/* RIGHT: FORM & PREVIEW */}
+      {/* RIGHT: FORM & PREVIEW (Giữ nguyên) */}
       <ScrollArea className="w-96 bg-white border-l">
         <div className="p-6 space-y-6">
-          {/* Product Info */}
+          {/* Product Info (Giữ nguyên) */}
           {baseProduct && (
             <Card>
               <CardHeader>
@@ -382,13 +428,12 @@ export function PrinterStudio() {
 
           <Separator />
 
-          {/* Template Form */}
+          {/* Template Form (Giữ nguyên) */}
           <Card>
             <CardHeader>
               <CardTitle>Thông tin Mẫu thiết kế</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Name */}
               <div className="space-y-2">
                 <Label htmlFor="templateName">
                   Tên Mẫu <span className="text-red-500">*</span>
@@ -408,8 +453,6 @@ export function PrinterStudio() {
                   <p className="text-xs text-red-500">{errors.name.message}</p>
                 )}
               </div>
-
-              {/* Description */}
               <div className="space-y-2">
                 <Label htmlFor="description">Mô tả</Label>
                 <Textarea
@@ -419,11 +462,9 @@ export function PrinterStudio() {
                   rows={3}
                 />
                 <p className="text-xs text-gray-500">
-                  {watchedDescription.length}/500 ký tự
+                  {watchedDescription?.length || 0}/500 ký tự
                 </p>
               </div>
-
-              {/* Tags */}
               <div className="space-y-2">
                 <Label htmlFor="tags">Tags (phân tách bằng dấu phẩy)</Label>
                 <Input
@@ -435,8 +476,6 @@ export function PrinterStudio() {
                   Giúp khách hàng dễ tìm kiếm mẫu của bạn
                 </p>
               </div>
-
-              {/* Public Toggle */}
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="space-y-1">
                   <Label htmlFor="isPublic" className="font-medium">
@@ -455,24 +494,33 @@ export function PrinterStudio() {
             </CardContent>
           </Card>
 
-          {/* 3D Preview Card */}
-          {previewMode === "2d" && textureData && (
+          {/* 3D Preview Card (Giữ nguyên logic chờ 2D) */}
+          {previewMode === "2d" && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Xem trước 3D</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-64 bg-gray-100 rounded-lg overflow-hidden">
-                  <ProductViewer3D
-                    modelUrl={phoiAssets.modelUrl}
-                    textureData={textureData}
-                  />
+                  {!is2DReady ? (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                      <span className="text-xs text-gray-500 ml-2">
+                        Đang tải 2D...
+                      </span>
+                    </div>
+                  ) : (
+                    <ProductViewer3D
+                      modelUrl={phoiAssets.modelUrl}
+                      textures={{ Dieline: textureData }}
+                    />
+                  )}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Tips */}
+          {/* Tips (Giữ nguyên) */}
           <Card className="bg-blue-50 border-blue-200">
             <CardContent className="pt-6">
               <h4 className="font-medium text-sm mb-2 text-blue-900">
@@ -488,25 +536,20 @@ export function PrinterStudio() {
             </CardContent>
           </Card>
 
-          {/* Submit Button (Mobile) */}
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-orange-500 hover:bg-orange-600 lg:hidden"
-            size="lg"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Đang lưu...
-              </>
-            ) : (
-              <>
-                <Save size={18} className="mr-2" />
-                Lưu & Đăng bán Mẫu
-              </>
-            )}
-          </Button>
+          {/* Warning (Giữ nguyên) */}
+          {productId === "new" && (
+            <Card className="bg-yellow-50 border-yellow-200">
+              <CardContent className="pt-6">
+                <h4 className="font-medium text-sm mb-2 text-yellow-900">
+                  ⚠️ Lưu ý
+                </h4>
+                <p className="text-xs text-yellow-700">
+                  Bạn đang tạo mẫu từ phôi tạm. Mẫu này sẽ được liên kết tự động
+                  sau khi phôi được tạo.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </ScrollArea>
     </form>

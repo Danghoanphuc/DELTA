@@ -1,6 +1,6 @@
 // src/pages/PrinterSignInPage.tsx (BẢN FULL)
 
-import { AuthFlow } from "@/components/auth/AuthFlow";
+import { AuthFlow } from "@/features/auth/components/AuthFlow";
 
 const PrinterSignInPage = () => {
   return (

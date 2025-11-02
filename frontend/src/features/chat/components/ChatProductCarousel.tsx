@@ -10,7 +10,7 @@ import {
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { PrinterProduct } from "@/types/product";
 import { Link } from "react-router-dom";
-import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
+import { ImageWithFallback } from "@/features/figma/ImageWithFallback";
 import { Button } from "@/shared/components/ui/button";
 
 // Một phiên bản thẻ ProductCard đơn giản hơn cho chat

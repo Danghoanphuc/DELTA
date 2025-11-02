@@ -21,7 +21,6 @@ export function UserProfileCard({ user }: UserProfileCardProps) {
   const currentUser = user ?? storeUser;
 
   if (!currentUser) return null;
-
   return (
     <Card className="border-none shadow-sm mb-6">
       <CardContent className="p-6">
@@ -45,14 +44,16 @@ export function UserProfileCard({ user }: UserProfileCardProps) {
             <p className="text-sm text-gray-600 mb-3">{currentUser.email}</p>
 
             <div className="flex justify-center sm:justify-start gap-3">
-              <Button variant="outline" size="sm" disabled>
+              <Button variant="outline" size="sm">
+                {" "}
+                {/* SỬA: Bỏ 'disabled' */}
                 Thay đổi ảnh
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="text-red-600 hover:text-red-700"
-                disabled
+                // SỬA: Bỏ 'disabled'
               >
                 Xóa ảnh
               </Button>

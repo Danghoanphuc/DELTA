@@ -1,70 +1,114 @@
 // src/features/editor/hooks/useFabricHistory.ts
-import { useState, useCallback } from "react";
+// ✅ BẢN SỬA LỖI RACE CONDITION
+
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Canvas } from "fabric";
 
-// Tăng giới hạn lịch sử
 const MAX_HISTORY_SIZE = 100;
 
 export const useFabricHistory = (
   canvas: React.RefObject<Canvas | null>,
-  onHistoryUpdate: () => void // Hàm để gọi khi undo/redo (vd: debouncedCanvasUpdate)
+  onHistoryUpdate: () => void // Hàm để gọi khi undo/redo
 ) => {
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [isHistoryAction, setIsHistoryAction] = useState(false); // Cờ để tránh lưu state khi undo/redo
+  const [isHistoryAction, setIsHistoryAction] = useState(false);
+
+  // --- 1. Dùng Ref để lưu trữ các giá trị động ---
+  // Điều này giúp các hàm callback (như saveState) luôn
+  // truy cập được giá trị mới nhất mà không cần
+  // đưa chúng vào dependency list của useCallback.
+  const historyRef = useRef(history);
+  const historyIndexRef = useRef(historyIndex);
+  const canvasRef = useRef(canvas);
+  const isHistoryActionRef = useRef(isHistoryAction);
+
+  // --- 2. Đồng bộ state vào ref ---
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+
+  useEffect(() => {
+    historyIndexRef.current = historyIndex;
+  }, [historyIndex]);
+
+  useEffect(() => {
+    canvasRef.current = canvas;
+  }, [canvas]);
+
+  useEffect(() => {
+    isHistoryActionRef.current = isHistoryAction;
+  }, [isHistoryAction]);
 
   /**
    * Lưu trạng thái canvas hiện tại vào lịch sử
+   * ✅ HÀM NÀY GIỜ ĐÂY ỔN ĐỊNH (STABLE) VÀ KHÔNG CÓ DEPENDENCY
    */
   const saveState = useCallback(() => {
-    if (isHistoryAction) {
+    if (isHistoryActionRef.current) {
       setIsHistoryAction(false); // Reset cờ
       return;
     }
-    if (!canvas.current) return;
+    if (!canvasRef.current.current) return;
 
-    const json = JSON.stringify(canvas.current.toJSON());
-    const newHistory = history.slice(0, historyIndex + 1);
+    const json = JSON.stringify(canvasRef.current.current.toJSON());
+
+    // Lấy giá trị mới nhất từ ref
+    const currentHistory = historyRef.current;
+    const currentIndex = historyIndexRef.current;
+
+    const newHistory = currentHistory.slice(0, currentIndex + 1);
     newHistory.push(json);
 
-    // Giới hạn kích thước lịch sử
     if (newHistory.length > MAX_HISTORY_SIZE) {
       newHistory.shift();
     }
 
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
-  }, [history, historyIndex, canvas, isHistoryAction]);
+  }, []); // <-- 3. Dependency rỗng!
 
   /**
    * Quay lại (Undo)
+   * ✅ HÀM NÀY CŨNG ỔN ĐỊNH (STABLE)
    */
   const undo = useCallback(() => {
-    if (historyIndex <= 0 || !canvas.current) return;
+    const currentIndex = historyIndexRef.current;
+    const currentHistory = historyRef.current;
+    const currentCanvas = canvasRef.current.current;
+
+    if (currentIndex <= 0 || !currentCanvas) return;
 
     setIsHistoryAction(true); // Đặt cờ
-    const prevState = history[historyIndex - 1];
-    canvas.current.loadFromJSON(prevState, () => {
-      canvas.current?.renderAll();
-      setHistoryIndex(historyIndex - 1);
+    const prevState = currentHistory[currentIndex - 1];
+
+    currentCanvas.loadFromJSON(prevState, () => {
+      currentCanvas?.renderAll();
+      setHistoryIndex(currentIndex - 1);
       onHistoryUpdate();
     });
-  }, [history, historyIndex, canvas, onHistoryUpdate]);
+  }, [onHistoryUpdate]); // Chỉ phụ thuộc vào onHistoryUpdate
 
   /**
    * Làm lại (Redo)
+   * ✅ HÀM NÀY CŨNG ỔN ĐỊNH (STABLE)
    */
   const redo = useCallback(() => {
-    if (historyIndex >= history.length - 1 || !canvas.current) return;
+    const currentIndex = historyIndexRef.current;
+    const currentHistory = historyRef.current;
+    const currentCanvas = canvasRef.current.current;
+
+    if (currentIndex >= currentHistory.length - 1 || !currentCanvas) return;
 
     setIsHistoryAction(true); // Đặt cờ
-    const nextState = history[historyIndex + 1];
-    canvas.current.loadFromJSON(nextState, () => {
-      canvas.current?.renderAll();
-      setHistoryIndex(historyIndex + 1);
+    const nextState = currentHistory[currentIndex + 1];
+
+    currentCanvas.loadFromJSON(nextState, () => {
+      currentCanvas?.renderAll();
+      setHistoryIndex(currentIndex + 1);
       onHistoryUpdate();
     });
-  }, [history, historyIndex, canvas, onHistoryUpdate]);
+  }, [onHistoryUpdate]); // Chỉ phụ thuộc vào onHistoryUpdate
 
   return {
     saveState,

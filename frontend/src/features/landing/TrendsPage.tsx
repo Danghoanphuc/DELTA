@@ -1,5 +1,5 @@
 import { Card } from "@/shared/components/ui/card";
-import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
+import { ImageWithFallback } from "@/features/figma/ImageWithFallback";
 
 import { Calendar, User, TrendingUp } from "lucide-react";
 

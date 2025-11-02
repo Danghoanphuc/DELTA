@@ -1,7 +1,7 @@
 // frontend/src/App.tsx (CẬP NHẬT)
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
-import ProtectedRoute from "./components/auth/ProtectedRoute";
+import ProtectedRoute from "./features/auth/components/ProtectedRoute";
 import { useEffect } from "react";
 import { useAuthStore } from "./stores/useAuthStore";
 import { useCartStore } from "./stores/useCartStore";
@@ -26,8 +26,8 @@ import TemplateLibraryPage from "@/features/landing/TemplateLibraryPage";
 // Auth Pages
 import SignInPage from "@/features/auth/pages/SignInPage";
 import SignUpPage from "@/features/customer/pages/SignUpPage";
-import VerifyEmailPage from "@/components/auth/VerifyEmailPage";
-import ResetPasswordPage from "@/components/auth/ResetPasswordPage";
+import VerifyEmailPage from "@/features/auth/components/VerifyEmailPage";
+import ResetPasswordPage from "@/features/auth/components/ResetPasswordPage";
 import PrinterSignUpPage from "@/features/auth/pages/PrinterSignUpPage";
 import PrinterSignInPage from "@/features/auth/pages/PrinterSignInPage";
 import CheckEmailPage from "@/features/auth/pages/CheckEmailPage";
@@ -44,6 +44,7 @@ import { OrderConfirmationPage } from "@/features/customer/pages/OrderConfirmati
 // Printer Pages
 import PrinterApp from "@/features/printer/pages/PrinterApp";
 import { PrinterStudio } from "@/features/printer/pages/PrinterStudio";
+// import { PrinterStudio } from "@/features/printer/pages/PrinterStudio";
 const API_ORIGIN = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
 function App() {
@@ -117,15 +118,23 @@ function App() {
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
           <Route path="/designs" element={<CustomerDesignsPage />} />
           <Route path="/settings" element={<CustomerSettingsPage />} />
-          <Route path="/printer/dashboard" element={<PrinterApp />} />
+
+          {/* ============= ROUTE CỦA CUSTOMER EDITOR */}
           <Route path="/design-editor" element={<DesignEditorPage />} />
+
+          {/* ============== PRINTER ROUTES === */}
+          <Route path="/printer/dashboard" element={<PrinterApp />} />
+          <Route
+            path="/printer/orders/:orderId"
+            element={<OrderDetailPage />}
+          />
           <Route
             path="/printer/orders/:orderId"
             element={<OrderDetailPage />}
           />
           <Route
             path="/printer/studio/:productId"
-            element={<PrinterStudio />} // Component Phần 4
+            element={<PrinterStudio />}
           />
         </Route>
 

@@ -10,7 +10,7 @@ import { Badge } from "@/shared/components/ui/badge";
 import zinAvatar from "@/assets/img/zin-avatar.png";
 import { useDropzone } from "react-dropzone";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { LoginPopup } from "@/components/auth/LoginPopup";
+import { LoginPopup } from "@/features/auth/components/LoginPopup";
 
 interface ChatBarProps {
   messages: ChatMessage[];

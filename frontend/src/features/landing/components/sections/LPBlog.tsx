@@ -2,7 +2,7 @@
 
 import { Card } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
-import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
+import { ImageWithFallback } from "@/features/figma/ImageWithFallback";
 import { ArrowRight } from "lucide-react";
 
 export function LPBlog() {

@@ -1,4 +1,4 @@
-// src/components/printer/PrinterSidebar.tsx
+// src/features/printer/components/PrinterSidebar.tsx
 import { useState } from "react";
 import {
   LayoutDashboard,
@@ -9,6 +9,7 @@ import {
   User,
   Menu,
   X,
+  Library, // <-- 1. Thêm icon mới (hoặc bất kỳ icon nào bạn thích, vd: Box, Shapes)
 } from "lucide-react";
 import {
   Tooltip,
@@ -31,6 +32,9 @@ export function PrinterSidebar({
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", id: "dashboard" },
     { icon: Package, label: "Sản phẩm", id: "products" },
+    // -- 2. THÊM TAB MỚI NGAY DƯỚI "SẢN PHẨM" --
+    { icon: Library, label: "Kho Phôi (3D/2D)", id: "assets" },
+    // ------------------------------------------
     { icon: ShoppingCart, label: "Đơn hàng", id: "orders" },
     { icon: Settings, label: "Cài đặt", id: "settings" },
     { icon: HelpCircle, label: "Hỗ trợ", id: "support" },

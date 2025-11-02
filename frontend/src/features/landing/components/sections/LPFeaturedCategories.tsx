@@ -10,7 +10,7 @@ import {
   CarouselPrevious,
 } from "@/shared/components/ui/carousel";
 // 1. Import ImageWithFallback (thay vì các icon)
-import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
+import { ImageWithFallback } from "@/features/figma/ImageWithFallback";
 
 // 2. Loại bỏ các import icon (CreditCard, Shirt, ...)
 

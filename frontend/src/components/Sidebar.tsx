@@ -1,5 +1,5 @@
 // frontend/src/components/Sidebar.tsx (ĐÃ CẬP NHẬT)
-import Logout from "./auth/Logout";
+import Logout from "../features/auth/components/Logout";
 import {
   Home,
   Lightbulb,

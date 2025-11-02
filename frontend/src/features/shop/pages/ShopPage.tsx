@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { MobileNav } from "@/components/MobileNav";
-import { CartSidebar } from "@/components/shop/CartSidebar";
+import { CartSidebar } from "@/features/shop/pages/CartSidebar";
 import { useCartStore } from "@/stores/useCartStore";
 import { useShop } from "../hooks/useShop";
 import { ShopHeader } from "../components/ShopHeader";

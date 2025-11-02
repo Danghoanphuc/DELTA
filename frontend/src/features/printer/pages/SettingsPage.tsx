@@ -1,6 +1,6 @@
 // src/pages/printer/SettingsPage.tsx
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
-import { SettingsHeader } from "@/components/printer/SettingsHeader";
+import { SettingsHeader } from "@/features/printer/components/SettingsHeader";
 // ... (Tạm thời bỏ các import chưa dùng)
 
 export function SettingsPage() {

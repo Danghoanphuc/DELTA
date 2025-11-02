@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useNavigate } from "react-router-dom";
-import { UserProfileCard } from "@/components/printer/UserProfileCard";
-import { AccountActions } from "@/components/printer/AccountActions";
+import { UserProfileCard } from "@/features/printer/components/UserProfileCard";
+import { AccountActions } from "@/features/printer/components/AccountActions";
 
 export function AccountPage() {
   const { signOut, user } = useAuthStore();

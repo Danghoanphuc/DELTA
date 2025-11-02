@@ -1,5 +1,5 @@
 // src/pages/SignInPage.tsx (CẬP NHẬT)
-import { AuthFlow } from "@/components/auth/AuthFlow"; // <-- IMPORT MỚI
+import { AuthFlow } from "@/features/auth/components/AuthFlow"; // <-- IMPORT MỚI
 
 const SignInPage = () => {
   return (

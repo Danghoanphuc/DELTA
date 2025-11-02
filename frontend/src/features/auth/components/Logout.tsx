@@ -1,5 +1,5 @@
-import { Button } from "../../shared/components/ui/button";
-import { useAuthStore } from "../../stores/useAuthStore";
+import { Button } from "../../../shared/components/ui/button";
+import { useAuthStore } from "../../../stores/useAuthStore";
 import { useNavigate } from "react-router";
 
 const Logout = () => {

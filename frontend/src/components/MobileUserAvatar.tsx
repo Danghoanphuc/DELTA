@@ -1,5 +1,5 @@
 // frontend/src/components/MobileUserAvatar.tsx
-import Logout from "./auth/Logout";
+import Logout from "../features/auth/components/Logout";
 import { Settings } from "lucide-react";
 import UserAvatarFallback from "@/components/UserAvatarFallback";
 import { useAuthStore } from "@/stores/useAuthStore";
