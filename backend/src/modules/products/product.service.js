@@ -18,7 +18,8 @@ export class ProductService {
       throw new ValidationException("Phải có ít nhất 1 ảnh sản phẩm");
     }
 
-    const { name, category, pricing } = productData;
+    // ✅ LẤY taxonomyId TỪ productData
+    const { name, category, pricing, taxonomyId } = productData;
     const errors = [];
 
     if (!name || name.trim().length < 5) {
@@ -32,16 +33,50 @@ export class ProductService {
     if (!Array.isArray(pricing) || pricing.length === 0) {
       errors.push("Phải có ít nhất một mức giá");
     } else {
-      pricing.forEach((tier, index) => {
-        if (tier.minQuantity < 1) {
-          errors.push(
-            `Mức giá ${index + 1}: Số lượng tối thiểu phải lớn hơn 0`
-          );
+      // Chuyển đổi pricing từ string (nếu là form-data)
+      try {
+        const parsedPricing =
+          typeof pricing === "string" ? JSON.parse(pricing) : pricing;
+
+        if (!Array.isArray(parsedPricing) || parsedPricing.length === 0) {
+          errors.push("Định dạng pricing không hợp lệ.");
+        } else {
+          parsedPricing.forEach((tier, index) => {
+            if (tier.minQuantity < 1) {
+              errors.push(
+                `Mức giá ${index + 1}: Số lượng tối thiểu phải lớn hơn 0`
+              );
+            }
+            if (tier.pricePerUnit < 100) {
+              errors.push(`Mức giá ${index + 1}: Giá phải ít nhất 100đ`);
+            }
+          });
+          // Gán lại pricing đã parse
+          productData.pricing = parsedPricing;
         }
-        if (tier.pricePerUnit < 100) {
-          errors.push(`Mức giá ${index + 1}: Giá phải ít nhất 100đ`);
-        }
-      });
+      } catch (e) {
+        errors.push("Định dạng pricing JSON không hợp lệ.");
+      }
+    }
+
+    // Xử lý các trường JSON khác nếu cần (ví dụ: specifications)
+    if (
+      productData.specifications &&
+      typeof productData.specifications === "string"
+    ) {
+      try {
+        productData.specifications = JSON.parse(productData.specifications);
+      } catch (e) {
+        errors.push("Định dạng specifications JSON không hợp lệ.");
+      }
+    }
+
+    if (productData.assets && typeof productData.assets === "string") {
+      try {
+        productData.assets = JSON.parse(productData.assets);
+      } catch (e) {
+        errors.push("Định dạng assets JSON không hợp lệ.");
+      }
     }
 
     if (errors.length > 0) {
@@ -61,8 +96,10 @@ export class ProductService {
       isPrimary: index === 0,
     }));
 
+    // ✅ THÊM taxonomyId VÀO ĐÂY KHI TẠO
     const product = await this.productRepository.create({
       ...productData,
+      taxonomyId: taxonomyId, // <--- THÊM DÒNG NÀY
       printerId,
       images,
       isActive: true,
@@ -162,8 +199,16 @@ export class ProductService {
     Logger.debug(`1. Received productId: ${productId}`);
 
     const product = await this.productRepository.findByIdPopulated(productId);
-    Logger.debug("2. Fetched product from repository:", product ? { id: product._id, name: product.name, printerInfo: !!product.printerInfo } : null);
-
+    Logger.debug(
+      "2. Fetched product from repository:",
+      product
+        ? {
+            id: product._id,
+            name: product.name,
+            printerInfo: !!product.printerInfo,
+          }
+        : null
+    );
 
     if (!product || !product.isActive) {
       Logger.error("3. Product not found or is inactive");
@@ -176,5 +221,42 @@ export class ProductService {
 
   async getMyProducts(printerId) {
     return await this.productRepository.findByPrinterId(printerId);
+  }
+
+  async upload3DAssets(files, body, printerId) {
+    const { modelFile, dielineFile } = files;
+    const { category } = body;
+
+    if (!modelFile) {
+      throw new ValidationException("Phải có file model 3D (.glb)");
+    }
+
+    // Basic validation
+    if (!category) {
+      throw new ValidationException("Phải chọn danh mục sản phẩm");
+    }
+
+    Logger.info(`[Service] Uploading 3D assets for printer: ${printerId}`);
+    Logger.info("Model file:", modelFile[0]);
+    Logger.info("Dieline file:", dielineFile ? dielineFile[0] : "N/A");
+
+    // In a real scenario, you would process these files:
+    // 1. Validate file types, sizes.
+    // 2. Upload to a cloud storage (like the 'files' in createProduct).
+    // 3. Create a new 'Asset' or similar entity in the database.
+    // 4. Associate the asset with the printer and category.
+
+    const createdAsset = {
+      id: "asset_temp_id_" + Date.now(), // Placeholder
+      modelUrl: modelFile[0].path,
+      dielineUrl: dielineFile ? dielineFile[0].path : null,
+      category: category,
+      printerId: printerId,
+      createdAt: new Date(),
+    };
+
+    Logger.success("[Service] 3D assets processed successfully", createdAsset);
+
+    return createdAsset;
   }
 }

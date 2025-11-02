@@ -9,10 +9,10 @@ const designTemplateSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    // "Phôi" 3D và thông số (bleed, dieline) mà mẫu này dùng
     baseProductId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
+      type: String, // <-- SỬA TỪ ObjectId THÀNH String
+      required: true,
+      ref: "Product", // Giữ ref để có thể populate sau này
     },
 
     // === 1. DỮ LIỆU NGUỒN (Bạn đã có) ===

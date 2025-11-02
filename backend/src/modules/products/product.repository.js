@@ -1,5 +1,6 @@
 // src/modules/products/product.repository.js
 import { Product } from "../../shared/models/product.model.js";
+import mongoose from "mongoose"; // ✅ 1. IMPORT MONGOOSE
 
 /**
  * ProductRepository - Handles all database operations for products
@@ -26,11 +27,22 @@ export class ProductRepository {
 
   /**
    * Find product by ID with printer information populated and transformed
-   * @param {string} productId - Product ID
+   * @param {string} productId - Product ID (có thể là _id hoặc taxonomyId)
    * @returns {Promise<Object|null>} Transformed product with printerInfo
    */
   async findByIdPopulated(productId) {
-    const productDoc = await Product.findById(productId).populate({
+    // ✅ 2. TẠO LOGIC TÌM KIẾM MỚI
+    // Kiểm tra xem productId có phải là ObjectId hợp lệ hay không
+    const isObjectId = mongoose.Types.ObjectId.isValid(productId);
+
+    // Xây dựng query:
+    // 1. Nếu là ObjectId -> tìm bằng _id
+    // 2. Nếu không phải -> tìm bằng taxonomyId
+    const query = isObjectId ? { _id: productId } : { taxonomyId: productId };
+
+    // ✅ 3. SỬA HÀM TÌM KIẾM
+    // Đổi từ Product.findById(productId) thành Product.findOne(query)
+    const productDoc = await Product.findOne(query).populate({
       path: "printerId",
       select: "displayName email avatarUrl printerProfile",
       populate: {
@@ -73,14 +85,21 @@ export class ProductRepository {
     const { category, search, sort } = safeFilters;
 
     const query = {};
-    query.isActive = safeFilters.isActive === undefined ? true : safeFilters.isActive === "true";
+    query.isActive =
+      safeFilters.isActive === undefined
+        ? true
+        : safeFilters.isActive === "true";
 
     if (category && category !== "all") {
       query.category = category;
     }
 
     if (search) {
-      query.$text = { $search: search, $caseSensitive: false, $diacriticSensitive: false };
+      query.$text = {
+        $search: search,
+        $caseSensitive: false,
+        $diacriticSensitive: false,
+      };
     }
 
     let sortOption = { createdAt: -1 };
@@ -100,7 +119,7 @@ export class ProductRepository {
       .sort(sortOption);
 
     // Transform all products in the list to match the desired frontend structure
-    const products = productDocs.map(doc => {
+    const products = productDocs.map((doc) => {
       const product = doc.toObject();
       if (product.printerId && product.printerId.printerProfile) {
         product.printerInfo = product.printerId.printerProfile;

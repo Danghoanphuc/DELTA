@@ -9,6 +9,13 @@ const ProductSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    taxonomyId: {
+      type: String,
+      required: false,
+      index: true,
+      unique: true,
+      sparse: true,
+    },
 
     // Basic information
     name: { type: String, required: true },
@@ -27,16 +34,19 @@ const ProductSchema = new mongoose.Schema(
       ],
       required: true,
     },
+
+    // ✅ TRƯỜNG GỐC CỦA BẠN (GIỮ NGUYÊN)
     assets: {
       modelUrl: { type: String }, // Link đến file .glb (Phôi 3D)
       dielineUrl: { type: String }, // Link đến file .svg (Khuôn 2D)
     },
+
     // Description & Images
     description: { type: String, maxlength: 3000 },
     images: [
       {
         url: String,
-        publicId: String, // Cloudinary ID
+        publicId: String,
         isPrimary: { type: Boolean, default: false },
       },
     ],
@@ -52,22 +62,22 @@ const ProductSchema = new mongoose.Schema(
 
     // Specifications
     specifications: {
-      material: String, // Paper, fabric, plastic, etc.
-      size: String, // A4, A5, custom, etc.
-      color: String, // 4-color, black & white, etc.
-      finishing: String, // Lamination, UV coating, etc.
+      material: String,
+      size: String,
+      color: String,
+      finishing: String,
     },
 
     // Production time
     productionTime: {
-      min: Number, // Minimum days
+      min: Number,
       max: Number,
     },
 
     // Customization options
     customization: {
       allowFileUpload: { type: Boolean, default: true },
-      acceptedFileTypes: [String], // pdf, ai, psd, etc.
+      acceptedFileTypes: [String],
       hasDesignService: { type: Boolean, default: false },
       designServiceFee: Number,
     },
@@ -81,11 +91,22 @@ const ProductSchema = new mongoose.Schema(
     views: { type: Number, default: 0 },
     rating: { type: Number, default: 0, min: 0, max: 5 },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    // ✅ THÊM 2 DÒNG NÀY ĐỂ KÍCH HOẠT VIRTUALS
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
 
 // Indexes for efficient queries
 ProductSchema.index({ printerId: 1, category: 1 });
 ProductSchema.index({ name: "text", description: "text" });
+
+// ✅ THÊM TRƯỜNG VIRTUAL "surfaces"
+// Nó sẽ tạo một trường 'surfaces' trỏ đến 'assets'
+ProductSchema.virtual("surfaces").get(function () {
+  return this.assets;
+});
 
 export const Product = mongoose.model("Product", ProductSchema);

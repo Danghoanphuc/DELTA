@@ -47,6 +47,16 @@ export class DesignService {
 
     // 4. (Optional) Validate base product exists
     // const baseProduct = await this.productRepo.findById(baseProductId);
+    // Kiểm tra an toàn: chỉ tìm khi nó không phải là "temp"
+    if (baseProductId !== "temp") {
+      const baseProduct = await this.productRepo.findById(baseProductId);
+      if (!baseProduct) {
+        throw new NotFoundException(
+          "Không tìm thấy Phôi (Product) nền",
+          baseProductId
+        );
+      }
+    }
     // if (!baseProduct) {
     //   throw new NotFoundException("Không tìm thấy Phôi (Product) nền", baseProductId);
     // }

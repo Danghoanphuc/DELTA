@@ -133,4 +133,26 @@ export class ProductController {
       next(error);
     }
   };
+
+  /**
+   * Upload 3D assets (GLB model and Dieline SVG)
+   * POST /api/products/upload-3d-assets
+   * @access Private (Printer only)
+   */
+  upload3DAssets = async (req, res, next) => {
+    try {
+      Logger.info("[Controller] Received request to upload 3D assets");
+      const asset = await this.productService.upload3DAssets(
+        req.files,
+        req.body,
+        req.user._id
+      );
+
+      res
+        .status(API_CODES.CREATED)
+        .json(ApiResponse.success({ asset }, "Tải lên 3D assets thành công!"));
+    } catch (error) {
+      next(error);
+    }
+  };
 }

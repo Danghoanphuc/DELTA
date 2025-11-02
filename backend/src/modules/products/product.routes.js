@@ -1,58 +1,59 @@
-// src/modules/products/product.routes.js (✅ UPDATED - PUBLIC ACCESS)
+// backend/src/modules/products/product.routes.js (✅ CẬP NHẬT)
 import { Router } from "express";
 import { ProductController } from "./product.controller.js";
+import { protect, isPrinter } from "../../shared/middleware/index.js";
 import {
-  protect,
-  isPrinter,
-  optionalAuth,
-} from "../../shared/middleware/index.js";
-import { upload } from "../../infrastructure/storage/multer.config.js";
+  upload,
+  uploadModel,
+  uploadDieline,
+} from "../../infrastructure/storage/multer.config.js";
 
 const router = Router();
 const productController = new ProductController();
 
+// ============================================
+// ✅ MỚI: UPLOAD 3D ASSETS (GLB + Dieline SVG)
+// ============================================
+
 /**
- * Product Routes
- *
- * ✅ UPDATED: PUBLIC ROUTES for browsing
- * - GET  /api/products              - Get all products (PUBLIC - no auth needed)
- * - GET  /api/products/:id          - Get product by ID (PUBLIC - no auth needed)
- *
- * PRIVATE ROUTES (Printer only):
- * - POST   /api/products            - Create product
- * - PUT    /api/products/:id        - Update product
- * - DELETE /api/products/:id        - Delete product
- * - GET    /api/products/my-products - Get my products
+ * @route   POST /api/products/upload-3d-assets
+ * @desc    Upload GLB model và Dieline SVG
+ * @access  Private (Printer only)
+ * @body    { category: string }
+ * @files   { modelFile: File, dielineFile: File }
  */
+router.post(
+  "/upload-3d-assets",
+  protect,
+  isPrinter,
+  uploadModel.fields([
+    { name: "modelFile", maxCount: 1 },
+    { name: "dielineFile", maxCount: 1 }, // Có thể null
+  ]),
+  productController.upload3DAssets
+);
 
 // ============================================
-// ✅ PUBLIC ROUTES (No authentication required)
+// PUBLIC ROUTES
 // ============================================
 
 /**
  * @route   GET /api/products
- * @desc    Get all active products (with filters)
- * @query   ?category=...&search=...&sort=...
- * @access  PUBLIC ← Bất kỳ ai cũng có thể xem
+ * @desc    Get all active products
+ * @access  PUBLIC
  */
 router.get("/", productController.getAllProducts);
 
 /**
  * @route   GET /api/products/:id
- * @desc    Get a single product by ID
- * @param   id - Product ID
- * @access  PUBLIC ← Bất kỳ ai cũng có thể xem chi tiết
+ * @desc    Get product by ID
+ * @access  PUBLIC
  */
-router.delete("/:id", protect, isPrinter, productController.deleteProduct);
+router.get("/:id", productController.getProductById);
 
 // ============================================
-// PRIVATE ROUTES (Authentication required)
+// PRIVATE ROUTES (Printer only)
 // ============================================
-
-/**
- * IMPORTANT: Specific routes MUST come before dynamic routes (:id)
- * Otherwise Express will match "/my-products" as an :id parameter
- */
 
 /**
  * @route   GET /api/products/my-products
@@ -64,8 +65,6 @@ router.get("/my-products", protect, isPrinter, productController.getMyProducts);
 /**
  * @route   POST /api/products
  * @desc    Create a new product
- * @body    { name, category, description, pricing, specifications, ... }
- * @files   images[] (max 5, JPEG/PNG/WEBP, max 5MB each)
  * @access  Private (Printer only)
  */
 router.post(
@@ -79,17 +78,15 @@ router.post(
 /**
  * @route   PUT /api/products/:id
  * @desc    Update an existing product
- * @param   id - Product ID
  * @access  Private (Printer only - owner)
  */
 router.put("/:id", protect, isPrinter, productController.updateProduct);
 
 /**
  * @route   DELETE /api/products/:id
- * @desc    Delete a product (soft delete)
- * @param   id - Product ID
+ * @desc    Delete a product
  * @access  Private (Printer only - owner)
  */
-router.get("/:id", productController.getProductById);
+router.delete("/:id", protect, isPrinter, productController.deleteProduct);
 
 export default router;
