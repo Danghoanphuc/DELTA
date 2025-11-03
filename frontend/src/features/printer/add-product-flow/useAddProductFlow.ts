@@ -5,21 +5,13 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { AddProductFormData } from "@/types/product";
 import api from "@/shared/lib/axios";
 
 // === TYPES ===
 interface Assets {
   modelUrl: string;
   dielineUrl: string;
-}
-
-interface FormData {
-  name: string;
-  category: string;
-  description: string;
-  pricePerUnit: string;
-  productionTimeMin: string;
-  productionTimeMax: string;
 }
 
 // === CATEGORIES ===
@@ -41,7 +33,7 @@ export function useAddProductFlow(onProductAdded: () => void) {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<FormData>();
+  } = useForm<AddProductFormData>();
 
   // === STATE ===
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -247,7 +239,7 @@ export function useAddProductFlow(onProductAdded: () => void) {
   };
 
   // === SUBMIT ===
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: AddProductFormData) => {
     if (!selectedCategory) {
       toast.error("Vui lòng chọn danh mục");
       return;

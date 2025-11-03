@@ -78,7 +78,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   };
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    processFile(file);
+    if (file) {
+      processFile(file);
+    }
   };
   const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
@@ -95,7 +97,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     e.stopPropagation();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
-    processFile(file);
+    if (file) {
+      processFile(file);
+    }
   };
 
   // ==================== RENDER (ĐÃ SỬA) ====================

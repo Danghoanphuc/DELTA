@@ -179,16 +179,16 @@ export function usePrinterStudio() {
       if (!canvas) return;
       switch (direction) {
         case "up":
-          canvas.bringForward(obj);
+          (canvas as any).bringForward(obj);
           break;
         case "down":
-          canvas.sendBackwards(obj);
+          (canvas as any).sendBackwards(obj);
           break;
         case "top":
-          canvas.bringToFront(obj);
+          (canvas as any).bringToFront(obj);
           break;
         case "bottom":
-          canvas.sendToBack(obj);
+          (canvas as any).sendToBack(obj);
           break;
       }
       canvas.renderAll();
@@ -247,7 +247,11 @@ export function usePrinterStudio() {
       toast.error("Canvas trống! Hãy thêm ít nhất 1 đối tượng.");
       return null;
     }
-    const previewDataURL = canvas.toDataURL({ format: "png", quality: 0.8 });
+    const previewDataURL = canvas.toDataURL({
+      format: "png",
+      quality: 0.8,
+      multiplier: 1,
+    });
     const previewBlob = dataURLtoBlob(previewDataURL);
     return { json, previewBlob };
   }, []);

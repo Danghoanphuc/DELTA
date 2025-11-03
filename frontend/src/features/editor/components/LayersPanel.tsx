@@ -22,18 +22,18 @@ import { ScrollArea } from "@/shared/components/ui/scroll-area";
 
 // ... (Interface và các hàm helper getLayerName, getLayerIcon giữ nguyên) ...
 interface LayersPanelProps {
-  layers: fabric.Object[];
+  layers: any[];
   activeObjectId: string | null;
-  onSelectLayer: (obj: fabric.Object) => void;
+  onSelectLayer: (obj: any) => void;
   onMoveLayer: (
-    obj: fabric.Object,
+    obj: any,
     direction: "up" | "down" | "top" | "bottom"
   ) => void;
-  onToggleVisibility: (obj: fabric.Object) => void;
-  onDeleteLayer: (obj: fabric.Object) => void;
+  onToggleVisibility: (obj: any) => void;
+  onDeleteLayer: (obj: any) => void;
   className?: string;
 }
-const getLayerName = (obj: fabric.Object): string => {
+const getLayerName = (obj: any): string => {
   if (obj.type === "i-text") {
     return (obj as fabric.IText).text?.substring(0, 20) || "Text";
   }
@@ -42,7 +42,7 @@ const getLayerName = (obj: fabric.Object): string => {
   }
   return obj.type || "Object";
 };
-const getLayerIcon = (obj: fabric.Object) => {
+const getLayerIcon = (obj: any) => {
   switch (obj.type) {
     case "i-text":
       return <Type size={16} className="mr-2 flex-shrink-0" />;

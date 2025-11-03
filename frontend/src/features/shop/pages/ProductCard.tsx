@@ -55,7 +55,7 @@ export function ProductCard({ product }: ProductCardProps) {
       return;
     }
 
-    if (isInCart(product._id)) {
+    if (isInCart(product._id, !!accessToken)) {
       toast.info("Sản phẩm đã có trong giỏ hàng");
       return;
     }
@@ -83,7 +83,7 @@ export function ProductCard({ product }: ProductCardProps) {
     }
   };
 
-  const inCart = isInCart(product._id);
+  const inCart = isInCart(product._id, !!accessToken);
 
   return (
     <>

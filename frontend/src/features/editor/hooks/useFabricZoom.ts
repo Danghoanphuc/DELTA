@@ -1,8 +1,10 @@
 // src/features/editor/hooks/useFabricZoom.ts
 import { useState, useEffect, useCallback } from "react";
-import { Canvas } from "fabric";
+import * as fabric from "fabric";
 
-export const useFabricZoom = (canvas: React.RefObject<Canvas | null>) => {
+export const useFabricZoom = (
+  canvas: React.RefObject<fabric.Canvas | null>
+) => {
   const [zoom, setZoomState] = useState(1);
 
   // Lắng nghe sự kiện lăn chuột
@@ -10,7 +12,7 @@ export const useFabricZoom = (canvas: React.RefObject<Canvas | null>) => {
     if (!canvas.current) return;
     const canvasInstance = canvas.current;
 
-    const handleWheel = (opt: any) => {
+    const handleWheel = (opt: fabric.TEvent<WheelEvent>) => {
       const delta = opt.e.deltaY;
       let newZoom = canvasInstance.getZoom();
       newZoom *= 0.999 ** delta;
@@ -19,7 +21,7 @@ export const useFabricZoom = (canvas: React.RefObject<Canvas | null>) => {
       if (newZoom < 0.1) newZoom = 0.1;
 
       canvasInstance.zoomToPoint(
-        { x: opt.e.offsetX, y: opt.e.offsetY },
+        new fabric.Point(opt.e.offsetX, opt.e.offsetY),
         newZoom
       );
       setZoomState(newZoom);
@@ -30,7 +32,10 @@ export const useFabricZoom = (canvas: React.RefObject<Canvas | null>) => {
     canvasInstance.on("mouse:wheel", handleWheel);
 
     return () => {
-      canvasInstance.off("mouse:wheel", handleWheel);
+      // Make sure canvasInstance is still available
+      if (canvasInstance) {
+        canvasInstance.off("mouse:wheel", handleWheel);
+      }
     };
   }, [canvas]);
 
@@ -39,7 +44,10 @@ export const useFabricZoom = (canvas: React.RefObject<Canvas | null>) => {
     (newZoom: number) => {
       if (!canvas.current) return;
       const center = canvas.current.getCenter();
-      canvas.current.zoomToPoint({ x: center.left, y: center.top }, newZoom);
+      canvas.current.zoomToPoint(
+        new fabric.Point(center.left, center.top),
+        newZoom
+      );
       setZoomState(newZoom);
     },
     [canvas]

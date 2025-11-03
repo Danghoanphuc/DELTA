@@ -11,18 +11,11 @@ import { Label } from "@/shared/components/ui/label";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { FileText } from "lucide-react";
 import { UseFormRegister, FieldErrors } from "react-hook-form";
-
-interface FormData {
-  name: string;
-  description: string;
-  pricePerUnit: string;
-  productionTimeMin: string;
-  productionTimeMax: string;
-}
+import { AddProductFormData } from "@/types/product";
 
 interface Step2Props {
-  register: UseFormRegister<FormData>;
-  errors: FieldErrors<FormData>;
+  register: UseFormRegister<AddProductFormData>;
+  errors: FieldErrors<AddProductFormData>;
 }
 
 export function Step2_BasicInfoForm({ register, errors }: Step2Props) {

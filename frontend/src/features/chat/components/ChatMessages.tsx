@@ -77,6 +77,11 @@ const MessageContent = ({ msg }: { msg: ChatMessage }) => {
   }
 };
 
+interface ChatMessagesProps {
+  messages: ChatMessage[];
+  isLoadingAI: boolean;
+}
+
 // (Phần còn lại của file ChatMessages giữ nguyên)
 export function ChatMessages({ messages, isLoadingAI }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);

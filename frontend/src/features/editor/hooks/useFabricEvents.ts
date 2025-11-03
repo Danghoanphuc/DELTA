@@ -2,19 +2,19 @@
 // ✅ SỬA LỖI TRIỆT ĐỂ: Reset viewport về 100% khi chụp ảnh
 
 import React, { useEffect, useRef, useCallback } from "react";
-import { Canvas, Rect, Image as FabricImage } from "fabric";
+import * as fabric from "fabric";
 import debounce from "lodash.debounce";
 
 interface EventCallbacks {
   onCanvasUpdate: (materialKey: string, base64DataUrl: string) => void;
   onObjectChange?: () => void;
   saveState: () => void;
-  artboardRef: React.RefObject<Rect | null>;
-  dielineRef: React.RefObject<FabricImage | null>;
+  artboardRef: React.RefObject<fabric.Rect | null>;
+  dielineRef: React.RefObject<fabric.Image | null>;
 }
 
 export const useFabricEvents = (
-  fabricCanvas: React.RefObject<Canvas | null>,
+  fabricCanvas: React.RefObject<fabric.Canvas | null>,
   isDielineLoaded: boolean,
   materialKey: string,
   callbacks: EventCallbacks
@@ -82,6 +82,7 @@ export const useFabricEvents = (
       top: cropTop,
       width: cropWidth,
       height: cropHeight,
+      multiplier: 1, // Thêm vào để fix lỗi TS
     });
 
     // --- 6. GỬI ẢNH ĐI (Giữ nguyên) ---

@@ -1,9 +1,9 @@
 // frontend/src/features/editor/hooks/useFabricPanning.ts
 import { useState, useEffect, useRef } from "react";
-import { Canvas } from "fabric";
+import * as fabric from "fabric";
 
 export const useFabricPanning = (
-  fabricCanvas: React.RefObject<Canvas | null>
+  fabricCanvas: React.RefObject<fabric.Canvas | null>
 ) => {
   const [isPanning, setIsPanning] = useState(false);
   const lastPosX = useRef(0);
@@ -27,6 +27,7 @@ export const useFabricPanning = (
         canvas.selection = false;
         canvas.defaultCursor = "grab";
         canvas.hoverCursor = "grab";
+        canvas.renderAll();
       }
     };
 
@@ -37,6 +38,7 @@ export const useFabricPanning = (
         canvas.selection = true;
         canvas.defaultCursor = "default";
         canvas.hoverCursor = "move";
+        canvas.renderAll();
       }
     };
 
@@ -86,9 +88,11 @@ export const useFabricPanning = (
     canvas.on("mouse:move", handleMouseMove);
     canvas.on("mouse:up", handleMouseUp);
     return () => {
-      canvas.off("mouse:down", handleMouseDown);
-      canvas.off("mouse:move", handleMouseMove);
-      canvas.off("mouse:up", handleMouseUp);
+      if (canvas) {
+        canvas.off("mouse:down", handleMouseDown);
+        canvas.off("mouse:move", handleMouseMove);
+        canvas.off("mouse:up", handleMouseUp);
+      }
     };
   }, [isPanning, fabricCanvas]);
 

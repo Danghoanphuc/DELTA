@@ -1,5 +1,7 @@
 // src/types/product.ts (CẬP NHẬT)
 
+import { PrinterProfile } from "./printerProfile";
+
 // Dựa trên backend/src/models/Product.js
 export type ProductCategory =
   | "business-card"
@@ -92,6 +94,7 @@ export interface ProductAssets {
 export interface PrinterProduct {
   _id: string;
   printerId: string;
+  printerInfo?: Partial<PrinterProfile>;
   name: string;
   category: ProductCategory;
   description?: string;
@@ -115,4 +118,16 @@ export interface PrinterProduct {
 // Cập nhật Product để sử dụng ProductAssets mới
 export interface Product extends PrinterProduct {
   assets: ProductAssets;
+}
+
+/**
+ * Represents the data structure for the 'Add Product' form.
+ */
+export interface AddProductFormData {
+  name: string;
+  category: string;
+  description: string;
+  pricePerUnit: string;
+  productionTimeMin: string;
+  productionTimeMax: string;
 }

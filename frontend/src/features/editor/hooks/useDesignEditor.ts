@@ -9,9 +9,10 @@ import { Product } from "@/types/product"; // ✅ Thêm
 import * as editorService from "../services/editorService"; // ✅ Thêm
 import { EditorCanvasRef } from "../components/EditorCanvas"; // ✅ Thêm
 import * as fabric from "fabric";
+import { type FabricObject } from "fabric";
 
 // ... (Helper ensureObjectId giữ nguyên) ...
-const ensureObjectId = (obj: fabric.Object) => {
+const ensureObjectId = (obj: FabricObject) => {
   if (!(obj as any).id) {
     (obj as any).id =
       fabric.util.getRandomInt(1000, 9999).toString() + Date.now();
@@ -33,7 +34,7 @@ export function useDesignEditor() {
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
   const [activeObjectId, setActiveObjectId] = useState<string | null>(null);
-  const [selectedObject, setSelectedObject] = useState<fabric.Object | null>(
+  const [selectedObject, setSelectedObject] = useState<FabricObject | null>(
     null
   );
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
@@ -132,16 +133,16 @@ export function useDesignEditor() {
         if (canvas) {
           switch (direction) {
             case "up":
-              canvas.bringForward(obj);
+              (canvas as any).bringForward(obj);
               break;
             case "down":
-              canvas.sendBackwards(obj);
+              (canvas as any).sendBackwards(obj);
               break;
             case "top":
-              canvas.bringToFront(obj);
+              (canvas as any).bringToFront(obj);
               break;
             case "bottom":
-              canvas.sendToBack(obj);
+              (canvas as any).sendToBack(obj);
               break;
           }
           canvas.renderAll();

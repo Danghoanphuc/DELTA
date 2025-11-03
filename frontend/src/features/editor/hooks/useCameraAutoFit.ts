@@ -5,8 +5,8 @@ import * as THREE from "three";
 import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 export const useCameraAutoFit = (
-  groupRef: React.RefObject<THREE.Group>,
-  modelScene: THREE.Scene | null,
+  groupRef: React.RefObject<THREE.Group | null>,
+  modelScene: THREE.Object3D | null,
   controlsRef: React.RefObject<OrbitControlsImpl | null>
 ) => {
   const { camera, size } = useThree();
@@ -79,11 +79,11 @@ export const useCameraAutoFit = (
     };
 
     controls.addEventListener("start", stopAnimation);
-    controls.addEventListener("wheel", stopAnimation);
+    (controls as any).addEventListener("wheel", stopAnimation);
 
     return () => {
       controls.removeEventListener("start", stopAnimation);
-      controls.removeEventListener("wheel", stopAnimation);
+      (controls as any).removeEventListener("wheel", stopAnimation);
     };
   }, [controlsRef]);
 };

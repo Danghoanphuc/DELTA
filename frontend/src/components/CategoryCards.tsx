@@ -10,7 +10,7 @@ import {
   Sparkles,
   ChevronRight,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { useState } from "react";
 
 export function CategoryCards() {

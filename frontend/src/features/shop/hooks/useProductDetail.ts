@@ -6,6 +6,7 @@ import { PrinterProfile } from "@/types/printerProfile";
 import api from "@/shared/lib/axios";
 import { toast } from "sonner";
 import { useCartStore } from "@/stores/useCartStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 interface ProductWithPrinter extends PrinterProduct {
   printerInfo?: PrinterProfile;
@@ -15,6 +16,8 @@ export const useProductDetail = () => {
   const { id: productId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addToCart, isInCart } = useCartStore();
+  const { user, accessToken } = useAuthStore();
+  const isAuthenticated = !!user && !!accessToken;
 
   const [product, setProduct] = useState<ProductWithPrinter | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,8 +82,8 @@ export const useProductDetail = () => {
     [product]
   );
   const inCart = useMemo(
-    () => (product ? isInCart(product._id) : false),
-    [product, isInCart]
+    () => (product ? isInCart(product._id, isAuthenticated) : false),
+    [product, isInCart, isAuthenticated]
   );
 
   // Handlers

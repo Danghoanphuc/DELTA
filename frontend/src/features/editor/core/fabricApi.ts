@@ -12,6 +12,7 @@ import {
   filters,
   FabricObject, // Thêm import (cho clipboard)
   ActiveSelection, // Thêm import (cho delete)
+  TDataUrlOptions,
 } from "fabric";
 import { toast } from "sonner";
 
@@ -111,48 +112,45 @@ export const deleteSelected = (canvas: Canvas) => {
   }
 };
 
-export const duplicateSelected = (canvas: Canvas) => {
+export const duplicateSelected = async (canvas: Canvas) => {
   const activeObject = canvas.getActiveObject();
   if (activeObject) {
-    activeObject.clone((cloned: any) => {
-      cloned.set({
-        left: (activeObject.left || 0) + 10,
-        top: (activeObject.top || 0) + 10,
-      });
-      canvas.add(cloned);
-      canvas.setActiveObject(cloned);
-      canvas.renderAll();
+    const cloned = await activeObject.clone();
+    cloned.set({
+      left: (activeObject.left || 0) + 10,
+      top: (activeObject.top || 0) + 10,
     });
+    canvas.add(cloned);
+    canvas.setActiveObject(cloned);
+    canvas.renderAll();
   }
 };
 
 // --- Clipboard API (Lấy từ file gốc) ---
 
-export const copySelected = (canvas: Canvas) => {
+export const copySelected = async (canvas: Canvas) => {
   const activeObject = canvas.getActiveObject();
   if (activeObject) {
-    activeObject.clone((cloned: FabricObject) => {
-      clipboard = cloned;
-      toast.success("Đã sao chép!");
-    });
+    const cloned = await activeObject.clone();
+    clipboard = cloned;
+    toast.success("Đã sao chép!");
   }
 };
 
-export const paste = (canvas: Canvas) => {
+export const paste = async (canvas: Canvas) => {
   if (!clipboard) {
-    toast.warn("Clipboard trống!");
+    toast("Clipboard trống!");
     return;
   }
-  clipboard.clone((cloned: FabricObject) => {
-    cloned.set({
-      left: (cloned.left || 0) + 10,
-      top: (cloned.top || 0) + 10,
-      evented: true,
-    });
-    canvas.add(cloned);
-    canvas.setActiveObject(cloned);
-    canvas.renderAll();
+  const cloned = await clipboard.clone();
+  cloned.set({
+    left: (cloned.left || 0) + 10,
+    top: (cloned.top || 0) + 10,
+    evented: true,
   });
+  canvas.add(cloned);
+  canvas.setActiveObject(cloned);
+  canvas.renderAll();
 };
 
 // --- Layer Order API (Lấy từ file gốc) ---
@@ -160,7 +158,7 @@ export const paste = (canvas: Canvas) => {
 export const bringToFront = (canvas: Canvas) => {
   const activeObject = canvas.getActiveObject();
   if (activeObject) {
-    canvas.bringToFront(activeObject);
+    (canvas as any).bringToFront(activeObject);
     canvas.renderAll();
   }
 };
@@ -168,7 +166,7 @@ export const bringToFront = (canvas: Canvas) => {
 export const bringForward = (canvas: Canvas) => {
   const activeObject = canvas.getActiveObject();
   if (activeObject) {
-    canvas.bringForward(activeObject);
+    (canvas as any).bringForward(activeObject);
     canvas.renderAll();
   }
 };
@@ -176,7 +174,7 @@ export const bringForward = (canvas: Canvas) => {
 export const sendToBack = (canvas: Canvas) => {
   const activeObject = canvas.getActiveObject();
   if (activeObject) {
-    canvas.sendToBack(activeObject);
+    (canvas as any).sendToBack(activeObject);
     canvas.renderAll();
   }
 };
@@ -184,7 +182,7 @@ export const sendToBack = (canvas: Canvas) => {
 export const sendBackwards = (canvas: Canvas) => {
   const activeObject = canvas.getActiveObject();
   if (activeObject) {
-    canvas.sendBackwards(activeObject);
+    (canvas as any).sendBackwards(activeObject);
     canvas.renderAll();
   }
 };
@@ -258,7 +256,7 @@ export const applyFilter = (canvas: Canvas, filterType: FilterType) => {
     activeObject.applyFilters();
     canvas.renderAll();
   } else {
-    toast.warn("Vui lòng chọn một ảnh để áp dụng bộ lọc.");
+    toast("Vui lòng chọn một ảnh để áp dụng bộ lọc.");
   }
 };
 
@@ -302,80 +300,49 @@ export const updateTextStyle = (
 ) => {
   const activeObject = canvas.getActiveObject();
   if (activeObject && activeObject instanceof IText) {
-    activeObject.set(property as any, value);
+    activeObject.set(property as keyof IText, value);
     canvas.renderAll();
   }
 };
 
 // --- Các hàm xuất/helper ---
 
-// Helper to convert dataURL to Blob
-const dataURLtoBlob = (dataurl: string) => {
-  const arr = dataurl.split(","),
-    mime = arr[0].match(/:(.*?);/)?.[1],
-    bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
-  }
-  return new Blob([u8arr], { type: mime });
-};
-
 const downloadBlob = (blob: Blob, filename: string) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
   URL.revokeObjectURL(url);
 };
-
-// Hàm 'toBlob' (thay thế toDataURL) cần polyfill cho Safari cũ
-if (!HTMLCanvasElement.prototype.toBlob) {
-  Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
-    value: function (
-      callback: (blob: Blob | null) => void,
-      type: string,
-      quality: number
-    ) {
-      const dataURL = this.toDataURL(type, quality);
-      const blob = dataURLtoBlob(dataURL);
-      callback(blob);
-    },
-  });
-}
 
 export const exportCanvas = async (canvas: Canvas, format: ExportFormat) => {
   let blob: Blob | null = null;
   let filename = `design.${format}`;
 
-  // Sử dụng Promise để bọc toBlob (vì toBlob dùng callback)
-  const canvasToBlob = (
-    canvasInstance: Canvas,
-    options: fabric.IDataURLOptions
-  ): Promise<Blob | null> => {
-    return new Promise((resolve) => {
-      canvasInstance
-        .getElement()
-        .toBlob((b) => resolve(b), `image/${options.format}`, options.quality);
-    });
-  };
-
   switch (format) {
     case "png":
-      blob = await canvasToBlob(canvas, { format: "png", quality: 1 });
-      break;
-
     case "jpg":
+      const options: TDataUrlOptions = {
+        format: format === "jpg" ? "jpeg" : "png",
+        quality: format === "jpg" ? 0.9 : 1,
+        multiplier: 1,
+      };
       const oldBg = canvas.backgroundColor;
-      canvas.backgroundColor = "#ffffff";
-      canvas.renderAll();
+      if (format === "jpg") {
+        canvas.backgroundColor = "#ffffff";
+        canvas.renderAll();
+      }
 
-      blob = await canvasToBlob(canvas, { format: "jpeg", quality: 0.9 });
+      const dataUrl = canvas.toDataURL(options);
+      blob = await (await fetch(dataUrl)).blob();
 
-      canvas.backgroundColor = oldBg;
-      canvas.renderAll();
+      if (format === "jpg") {
+        canvas.backgroundColor = oldBg;
+        canvas.renderAll();
+      }
       break;
 
     case "svg":

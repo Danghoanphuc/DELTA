@@ -1,9 +1,11 @@
 // frontend/src/features/editor/hooks/useFabricApi.ts
 import { useCallback } from "react";
-import { Canvas } from "fabric";
+import * as fabric from "fabric";
 import * as fabricApi from "../core/fabricApi"; //
 
-export const useFabricApi = (fabricCanvas: React.RefObject<Canvas | null>) => {
+export const useFabricApi = (
+  fabricCanvas: React.RefObject<fabric.Canvas | null>
+) => {
   const addText = (text: string) =>
     fabricCanvas.current && fabricApi.addText(fabricCanvas.current, text);
 
@@ -37,7 +39,7 @@ export const useFabricApi = (fabricCanvas: React.RefObject<Canvas | null>) => {
     return JSON.stringify(fabricCanvas.current.toJSON());
   };
 
-  const getCanvas = (): Canvas | null => fabricCanvas.current;
+  const getCanvas = (): fabric.Canvas | null => fabricCanvas.current;
 
   // Sử dụng useCallback để ổn định các hàm
   const deleteSelected = useCallback(() => {

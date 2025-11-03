@@ -88,6 +88,8 @@ export function DesignEditorPage() {
           onMoveLayer={handleMoveLayer}
           onToggleVisibility={handleToggleVisibility}
           onDeleteLayer={handleDeleteLayer}
+          selectedObject={selectedObject}
+          onPropertiesUpdate={updateLayers}
         />
       </div>
 
@@ -153,13 +155,13 @@ export function DesignEditorPage() {
                 <CanvasLoadingSkeleton />
               ) : (
                 <EditorCanvas
-                  ref={(el) => (editorRefs.current[surface.key] = el)}
+                  ref={(el) => {
+                    editorRefs.current[surface.key] = el;
+                  }}
                   materialKey={surface.materialName}
                   dielineSvgUrl={surface.dielineSvgUrl}
                   onCanvasUpdate={handleSurfaceUpdate}
                   onObjectChange={updateLayers} // ✅ onObjectChange SẼ CẬP NHẬT selectedObject
-                  width={600}
-                  height={600}
                   isReadyToLoad={isModelLoaded}
                 />
               )}

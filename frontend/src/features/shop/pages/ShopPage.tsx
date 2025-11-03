@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { MobileNav } from "@/components/MobileNav";
 import { CartSidebar } from "@/features/shop/pages/CartSidebar";
 import { useCartStore } from "@/stores/useCartStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { useShop } from "../hooks/useShop";
 import { ShopHeader } from "../components/ShopHeader";
 import { ShopFilterBar } from "../components/ShopFilterBar";
@@ -12,6 +13,7 @@ import { ProductGrid } from "../components/ProductGrid";
 export function ShopPage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { getCartItemCount } = useCartStore();
+  const { accessToken } = useAuthStore();
   const {
     products,
     loading,
@@ -34,7 +36,7 @@ export function ShopPage() {
         <div className="bg-white border-b sticky top-0 lg:top-0 z-30">
           <div className="max-w-7xl mx-auto p-4 md:p-6">
             <ShopHeader
-              cartItemCount={getCartItemCount()}
+              cartItemCount={getCartItemCount(!!accessToken)}
               onCartOpen={() => setIsCartOpen(true)}
             />
             <ShopFilterBar

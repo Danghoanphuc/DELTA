@@ -99,7 +99,7 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
   // ✅ THÊM - Guest cart display
   const guestCart = !accessToken ? getGuestCart() : null;
-  const displayItemCount = getCartItemCount();
+  const displayItemCount = getCartItemCount(!!accessToken);
 
   return (
     <>

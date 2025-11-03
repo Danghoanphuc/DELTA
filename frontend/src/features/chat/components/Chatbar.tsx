@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { ChatMessage, QuickReply } from "@/types/chat";
 import { ChatMessages } from "./ChatMessages";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { Badge } from "@/shared/components/ui/badge";
 import zinAvatar from "@/assets/img/zin-avatar.png";
 import { useDropzone } from "react-dropzone";
@@ -181,7 +181,7 @@ export function ChatBar({
       />
 
       <motion.div
-        {...getRootProps()}
+        {...getRootProps() as any}
         ref={chatRef}
         className="w-full mx-auto relative"
         animate={{ maxWidth: isExpanded ? "900px" : "700px" }}
@@ -246,7 +246,7 @@ export function ChatBar({
                       transition={{ delay: 0.5 + index * 0.1 }}
                     >
                       <Badge
-                        variant={action.variant}
+                        
                         className="cursor-pointer active:scale-95 hover:scale-105 transition-transform text-[11px] md:text-xs py-1 md:py-1.5 px-2 md:px-3"
                         onClick={(e) => {
                           e.stopPropagation();

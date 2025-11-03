@@ -2,11 +2,11 @@
 // ✅ ĐÃ SỬA: Dùng API trung tâm, bỏ clipboard riêng
 
 import { useEffect } from "react";
-import { Canvas, ActiveSelection } from "fabric";
+import * as fabric from "fabric";
 import * as fabricApi from "../core/fabricApi"; // ✅ Import API
 
 interface ShortcutProps {
-  canvas: React.RefObject<Canvas | null>;
+  canvas: React.RefObject<fabric.Canvas | null>;
   undo: () => void;
   redo: () => void;
   deleteSelected: () => void;
@@ -74,7 +74,7 @@ export const useFabricKeyboardShortcuts = ({
       if (modKey && e.key.toLowerCase() === "a") {
         e.preventDefault();
         currentCanvas.discardActiveObject();
-        const sel = new ActiveSelection(currentCanvas.getObjects(), {
+        const sel = new fabric.ActiveSelection(currentCanvas.getObjects(), {
           canvas: currentCanvas,
         });
         currentCanvas.setActiveObject(sel);

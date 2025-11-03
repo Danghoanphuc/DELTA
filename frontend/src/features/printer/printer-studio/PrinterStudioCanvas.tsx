@@ -20,7 +20,7 @@ const CanvasWaitingSkeleton = () => (
 );
 
 interface PrinterStudioCanvasProps {
-  editorRef: React.RefObject<EditorCanvasRef>;
+  editorRef: React.RefObject<EditorCanvasRef | null>;
   phoiAssets: {
     modelUrl: string;
     dielineUrl: string;
