@@ -1,5 +1,5 @@
 // frontend/src/features/editor/components/EditorToolbar.tsx
-// ✅ TASK 3: TÁI CẤU TRÚC - 2-Panel Design (Primary Icons + Secondary Content)
+// ✅ TASK 5: THÊM LAYERS TAB VÀO TOOLBAR
 
 import React, { useState } from "react";
 import { Button } from "@/shared/components/ui/button";
@@ -23,10 +23,18 @@ import {
   Minus,
 } from "lucide-react";
 import { FabricCanvasEditorRef } from "./FabricCanvasEditor";
+import { LayersPanel } from "./LayersPanel"; // ✅ TASK 5
 
 interface EditorToolbarProps {
   editorRef: React.RefObject<FabricCanvasEditorRef>;
   onImageUpload: (file: File) => void;
+  // ✅ TASK 5: Thêm props cho Layers
+  layers?: any[];
+  activeObjectId?: string | null;
+  onSelectLayer?: (obj: any) => void;
+  onMoveLayer?: (obj: any, direction: "up" | "down" | "top" | "bottom") => void;
+  onToggleVisibility?: (obj: any) => void;
+  onDeleteLayer?: (obj: any) => void;
 }
 
 type ToolMode = "upload" | "text" | "shapes" | "inspiration" | "layers" | null;
@@ -34,6 +42,13 @@ type ToolMode = "upload" | "text" | "shapes" | "inspiration" | "layers" | null;
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editorRef,
   onImageUpload,
+  // ✅ TASK 5: Destructure layers props
+  layers = [],
+  activeObjectId,
+  onSelectLayer,
+  onMoveLayer,
+  onToggleVisibility,
+  onDeleteLayer,
 }) => {
   const [activeMode, setActiveMode] = useState<ToolMode>(null);
 
@@ -67,7 +82,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     { id: "text" as ToolMode, icon: Type, label: "Thêm chữ" },
     { id: "shapes" as ToolMode, icon: Square, label: "Hình dạng" },
     { id: "inspiration" as ToolMode, icon: Sparkles, label: "Cảm hứng" },
-    { id: "layers" as ToolMode, icon: Layers, label: "Lớp" },
+    { id: "layers" as ToolMode, icon: Layers, label: "Lớp" }, // ✅ TASK 5
   ];
 
   // ==================== SECONDARY PANEL CONTENT ====================
@@ -160,12 +175,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         return (
           <div className="p-4 space-y-3">
             <h3 className="font-semibold text-sm">Tìm cảm hứng</h3>
-            <a
-              href="https://www.canva.com/templates/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 w-full px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors"
-            >
+            href="https://www.canva.com/templates/" target="_blank"
+            rel="noopener noreferrer" className="flex items-center gap-3 w-full
+            px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors"
+            <a>
               <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-blue-500 rounded-lg flex items-center justify-center">
                 <Sparkles size={20} className="text-white" />
               </div>
@@ -180,21 +193,27 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </div>
         );
 
+      // ✅ TASK 5: LAYERS PANEL CONTENT
       case "layers":
         return (
-          <div className="p-4 space-y-3">
-            <h3 className="font-semibold text-sm">Quản lý Lớp</h3>
-            <p className="text-xs text-gray-500">
-              Chức năng Layers sẽ được hiển thị ở thanh bên phải khi bạn có đối
-              tượng trên canvas.
-            </p>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => setActiveMode(null)}
-            >
-              Đóng
-            </Button>
+          <div className="h-full flex flex-col">
+            <div className="p-4 border-b">
+              <h3 className="font-semibold text-sm">Quản lý Lớp</h3>
+              <p className="text-xs text-gray-500 mt-1">
+                {layers.length} đối tượng trên canvas
+              </p>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <LayersPanel
+                className="h-full"
+                layers={layers}
+                activeObjectId={activeObjectId || null}
+                onSelectLayer={onSelectLayer || (() => {})}
+                onMoveLayer={onMoveLayer || (() => {})}
+                onToggleVisibility={onToggleVisibility || (() => {})}
+                onDeleteLayer={onDeleteLayer || (() => {})}
+              />
+            </div>
           </div>
         );
 
@@ -272,6 +291,12 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                     Scroll
                   </kbd>{" "}
                   Zoom
+                </li>
+                <li>
+                  <kbd className="px-1 bg-gray-100 border rounded text-xs">
+                    Right-click
+                  </kbd>{" "}
+                  Menu nhanh
                 </li>
               </ul>
             </div>

@@ -43,7 +43,7 @@ import { OrderConfirmationPage } from "@/features/customer/pages/OrderConfirmati
 
 // Printer Pages
 import PrinterApp from "@/features/printer/pages/PrinterApp";
-import { PrinterStudio } from "@/features/printer/pages/PrinterStudio";
+import { PrinterStudio } from "@/features/printer/printer-studio/PrinterStudio";
 // import { PrinterStudio } from "@/features/printer/pages/PrinterStudio";
 const API_ORIGIN = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
