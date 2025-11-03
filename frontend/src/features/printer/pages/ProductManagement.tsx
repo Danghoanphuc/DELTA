@@ -1,9 +1,5 @@
-// frontend/src/pages/printer/ProductManagement.tsx (ĐÃ SỬA LỖI CÚ PHÁP)
-
-import { useState, useEffect } from "react";
-import api from "@/shared/lib/axios";
-import { toast } from "sonner";
-import { PrinterProduct } from "@/types/product";
+// src/features/printer/pages/ProductManagement.tsx (ĐÃ LÀM SẠCH)
+import { useProductManagement } from "@/features/printer/hooks/useProductManagement"; // <-- Import hook
 import { AddProductFlow } from "@/features/printer/add-product-flow/AddProductFlow";
 import { EditProductModal } from "@/features/printer/components/EditProductModal";
 import {
@@ -20,92 +16,35 @@ import { ProductListHeader } from "@/features/printer/components/ProductListHead
 import { ProductTable } from "@/features/printer/components/ProductTable";
 
 export function ProductManagement() {
-  const [products, setProducts] = useState<PrinterProduct[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
-
-  // Edit Modal State
-  const [editingProduct, setEditingProduct] = useState<PrinterProduct | null>(
-    null
-  );
-  const [showEditModal, setShowEditModal] = useState(false);
-
-  // Delete Confirmation State
-  const [deletingProduct, setDeletingProduct] = useState<PrinterProduct | null>(
-    null
-  );
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-
-  // ==================== FETCH PRODUCTS ====================
-  const fetchProducts = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get("/products/my-products");
-      // FIX: The API wraps the response in a 'data' object.
-      // Also, provide a fallback to an empty array to prevent crashes.
-      setProducts(res.data?.data?.products || []);
-    } catch (err: any) {
-      // KHẮC PHỤC: Sửa lỗi cú pháp "->" thành "{"
-      console.error("Fetch My Products Error:", err);
-      toast.error("Không thể tải danh sách sản phẩm");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  // ==================== DELETE PRODUCT ====================
-  const handleDeleteProduct = async () => {
-    if (!deletingProduct) return;
-    try {
-      await api.delete(`/products/${deletingProduct._id}`);
-      toast.success("✅ Đã xóa sản phẩm");
-      setProducts((prev) => prev.filter((p) => p._id !== deletingProduct._id));
-      setShowDeleteDialog(false);
-      setDeletingProduct(null);
-    } catch (err: any) {
-      // KHẮC PHỤC: Sửa lỗi cú pháp "->" thành "{"
-      console.error("❌ Delete Product Error:", err);
-      toast.error(err.response?.data?.message || "Không thể xóa sản phẩm");
-    }
-  };
-
-  // ==================== HANDLERS ====================
-  const openEditModal = (product: PrinterProduct) => {
-    setEditingProduct(product);
-    setShowEditModal(true);
-  };
-
-  const openDeleteDialog = (product: PrinterProduct) => {
-    setDeletingProduct(product);
-    setShowDeleteDialog(true);
-  };
-
-  const onProductAdded = () => {
-    fetchProducts();
-    setShowAddForm(false);
-  };
-
-  const onProductEdited = () => {
-    fetchProducts();
-    setShowEditModal(false);
-    setEditingProduct(null);
-  };
+  // Chỉ cần gọi hook là có mọi thứ
+  const {
+    products,
+    loading,
+    showAddForm,
+    setShowAddForm,
+    editingProduct,
+    showEditModal,
+    deletingProduct,
+    showDeleteDialog,
+    handleDeleteProduct,
+    openEditModal,
+    closeEditModal,
+    openDeleteDialog,
+    closeDeleteDialog,
+    onProductAdded,
+    onProductEdited,
+  } = useProductManagement();
 
   // ==================== RENDER ====================
+  // Không còn bất kỳ logic fetch hay delete nào ở đây!
   return (
     <div className="flex-1 overflow-auto bg-gray-50">
       <div className="p-8 max-w-7xl mx-auto">
-        {/* Header (Component mới) */}
         <ProductListHeader
           isAdding={showAddForm}
           onAddNew={() => setShowAddForm(true)}
         />
 
-        {/* Conditional Render */}
         {showAddForm ? (
           <AddProductFlow
             onFormClose={() => setShowAddForm(false)}
@@ -126,16 +65,13 @@ export function ProductManagement() {
         <EditProductModal
           product={editingProduct}
           isOpen={showEditModal}
-          onClose={() => {
-            setShowEditModal(false);
-            setEditingProduct(null);
-          }}
+          onClose={closeEditModal}
           onSuccess={onProductEdited}
         />
       )}
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={showDeleteDialog} onOpenChange={closeDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Xác nhận xóa sản phẩm</AlertDialogTitle>
@@ -147,12 +83,7 @@ export function ProductManagement() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => {
-                setShowDeleteDialog(false);
-                setDeletingProduct(null);
-              }}
-            >
+            <AlertDialogCancel onClick={closeDeleteDialog}>
               Hủy
             </AlertDialogCancel>
             <AlertDialogAction

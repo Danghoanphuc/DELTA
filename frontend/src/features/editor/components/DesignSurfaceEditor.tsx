@@ -1,5 +1,5 @@
 // src/features/editor/components/DesignSurfaceEditor.tsx
-// ✅ ĐÃ SỬA LỖI API V5 TRIỆT ĐỂ (DÙNG THUỘC TÍNH)
+// ✅ FINAL FIX: CHUYỂN SANG PNG VÀ MULTIPLIER 2X ĐỂ TỐI ĐA CHẤT LƯỢNG TEXTURE 2D (LOSSLESS)
 
 import React, {
   useRef,
@@ -78,7 +78,6 @@ export const DesignSurfaceEditor = forwardRef<
     const [loadFailed, setLoadFailed] = useState(false);
 
     // --- 1. Texture Generation (Đã cập nhật) ---
-    // ✅ SỬA LỖI V5 TRIỆT ĐỂ: Dùng gán thuộc tính
     const generateTexture = useCallback(() => {
       if (!fabricCanvas.current) return;
       const canvas = fabricCanvas.current;
@@ -87,25 +86,24 @@ export const DesignSurfaceEditor = forwardRef<
       }
       const overlay = canvas.overlayImage;
 
-      // ✅ SỬA LỖI V5: Dùng gán thuộc tính
       canvas.overlayImage = undefined;
       canvas.renderAll(); // Render không có overlay
 
+      // ✅ CHỈNH SỬA TẠI ĐÂY: Dùng PNG (lossless) và multiplier 2x
       const dataURL = canvas.toDataURL({
-        format: "webp",
-        quality: 0.8,
-        multiplier: 1,
+        format: "png", // <-- THAY ĐỔI ĐỂ SỬ DỤNG LOSSLESS
+        quality: 1, // <-- MAX QUALITY
+        multiplier: 2, // <-- TĂNG ĐỘ PHÂN GIẢI
       });
 
       onCanvasUpdate(materialKey, dataURL);
 
-      // ✅ SỬA LỖI V5: Dùng gán thuộc tính
       canvas.overlayImage = overlay;
       canvas.renderAll(); // Trả lại overlay
     }, [onCanvasUpdate, materialKey]);
 
     const debouncedCanvasUpdate = useRef(
-      debounce(() => generateTexture(), 250)
+      debounce(() => generateTexture(), 500) // <-- TĂNG DEBOUNCE ĐỂ BÙ ĐẮP FILE LỚN
     ).current;
 
     // --- 2. Gọi các Custom Hooks (Giữ nguyên) ---
@@ -129,7 +127,7 @@ export const DesignSurfaceEditor = forwardRef<
       duplicateSelected,
     });
 
-    // --- 3. LOGIC KHỞI TẠO VÀ TẢI DIELINE (THAY ĐỔI HOÀN TOÀN) ---
+    // --- 3. LOGIC KHỞI TẠO VÀ TẢI DIELINE (Giữ nguyên) ---
 
     // useEffect 1: Khởi tạo Canvas (Chỉ chạy 1 LẦN)
     useEffect(() => {
@@ -150,14 +148,15 @@ export const DesignSurfaceEditor = forwardRef<
       };
     }, [width, height]);
 
-    // useEffect 2: Tải Dieline (ĐÃ THÊM LOGIC CHỜ 3D LOAD XONG)
+    // useEffect 2: Tải Dieline (Giữ nguyên)
     useEffect(() => {
       const canvas = fabricCanvas.current;
       if (!canvas || !dielineSvgUrl) return;
 
-      // ✅ QUAN TRỌNG: CHỈ LOAD DIELINE KHI 3D ĐÃ SẴN SÀNG
       if (!isReadyToLoad) {
-        console.log(`[Editor] Waiting for 3D model to load before loading dieline...`);
+        console.log(
+          `[Editor] Waiting for 3D model to load before loading dieline...`
+        );
         return;
       }
 
@@ -166,9 +165,8 @@ export const DesignSurfaceEditor = forwardRef<
 
       // Reset canvas
       canvas.clear();
-      canvas.setClipPath(undefined); // setClipPath VẪN LÀ HÀM
+      canvas.setClipPath(undefined);
 
-      // ✅ SỬA LỖI V5: Dùng gán thuộc tính
       canvas.overlayImage = undefined;
       canvas.renderAll();
 
@@ -177,7 +175,7 @@ export const DesignSurfaceEditor = forwardRef<
       fabric.loadSVGFromURL(
         dielineSvgUrl,
         (objects, options) => {
-          if (!canvas) return; // Canvas đã bị hủy
+          if (!canvas) return;
 
           const dielineGroup = fabric.util.groupSVGElements(
             objects,
@@ -189,7 +187,7 @@ export const DesignSurfaceEditor = forwardRef<
           dielineGroup.center();
 
           // 1. Dùng Dieline làm MẶT NẠ CẮT (CLIPPATH)
-          canvas.setClipPath(dielineGroup); // setClipPath VẪN LÀ HÀM
+          canvas.setClipPath(dielineGroup);
 
           // 2. Dùng Dieline làm OVERLAY (HIỂN THỊ)
           dielineGroup.clone((overlay: fabric.Group) => {
@@ -198,7 +196,6 @@ export const DesignSurfaceEditor = forwardRef<
               selectable: false,
               evented: false,
             });
-            // ✅ SỬA LỖI V5: Dùng gán thuộc tính
             canvas.overlayImage = overlay;
             canvas.renderAll();
           });
@@ -213,9 +210,9 @@ export const DesignSurfaceEditor = forwardRef<
         undefined,
         { crossOrigin: "anonymous" }
       );
-    }, [dielineSvgUrl, materialKey, width, height, saveState, isReadyToLoad]); // <-- THÊM
+    }, [dielineSvgUrl, materialKey, width, height, saveState, isReadyToLoad]);
 
-    // useEffect 3: Gán Event Listeners (Giữ nguyên, chỉ thêm isDielineLoaded)
+    // useEffect 3: Gán Event Listeners (Giữ nguyên)
     useEffect(() => {
       const canvas = fabricCanvas.current;
       if (!canvas || !saveState || !debouncedCanvasUpdate || !isDielineLoaded) {
@@ -273,16 +270,15 @@ export const DesignSurfaceEditor = forwardRef<
       setZoom,
     }));
 
-    // --- 5. RENDER (CẬP NHẬT THÔNG BÁO LOADING) ---
+    // --- 5. RENDER (Giữ nguyên) ---
     return (
       <div className="w-full h-full relative">
         {!isDielineLoaded && (
           <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-50 z-10">
             <p className="text-gray-500">
-              {!isReadyToLoad 
+              {!isReadyToLoad
                 ? "Đang chờ phôi 3D tải xong..."
-                : "Đang tải khuôn 2D (SVG)..."
-              }
+                : "Đang tải khuôn 2D (SVG)..."}
             </p>
           </div>
         )}

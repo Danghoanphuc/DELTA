@@ -1,7 +1,13 @@
 // src/features/printer/pages/PrinterStudio.tsx
-// ✅ BẢN SỬA LỖI CUỐI CÙNG (Dùng display:none để tránh UNMOUNT)
+// ✅ BẢN FIX: Canvas 2D ↔ 3D Real-time Update
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo, // ✅ SỬA: Thêm 'useMemo' vào import
+} from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -42,23 +48,24 @@ type TemplateFormData = {
 interface PhoiAssets {
   modelUrl: string;
   dielineUrl: string;
+  materialName?: string; // ✅ THÊM: Tên material trong GLB
 }
 import { Product } from "@/types/product";
 
-// Utility (Giữ nguyên)
+// Utility
 function dataURLtoBlob(dataurl: string): Blob {
   const arr = dataurl.split(",");
   const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
   const bstr = atob(arr[1]);
   let n = bstr.length;
-  const u8arr = new Uint8Array(n);
+  const u8arr = new UintArray(n);
   while (n--) {
     u8arr[n] = bstr.charCodeAt(n);
   }
   return new Blob([u8arr], { type: mime });
 }
 
-// Skeleton cho Canvas (Giữ nguyên)
+// Skeleton
 const CanvasWaitingSkeleton = () => (
   <div className="w-full h-full min-h-[600px] flex items-center justify-center bg-gray-50 shadow-inner rounded-lg">
     <div className="text-center space-y-3">
@@ -73,7 +80,7 @@ export function PrinterStudio() {
   const { productId } = useParams();
   const editorRef = useRef<FabricCanvasEditorRef>(null);
 
-  // ==================== STATE (Giữ nguyên) ====================
+  // ==================== STATE ====================
   const [baseProduct, setBaseProduct] = useState<Product | null>(null);
   const [phoiAssets, setPhoiAssets] = useState<PhoiAssets | null>(null);
   const [textureData, setTextureData] = useState<string | null>(null);
@@ -84,7 +91,7 @@ export function PrinterStudio() {
   const [is3DMainLoaded, setIs3DMainLoaded] = useState(false);
   const [is2DReady, setIs2DReady] = useState(false);
 
-  // Form (Giữ nguyên)
+  // Form
   const {
     register,
     handleSubmit,
@@ -96,7 +103,7 @@ export function PrinterStudio() {
   const watchedName = watch("name");
   const watchedDescription = watch("description");
 
-  // ==================== FETCH PRODUCT (Giữ nguyên) ====================
+  // ==================== FETCH PRODUCT ====================
   useEffect(() => {
     let isCancelled = false;
     const controller = new AbortController();
@@ -105,25 +112,32 @@ export function PrinterStudio() {
         setIsLoading(true);
         let modelUrl: string | undefined;
         let dielineUrl: string | undefined;
+        let materialName: string | undefined; // ✅ THÊM
         let productName: string | undefined;
         let productData: Product | null = null;
+
         if (productId === "new") {
           const tempData = localStorage.getItem("tempProductAssets");
-          console.log("--- BƯỚC 2a: NHẬN DỮ LIỆU THÔ ---");
-          console.log("Dữ liệu thô từ localStorage (tempData):", tempData);
+          console.log("🔍 [PrinterStudio] Nhận dữ liệu thô:", tempData);
+
           if (!tempData)
             throw new Error("Không tìm thấy dữ liệu phôi tạm thời");
+
           const parsed = JSON.parse(tempData);
           modelUrl = parsed.assets?.modelUrl;
           dielineUrl = parsed.assets?.surfaces?.[0]?.dielineSvgUrl;
+          materialName = parsed.assets?.surfaces?.[0]?.materialName; // ✅ LẤY MATERIAL NAME
           productName = `Phôi ${parsed.category} (Tạm)`;
-          console.log("--- BƯỚC 2b: KIỂM TRA PARSING ---");
-          console.log("modelUrl sau khi parse:", modelUrl);
-          console.log("dielineUrl sau khi parse (PHÔI 2D):", dielineUrl);
+
+          console.log("✅ [PrinterStudio] Parsed:", {
+            modelUrl,
+            dielineUrl,
+            materialName, // ✅ LOG
+          });
+
           if (!modelUrl || !dielineUrl)
-            throw new Error(
-              "Dữ liệu phôi tạm thời không đầy đủ (thiếu model/surface)"
-            );
+            throw new Error("Dữ liệu phôi tạm thời không đầy đủ");
+
           productData = {
             _id: "temp",
             name: productName,
@@ -138,13 +152,20 @@ export function PrinterStudio() {
           productData = product;
           modelUrl = product?.assets?.modelUrl;
           dielineUrl = product?.assets?.surfaces?.[0]?.dielineSvgUrl;
+          materialName = product?.assets?.surfaces?.[0]?.materialName; // ✅ LẤY MATERIAL NAME
+
           if (!product || !modelUrl || !dielineUrl)
-            throw new Error(
-              "Phôi này thiếu file 3D hoặc file Dieline SVG (surfaces)."
-            );
+            throw new Error("Phôi này thiếu file 3D hoặc file Dieline SVG");
         }
+
         setBaseProduct(productData);
-        setPhoiAssets({ modelUrl, dielineUrl });
+        setPhoiAssets({ modelUrl, dielineUrl, materialName }); // ✅ LƯU MATERIAL NAME
+
+        console.log("🎯 [PrinterStudio] phoiAssets set:", {
+          modelUrl,
+          dielineUrl,
+          materialName,
+        });
       } catch (err: any) {
         if (err.name === "AbortError" || err.name === "CanceledError") return;
         if (!isCancelled) {
@@ -162,19 +183,23 @@ export function PrinterStudio() {
     };
   }, [productId, navigate]);
 
-  // ==================== HANDLERS (Giữ nguyên) ====================
+  // ==================== HANDLERS ====================
+  // ✅ QUAN TRỌNG: Callback này được gọi MỖI KHI canvas thay đổi
   const handleCanvasUpdate = useCallback(
     (base64Image: string, jsonData: object) => {
+      console.log(
+        "🎨 [PrinterStudio] Canvas Updated! Texture size:",
+        base64Image.length
+      );
       setTextureData(base64Image);
     },
     []
   );
 
-  // ✅ Giữ nguyên useCallback VỚI DEPENDENCY RỖNG
   const handleDielineLoaded = useCallback(() => {
-    console.log("✅ 2D Editor (Main) Loaded. Unlocking 3D Sidebar.");
+    console.log("✅ [PrinterStudio] 2D Editor Loaded");
     setIs2DReady(true);
-  }, []); // <-- Dependency rỗng là đúng
+  }, []);
 
   const handleImageUpload = (file: File) => {
     toast.success(`Đã tải ảnh: ${file.name}`);
@@ -203,7 +228,7 @@ export function PrinterStudio() {
     return { json, previewBlob, productionBlob };
   }, []);
 
-  // ==================== SUBMIT (Giữ nguyên) ====================
+  // ==================== SUBMIT ====================
   const onSubmit = async (data: TemplateFormData) => {
     if (!editorRef.current) {
       toast.error("Lỗi: Trình chỉnh sửa chưa sẵn sàng");
@@ -211,7 +236,7 @@ export function PrinterStudio() {
     }
     const baseProductId = baseProduct?._id;
     if (!baseProductId) {
-      toast.error("Lỗi: Không tìm thấy ID Phôi (Base Product ID).");
+      toast.error("Lỗi: Không tìm thấy ID Phôi");
       return;
     }
     if (productId === "new") {
@@ -260,7 +285,37 @@ export function PrinterStudio() {
     }
   };
 
-  // ==================== LOADING STATE (Giữ nguyên) ====================
+  // ==================== ✅ SỬA: HOOK ĐÃ ĐƯỢC DI CHUYỂN LÊN ĐÂY ====================
+  // ✅ QUAN TRỌNG: Tạo textures object với KEY ĐÚNG
+  // Nếu có materialName từ surfaces, dùng nó. Nếu không, thử một số key phổ biến
+  const texturesForViewer = useMemo(() => {
+    if (!textureData) return {};
+
+    console.log(
+      "🎨 [PrinterStudio] Creating textures object with materialName:",
+      phoiAssets?.materialName // ✅ SỬA: Dùng optional chaining
+    );
+
+    // Chiến lược: Áp texture vào NHIỀU key có thể
+    const result: Record<string, string> = {};
+
+    if (phoiAssets?.materialName) {
+      // ✅ SỬA: Dùng optional chaining
+      // Dùng material name chính xác từ surfaces
+      result[phoiAssets.materialName] = textureData;
+    }
+
+    // Thêm các key backup phổ biến (để đảm bảo)
+    result["Dieline"] = textureData;
+    result["Material_Lid"] = textureData;
+    result["main_surface"] = textureData;
+    result["DefaultMaterial"] = textureData;
+
+    console.log("🎯 [PrinterStudio] Final textures keys:", Object.keys(result));
+    return result;
+  }, [textureData, phoiAssets]); // ✅ SỬA: Phụ thuộc vào cả object 'phoiAssets'
+
+  // ==================== LOADING STATE (NẰM SAU TẤT CẢ CÁC HOOK) ====================
   if (isLoading || !phoiAssets) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -272,18 +327,18 @@ export function PrinterStudio() {
     );
   }
 
-  // ==================== RENDER (ĐÃ SỬA) ====================
+  // ==================== RENDER ====================
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
       className="flex h-screen bg-gray-100"
     >
-      {/* LEFT: TOOLBAR (Giữ nguyên) */}
+      {/* LEFT: TOOLBAR */}
       <EditorToolbar editorRef={editorRef} onImageUpload={handleImageUpload} />
 
-      {/* CENTER: EDITOR (Đã sửa) */}
+      {/* CENTER: EDITOR */}
       <div className="flex-1 flex flex-col">
-        {/* Top Bar (Giữ nguyên) */}
+        {/* Top Bar */}
         <div className="h-16 bg-white border-b flex items-center px-6 justify-between">
           <div className="flex items-center gap-4">
             <Button
@@ -308,6 +363,12 @@ export function PrinterStudio() {
             <Badge variant="outline" className="text-xs">
               {productId === "new" ? "Chế độ tạo mới" : "Chế độ chỉnh sửa"}
             </Badge>
+            {/* ✅ THÊM: Debug badge hiển thị trạng thái texture */}
+            {textureData && (
+              <Badge variant="secondary" className="text-xs">
+                🎨 Texture: {(textureData.length / 1024).toFixed(1)}KB
+              </Badge>
+            )}
             <Button
               type="submit"
               disabled={isSubmitting}
@@ -326,11 +387,10 @@ export function PrinterStudio() {
           </div>
         </div>
 
-        {/* Canvas Area (✅ SỬA LỖI: Dùng `display: none`) */}
+        {/* Canvas Area */}
         <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
-          {/* Wrapper cho cả 2D và 3D Main */}
           <div className="w-full h-full max-w-4xl max-h-[800px] relative">
-            {/* 3D Viewer (Main) - LUÔN RENDER, chỉ ẩn đi */}
+            {/* 3D Viewer (Main) */}
             <div
               style={{
                 display: previewMode === "3d" ? "block" : "none",
@@ -340,32 +400,29 @@ export function PrinterStudio() {
             >
               <ProductViewer3D
                 modelUrl={phoiAssets.modelUrl}
-                textures={{ Dieline: textureData }}
+                textures={texturesForViewer} // ✅ SỬA: Dùng textures object mới
                 onModelLoaded={() => {
                   if (!is3DMainLoaded) {
-                    console.log(
-                      "✅ 3D View (Main) Loaded. Unlocking 2D background load."
-                    );
+                    console.log("✅ [PrinterStudio] 3D Main Loaded");
                     setIs3DMainLoaded(true);
                   }
                 }}
               />
             </div>
 
-            {/* 2D Editor (Main) - Chỉ render sau khi 3D-Main đã tải */}
-            {/* và LUÔN RENDER (chỉ ẩn đi) sau khi đã tải */}
+            {/* 2D Editor (Main) */}
             {is3DMainLoaded && (
               <div
                 style={{
                   display: previewMode === "2d" ? "block" : "none",
-                  width: "600px", // Đảm bảo kích thước
-                  height: "600px", // Đảm bảo kích thước
+                  width: "600px",
+                  height: "600px",
                 }}
               >
                 <FabricCanvasEditor
                   ref={editorRef}
                   dielineImageUrl={phoiAssets.dielineUrl}
-                  onCanvasUpdate={handleCanvasUpdate}
+                  onCanvasUpdate={handleCanvasUpdate} // ✅ QUAN TRỌNG
                   width={600}
                   height={600}
                   isReadyToLoad={is3DMainLoaded}
@@ -374,14 +431,14 @@ export function PrinterStudio() {
               </div>
             )}
 
-            {/* Skeleton nếu user chuyển sang 2D quá nhanh */}
+            {/* Skeleton */}
             {previewMode === "2d" && !is3DMainLoaded && (
               <CanvasWaitingSkeleton />
             )}
           </div>
         </div>
 
-        {/* Bottom Bar - Preview Toggle (Giữ nguyên) */}
+        {/* Bottom Bar */}
         <div className="h-16 bg-white border-t flex items-center justify-center px-6">
           <div className="flex items-center gap-2">
             <Button
@@ -403,10 +460,10 @@ export function PrinterStudio() {
         </div>
       </div>
 
-      {/* RIGHT: FORM & PREVIEW (Giữ nguyên) */}
+      {/* RIGHT: FORM & PREVIEW */}
       <ScrollArea className="w-96 bg-white border-l">
         <div className="p-6 space-y-6">
-          {/* Product Info (Giữ nguyên) */}
+          {/* Product Info */}
           {baseProduct && (
             <Card>
               <CardHeader>
@@ -422,13 +479,22 @@ export function PrinterStudio() {
                     {baseProduct.description}
                   </div>
                 )}
+                {/* ✅ THÊM: Hiển thị material name */}
+                {phoiAssets.materialName && (
+                  <div>
+                    <span className="font-medium">Material:</span>{" "}
+                    <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
+                      {phoiAssets.materialName}
+                    </code>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
 
           <Separator />
 
-          {/* Template Form (Giữ nguyên) */}
+          {/* Template Form */}
           <Card>
             <CardHeader>
               <CardTitle>Thông tin Mẫu thiết kế</CardTitle>
@@ -494,11 +560,13 @@ export function PrinterStudio() {
             </CardContent>
           </Card>
 
-          {/* 3D Preview Card (Giữ nguyên logic chờ 2D) */}
+          {/* 3D Preview Card (Sidebar) */}
           {previewMode === "2d" && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Xem trước 3D</CardTitle>
+                <CardTitle className="text-sm">
+                  Xem trước 3D (Sidebar)
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-64 bg-gray-100 rounded-lg overflow-hidden">
@@ -512,7 +580,7 @@ export function PrinterStudio() {
                   ) : (
                     <ProductViewer3D
                       modelUrl={phoiAssets.modelUrl}
-                      textures={{ Dieline: textureData }}
+                      textures={texturesForViewer} // ✅ SỬA
                     />
                   )}
                 </div>
@@ -520,7 +588,7 @@ export function PrinterStudio() {
             </Card>
           )}
 
-          {/* Tips (Giữ nguyên) */}
+          {/* Tips */}
           <Card className="bg-blue-50 border-blue-200">
             <CardContent className="pt-6">
               <h4 className="font-medium text-sm mb-2 text-blue-900">
@@ -536,7 +604,7 @@ export function PrinterStudio() {
             </CardContent>
           </Card>
 
-          {/* Warning (Giữ nguyên) */}
+          {/* Warning */}
           {productId === "new" && (
             <Card className="bg-yellow-50 border-yellow-200">
               <CardContent className="pt-6">

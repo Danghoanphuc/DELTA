@@ -1,6 +1,6 @@
 // src/features/editor/hooks/useFabricKeyboardShortcuts.ts
 import { useEffect, useRef } from "react";
-import { Canvas, ActiveSelection } from "fabric";
+import { Canvas, ActiveSelection, util } from "fabric";
 
 interface ShortcutProps {
   canvas: React.RefObject<Canvas | null>;
@@ -23,9 +23,12 @@ export const useFabricKeyboardShortcuts = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!canvas.current) return;
 
-      // Bỏ qua nếu đang gõ trong input/textarea
       const target = e.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
         return;
       }
 
@@ -41,11 +44,8 @@ export const useFabricKeyboardShortcuts = ({
       // Undo/Redo (Ctrl+Z, Ctrl+Shift+Z)
       if (modKey && e.key.toLowerCase() === "z") {
         e.preventDefault();
-        if (e.shiftKey) {
-          redo();
-        } else {
-          undo();
-        }
+        if (e.shiftKey) redo();
+        else undo();
       }
 
       // Copy (Ctrl+C)
@@ -53,7 +53,10 @@ export const useFabricKeyboardShortcuts = ({
         e.preventDefault();
         const activeObject = canvas.current.getActiveObject();
         if (activeObject) {
-          clipboardRef.current = activeObject.toObject();
+          // Clone và lưu vào ref
+          activeObject.clone((cloned: any) => {
+            clipboardRef.current = cloned;
+          });
         }
       }
 
@@ -61,10 +64,9 @@ export const useFabricKeyboardShortcuts = ({
       if (modKey && e.key.toLowerCase() === "v") {
         e.preventDefault();
         if (clipboardRef.current && canvas.current) {
-          // Tải đối tượng từ clipboard
-          fabric.util.enlivenObjects([clipboardRef.current], (objects: any) => {
-            if (!canvas.current || !objects[0]) return;
-            const cloned = objects[0];
+          // Clone từ clipboard để dán
+          clipboardRef.current.clone((cloned: any) => {
+            if (!canvas.current) return;
             cloned.set({
               left: (cloned.left || 0) + 10,
               top: (cloned.top || 0) + 10,
@@ -91,6 +93,13 @@ export const useFabricKeyboardShortcuts = ({
           canvas: canvas.current,
         });
         canvas.current.setActiveObject(sel);
+        canvas.current.requestRenderAll();
+      }
+
+      // Deselect (Escape)
+      if (e.key === "Escape") {
+        e.preventDefault();
+        canvas.current.discardActiveObject();
         canvas.current.requestRenderAll();
       }
 
