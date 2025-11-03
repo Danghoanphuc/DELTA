@@ -1,7 +1,8 @@
 // frontend/src/features/editor/components/ContextMenu.tsx
-// ✅ CONTEXT MENU - Right-click menu
+// ✅ ĐÃ REFACTOR: Gọi API thay vì tự xử lý logic
 
 import React, { useEffect, useRef } from "react";
+// ... (các import icons giữ nguyên) ...
 import {
   Copy,
   Trash2,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
+// ... (Interface MenuItem và ContextMenuProps giữ nguyên) ...
 interface MenuItem {
   icon?: React.ReactNode;
   label: string;
@@ -25,7 +27,6 @@ interface MenuItem {
   divider?: boolean;
   shortcut?: string;
 }
-
 interface ContextMenuProps {
   x: number;
   y: number;
@@ -34,6 +35,7 @@ interface ContextMenuProps {
   items: MenuItem[];
 }
 
+// ✅ Component ContextMenu (Không thay đổi)
 export const ContextMenu: React.FC<ContextMenuProps> = ({
   x,
   y,
@@ -41,59 +43,45 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onClose,
   items,
 }) => {
+  // ... (Toàn bộ logic của component giữ nguyên) ...
   const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close on click outside
   useEffect(() => {
     if (!isOpen) return;
-
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         onClose();
       }
     };
-
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleEscape);
-
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
     };
   }, [isOpen, onClose]);
-
-  // Adjust position if menu would go off-screen
   useEffect(() => {
     if (!isOpen || !menuRef.current) return;
-
     const menu = menuRef.current;
     const rect = menu.getBoundingClientRect();
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
-
     let adjustedX = x;
     let adjustedY = y;
-
     if (rect.right > windowWidth) {
       adjustedX = windowWidth - rect.width - 10;
     }
-
     if (rect.bottom > windowHeight) {
       adjustedY = windowHeight - rect.height - 10;
     }
-
     menu.style.left = `${adjustedX}px`;
     menu.style.top = `${adjustedY}px`;
   }, [isOpen, x, y]);
-
   if (!isOpen) return null;
-
   return (
     <div
       ref={menuRef}
@@ -137,7 +125,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 // Hook to use with FabricCanvas
 export const useFabricContextMenu = (
   canvasRef: React.RefObject<any>,
-  editorRef: React.RefObject<any>
+  editorRef: React.RefObject<any> // ✅ editorRef giờ sẽ chứa các hàm API
 ) => {
   const [contextMenu, setContextMenu] = React.useState({
     x: 0,
@@ -148,7 +136,8 @@ export const useFabricContextMenu = (
   const [selectedObject, setSelectedObject] = React.useState<any>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current?.getCanvas?.();
+    // ✅ Sửa: Lấy canvas từ editorRef
+    const canvas = editorRef.current?.getCanvas?.();
     if (!canvas) return;
 
     const handleContextMenu = (opt: any) => {
@@ -173,22 +162,23 @@ export const useFabricContextMenu = (
     });
 
     return () => {
-      canvas.off("mouse:down");
+      // ✅ Sửa: Đảm bảo canvas tồn tại khi off
+      canvas.off?.("mouse:down");
     };
-  }, [canvasRef]);
+  }, [editorRef]); // ✅ Phụ thuộc vào editorRef
 
   const menuItems: MenuItem[] = [
     {
       icon: <Copy size={16} />,
       label: "Copy",
-      action: () => editorRef.current?.copySelected?.(),
+      action: () => editorRef.current?.copySelected?.(), // ✅ Đã chuẩn
       shortcut: "Ctrl+C",
       disabled: !selectedObject,
     },
     {
       icon: <Layers size={16} />,
       label: "Duplicate",
-      action: () => editorRef.current?.duplicateSelected?.(),
+      action: () => editorRef.current?.duplicateSelected?.(), // ✅ Đã chuẩn
       shortcut: "Ctrl+D",
       disabled: !selectedObject,
     },
@@ -200,49 +190,25 @@ export const useFabricContextMenu = (
     {
       icon: <ArrowUp size={16} />,
       label: "Bring to Front",
-      action: () => {
-        const canvas = canvasRef.current?.getCanvas?.();
-        if (selectedObject && canvas) {
-          canvas.bringToFront(selectedObject);
-          canvas.renderAll();
-        }
-      },
+      action: () => editorRef.current?.bringToFront?.(), // ✅ SỬA
       disabled: !selectedObject,
     },
     {
       icon: <MoveUp size={16} />,
       label: "Bring Forward",
-      action: () => {
-        const canvas = canvasRef.current?.getCanvas?.();
-        if (selectedObject && canvas) {
-          canvas.bringForward(selectedObject);
-          canvas.renderAll();
-        }
-      },
+      action: () => editorRef.current?.bringForward?.(), // ✅ SỬA
       disabled: !selectedObject,
     },
     {
       icon: <MoveDown size={16} />,
       label: "Send Backward",
-      action: () => {
-        const canvas = canvasRef.current?.getCanvas?.();
-        if (selectedObject && canvas) {
-          canvas.sendBackwards(selectedObject);
-          canvas.renderAll();
-        }
-      },
+      action: () => editorRef.current?.sendBackwards?.(), // ✅ SỬA
       disabled: !selectedObject,
     },
     {
       icon: <ArrowDown size={16} />,
       label: "Send to Back",
-      action: () => {
-        const canvas = canvasRef.current?.getCanvas?.();
-        if (selectedObject && canvas) {
-          canvas.sendToBack(selectedObject);
-          canvas.renderAll();
-        }
-      },
+      action: () => editorRef.current?.sendToBack?.(), // ✅ SỬA
       disabled: !selectedObject,
     },
     {
@@ -257,30 +223,13 @@ export const useFabricContextMenu = (
         <Lock size={16} />
       ),
       label: selectedObject?.lockMovementX ? "Unlock" : "Lock",
-      action: () => {
-        if (selectedObject) {
-          const isLocked = selectedObject.lockMovementX;
-          selectedObject.set({
-            lockMovementX: !isLocked,
-            lockMovementY: !isLocked,
-            lockScalingX: !isLocked,
-            lockScalingY: !isLocked,
-            lockRotation: !isLocked,
-          });
-          canvasRef.current?.getCanvas?.().renderAll();
-        }
-      },
+      action: () => editorRef.current?.toggleLock?.(), // ✅ SỬA
       disabled: !selectedObject,
     },
     {
       icon: selectedObject?.visible ? <EyeOff size={16} /> : <Eye size={16} />,
       label: selectedObject?.visible ? "Hide" : "Show",
-      action: () => {
-        if (selectedObject) {
-          selectedObject.set({ visible: !selectedObject.visible });
-          canvasRef.current?.getCanvas?.().renderAll();
-        }
-      },
+      action: () => editorRef.current?.toggleVisibility?.(), // ✅ SỬA
       disabled: !selectedObject,
     },
     {
@@ -291,7 +240,7 @@ export const useFabricContextMenu = (
     {
       icon: <Trash2 size={16} className="text-red-500" />,
       label: "Delete",
-      action: () => editorRef.current?.deleteSelected?.(),
+      action: () => editorRef.current?.deleteSelected?.(), // ✅ Đã chuẩn
       shortcut: "Del",
       disabled: !selectedObject,
     },

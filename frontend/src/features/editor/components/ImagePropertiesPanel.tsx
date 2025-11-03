@@ -1,5 +1,5 @@
 // frontend/src/features/editor/components/ImagePropertiesPanel.tsx
-// ✅ TASK 4: CONTEXTUAL PANEL - Chỉnh sửa Image
+// ✅ ĐÃ REFACTOR (Vấn đề 3): Loại bỏ logic trùng lặp, dùng editorRef
 
 import React from "react";
 import { Button } from "@/shared/components/ui/button";
@@ -13,64 +13,24 @@ import {
 } from "@/shared/components/ui/card";
 import { Image as ImageIcon, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { EditorCanvasRef } from "./EditorCanvas"; // ✅ Import Ref type
 
 interface ImagePropertiesPanelProps {
   selectedObject: any; // fabric.Image
+  editorRef: React.RefObject<EditorCanvasRef | null>; // ✅ Nhận editorRef
   onUpdate: () => void;
 }
 
 export const ImagePropertiesPanel: React.FC<ImagePropertiesPanelProps> = ({
   selectedObject,
+  editorRef, // ✅ Sử dụng editorRef
   onUpdate,
 }) => {
   const applyFilter = (
     filterType: "grayscale" | "sepia" | "blur" | "brightness" | "contrast"
   ) => {
-    if (!selectedObject) return;
-
-    // Import fabric filters
-    const fabric = require("fabric").fabric;
-
-    selectedObject.filters = selectedObject.filters || [];
-
-    // Remove existing filter of same type
-    selectedObject.filters = selectedObject.filters.filter((f: any) => {
-      if (filterType === "grayscale")
-        return !(f instanceof fabric.filters.Grayscale);
-      if (filterType === "sepia") return !(f instanceof fabric.filters.Sepia);
-      if (filterType === "blur") return !(f instanceof fabric.filters.Blur);
-      if (filterType === "brightness")
-        return !(f instanceof fabric.filters.Brightness);
-      if (filterType === "contrast")
-        return !(f instanceof fabric.filters.Contrast);
-      return true;
-    });
-
-    // Add new filter
-    let filter;
-    switch (filterType) {
-      case "grayscale":
-        filter = new fabric.filters.Grayscale();
-        break;
-      case "sepia":
-        filter = new fabric.filters.Sepia();
-        break;
-      case "blur":
-        filter = new fabric.filters.Blur({ blur: 0.3 });
-        break;
-      case "brightness":
-        filter = new fabric.filters.Brightness({ brightness: 0.1 });
-        break;
-      case "contrast":
-        filter = new fabric.filters.Contrast({ contrast: 0.1 });
-        break;
-      default:
-        return;
-    }
-
-    selectedObject.filters.push(filter);
-    selectedObject.applyFilters();
-    selectedObject.canvas?.renderAll();
+    // ✅ Gọi hàm API chuẩn hóa
+    editorRef.current?.applyFilter(filterType);
     onUpdate();
     toast.success(`Đã áp dụng hiệu ứng ${filterType}`);
   };
@@ -94,7 +54,7 @@ export const ImagePropertiesPanel: React.FC<ImagePropertiesPanelProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Image Info */}
+        {/* Image Info (Giữ nguyên) */}
         <div className="space-y-2 text-xs">
           <div className="flex justify-between">
             <span className="text-gray-600">Chiều rộng:</span>
@@ -118,7 +78,7 @@ export const ImagePropertiesPanel: React.FC<ImagePropertiesPanelProps> = ({
 
         <Separator />
 
-        {/* Filters */}
+        {/* Filters (Giữ nguyên UI, thay đổi logic) */}
         <div className="space-y-2">
           <Label className="text-xs font-medium flex items-center gap-1">
             <Sparkles size={14} />
@@ -173,7 +133,7 @@ export const ImagePropertiesPanel: React.FC<ImagePropertiesPanelProps> = ({
 
         <Separator />
 
-        {/* Image Actions */}
+        {/* Image Actions (Giữ nguyên) */}
         <div className="space-y-2">
           <Label className="text-xs font-medium">Thao tác</Label>
           <div className="grid grid-cols-2 gap-2">
@@ -204,13 +164,6 @@ export const ImagePropertiesPanel: React.FC<ImagePropertiesPanelProps> = ({
               Lật dọc
             </Button>
           </div>
-        </div>
-
-        {/* Tips */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-xs text-blue-700">
-            💡 Kéo góc ảnh để thay đổi kích thước. Giữ Shift để giữ tỷ lệ.
-          </p>
         </div>
       </CardContent>
     </Card>

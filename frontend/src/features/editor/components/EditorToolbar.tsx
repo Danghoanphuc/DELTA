@@ -1,69 +1,71 @@
 // frontend/src/features/editor/components/EditorToolbar.tsx
-// ✅ TASK 5: THÊM LAYERS TAB VÀO TOOLBAR
+// ✅ CẬP NHẬT: Đã thêm lại các nút "Hình dạng" (Elements)
 
 import React, { useState } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/shared/components/ui/tooltip";
-import { cn } from "@/shared/lib/utils";
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/shared/components/ui/tabs";
 import {
   Upload,
   Type,
   Square,
-  Sparkles,
   Layers,
+  // ✅ 1. IMPORT LẠI CÁC ICON BỊ THIẾU
   Circle,
   Triangle,
   Minus,
 } from "lucide-react";
-import { FabricCanvasEditorRef } from "./FabricCanvasEditor";
-import { LayersPanel } from "./LayersPanel"; // ✅ TASK 5
+import { cn } from "@/shared/lib/utils";
+import { EditorCanvasRef } from "./EditorCanvas";
+import { LayersPanel } from "./LayersPanel";
+import { ScrollArea } from "@/shared/components/ui/scroll-area";
+import { Separator } from "@/shared/components/ui/separator";
+import { TextPropertiesPanel } from "./TextPropertiesPanel";
+import { ImagePropertiesPanel } from "./ImagePropertiesPanel";
 
+// Interface (Giữ nguyên)
 interface EditorToolbarProps {
-  editorRef: React.RefObject<FabricCanvasEditorRef>;
+  editorRef: React.RefObject<EditorCanvasRef | null>;
   onImageUpload: (file: File) => void;
-  // ✅ TASK 5: Thêm props cho Layers
-  layers?: any[];
-  activeObjectId?: string | null;
-  onSelectLayer?: (obj: any) => void;
-  onMoveLayer?: (obj: any, direction: "up" | "down" | "top" | "bottom") => void;
-  onToggleVisibility?: (obj: any) => void;
-  onDeleteLayer?: (obj: any) => void;
+  layers: any[];
+  activeObjectId: string | null;
+  onSelectLayer: (obj: any) => void;
+  onMoveLayer: (obj: any, direction: "up" | "down" | "top" | "bottom") => void;
+  onToggleVisibility: (obj: any) => void;
+  onDeleteLayer: (obj: any) => void;
+  selectedObject: any | null;
+  onPropertiesUpdate: () => void;
 }
-
-type ToolMode = "upload" | "text" | "shapes" | "inspiration" | "layers" | null;
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editorRef,
   onImageUpload,
-  // ✅ TASK 5: Destructure layers props
-  layers = [],
+  layers,
   activeObjectId,
   onSelectLayer,
   onMoveLayer,
   onToggleVisibility,
   onDeleteLayer,
+  selectedObject,
+  onPropertiesUpdate,
 }) => {
-  const [activeMode, setActiveMode] = useState<ToolMode>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  // ==================== HANDLERS ====================
+  // ... (Handlers giữ nguyên) ...
   const handleAddText = () => {
     editorRef.current?.addText("Nhấn để chỉnh sửa");
   };
-
   const handleAddShape = (shape: "rect" | "circle" | "triangle" | "line") => {
-    editorRef.current?.addShape(shape);
-    setActiveMode(null);
+    editorRef.current?.addShape(shape); //
   };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  // ... (các handler file giữ nguyên) ...
+  const processFile = (file: File) => {
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -72,32 +74,87 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       };
       reader.readAsDataURL(file);
       onImageUpload(file);
-      setActiveMode(null);
     }
   };
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    processFile(file);
+  };
+  const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+  const handleDragLeave = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    processFile(file);
+  };
 
-  // ==================== PRIMARY BAR ITEMS ====================
-  const primaryTools = [
-    { id: "upload" as ToolMode, icon: Upload, label: "Tải ảnh lên" },
-    { id: "text" as ToolMode, icon: Type, label: "Thêm chữ" },
-    { id: "shapes" as ToolMode, icon: Square, label: "Hình dạng" },
-    { id: "inspiration" as ToolMode, icon: Sparkles, label: "Cảm hứng" },
-    { id: "layers" as ToolMode, icon: Layers, label: "Lớp" }, // ✅ TASK 5
-  ];
+  // ==================== RENDER (ĐÃ SỬA) ====================
+  return (
+    // Container (w-60, h-full) giữ nguyên
+    <Tabs
+      defaultValue="upload"
+      orientation="vertical"
+      className="flex w-80 bg-white rounded-lg shadow-xl overflow-hidden h-full"
+    >
+      {/* TabsList (Giữ nguyên) */}
+      <TabsList className="flex flex-col h-full gap-1 p-2 border-r">
+        <TabsTrigger
+          value="upload"
+          className="flex flex-col w-full py-4 h-auto"
+        >
+          <Upload size={20} />
+          <span className="text-xs mt-1">Uploads</span>
+        </TabsTrigger>
+        <TabsTrigger value="text" className="flex flex-col w-full py-4 h-auto">
+          <Type size={20} />
+          <span className="text-xs mt-1">Text</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="shapes"
+          className="flex flex-col w-full py-4 h-auto"
+        >
+          <Square size={20} />
+          <span className="text-xs mt-1">Elements</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="layers"
+          className="flex flex-col w-full py-4 h-auto"
+        >
+          <Layers size={20} />
+          <span className="text-xs mt-1">Layers</span>
+        </TabsTrigger>
+      </TabsList>
 
-  // ==================== SECONDARY PANEL CONTENT ====================
-  const renderSecondaryContent = () => {
-    switch (activeMode) {
-      case "upload":
-        return (
+      <ScrollArea className="flex-1 h-full">
+        {/* Tab "Upload" (Giữ nguyên) */}
+        <TabsContent value="upload" className="m-0 h-full">
+          {/* ... (Nội dung tab Uploads giữ nguyên) ... */}
           <div className="p-4 space-y-3">
-            <h3 className="font-semibold text-sm">Tải ảnh lên</h3>
+            <h3 className="font-semibold text-sm">Upload ảnh</h3>
             <Label
               htmlFor="image-upload"
-              className="flex items-center justify-center gap-2 w-full px-4 py-8 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+              className={cn(
+                "flex flex-col items-center justify-center gap-2 w-full px-4 py-8 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors",
+                isDragging && "bg-blue-50 border-blue-500"
+              )}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
             >
               <Upload size={24} className="text-gray-400" />
-              <span className="text-sm text-gray-600">Chọn ảnh</span>
+              <span className="text-sm text-gray-600 font-medium">
+                Click or drop
+              </span>
             </Label>
             <Input
               id="image-upload"
@@ -106,14 +163,22 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               onChange={handleFileUpload}
               className="hidden"
             />
-            <p className="text-xs text-gray-500">
-              Hỗ trợ: JPG, PNG, SVG (tối đa 10MB)
-            </p>
+            {selectedObject && selectedObject.type === "image" && (
+              <>
+                <Separator className="my-4" />
+                <ImagePropertiesPanel
+                  selectedObject={selectedObject}
+                  editorRef={editorRef}
+                  onUpdate={onPropertiesUpdate}
+                />
+              </>
+            )}
           </div>
-        );
+        </TabsContent>
 
-      case "text":
-        return (
+        {/* Tab "Text" (Giữ nguyên) */}
+        <TabsContent value="text" className="m-0 h-full">
+          {/* ... (Nội dung tab Text giữ nguyên) ... */}
           <div className="p-4 space-y-3">
             <h3 className="font-semibold text-sm">Thêm văn bản</h3>
             <Button
@@ -125,23 +190,34 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               Thêm văn bản
             </Button>
             <p className="text-xs text-gray-500">
-              Nhấn vào canvas để chỉnh sửa sau khi thêm
+              Nhấn đúp vào canvas để chỉnh sửa
             </p>
+            {selectedObject && selectedObject.type === "i-text" && (
+              <>
+                <Separator className="my-4" />
+                <TextPropertiesPanel
+                  selectedObject={selectedObject}
+                  editorRef={editorRef}
+                  onUpdate={onPropertiesUpdate}
+                />
+              </>
+            )}
           </div>
-        );
+        </TabsContent>
 
-      case "shapes":
-        return (
+        {/* ✅ 2. CẬP NHẬT: Tab "Shapes" (Elements) */}
+        <TabsContent value="shapes" className="m-0 h-full">
           <div className="p-4 space-y-3">
             <h3 className="font-semibold text-sm">Hình dạng</h3>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2">
+              {/* THÊM LẠI CÁC NÚT NÀY */}
               <Button
                 variant="outline"
                 onClick={() => handleAddShape("rect")}
                 className="justify-start"
               >
                 <Square size={18} className="mr-2" />
-                Hình vuông
+                Vuông
               </Button>
               <Button
                 variant="outline"
@@ -149,7 +225,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 className="justify-start"
               >
                 <Circle size={18} className="mr-2" />
-                Hình tròn
+                Tròn
               </Button>
               <Button
                 variant="outline"
@@ -165,153 +241,25 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 className="justify-start"
               >
                 <Minus size={18} className="mr-2" />
-                Đường thẳng
+                Đường
               </Button>
             </div>
           </div>
-        );
+        </TabsContent>
 
-      case "inspiration":
-        return (
-          <div className="p-4 space-y-3">
-            <h3 className="font-semibold text-sm">Tìm cảm hứng</h3>
-            href="https://www.canva.com/templates/" target="_blank"
-            rel="noopener noreferrer" className="flex items-center gap-3 w-full
-            px-4 py-3 border rounded-lg hover:bg-gray-50 transition-colors"
-            <a>
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-blue-500 rounded-lg flex items-center justify-center">
-                <Sparkles size={20} className="text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-sm">Canva Templates</p>
-                <p className="text-xs text-gray-500">Khám phá mẫu thiết kế</p>
-              </div>
-            </a>
-            <p className="text-xs text-gray-500">
-              Tìm cảm hứng từ hàng triệu mẫu chuyên nghiệp
-            </p>
-          </div>
-        );
-
-      // ✅ TASK 5: LAYERS PANEL CONTENT
-      case "layers":
-        return (
-          <div className="h-full flex flex-col">
-            <div className="p-4 border-b">
-              <h3 className="font-semibold text-sm">Quản lý Lớp</h3>
-              <p className="text-xs text-gray-500 mt-1">
-                {layers.length} đối tượng trên canvas
-              </p>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <LayersPanel
-                className="h-full"
-                layers={layers}
-                activeObjectId={activeObjectId || null}
-                onSelectLayer={onSelectLayer || (() => {})}
-                onMoveLayer={onMoveLayer || (() => {})}
-                onToggleVisibility={onToggleVisibility || (() => {})}
-                onDeleteLayer={onDeleteLayer || (() => {})}
-              />
-            </div>
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  // ==================== RENDER ====================
-  return (
-    <div className="flex h-full">
-      {/* PRIMARY BAR (Icon-only) */}
-      <div className="w-20 bg-white border-r border-gray-200 flex flex-col items-center py-6 gap-2">
-        <TooltipProvider>
-          {primaryTools.map((tool) => (
-            <Tooltip key={tool.id}>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={activeMode === tool.id ? "default" : "ghost"}
-                  size="icon"
-                  className={cn(
-                    "w-12 h-12 rounded-xl transition-all",
-                    activeMode === tool.id &&
-                      "bg-gradient-to-r from-orange-400 to-red-500 text-white shadow-lg"
-                  )}
-                  onClick={() =>
-                    setActiveMode(activeMode === tool.id ? null : tool.id)
-                  }
-                >
-                  <tool.icon size={22} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                <p>{tool.label}</p>
-              </TooltipContent>
-            </Tooltip>
-          ))}
-        </TooltipProvider>
-
-        {/* Keyboard Shortcuts Help */}
-        <div className="mt-auto">
-          <details className="text-xs">
-            <summary className="cursor-pointer text-gray-500 hover:text-gray-700 text-center mb-2">
-              ⌨️
-            </summary>
-            <div className="absolute left-20 bottom-6 bg-white border rounded-lg shadow-lg p-3 w-64 z-50">
-              <h4 className="font-semibold text-xs mb-2">Phím tắt</h4>
-              <ul className="space-y-1 text-xs text-gray-600">
-                <li>
-                  <kbd className="px-1 bg-gray-100 border rounded text-xs">
-                    Ctrl+Z
-                  </kbd>{" "}
-                  Hoàn tác
-                </li>
-                <li>
-                  <kbd className="px-1 bg-gray-100 border rounded text-xs">
-                    Ctrl+D
-                  </kbd>{" "}
-                  Nhân bản
-                </li>
-                <li>
-                  <kbd className="px-1 bg-gray-100 border rounded text-xs">
-                    Delete
-                  </kbd>{" "}
-                  Xóa
-                </li>
-                <li>
-                  <kbd className="px-1 bg-gray-100 border rounded text-xs">
-                    Space
-                  </kbd>{" "}
-                  + Kéo: Di chuyển
-                </li>
-                <li>
-                  <kbd className="px-1 bg-gray-100 border rounded text-xs">
-                    Scroll
-                  </kbd>{" "}
-                  Zoom
-                </li>
-                <li>
-                  <kbd className="px-1 bg-gray-100 border rounded text-xs">
-                    Right-click
-                  </kbd>{" "}
-                  Menu nhanh
-                </li>
-              </ul>
-            </div>
-          </details>
-        </div>
-      </div>
-
-      {/* SECONDARY PANEL (Content) */}
-      {activeMode && (
-        <div className="w-60 bg-white border-r border-gray-200 shadow-lg">
-          <div className="h-full overflow-y-auto">
-            {renderSecondaryContent()}
-          </div>
-        </div>
-      )}
-    </div>
+        {/* Tab "Layers" (Giữ nguyên) */}
+        <TabsContent value="layers" className="m-0 h-full">
+          <LayersPanel
+            className="w-full h-full border-l-0 border-t-0"
+            layers={layers}
+            activeObjectId={activeObjectId || null}
+            onSelectLayer={onSelectLayer}
+            onMoveLayer={onMoveLayer}
+            onToggleVisibility={onToggleVisibility}
+            onDeleteLayer={onDeleteLayer}
+          />
+        </TabsContent>
+      </ScrollArea>
+    </Tabs>
   );
 };

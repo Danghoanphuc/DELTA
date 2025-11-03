@@ -1,14 +1,17 @@
 // src/features/editor/core/fabricApi.ts
+// BẢN HOÀN CHỈNH: Đã sửa lỗi 'Image' và gộp đầy đủ API (ContextMenu, Clipboard...)
+
 import {
   Canvas,
   IText,
-  FabricImage,
+  Image, // ✅ SỬA LỖI: Import 'Image' (thay vì FabricImage)
   Rect,
   Circle,
   Triangle,
   Line,
   filters,
-  util as fabricUtil, // Thêm util
+  FabricObject, // Thêm import (cho clipboard)
+  ActiveSelection, // Thêm import (cho delete)
 } from "fabric";
 import { toast } from "sonner";
 
@@ -17,6 +20,9 @@ type ShapeType = "rect" | "circle" | "triangle" | "line";
 type FilterType = "grayscale" | "sepia" | "blur" | "brightness" | "contrast";
 type AlignmentType = "left" | "center" | "right" | "top" | "middle" | "bottom";
 type ExportFormat = "png" | "jpg" | "svg";
+
+// Biến clipboard toàn cục (từ file gốc)
+let clipboard: FabricObject | null = null;
 
 // --- Các hàm thêm đối tượng ---
 
@@ -34,7 +40,8 @@ export const addText = (canvas: Canvas, text: string) => {
 
 export const addImage = async (canvas: Canvas, imageUrl: string) => {
   try {
-    const img = await FabricImage.fromURL(imageUrl, {
+    // ✅ SỬA LỖI: Sử dụng 'Image.fromURL'
+    const img = await Image.fromURL(imageUrl, {
       crossOrigin: "anonymous",
     });
     img.scaleToWidth(150);
@@ -50,7 +57,6 @@ export const addImage = async (canvas: Canvas, imageUrl: string) => {
 
 export const addShape = (canvas: Canvas, shapeType: ShapeType) => {
   let shape;
-  // THÊM: Cấu hình mặc định
   const commonOptions = {
     left: 100,
     top: 100,
@@ -86,18 +92,18 @@ export const addShape = (canvas: Canvas, shapeType: ShapeType) => {
   canvas.renderAll();
 };
 
-// --- Các hàm thao tác ---
+// --- Các hàm thao tác (Xóa, Nhân bản) ---
 
 export const deleteSelected = (canvas: Canvas) => {
   const activeObject = canvas.getActiveObject();
   if (activeObject) {
-    // SỬA LỖI: Xử lý khi chọn nhiều đối tượng
+    // Xử lý khi chọn nhiều đối tượng
     if (activeObject.type === "activeSelection") {
-      (activeObject as any)._objects.forEach((obj: any) => {
+      (activeObject as ActiveSelection)._objects.forEach((obj: any) => {
         canvas.remove(obj);
       });
     } else {
-      // Logic cũ: Xóa 1 đối tượng
+      // Xóa 1 đối tượng
       canvas.remove(activeObject);
     }
     canvas.discardActiveObject(); // Bỏ chọn sau khi xóa
@@ -120,10 +126,100 @@ export const duplicateSelected = (canvas: Canvas) => {
   }
 };
 
+// --- Clipboard API (Lấy từ file gốc) ---
+
+export const copySelected = (canvas: Canvas) => {
+  const activeObject = canvas.getActiveObject();
+  if (activeObject) {
+    activeObject.clone((cloned: FabricObject) => {
+      clipboard = cloned;
+      toast.success("Đã sao chép!");
+    });
+  }
+};
+
+export const paste = (canvas: Canvas) => {
+  if (!clipboard) {
+    toast.warn("Clipboard trống!");
+    return;
+  }
+  clipboard.clone((cloned: FabricObject) => {
+    cloned.set({
+      left: (cloned.left || 0) + 10,
+      top: (cloned.top || 0) + 10,
+      evented: true,
+    });
+    canvas.add(cloned);
+    canvas.setActiveObject(cloned);
+    canvas.renderAll();
+  });
+};
+
+// --- Layer Order API (Lấy từ file gốc) ---
+
+export const bringToFront = (canvas: Canvas) => {
+  const activeObject = canvas.getActiveObject();
+  if (activeObject) {
+    canvas.bringToFront(activeObject);
+    canvas.renderAll();
+  }
+};
+
+export const bringForward = (canvas: Canvas) => {
+  const activeObject = canvas.getActiveObject();
+  if (activeObject) {
+    canvas.bringForward(activeObject);
+    canvas.renderAll();
+  }
+};
+
+export const sendToBack = (canvas: Canvas) => {
+  const activeObject = canvas.getActiveObject();
+  if (activeObject) {
+    canvas.sendToBack(activeObject);
+    canvas.renderAll();
+  }
+};
+
+export const sendBackwards = (canvas: Canvas) => {
+  const activeObject = canvas.getActiveObject();
+  if (activeObject) {
+    canvas.sendBackwards(activeObject);
+    canvas.renderAll();
+  }
+};
+
+export const toggleLock = (canvas: Canvas) => {
+  const activeObject = canvas.getActiveObject();
+  if (activeObject) {
+    const isLocked = activeObject.lockMovementX;
+    activeObject.set({
+      lockMovementX: !isLocked,
+      lockMovementY: !isLocked,
+      lockScalingX: !isLocked,
+      lockScalingY: !isLocked,
+      lockRotation: !isLocked,
+    });
+    canvas.renderAll();
+    toast.success(isLocked ? "Đã mở khóa" : "Đã khóa");
+  }
+};
+
+export const toggleVisibility = (canvas: Canvas) => {
+  const activeObject = canvas.getActiveObject();
+  if (activeObject) {
+    activeObject.set({ visible: !activeObject.visible });
+    canvas.renderAll();
+    toast.success(activeObject.visible ? "Đã hiện" : "Đã ẩn");
+  }
+};
+
+// --- Thuộc tính & Căn chỉnh ---
+
 export const applyFilter = (canvas: Canvas, filterType: FilterType) => {
   const activeObject = canvas.getActiveObject();
-  if (activeObject && activeObject instanceof FabricImage) {
-    // ... (Logic applyFilter như cũ của bạn) ...
+  // ✅ SỬA LỖI: Kiểm tra 'instanceof Image'
+  if (activeObject && activeObject instanceof Image) {
     activeObject.filters = activeObject.filters || [];
 
     // Xóa bộ lọc cùng loại nếu đã tồn tại
@@ -167,7 +263,6 @@ export const applyFilter = (canvas: Canvas, filterType: FilterType) => {
 };
 
 export const align = (canvas: Canvas, alignment: AlignmentType) => {
-  // ... (Logic align như cũ của bạn) ...
   const activeObject = canvas.getActiveObject();
   if (!activeObject) return;
 
@@ -236,23 +331,50 @@ const downloadBlob = (blob: Blob, filename: string) => {
   URL.revokeObjectURL(url);
 };
 
+// Hàm 'toBlob' (thay thế toDataURL) cần polyfill cho Safari cũ
+if (!HTMLCanvasElement.prototype.toBlob) {
+  Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
+    value: function (
+      callback: (blob: Blob | null) => void,
+      type: string,
+      quality: number
+    ) {
+      const dataURL = this.toDataURL(type, quality);
+      const blob = dataURLtoBlob(dataURL);
+      callback(blob);
+    },
+  });
+}
+
 export const exportCanvas = async (canvas: Canvas, format: ExportFormat) => {
   let blob: Blob | null = null;
   let filename = `design.${format}`;
 
+  // Sử dụng Promise để bọc toBlob (vì toBlob dùng callback)
+  const canvasToBlob = (
+    canvasInstance: Canvas,
+    options: fabric.IDataURLOptions
+  ): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      canvasInstance
+        .getElement()
+        .toBlob((b) => resolve(b), `image/${options.format}`, options.quality);
+    });
+  };
+
   switch (format) {
     case "png":
-      // Dùng toBlob cho hiệu năng tốt hơn
-      blob = await canvas.toBlob({ format: "png", quality: 1 });
+      blob = await canvasToBlob(canvas, { format: "png", quality: 1 });
       break;
 
     case "jpg":
-      // SỬA LỖI: Đảm bảo nền trắng khi xuất JPG
       const oldBg = canvas.backgroundColor;
-      canvas.backgroundColor = "#ffffff"; // Set white bg
+      canvas.backgroundColor = "#ffffff";
       canvas.renderAll();
-      blob = await canvas.toBlob({ format: "jpeg", quality: 0.9 });
-      canvas.backgroundColor = oldBg; // Khôi phục bg cũ
+
+      blob = await canvasToBlob(canvas, { format: "jpeg", quality: 0.9 });
+
+      canvas.backgroundColor = oldBg;
       canvas.renderAll();
       break;
 

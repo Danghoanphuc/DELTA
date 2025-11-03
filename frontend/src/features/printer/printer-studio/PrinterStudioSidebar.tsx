@@ -1,30 +1,31 @@
 // frontend/src/features/printer/pages/PrinterStudioSidebar.tsx
-// ✅ ĐÃ SỬA LỖI DEADLOCK
+// ✅ CẬP NHẬT: Đã xóa "Mẹo thiết kế" và "Lưu ý"
+
 import React from "react";
 import {
   Card,
-  CardHeader,
-  CardTitle,
+  // CardHeader,
+  // CardTitle,
   CardContent,
 } from "@/shared/components/ui/card";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
-import { Separator } from "@/shared/components/ui/separator";
-import { TextPropertiesPanel } from "@/features/editor/components/TextPropertiesPanel";
-import { ImagePropertiesPanel } from "@/features/editor/components/ImagePropertiesPanel";
-import ProductViewer3D from "@/features/editor/components/ProductViewer3D";
-// import { Loader2 } from "lucide-react"; // ❌ XÓA
+// ❌ Xóa các import không cần nữa
+// import { Separator } from "@/shared/components/ui/separator";
+// import { TextPropertiesPanel } from "@/features/editor/components/TextPropertiesPanel";
+// import { ImagePropertiesPanel } from "@/features/editor/components/ImagePropertiesPanel";
+// import ProductViewer3D from "@/features/editor/components/ProductViewer3D";
 import { Product } from "@/types/product";
 
+// Interface (Giữ nguyên)
 interface PrinterStudioSidebarProps {
   selectedObject: any;
   onPropertiesUpdate: () => void;
   baseProduct: Product | null;
   phoiAssets: { materialName: string } | null;
-  // is2DReady: boolean; // ❌ XÓA
   texturesForViewer: Record<string, string>;
   productId?: string;
   modelUrl: string;
-  onModelLoaded: () => void; // ✅ THÊM: Callback để báo 3D đã tải xong
+  onModelLoaded: () => void;
 }
 
 export const PrinterStudioSidebar: React.FC<PrinterStudioSidebarProps> = ({
@@ -32,105 +33,24 @@ export const PrinterStudioSidebar: React.FC<PrinterStudioSidebarProps> = ({
   onPropertiesUpdate,
   baseProduct,
   phoiAssets,
-  // is2DReady, // ❌ XÓA
   texturesForViewer,
   productId,
   modelUrl,
-  onModelLoaded, // ✅ THÊM
+  onModelLoaded,
 }) => {
   return (
     <div className="w-96 bg-white border-l">
       <ScrollArea className="h-full">
-        <div className="p-6 space-y-6">
-          {/* 1. Contextual Panels */}
-          {selectedObject && selectedObject.type === "i-text" && (
-            <TextPropertiesPanel
-              selectedObject={selectedObject}
-              onUpdate={onPropertiesUpdate}
-            />
-          )}
+        <div>
+          {/* ❌ 1. KHỐI THÔNG TIN PHÔI ĐÃ BỊ XÓA (từ bước trước) */}
 
-          {selectedObject && selectedObject.type === "image" && (
-            <ImagePropertiesPanel
-              selectedObject={selectedObject}
-              onUpdate={onPropertiesUpdate}
-            />
-          )}
+          {/* ❌ 2. KHỐI 3D PREVIEW ĐÃ BỊ XÓA (từ bước trước) */}
 
-          {/* 2. Product Info */}
-          {/* ... (Giữ nguyên) ... */}
-          {baseProduct && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Thông tin Phôi</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div>
-                  <span className="font-medium">Tên:</span> {baseProduct.name}
-                </div>
-                {phoiAssets?.materialName && (
-                  <div>
-                    <span className="font-medium">Material:</span>{" "}
-                    <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
-                      {phoiAssets.materialName}
-                    </code>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          {/* ❌ 3. KHỐI "MẸO THIẾT KẾ" ĐÃ BỊ XÓA */}
 
-          <Separator />
+          {/* ❌ 4. KHỐI "LƯU Ý" ĐÃ BỊ XÓA */}
 
-          {/* 3. 3D Preview */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">
-                Xem trước 3D (Real-time)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64 bg-gray-100 rounded-lg overflow-hidden">
-                {/* ❌ XÓA: Bỏ skeleton "Đang tải 2D..." */}
-                <ProductViewer3D
-                  modelUrl={modelUrl}
-                  textures={texturesForViewer}
-                  onModelLoaded={onModelLoaded} // ✅ THÊM: Gắn callback
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 4. Tips & Warnings */}
-          {/* ... (Giữ nguyên) ... */}
-          <Card className="bg-blue-50 border-blue-200">
-            <CardContent className="pt-6">
-              <h4 className="font-medium text-sm mb-2 text-blue-900">
-                💡 Mẹo thiết kế
-              </h4>
-              <ul className="text-xs text-blue-700 space-y-1">
-                <li>• Chọn đối tượng để hiện bảng thuộc tính</li>
-                <li>• Nhấn đúp để chỉnh sửa văn bản</li>
-                <li>• Dùng phím Space để kéo canvas</li>
-                <li>• Lăn chuột để zoom tại vị trí con trỏ</li>
-                <li>• Click chuột phải để xem menu nhanh</li>
-                <li>• Nhấn "Lưu & Tiếp tục" để đến bước đăng bán</li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          {productId === "new" && (
-            <Card className="bg-yellow-50 border-yellow-200">
-              <CardContent className="pt-6">
-                <h4 className="font-medium text-sm mb-2 text-yellow-900">
-                  ⚠️ Lưu ý
-                </h4>
-                <p className="text-xs text-yellow-700">
-                  Bạn đang tạo mẫu từ phôi tạm.
-                </p>
-              </CardContent>
-            </Card>
-          )}
+          {/* Nếu sau này bạn muốn thêm lại thứ gì đó, hãy thêm vào đây */}
         </div>
       </ScrollArea>
     </div>

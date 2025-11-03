@@ -1,6 +1,9 @@
 // src/features/editor/hooks/useFabricKeyboardShortcuts.ts
-import { useEffect, useRef } from "react";
-import { Canvas, ActiveSelection, util } from "fabric";
+// ✅ ĐÃ SỬA: Dùng API trung tâm, bỏ clipboard riêng
+
+import { useEffect } from "react";
+import { Canvas, ActiveSelection } from "fabric";
+import * as fabricApi from "../core/fabricApi"; // ✅ Import API
 
 interface ShortcutProps {
   canvas: React.RefObject<Canvas | null>;
@@ -17,11 +20,12 @@ export const useFabricKeyboardShortcuts = ({
   deleteSelected,
   duplicateSelected,
 }: ShortcutProps) => {
-  const clipboardRef = useRef<any>(null);
+  // ❌ Xóa clipboardRef: useRef<any>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!canvas.current) return;
+      const currentCanvas = canvas.current;
+      if (!currentCanvas) return;
 
       const target = e.target as HTMLElement;
       if (
@@ -48,35 +52,16 @@ export const useFabricKeyboardShortcuts = ({
         else undo();
       }
 
-      // Copy (Ctrl+C)
+      // ✅ SỬA: Copy (Ctrl+C)
       if (modKey && e.key.toLowerCase() === "c") {
         e.preventDefault();
-        const activeObject = canvas.current.getActiveObject();
-        if (activeObject) {
-          // Clone và lưu vào ref
-          activeObject.clone((cloned: any) => {
-            clipboardRef.current = cloned;
-          });
-        }
+        fabricApi.copySelected(currentCanvas); // Gọi API
       }
 
-      // Paste (Ctrl+V)
+      // ✅ SỬA: Paste (Ctrl+V)
       if (modKey && e.key.toLowerCase() === "v") {
         e.preventDefault();
-        if (clipboardRef.current && canvas.current) {
-          // Clone từ clipboard để dán
-          clipboardRef.current.clone((cloned: any) => {
-            if (!canvas.current) return;
-            cloned.set({
-              left: (cloned.left || 0) + 10,
-              top: (cloned.top || 0) + 10,
-              evented: true,
-            });
-            canvas.current.add(cloned);
-            canvas.current.setActiveObject(cloned);
-            canvas.current.requestRenderAll();
-          });
-        }
+        fabricApi.paste(currentCanvas); // Gọi API
       }
 
       // Duplicate (Ctrl+D)
@@ -88,25 +73,26 @@ export const useFabricKeyboardShortcuts = ({
       // Select All (Ctrl+A)
       if (modKey && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        canvas.current.discardActiveObject();
-        const sel = new ActiveSelection(canvas.current.getObjects(), {
-          canvas: canvas.current,
+        currentCanvas.discardActiveObject();
+        const sel = new ActiveSelection(currentCanvas.getObjects(), {
+          canvas: currentCanvas,
         });
-        canvas.current.setActiveObject(sel);
-        canvas.current.requestRenderAll();
+        currentCanvas.setActiveObject(sel);
+        currentCanvas.requestRenderAll();
       }
 
       // Deselect (Escape)
       if (e.key === "Escape") {
         e.preventDefault();
-        canvas.current.discardActiveObject();
-        canvas.current.requestRenderAll();
+        currentCanvas.discardActiveObject();
+        currentCanvas.requestRenderAll();
       }
 
       // Movement (Arrow Keys)
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        // ... (code di chuyển giữ nguyên) ...
         e.preventDefault();
-        const activeObject = canvas.current.getActiveObject();
+        const activeObject = currentCanvas.getActiveObject();
         if (!activeObject) return;
 
         const step = e.shiftKey ? 10 : 1;
@@ -125,7 +111,7 @@ export const useFabricKeyboardShortcuts = ({
             break;
         }
         activeObject.setCoords();
-        canvas.current.renderAll();
+        currentCanvas.renderAll();
       }
     };
 

@@ -1,5 +1,5 @@
 // src/features/editor/components/ViewerModel.tsx
-// ✅ FINAL FIX: LOẠI BỎ ENCODING CŨ, DÙNG SRGBColorSpace VÀ NEAREST FILTER CHO TEXTURE
+// ✅ SỬA LỖI: Thêm lại logic "fallbackTexture"
 
 import React, { useMemo, useEffect, useRef } from "react";
 import { useGLTF } from "@react-three/drei";
@@ -16,7 +16,7 @@ interface ViewerModelProps {
   initialRotationY?: number;
 }
 
-// Bộ đệm (cache) cho texture
+// Bộ đệm (cache) cho texture (Giữ nguyên)
 const textureCache = new Map<string, THREE.Texture>();
 
 export function ViewerModel({
@@ -25,15 +25,15 @@ export function ViewerModel({
   controlsRef,
   dimensions,
   onModelLoaded,
-  initialRotationY, // <-- Prop này có thể là undefined
+  initialRotationY,
 }: ViewerModelProps) {
   const group = useRef<THREE.Group>(null);
   const gltf = useGLTF(modelUrl);
 
-  // Gọi hook auto-fit camera (Giữ nguyên)
+  // Hook auto-fit camera (Giữ nguyên)
   useCameraAutoFit(group, gltf.scene, controlsRef);
 
-  // Báo cho component cha khi model đã tải xong (Giữ nguyên)
+  // Báo model đã tải xong (Giữ nguyên)
   useEffect(() => {
     if (gltf.scene) {
       onModelLoaded?.();
@@ -43,6 +43,8 @@ export function ViewerModel({
   // Lưu trữ vật liệu gốc (Giữ nguyên)
   const originalMaterials = useRef<Record<string, THREE.Material>>({});
   useEffect(() => {
+    if (Object.keys(originalMaterials.current).length > 0) return; // Chỉ lưu 1 lần
+
     gltf.scene.traverse((child) => {
       if (
         child instanceof THREE.Mesh &&
@@ -54,7 +56,7 @@ export function ViewerModel({
     });
   }, [gltf.scene]);
 
-  // Logic tải và cache texture (ĐÃ SỬA BỘ LỌC và MÃ HÓA)
+  // Logic tải và cache texture (Giữ nguyên)
   const loadedTextures = useMemo(() => {
     const newTextures: Record<string, THREE.Texture> = {};
     for (const materialName in textures) {
@@ -65,15 +67,9 @@ export function ViewerModel({
         } else {
           const loader = new THREE.TextureLoader();
           const loadedTexture = loader.load(textureData);
-          // ❌ FIX LỖI MÀU: BỎ DÒNG ENCODING NÀY
-          // loadedTexture.encoding = THREE.sRGBEncoding;
           loadedTexture.flipY = false;
           loadedTexture.needsUpdate = true;
-
-          // ✅ THÊM DÒNG NÀY: Dùng ColorSpace hiện đại cho đầu vào Texture
           loadedTexture.colorSpace = THREE.SRGBColorSpace;
-
-          // ✅ THIẾT LẬP LỌC MỚI ĐỂ CHỐNG MỜ (MIPMAPPING)
           loadedTexture.minFilter = THREE.NearestFilter;
           loadedTexture.magFilter = THREE.NearestFilter;
           loadedTexture.generateMipmaps = false;
@@ -83,6 +79,7 @@ export function ViewerModel({
         }
       }
     }
+    // Dọn dẹp cache
     if (textureCache.size > 10) {
       const firstKey = Array.from(textureCache.keys())[0];
       textureCache.get(firstKey)?.dispose();
@@ -91,31 +88,36 @@ export function ViewerModel({
     return newTextures;
   }, [textures]);
 
-  // Logic áp (apply) texture lên model (Giữ nguyên)
+  // ✅ SỬA LỖI: Logic áp (apply) texture lên model
   useEffect(() => {
-    if (Object.keys(loadedTextures).length === 0) return;
+    // ✅ THÊM LẠI LOGIC FALLBACK
+    // Vì đây là trình chỉnh sửa 1-bề-mặt, chúng ta chỉ có 1 texture
+    // Lấy texture đó, bất kể tên key là gì
     const firstTextureKey = Object.keys(loadedTextures)[0];
     const fallbackTexture = loadedTextures[firstTextureKey];
 
     gltf.scene.traverse((child) => {
       if (child instanceof THREE.Mesh && child.material) {
         const materialName = child.material.name;
-        let newTexture = loadedTextures[materialName] || fallbackTexture;
+        const originalMaterial = originalMaterials.current[materialName];
+
+        // ✅ SỬA LỖI: Thử tìm texture khớp tên, NẾU KHÔNG CÓ, dùng fallback
+        const newTexture = loadedTextures[materialName] || fallbackTexture;
+
         if (newTexture) {
-          if (!(child.material instanceof THREE.MeshStandardMaterial)) {
-            child.material = new THREE.MeshStandardMaterial({
-              map: newTexture,
-              metalness: 0.1,
-              roughness: 0.8,
-              name: materialName,
-            });
-          } else {
-            (child.material as THREE.MeshStandardMaterial).map = newTexture;
+          // Có texture mới -> áp dụng
+          if (originalMaterial) {
+            child.material = originalMaterial.clone();
+            if ("map" in child.material) {
+              child.material.map = newTexture;
+            }
+            child.material.needsUpdate = true;
           }
-          child.material.needsUpdate = true;
         } else {
-          const originalMaterial = originalMaterials.current[materialName];
-          if (originalMaterial) child.material = originalMaterial;
+          // Không có texture mới -> trả về bản gốc
+          if (originalMaterial) {
+            child.material = originalMaterial;
+          }
         }
       }
     });
@@ -123,7 +125,6 @@ export function ViewerModel({
 
   // Logic scale kích thước (Giữ nguyên)
   useEffect(() => {
-    // ... (logic scale giữ nguyên)
     if (!group.current || !gltf.scene) return;
     if (!group.current.userData.originalBox) {
       if (group.current.children.length === 0) return;
@@ -139,7 +140,7 @@ export function ViewerModel({
     group.current.scale.set(scaleX, scaleY, scaleZ);
   }, [dimensions, gltf.scene]);
 
-  // SỬA LỖI XOAY MẶT (Giữ nguyên)
+  // Logic xoay (Giữ nguyên)
   const rotationYInRadians = useMemo(() => {
     const rotationDegrees = initialRotationY ?? 180;
     return (rotationDegrees * Math.PI) / 180;
