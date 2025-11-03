@@ -1,5 +1,7 @@
-// src/features/editor/DesignEditorPage.tsx (ĐÃ LÀM SẠCH)
-import React from "react";
+// frontend/src/features/editor/DesignEditorPage.tsx
+// ✅ PHIÊN BẢN CẢI TIẾN - Áp dụng chuẩn 2D-3D + LayersPanel
+
+import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/shared/components/ui/button";
 import { Save, ArrowLeft, Loader2 } from "lucide-react";
@@ -9,11 +11,12 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/shared/components/ui/tabs";
-import { FabricCanvasEditor } from "./components/FabricCanvasEditor";
+import { DesignSurfaceEditor } from "./components/DesignSurfaceEditor";
 import ProductViewer3D from "./components/ProductViewer3D";
 import { EditorToolbar } from "./components/EditorToolbar";
-import { useDesignEditor } from "./hooks/useDesignEditor"; // <-- Import hook
-import { CanvasLoadingSkeleton } from "./components/LoadingSkeleton"; // Giả sử bạn có
+import { LayersPanel } from "./components/LayersPanel";
+import { useDesignEditor } from "./hooks/useDesignEditor";
+import { CanvasLoadingSkeleton } from "./components/LoadingSkeleton";
 
 // Skeleton
 const EditorLoadingSkeleton = () => (
@@ -26,7 +29,7 @@ const EditorLoadingSkeleton = () => (
 export function DesignEditorPage() {
   const navigate = useNavigate();
 
-  // Toàn bộ logic được lấy từ hook
+  // ✅ SỬA: Sử dụng hook cải tiến
   const {
     product,
     activeSurfaceKey,
@@ -41,7 +44,28 @@ export function DesignEditorPage() {
     handleToolbarImageUpload,
     getActiveEditorRef,
     handleSaveAndAddToCart,
+    // ✅ THÊM: Layers state & handlers
+    layers,
+    activeObjectId,
+    updateLayers,
+    handleSelectLayer,
+    handleMoveLayer,
+    handleToggleVisibility,
+    handleDeleteLayer,
   } = useDesignEditor();
+
+  // ✅ QUAN TRỌNG: Tạo textures object cho 3D Viewer
+  // Chỉ chứa những textures đã có data
+  const texturesFor3D = useMemo(() => {
+    const result: Record<string, string> = {};
+    for (const [materialName, textureData] of Object.entries(textures)) {
+      if (textureData) {
+        result[materialName] = textureData;
+      }
+    }
+    console.log("[DesignEditorPage] Textures for 3D:", Object.keys(result));
+    return result;
+  }, [textures]);
 
   // ==================== RENDER ====================
   if (isLoading || !product) {
@@ -50,11 +74,13 @@ export function DesignEditorPage() {
 
   return (
     <div className="flex h-screen bg-gray-100">
+      {/* LEFT: TOOLBAR */}
       <EditorToolbar
         editorRef={{ current: getActiveEditorRef() }}
         onImageUpload={handleToolbarImageUpload}
       />
 
+      {/* CENTER: MAIN CONTENT */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
         <div className="h-16 bg-white border-b flex items-center justify-between px-6 flex-shrink-0">
@@ -99,13 +125,12 @@ export function DesignEditorPage() {
                   {!isModelLoaded ? (
                     <CanvasLoadingSkeleton />
                   ) : (
-                    <FabricCanvasEditor
+                    <DesignSurfaceEditor
                       ref={(el) => (editorRefs.current[surface.key] = el)}
-                      // @ts-ignore - Sửa logic handleSurfaceUpdate trong hook nếu cần
-                      onCanvasUpdate={(dataUrl) =>
-                        handleSurfaceUpdate(surface.materialName, dataUrl)
-                      }
-                      dielineImageUrl={surface.dielineSvgUrl}
+                      materialKey={surface.materialName}
+                      dielineSvgUrl={surface.dielineSvgUrl}
+                      onCanvasUpdate={handleSurfaceUpdate}
+                      onObjectChange={updateLayers}
                       width={600}
                       height={600}
                       isReadyToLoad={isModelLoaded}
@@ -117,15 +142,26 @@ export function DesignEditorPage() {
           </div>
 
           {/* 3D Viewer */}
-          <div className="w-full h-full bg-gray-100">
+          <div className="w-1/3 h-full bg-gray-100">
             <ProductViewer3D
               modelUrl={product.assets.modelUrl!}
-              textures={textures}
+              textures={texturesFor3D}
               onModelLoaded={() => setIsModelLoaded(true)}
             />
           </div>
         </div>
       </div>
+
+      {/* RIGHT: LAYERS PANEL */}
+      <LayersPanel
+        className="w-72"
+        layers={layers}
+        activeObjectId={activeObjectId}
+        onSelectLayer={handleSelectLayer}
+        onMoveLayer={handleMoveLayer}
+        onToggleVisibility={handleToggleVisibility}
+        onDeleteLayer={handleDeleteLayer}
+      />
     </div>
   );
 }

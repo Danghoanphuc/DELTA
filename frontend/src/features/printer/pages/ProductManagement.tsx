@@ -1,6 +1,6 @@
 // src/features/printer/pages/ProductManagement.tsx (ĐÃ LÀM SẠCH)
 import { useProductManagement } from "@/features/printer/hooks/useProductManagement"; // <-- Import hook
-import { AddProductFlow } from "@/features/printer/add-product-flow/AddProductFlow";
+import { AddProductFlow } from "@/features/printer/add-product-flow";
 import { EditProductModal } from "@/features/printer/components/EditProductModal";
 import {
   AlertDialog,

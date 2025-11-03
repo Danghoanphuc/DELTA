@@ -1,6 +1,6 @@
 // src/features/editor/components/LayersPanel.tsx
 import React from "react";
-import { fabric } from "fabric";
+import * as fabric from "fabric";
 import { cn } from "@/shared/lib/utils";
 import {
   Trash2,

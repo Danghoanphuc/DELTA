@@ -1,5 +1,5 @@
 // frontend/src/features/editor/components/EditorToolbar.tsx
-// ✅ COMPLETE TOOLBAR WITH ALL FEATURES
+// ✅ TASK 2: ĐÃ XÓA ZOOM CONTROLS - Zoom đã được tích hợp native vào canvas
 
 import React, { useState } from "react";
 import { Button } from "@/shared/components/ui/button";
@@ -44,8 +44,7 @@ import {
   AlignVerticalJustifyCenter,
   AlignHorizontalJustifyStart,
   AlignHorizontalJustifyEnd,
-  ZoomIn,
-  ZoomOut,
+  // ✅ TASK 2: Đã XÓA ZoomIn, ZoomOut vì không còn dùng
   Upload,
   Sparkles,
 } from "lucide-react";
@@ -69,7 +68,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     fontStyle: "normal",
     underline: false,
   });
-  const [zoom, setZoom] = useState(100);
 
   // ==================== BASIC TOOLS ====================
   const handleAddText = () => {
@@ -102,23 +100,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     editorRef.current?.redo();
   };
 
-  // ==================== ZOOM ====================
-  const handleZoomIn = () => {
-    const newZoom = Math.min(zoom + 10, 400);
-    setZoom(newZoom);
-    editorRef.current?.setZoom(newZoom / 100);
-  };
-
-  const handleZoomOut = () => {
-    const newZoom = Math.max(zoom - 10, 10);
-    setZoom(newZoom);
-    editorRef.current?.setZoom(newZoom / 100);
-  };
-
-  const handleZoomChange = (value: number[]) => {
-    setZoom(value[0]);
-    editorRef.current?.setZoom(value[0] / 100);
-  };
+  // ✅ TASK 2: ĐÃ XÓA - handleZoomIn, handleZoomOut, handleZoomChange
+  // Zoom giờ được xử lý native bởi useFabricZoom (mouse wheel tại vị trí con trỏ)
 
   // ==================== TEXT FORMATTING ====================
   const handleTextStyleChange = (property: string, value: any) => {
@@ -357,28 +340,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             </div>
           </div>
 
-          <Separator />
-
-          {/* Zoom Controls */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Thu phóng ({zoom}%)</Label>
-            <div className="flex gap-2 items-center">
-              <Button variant="outline" size="icon" onClick={handleZoomOut}>
-                <ZoomOut size={18} />
-              </Button>
-              <Slider
-                value={[zoom]}
-                onValueChange={handleZoomChange}
-                min={10}
-                max={400}
-                step={10}
-                className="flex-1"
-              />
-              <Button variant="outline" size="icon" onClick={handleZoomIn}>
-                <ZoomIn size={18} />
-              </Button>
-            </div>
-          </div>
+          {/* ✅ TASK 2: ĐÃ XÓA - Zoom Controls Section */}
+          {/* Zoom giờ hoạt động native: lăn chuột để zoom tại vị trí con trỏ */}
         </TabsContent>
 
         {/* ==================== TEXT TAB ==================== */}
@@ -596,6 +559,15 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             </li>
             <li>
               <kbd className="px-1 bg-white border rounded">Delete</kbd> Xóa
+            </li>
+            {/* ✅ TASK 2: Thêm hướng dẫn mới */}
+            <li>
+              <kbd className="px-1 bg-white border rounded">Space</kbd> + Kéo
+              chuột: Di chuyển canvas
+            </li>
+            <li>
+              <kbd className="px-1 bg-white border rounded">Scroll</kbd> Zoom
+              tại vị trí con trỏ
             </li>
             <li>
               <kbd className="px-1 bg-white border rounded">Arrow keys</kbd> Di

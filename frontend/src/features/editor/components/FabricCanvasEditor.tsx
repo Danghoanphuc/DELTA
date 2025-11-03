@@ -1,5 +1,5 @@
 // src/features/editor/components/FabricCanvasEditor.tsx
-// ✅ BẢN SỬA LỖI VÒNG LẶP VÔ TẬN (Dùng Ref cho callback)
+// ✅ TASK 2: ĐÃ THÊM PANNING (Space key) VÀ ZOOM TẠI VỊ TRÍ CON TRỎ
 
 import React, {
   useRef,
@@ -18,7 +18,7 @@ import { useFabricZoom } from "../hooks/useFabricZoom";
 import * as fabricApi from "../core/fabricApi";
 import { Canvg } from "canvg";
 
-// ==================== TYPES (Giữ nguyên) ====================
+// ==================== TYPES ====================
 interface FabricCanvasEditorProps {
   dielineImageUrl: string;
   onCanvasUpdate: (base64DataUrl: string, jsonData: object) => void;
@@ -72,7 +72,12 @@ export const FabricCanvasEditor = forwardRef<
     const [isLoading, setIsLoading] = useState(true);
     const [loadFailed, setLoadFailed] = useState(false);
 
-    // --- Refs cho các callback (Giữ nguyên) ---
+    // ✅ TASK 2: State for panning
+    const [isPanning, setIsPanning] = useState(false);
+    const lastPosX = useRef(0);
+    const lastPosY = useRef(0);
+
+    // --- Refs cho các callback ---
     const onCanvasUpdateRef = useRef(onCanvasUpdate);
     useEffect(() => {
       onCanvasUpdateRef.current = onCanvasUpdate;
@@ -83,13 +88,12 @@ export const FabricCanvasEditor = forwardRef<
       onObjectChangeRef.current = onObjectChange;
     }, [onObjectChange]);
 
-    // ✅ SỬA VÒNG LẶP: Dùng ref cho onDielineLoaded
     const onDielineLoadedRef = useRef(onDielineLoaded);
     useEffect(() => {
       onDielineLoadedRef.current = onDielineLoaded;
     }, [onDielineLoaded]);
 
-    // --- Texture Generation (Giữ nguyên) ---
+    // --- Texture Generation ---
     const generateTexture = useCallback(() => {
       const canvas = fabricCanvas.current;
       if (!canvas) return;
@@ -118,7 +122,7 @@ export const FabricCanvasEditor = forwardRef<
       debounce(() => generateTexture(), 250)
     ).current;
 
-    // --- Hooks (Giữ nguyên) ---
+    // --- Hooks ---
     const { zoom, setZoom } = useFabricZoom(fabricCanvas);
     const { saveState, undo, redo } = useFabricHistory(
       fabricCanvas,
@@ -140,7 +144,94 @@ export const FabricCanvasEditor = forwardRef<
     });
 
     // ==========================================================
-    // ✅ useEffect CHÍNH (Đã sửa dependency)
+    // ✅ TASK 2: IMPLEMENT PANNING (Hand Tool)
+    // ==========================================================
+    useEffect(() => {
+      const canvas = fabricCanvas.current;
+      if (!canvas) return;
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // Chỉ xử lý Space key
+        if (e.code === "Space" && !isPanning) {
+          e.preventDefault();
+          setIsPanning(true);
+          canvas.selection = false;
+          canvas.defaultCursor = "grab";
+          canvas.hoverCursor = "grab";
+        }
+      };
+
+      const handleKeyUp = (e: KeyboardEvent) => {
+        if (e.code === "Space" && isPanning) {
+          e.preventDefault();
+          setIsPanning(false);
+          canvas.selection = true;
+          canvas.defaultCursor = "default";
+          canvas.hoverCursor = "move";
+        }
+      };
+
+      window.addEventListener("keydown", handleKeyDown);
+      window.addEventListener("keyup", handleKeyUp);
+
+      return () => {
+        window.removeEventListener("keydown", handleKeyDown);
+        window.removeEventListener("keyup", handleKeyUp);
+      };
+    }, [isPanning]);
+
+    // Mouse events for panning
+    useEffect(() => {
+      const canvas = fabricCanvas.current;
+      if (!canvas) return;
+
+      const handleMouseDown = (opt: any) => {
+        if (isPanning) {
+          canvas.setCursor("grabbing");
+          lastPosX.current = opt.e.clientX;
+          lastPosY.current = opt.e.clientY;
+        }
+      };
+
+      const handleMouseMove = (opt: any) => {
+        if (isPanning && opt.e.buttons === 1) {
+          // Left mouse button down
+          const e = opt.e;
+          const vpt = canvas.viewportTransform;
+          if (!vpt) return;
+
+          const deltaX = e.clientX - lastPosX.current;
+          const deltaY = e.clientY - lastPosY.current;
+
+          vpt[4] += deltaX;
+          vpt[5] += deltaY;
+
+          canvas.requestRenderAll();
+
+          lastPosX.current = e.clientX;
+          lastPosY.current = e.clientY;
+        }
+      };
+
+      const handleMouseUp = () => {
+        if (isPanning) {
+          canvas.setCursor("grab");
+        }
+      };
+
+      canvas.on("mouse:down", handleMouseDown);
+      canvas.on("mouse:move", handleMouseMove);
+      canvas.on("mouse:up", handleMouseUp);
+
+      return () => {
+        canvas.off("mouse:down", handleMouseDown);
+        canvas.off("mouse:move", handleMouseMove);
+        canvas.off("mouse:up", handleMouseUp);
+      };
+    }, [isPanning]);
+
+    // ==========================================================
+    // useEffect CHÍNH
     // ==========================================================
     useEffect(() => {
       // --- PHẦN 1: KHỞI TẠO CANVAS ---
@@ -204,7 +295,7 @@ export const FabricCanvasEditor = forwardRef<
           const fabricImg = await fabric.Image.fromURL(pngDataUrl);
 
           const currentCanvas = fabricCanvas.current;
-          if (!currentCanvas) return; // Bị unmount
+          if (!currentCanvas) return;
 
           fabricImg.scaleToWidth(currentCanvas.width || width);
           currentCanvas.centerObject(fabricImg);
@@ -214,7 +305,6 @@ export const FabricCanvasEditor = forwardRef<
           setIsLoading(false);
           toast.success("Đã tải khuôn 2D (SVG) thành công.");
 
-          // ✅ SỬA VÒNG LẶP: Gọi callback qua Ref
           console.log(
             "[FabricEditor] 4. Dieline loaded. Firing onDielineLoaded() via ref."
           );
@@ -239,9 +329,6 @@ export const FabricCanvasEditor = forwardRef<
           fabricCanvas.current = null;
         }
       };
-
-      // ✅ SỬA VÒNG LẶP: XÓA onDielineLoaded khỏi mảng dependency
-      // Chỉ chạy MỘT LẦN khi các prop này thay đổi
     }, [
       width,
       height,
@@ -251,7 +338,7 @@ export const FabricCanvasEditor = forwardRef<
       isReadyToLoad,
     ]);
 
-    // --- IMPERATIVE METHODS (API) (Giữ nguyên) ---
+    // --- IMPERATIVE METHODS (API) ---
     useImperativeHandle(ref, () => ({
       addText: (text: string) =>
         fabricCanvas.current && fabricApi.addText(fabricCanvas.current, text),
@@ -288,7 +375,7 @@ export const FabricCanvasEditor = forwardRef<
       },
     }));
 
-    // --- RENDER (Giữ nguyên) ---
+    // --- RENDER ---
     return (
       <div className="w-full h-full relative">
         {loadFailed ? (
@@ -309,8 +396,16 @@ export const FabricCanvasEditor = forwardRef<
           </div>
         ) : null}
         <canvas ref={canvasEl} className="shadow-lg" />
-        <div className="absolute bottom-4 right-4 bg-white px-3 py-1 rounded shadow text-sm">
-          {Math.round(zoom * 100)}%
+        {/* ✅ TASK 2: Zoom indicator + Panning hint */}
+        <div className="absolute bottom-4 right-4 bg-white px-3 py-1 rounded shadow text-sm space-y-1">
+          <div>{Math.round(zoom * 100)}%</div>
+          {isPanning && (
+            <div className="text-xs text-blue-600">🖐️ Panning mode</div>
+          )}
+        </div>
+        <div className="absolute bottom-4 left-4 bg-white px-3 py-1 rounded shadow text-xs text-gray-500">
+          <kbd className="px-1 bg-gray-100 border rounded">Space</kbd> + Kéo
+          chuột để di chuyển
         </div>
       </div>
     );

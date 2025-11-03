@@ -1,15 +1,14 @@
 // src/features/printer/pages/PrinterStudio.tsx
-// ✅ BẢN FIX: Canvas 2D ↔ 3D Real-time Update
+// ✅ TASK 1: ĐÃ TÁCH BIỆT - Chỉ tập trung vào Sáng tạo, KHÔNG có Form
 
 import React, {
   useState,
   useRef,
   useEffect,
   useCallback,
-  useMemo, // ✅ SỬA: Thêm 'useMemo' vào import
+  useMemo,
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import api from "@/shared/lib/axios";
 
@@ -23,32 +22,22 @@ import { EditorToolbar } from "@/features/editor/components/EditorToolbar";
 
 // UI Components
 import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
 import {
   Card,
   CardHeader,
   CardTitle,
   CardContent,
 } from "@/shared/components/ui/card";
-import { Switch } from "@/shared/components/ui/switch";
-import { Textarea } from "@/shared/components/ui/textarea";
 import { Badge } from "@/shared/components/ui/badge";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { Separator } from "@/shared/components/ui/separator";
 import { Save, ArrowLeft, Eye, Loader2 } from "lucide-react";
 
 // Types
-type TemplateFormData = {
-  name: string;
-  description: string;
-  isPublic: boolean;
-  tags: string;
-};
 interface PhoiAssets {
   modelUrl: string;
   dielineUrl: string;
-  materialName?: string; // ✅ THÊM: Tên material trong GLB
+  materialName?: string;
 }
 import { Product } from "@/types/product";
 
@@ -58,7 +47,7 @@ function dataURLtoBlob(dataurl: string): Blob {
   const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
   const bstr = atob(arr[1]);
   let n = bstr.length;
-  const u8arr = new UintArray(n);
+  const u8arr = new Uint8Array(n);
   while (n--) {
     u8arr[n] = bstr.charCodeAt(n);
   }
@@ -85,23 +74,9 @@ export function PrinterStudio() {
   const [phoiAssets, setPhoiAssets] = useState<PhoiAssets | null>(null);
   const [textureData, setTextureData] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewMode, setPreviewMode] = useState<"2d" | "3d">("3d");
-
   const [is3DMainLoaded, setIs3DMainLoaded] = useState(false);
   const [is2DReady, setIs2DReady] = useState(false);
-
-  // Form
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    watch,
-  } = useForm<TemplateFormData>({
-    defaultValues: { name: "", description: "", isPublic: true, tags: "" },
-  });
-  const watchedName = watch("name");
-  const watchedDescription = watch("description");
 
   // ==================== FETCH PRODUCT ====================
   useEffect(() => {
@@ -112,7 +87,7 @@ export function PrinterStudio() {
         setIsLoading(true);
         let modelUrl: string | undefined;
         let dielineUrl: string | undefined;
-        let materialName: string | undefined; // ✅ THÊM
+        let materialName: string | undefined;
         let productName: string | undefined;
         let productData: Product | null = null;
 
@@ -126,13 +101,13 @@ export function PrinterStudio() {
           const parsed = JSON.parse(tempData);
           modelUrl = parsed.assets?.modelUrl;
           dielineUrl = parsed.assets?.surfaces?.[0]?.dielineSvgUrl;
-          materialName = parsed.assets?.surfaces?.[0]?.materialName; // ✅ LẤY MATERIAL NAME
+          materialName = parsed.assets?.surfaces?.[0]?.materialName;
           productName = `Phôi ${parsed.category} (Tạm)`;
 
           console.log("✅ [PrinterStudio] Parsed:", {
             modelUrl,
             dielineUrl,
-            materialName, // ✅ LOG
+            materialName,
           });
 
           if (!modelUrl || !dielineUrl)
@@ -152,14 +127,14 @@ export function PrinterStudio() {
           productData = product;
           modelUrl = product?.assets?.modelUrl;
           dielineUrl = product?.assets?.surfaces?.[0]?.dielineSvgUrl;
-          materialName = product?.assets?.surfaces?.[0]?.materialName; // ✅ LẤY MATERIAL NAME
+          materialName = product?.assets?.surfaces?.[0]?.materialName;
 
           if (!product || !modelUrl || !dielineUrl)
             throw new Error("Phôi này thiếu file 3D hoặc file Dieline SVG");
         }
 
         setBaseProduct(productData);
-        setPhoiAssets({ modelUrl, dielineUrl, materialName }); // ✅ LƯU MATERIAL NAME
+        setPhoiAssets({ modelUrl, dielineUrl, materialName });
 
         console.log("🎯 [PrinterStudio] phoiAssets set:", {
           modelUrl,
@@ -184,7 +159,6 @@ export function PrinterStudio() {
   }, [productId, navigate]);
 
   // ==================== HANDLERS ====================
-  // ✅ QUAN TRỌNG: Callback này được gọi MỖI KHI canvas thay đổi
   const handleCanvasUpdate = useCallback(
     (base64Image: string, jsonData: object) => {
       console.log(
@@ -208,7 +182,6 @@ export function PrinterStudio() {
   const createCanvasSnapshot = useCallback((): {
     json: string;
     previewBlob: Blob;
-    productionBlob: Blob;
   } | null => {
     if (!editorRef.current) return null;
     const canvas = editorRef.current.getCanvas();
@@ -223,13 +196,11 @@ export function PrinterStudio() {
     }
     const previewDataURL = canvas.toDataURL({ format: "png", quality: 0.8 });
     const previewBlob = dataURLtoBlob(previewDataURL);
-    const svgString = canvas.toSVG();
-    const productionBlob = new Blob([svgString], { type: "image/svg+xml" });
-    return { json, previewBlob, productionBlob };
+    return { json, previewBlob };
   }, []);
 
-  // ==================== SUBMIT ====================
-  const onSubmit = async (data: TemplateFormData) => {
+  // ==================== ✅ TASK 1: SAVE & EXIT (Không submit API) ====================
+  const handleSaveAndExit = useCallback(() => {
     if (!editorRef.current) {
       toast.error("Lỗi: Trình chỉnh sửa chưa sẵn sàng");
       return;
@@ -239,73 +210,53 @@ export function PrinterStudio() {
       toast.error("Lỗi: Không tìm thấy ID Phôi");
       return;
     }
-    if (productId === "new") {
-      toast.warning("Lưu ý: Bạn đang tạo mẫu từ phôi tạm.", {
-        description: "Mẫu này sẽ được liên kết với phôi sau khi phôi được tạo.",
-      });
-    }
-    setIsSubmitting(true);
-    toast.info("Đang tạo snapshot 2D...");
-    const snapshot = createCanvasSnapshot();
-    if (!snapshot) {
-      setIsSubmitting(false);
-      return;
-    }
-    try {
-      if (snapshot.previewBlob.size > 5 * 1024 * 1024)
-        throw new Error("Ảnh xem trước quá lớn (>5MB)");
-      const formData = new FormData();
-      formData.append("name", data.name);
-      formData.append("description", data.description);
-      formData.append("isPublic", String(data.isPublic));
-      formData.append("baseProductId", baseProductId);
-      formData.append("editorData", snapshot.json);
-      formData.append("previewFile", snapshot.previewBlob, "preview.png");
-      formData.append("productionFile", snapshot.productionBlob, "design.svg");
-      if (data.tags) {
-        const tagsArray = data.tags
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean);
-        formData.append("tags", JSON.stringify(tagsArray));
-      }
-      toast.info("Đang upload dữ liệu mẫu...");
-      await api.post("/designs/templates", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        timeout: 30000,
-      });
-      toast.success("🎉 Đăng bán mẫu thành công!");
-      localStorage.removeItem("tempProductAssets");
-      navigate("/printer/dashboard/products");
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Lỗi khi lưu mẫu thiết kế");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
-  // ==================== ✅ SỬA: HOOK ĐÃ ĐƯỢC DI CHUYỂN LÊN ĐÂY ====================
-  // ✅ QUAN TRỌNG: Tạo textures object với KEY ĐÚNG
-  // Nếu có materialName từ surfaces, dùng nó. Nếu không, thử một số key phổ biến
+    toast.info("Đang lưu thiết kế tạm thời...");
+    const snapshot = createCanvasSnapshot();
+    if (!snapshot) return;
+
+    // Lưu vào sessionStorage
+    const tempDesignData = {
+      baseProductId,
+      editorJson: snapshot.json,
+      previewDataUrl: snapshot.previewBlob, // Lưu dạng blob URL
+      timestamp: Date.now(),
+    };
+
+    // Convert blob to base64 để lưu vào storage
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      tempDesignData.previewDataUrl = reader.result as string;
+      sessionStorage.setItem("tempDesignData", JSON.stringify(tempDesignData));
+
+      toast.success("✅ Đã lưu thiết kế tạm thời!");
+      console.log(
+        "💾 [PrinterStudio] Saved to sessionStorage:",
+        tempDesignData
+      );
+
+      // Điều hướng sang trang Publish
+      navigate("/printer/publish-template");
+    };
+    reader.readAsDataURL(snapshot.previewBlob);
+  }, [baseProduct, createCanvasSnapshot, navigate]);
+
+  // ==================== TEXTURES ====================
   const texturesForViewer = useMemo(() => {
     if (!textureData) return {};
 
     console.log(
       "🎨 [PrinterStudio] Creating textures object with materialName:",
-      phoiAssets?.materialName // ✅ SỬA: Dùng optional chaining
+      phoiAssets?.materialName
     );
 
-    // Chiến lược: Áp texture vào NHIỀU key có thể
     const result: Record<string, string> = {};
 
     if (phoiAssets?.materialName) {
-      // ✅ SỬA: Dùng optional chaining
-      // Dùng material name chính xác từ surfaces
       result[phoiAssets.materialName] = textureData;
     }
 
-    // Thêm các key backup phổ biến (để đảm bảo)
+    // Backup keys
     result["Dieline"] = textureData;
     result["Material_Lid"] = textureData;
     result["main_surface"] = textureData;
@@ -313,9 +264,9 @@ export function PrinterStudio() {
 
     console.log("🎯 [PrinterStudio] Final textures keys:", Object.keys(result));
     return result;
-  }, [textureData, phoiAssets]); // ✅ SỬA: Phụ thuộc vào cả object 'phoiAssets'
+  }, [textureData, phoiAssets]);
 
-  // ==================== LOADING STATE (NẰM SAU TẤT CẢ CÁC HOOK) ====================
+  // ==================== LOADING STATE ====================
   if (isLoading || !phoiAssets) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -329,10 +280,7 @@ export function PrinterStudio() {
 
   // ==================== RENDER ====================
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="flex h-screen bg-gray-100"
-    >
+    <div className="flex h-screen bg-gray-100">
       {/* LEFT: TOOLBAR */}
       <EditorToolbar editorRef={editorRef} onImageUpload={handleImageUpload} />
 
@@ -353,9 +301,7 @@ export function PrinterStudio() {
               <ArrowLeft size={20} />
             </Button>
             <div>
-              <h1 className="text-lg font-semibold">
-                {watchedName || "Chưa đặt tên"}
-              </h1>
+              <h1 className="text-lg font-semibold">Studio - Thiết kế</h1>
               <p className="text-xs text-gray-500">Phôi: {baseProduct?.name}</p>
             </div>
           </div>
@@ -363,26 +309,19 @@ export function PrinterStudio() {
             <Badge variant="outline" className="text-xs">
               {productId === "new" ? "Chế độ tạo mới" : "Chế độ chỉnh sửa"}
             </Badge>
-            {/* ✅ THÊM: Debug badge hiển thị trạng thái texture */}
             {textureData && (
               <Badge variant="secondary" className="text-xs">
                 🎨 Texture: {(textureData.length / 1024).toFixed(1)}KB
               </Badge>
             )}
+            {/* ✅ TASK 1: Nút "Lưu & Tiếp tục" thay vì Submit */}
             <Button
-              type="submit"
-              disabled={isSubmitting}
+              type="button"
+              onClick={handleSaveAndExit}
               className="bg-orange-500 hover:bg-orange-600"
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Đang lưu...
-                </>
-              ) : (
-                <>
-                  <Save size={18} className="mr-2" /> Lưu & Đăng bán
-                </>
-              )}
+              <Save size={18} className="mr-2" />
+              Lưu & Tiếp tục
             </Button>
           </div>
         </div>
@@ -400,7 +339,7 @@ export function PrinterStudio() {
             >
               <ProductViewer3D
                 modelUrl={phoiAssets.modelUrl}
-                textures={texturesForViewer} // ✅ SỬA: Dùng textures object mới
+                textures={texturesForViewer}
                 onModelLoaded={() => {
                   if (!is3DMainLoaded) {
                     console.log("✅ [PrinterStudio] 3D Main Loaded");
@@ -422,7 +361,7 @@ export function PrinterStudio() {
                 <FabricCanvasEditor
                   ref={editorRef}
                   dielineImageUrl={phoiAssets.dielineUrl}
-                  onCanvasUpdate={handleCanvasUpdate} // ✅ QUAN TRỌNG
+                  onCanvasUpdate={handleCanvasUpdate}
                   width={600}
                   height={600}
                   isReadyToLoad={is3DMainLoaded}
@@ -438,7 +377,7 @@ export function PrinterStudio() {
           </div>
         </div>
 
-        {/* Bottom Bar */}
+        {/* Bottom Bar - Toggle 2D/3D */}
         <div className="h-16 bg-white border-t flex items-center justify-center px-6">
           <div className="flex items-center gap-2">
             <Button
@@ -460,112 +399,45 @@ export function PrinterStudio() {
         </div>
       </div>
 
-      {/* RIGHT: FORM & PREVIEW */}
-      <ScrollArea className="w-96 bg-white border-l">
-        <div className="p-6 space-y-6">
-          {/* Product Info */}
-          {baseProduct && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Thông tin Phôi</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div>
-                  <span className="font-medium">Tên:</span> {baseProduct.name}
-                </div>
-                {baseProduct.description && (
+      {/* ✅ TASK 1: RIGHT SIDEBAR - CHỈ CÒN 3D PREVIEW */}
+      <div className="w-96 bg-white border-l">
+        <ScrollArea className="h-full">
+          <div className="p-6 space-y-6">
+            {/* Product Info */}
+            {baseProduct && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Thông tin Phôi</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
                   <div>
-                    <span className="font-medium">Mô tả:</span>{" "}
-                    {baseProduct.description}
+                    <span className="font-medium">Tên:</span> {baseProduct.name}
                   </div>
-                )}
-                {/* ✅ THÊM: Hiển thị material name */}
-                {phoiAssets.materialName && (
-                  <div>
-                    <span className="font-medium">Material:</span>{" "}
-                    <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
-                      {phoiAssets.materialName}
-                    </code>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                  {baseProduct.description && (
+                    <div>
+                      <span className="font-medium">Mô tả:</span>{" "}
+                      {baseProduct.description}
+                    </div>
+                  )}
+                  {phoiAssets.materialName && (
+                    <div>
+                      <span className="font-medium">Material:</span>{" "}
+                      <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
+                        {phoiAssets.materialName}
+                      </code>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
-          <Separator />
+            <Separator />
 
-          {/* Template Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Thông tin Mẫu thiết kế</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="templateName">
-                  Tên Mẫu <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="templateName"
-                  {...register("name", {
-                    required: "Tên mẫu là bắt buộc",
-                    minLength: {
-                      value: 3,
-                      message: "Tên mẫu phải có ít nhất 3 ký tự",
-                    },
-                  })}
-                  placeholder="VD: Mẫu card visit Giáng Sinh"
-                />
-                {errors.name && (
-                  <p className="text-xs text-red-500">{errors.name.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Mô tả</Label>
-                <Textarea
-                  id="description"
-                  {...register("description")}
-                  placeholder="Mô tả ngắn về mẫu thiết kế..."
-                  rows={3}
-                />
-                <p className="text-xs text-gray-500">
-                  {watchedDescription?.length || 0}/500 ký tự
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tags">Tags (phân tách bằng dấu phẩy)</Label>
-                <Input
-                  id="tags"
-                  {...register("tags")}
-                  placeholder="VD: card visit, giáng sinh, đỏ"
-                />
-                <p className="text-xs text-gray-500">
-                  Giúp khách hàng dễ tìm kiếm mẫu của bạn
-                </p>
-              </div>
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="space-y-1">
-                  <Label htmlFor="isPublic" className="font-medium">
-                    Đăng bán công khai
-                  </Label>
-                  <p className="text-xs text-gray-500">
-                    Customer có thể thấy và sử dụng mẫu này
-                  </p>
-                </div>
-                <Switch
-                  id="isPublic"
-                  {...register("isPublic")}
-                  defaultChecked
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 3D Preview Card (Sidebar) */}
-          {previewMode === "2d" && (
+            {/* 3D Preview Card (Sidebar) - Luôn hiển thị */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">
-                  Xem trước 3D (Sidebar)
+                  Xem trước 3D (Real-time)
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -580,46 +452,46 @@ export function PrinterStudio() {
                   ) : (
                     <ProductViewer3D
                       modelUrl={phoiAssets.modelUrl}
-                      textures={texturesForViewer} // ✅ SỬA
+                      textures={texturesForViewer}
                     />
                   )}
                 </div>
               </CardContent>
             </Card>
-          )}
 
-          {/* Tips */}
-          <Card className="bg-blue-50 border-blue-200">
-            <CardContent className="pt-6">
-              <h4 className="font-medium text-sm mb-2 text-blue-900">
-                💡 Mẹo thiết kế
-              </h4>
-              <ul className="text-xs text-blue-700 space-y-1">
-                <li>• Sử dụng phím tắt để làm việc nhanh hơn</li>
-                <li>• Đặt tên rõ ràng để dễ quản lý</li>
-                <li>• Thêm mô tả giúp khách hàng hiểu mẫu</li>
-                <li>• Sử dụng tags để tăng khả năng tìm kiếm</li>
-                <li>• Kiểm tra xem trước 3D trước khi lưu</li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          {/* Warning */}
-          {productId === "new" && (
-            <Card className="bg-yellow-50 border-yellow-200">
+            {/* Tips */}
+            <Card className="bg-blue-50 border-blue-200">
               <CardContent className="pt-6">
-                <h4 className="font-medium text-sm mb-2 text-yellow-900">
-                  ⚠️ Lưu ý
+                <h4 className="font-medium text-sm mb-2 text-blue-900">
+                  💡 Mẹo thiết kế
                 </h4>
-                <p className="text-xs text-yellow-700">
-                  Bạn đang tạo mẫu từ phôi tạm. Mẫu này sẽ được liên kết tự động
-                  sau khi phôi được tạo.
-                </p>
+                <ul className="text-xs text-blue-700 space-y-1">
+                  <li>• Sử dụng phím tắt để làm việc nhanh hơn</li>
+                  <li>• Kiểm tra xem trước 3D thường xuyên</li>
+                  <li>• Dùng phím Space để kéo canvas</li>
+                  <li>• Lăn chuột để zoom tại vị trí con trỏ</li>
+                  <li>• Nhấn "Lưu & Tiếp tục" để đến bước đăng bán</li>
+                </ul>
               </CardContent>
             </Card>
-          )}
-        </div>
-      </ScrollArea>
-    </form>
+
+            {/* Warning */}
+            {productId === "new" && (
+              <Card className="bg-yellow-50 border-yellow-200">
+                <CardContent className="pt-6">
+                  <h4 className="font-medium text-sm mb-2 text-yellow-900">
+                    ⚠️ Lưu ý
+                  </h4>
+                  <p className="text-xs text-yellow-700">
+                    Bạn đang tạo mẫu từ phôi tạm. Mẫu này sẽ được liên kết tự
+                    động sau khi phôi được tạo.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+    </div>
   );
 }
