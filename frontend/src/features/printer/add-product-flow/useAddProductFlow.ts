@@ -1,5 +1,5 @@
 // frontend/src/features/printer/add-product-flow/useAddProductFlow.ts
-// ✅ HOOK TRUNG TÂM - Tách toàn bộ logic từ AddProductFlow
+// ✅ ĐÃ SỬA: Đảm bảo assets structure nhất quán với dielineUrl
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -56,35 +56,67 @@ export function useAddProductFlow(onProductAdded: () => void) {
   useEffect(() => {
     if (!selectedCategory) return;
 
-    // ** KHẮC PHỤC: Reset state khi đổi category **
+    // Reset state khi đổi category
     setDefaultAssets(null);
     setCustomAssets(null);
 
     const fetchDefaultAssets = async () => {
       try {
-        const res = await api.get(`/products/${selectedCategory}`);
-        const assets = res.data?.data?.product?.assets;
+        console.log(
+          `📥 [useAddProductFlow] Fetching default assets for: ${selectedCategory}`
+        );
 
-        // ✅✅✅ SỬA LỖI TẠI ĐÂY ✅✅✅
-        // Đọc 'assets.dielineUrl' thay vì 'assets.surfaces[0].dielineSvgUrl'
-        if (assets?.modelUrl && assets?.dielineUrl) {
-          setDefaultAssets({
-            modelUrl: assets.modelUrl,
-            dielineUrl: assets.dielineUrl, // <-- ĐÃ SỬA
-          });
-          toast.success("✅ Đã tải phôi mặc định!");
-        } else {
-          // ** THÊM: Thông báo nếu không tìm thấy assets **
-          toast.error("Phôi mặc định này thiếu file 3D hoặc Dieline.");
-          console.warn(
-            "Missing default assets for category:",
-            selectedCategory,
-            assets
+        const res = await api.get(`/products/${selectedCategory}`);
+        const product = res.data?.data?.product;
+        const assets = product?.assets;
+
+        console.log("📦 [useAddProductFlow] Response assets:", assets);
+
+        if (!assets) {
+          throw new Error("Không tìm thấy assets trong response");
+        }
+
+        let modelUrl: string | undefined;
+        let dielineUrl: string | undefined;
+
+        // ✅ SỬA: Xử lý nhiều format assets
+        // Format 1: assets.modelUrl và assets.dielineUrl (mới)
+        if (assets.modelUrl && assets.dielineUrl) {
+          modelUrl = assets.modelUrl;
+          dielineUrl = assets.dielineUrl;
+          console.log("✅ Using format 1: assets.modelUrl & assets.dielineUrl");
+        }
+        // Format 2: assets.modelUrl và assets.surfaces[0].dielineSvgUrl (cũ)
+        else if (assets.modelUrl && assets.surfaces?.[0]?.dielineSvgUrl) {
+          modelUrl = assets.modelUrl;
+          dielineUrl = assets.surfaces[0].dielineSvgUrl;
+          console.log(
+            "✅ Using format 2: assets.modelUrl & surfaces[0].dielineSvgUrl"
           );
         }
-      } catch (err) {
-        console.error("Lỗi tải phôi mặc định:", err);
-        toast.error("Không thể tải phôi 3D mặc định");
+        // Không tìm thấy
+        else {
+          console.error("❌ Invalid assets structure:", assets);
+          throw new Error("Cấu trúc assets không hợp lệ");
+        }
+
+        if (!modelUrl || !dielineUrl) {
+          console.error("❌ Missing required files:", { modelUrl, dielineUrl });
+          throw new Error("Phôi mặc định thiếu file 3D hoặc Dieline");
+        }
+
+        setDefaultAssets({ modelUrl, dielineUrl });
+        console.log("✅ [useAddProductFlow] Default assets set:", {
+          modelUrl,
+          dielineUrl,
+        });
+        toast.success("✅ Đã tải phôi mặc định!");
+      } catch (err: any) {
+        console.error(
+          "❌ [useAddProductFlow] Fetch default assets error:",
+          err
+        );
+        toast.error(err.message || "Không thể tải phôi 3D mặc định");
       }
     };
 
@@ -118,20 +150,47 @@ export function useAddProductFlow(onProductAdded: () => void) {
     formData.append("category", selectedCategory);
 
     try {
+      console.log("📤 [useAddProductFlow] Uploading custom assets...");
+
       const res = await api.post("/products/upload-3d-assets", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
       const assets = res.data?.data?.assets;
-      if (assets) {
-        setCustomAssets({
-          modelUrl: assets.modelUrl,
-          // ** SỬA: Đọc dielineUrl trước, sau đó mới fallback **
-          dielineUrl: assets.dielineUrl || assets.surfaces?.[0]?.dielineSvgUrl,
-        });
-        toast.success("✅ Đã tải phôi tùy chỉnh!");
+      console.log("📦 [useAddProductFlow] Custom assets response:", assets);
+
+      if (!assets) {
+        throw new Error("Không nhận được assets từ server");
       }
+
+      let modelUrl: string | undefined;
+      let dielineUrl: string | undefined;
+
+      // ✅ SỬA: Xử lý nhiều format response
+      if (assets.modelUrl && assets.dielineUrl) {
+        modelUrl = assets.modelUrl;
+        dielineUrl = assets.dielineUrl;
+      } else if (assets.modelUrl && assets.surfaces?.[0]?.dielineSvgUrl) {
+        modelUrl = assets.modelUrl;
+        dielineUrl = assets.surfaces[0].dielineSvgUrl;
+      } else {
+        console.error("❌ Invalid custom assets structure:", assets);
+        throw new Error("Cấu trúc assets không hợp lệ");
+      }
+
+      if (!modelUrl || !dielineUrl) {
+        console.error("❌ Missing required files:", { modelUrl, dielineUrl });
+        throw new Error("Upload thiếu file 3D hoặc Dieline");
+      }
+
+      setCustomAssets({ modelUrl, dielineUrl });
+      console.log("✅ [useAddProductFlow] Custom assets set:", {
+        modelUrl,
+        dielineUrl,
+      });
+      toast.success("✅ Đã tải phôi tùy chỉnh!");
     } catch (err: any) {
+      console.error("❌ [useAddProductFlow] Upload error:", err);
       toast.error(err.response?.data?.message || "Lỗi upload phôi 3D");
     } finally {
       setIsUploadingAssets(false);
@@ -146,7 +205,6 @@ export function useAddProductFlow(onProductAdded: () => void) {
     }
 
     setImageFiles(files);
-    // ** KHẮC PHỤC: Thu hồi URL cũ để tránh rò rỉ bộ nhớ **
     previewImages.forEach(URL.revokeObjectURL);
     const previews = files.map((file) => URL.createObjectURL(file));
     setPreviewImages(previews);
@@ -161,22 +219,21 @@ export function useAddProductFlow(onProductAdded: () => void) {
       return;
     }
 
-    // Cấu trúc lại assets theo format mới (đúng với PrinterStudio)
+    // ✅ SỬA: Cấu trúc lại assets theo format CHUẨN
     const assetsForStudio = {
       modelUrl: assets.modelUrl,
+      dielineUrl: assets.dielineUrl, // ✅ Thêm trường này (format mới)
       surfaces: [
         {
           key: "main_surface",
           name: "Mặt chính",
-          // ** SỬA: Lấy materialName từ API nếu có, nếu không thì fallback **
-          // (API của bạn chưa có, nên ta tạm fallback)
-          materialName: "Dieline", // Giả định
-          dielineSvgUrl: assets.dielineUrl,
+          materialName: "Dieline",
+          dielineSvgUrl: assets.dielineUrl, // ✅ Giữ lại để backward compatible
         },
       ],
     };
 
-    console.log("[useAddProductFlow] Sending to Studio:", assetsForStudio);
+    console.log("🎨 [useAddProductFlow] Sending to Studio:", assetsForStudio);
 
     localStorage.setItem(
       "tempProductAssets",
@@ -209,23 +266,23 @@ export function useAddProductFlow(onProductAdded: () => void) {
       formData.append("images", file);
     });
 
-    // 3D Assets
+    // ✅ SỬA: 3D Assets - Gửi theo format CHUẨN
     const finalAssets = customAssets || defaultAssets;
     if (finalAssets) {
-      // ** SỬA: Gửi assets theo cấu trúc mới mà API (có vẻ) mong đợi **
       const assetsPayload = {
         modelUrl: finalAssets.modelUrl,
-        // Gửi cả 2 dạng để đảm bảo server nhận được
-        dielineUrl: finalAssets.dielineUrl,
+        dielineUrl: finalAssets.dielineUrl, // ✅ Format mới
         surfaces: [
           {
             key: "main_surface",
             name: "Mặt chính",
             materialName: "Dieline",
-            dielineSvgUrl: finalAssets.dielineUrl,
+            dielineSvgUrl: finalAssets.dielineUrl, // ✅ Backward compatible
           },
         ],
       };
+
+      console.log("📤 [useAddProductFlow] Submitting assets:", assetsPayload);
       formData.append("assets", JSON.stringify(assetsPayload));
     }
 
@@ -256,6 +313,7 @@ export function useAddProductFlow(onProductAdded: () => void) {
       toast.success("✅ Tạo sản phẩm thành công!");
       onProductAdded();
     } catch (err: any) {
+      console.error("❌ [useAddProductFlow] Submit error:", err);
       toast.error(err.response?.data?.message || "Lỗi tạo sản phẩm");
     } finally {
       setIsSubmitting(false);
