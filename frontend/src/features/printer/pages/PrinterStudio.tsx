@@ -1,5 +1,5 @@
-// src/features/printer/pages/PrinterStudio.tsx
-// ✅ TASK 1: ĐÃ TÁCH BIỆT - Chỉ tập trung vào Sáng tạo, KHÔNG có Form
+// frontend/src/features/printer/pages/PrinterStudio.tsx
+// ✅ TASK 1 + TASK 4: TÁCH BIỆT + CONTEXTUAL SIDEBAR - Không có Form, chỉ Sáng tạo
 
 import React, {
   useState,
@@ -19,6 +19,10 @@ import {
   FabricCanvasEditorRef,
 } from "@/features/editor/components/FabricCanvasEditor";
 import { EditorToolbar } from "@/features/editor/components/EditorToolbar";
+
+// ✅ TASK 4: Import Contextual Panels
+import { TextPropertiesPanel } from "@/features/editor/components/TextPropertiesPanel";
+import { ImagePropertiesPanel } from "@/features/editor/components/ImagePropertiesPanel";
 
 // UI Components
 import { Button } from "@/shared/components/ui/button";
@@ -77,6 +81,36 @@ export function PrinterStudio() {
   const [previewMode, setPreviewMode] = useState<"2d" | "3d">("3d");
   const [is3DMainLoaded, setIs3DMainLoaded] = useState(false);
   const [is2DReady, setIs2DReady] = useState(false);
+
+  // ✅ TASK 4: State cho Contextual Panel
+  const [selectedObject, setSelectedObject] = useState<any>(null);
+
+  // ==================== ✅ TASK 4: LISTEN TO SELECTION EVENTS ====================
+  useEffect(() => {
+    const canvas = editorRef.current?.getCanvas();
+    if (!canvas) return;
+
+    const handleSelection = (e: any) => {
+      const activeObject = canvas.getActiveObject();
+      setSelectedObject(activeObject);
+      console.log("🎯 [PrinterStudio] Selected:", activeObject?.type);
+    };
+
+    const handleClear = () => {
+      setSelectedObject(null);
+      console.log("🎯 [PrinterStudio] Selection cleared");
+    };
+
+    canvas.on("selection:created", handleSelection);
+    canvas.on("selection:updated", handleSelection);
+    canvas.on("selection:cleared", handleClear);
+
+    return () => {
+      canvas.off("selection:created", handleSelection);
+      canvas.off("selection:updated", handleSelection);
+      canvas.off("selection:cleared", handleClear);
+    };
+  }, [is2DReady]); // Chỉ chạy khi 2D đã ready
 
   // ==================== FETCH PRODUCT ====================
   useEffect(() => {
@@ -241,6 +275,16 @@ export function PrinterStudio() {
     reader.readAsDataURL(snapshot.previewBlob);
   }, [baseProduct, createCanvasSnapshot, navigate]);
 
+  // ==================== ✅ TASK 4: CALLBACK CHO PROPERTIES PANEL ====================
+  const handlePropertiesUpdate = useCallback(() => {
+    // Trigger canvas re-render và texture update
+    const canvas = editorRef.current?.getCanvas();
+    if (canvas) {
+      canvas.renderAll();
+      // Có thể gọi generateTexture nếu cần
+    }
+  }, []);
+
   // ==================== TEXTURES ====================
   const texturesForViewer = useMemo(() => {
     if (!textureData) return {};
@@ -399,11 +443,26 @@ export function PrinterStudio() {
         </div>
       </div>
 
-      {/* ✅ TASK 1: RIGHT SIDEBAR - CHỈ CÒN 3D PREVIEW */}
+      {/* ✅ TASK 4: RIGHT SIDEBAR - CONTEXTUAL PROPERTIES PANEL */}
       <div className="w-96 bg-white border-l">
         <ScrollArea className="h-full">
           <div className="p-6 space-y-6">
-            {/* Product Info */}
+            {/* ✅ TASK 4: CONDITIONAL RENDERING */}
+            {selectedObject && selectedObject.type === "i-text" && (
+              <TextPropertiesPanel
+                selectedObject={selectedObject}
+                onUpdate={handlePropertiesUpdate}
+              />
+            )}
+
+            {selectedObject && selectedObject.type === "image" && (
+              <ImagePropertiesPanel
+                selectedObject={selectedObject}
+                onUpdate={handlePropertiesUpdate}
+              />
+            )}
+
+            {/* Product Info - Luôn hiển thị */}
             {baseProduct && (
               <Card>
                 <CardHeader>
@@ -466,8 +525,8 @@ export function PrinterStudio() {
                   💡 Mẹo thiết kế
                 </h4>
                 <ul className="text-xs text-blue-700 space-y-1">
-                  <li>• Sử dụng phím tắt để làm việc nhanh hơn</li>
-                  <li>• Kiểm tra xem trước 3D thường xuyên</li>
+                  <li>• Chọn đối tượng để hiện bảng thuộc tính</li>
+                  <li>• Nhấn đúp để chỉnh sửa văn bản</li>
                   <li>• Dùng phím Space để kéo canvas</li>
                   <li>• Lăn chuột để zoom tại vị trí con trỏ</li>
                   <li>• Nhấn "Lưu & Tiếp tục" để đến bước đăng bán</li>
