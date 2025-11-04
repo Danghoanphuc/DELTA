@@ -1,17 +1,16 @@
-// editor/hooks/useDesignEditor.ts
-// ✅ ĐÃ SỬA LỖI: Thêm updateLayers() vào các handlers
+// frontend/src/features/editor/hooks/useDesignEditor.ts
+// ✅ NHIỆM VỤ 1: XỬ LÝ CANVAS ELEMENTS THAY VÌ BASE64
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom"; // ✅ Thêm
-import { toast } from "sonner"; // ✅ Thêm
-import { useCartStore } from "@/stores/useCartStore"; // ✅ Thêm
-import { Product } from "@/types/product"; // ✅ Thêm
-import * as editorService from "../services/editorService"; // ✅ Thêm
-import { EditorCanvasRef } from "../components/EditorCanvas"; // ✅ Thêm
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
+import { useCartStore } from "@/stores/useCartStore";
+import { Product } from "@/types/product";
+import * as editorService from "../services/editorService";
+import { EditorCanvasRef } from "../components/EditorCanvas";
 import * as fabric from "fabric";
 import { type FabricObject } from "fabric";
 
-// ... (Helper ensureObjectId giữ nguyên) ...
 const ensureObjectId = (obj: FabricObject) => {
   if (!(obj as any).id) {
     (obj as any).id =
@@ -20,14 +19,19 @@ const ensureObjectId = (obj: FabricObject) => {
 };
 
 export function useDesignEditor() {
-  // ... (State giữ nguyên) ...
   const navigate = useNavigate();
   const { addToCart } = useCartStore();
   const [searchParams] = useSearchParams();
   const productId = searchParams.get("productId");
+
   const [product, setProduct] = useState<Product | null>(null);
   const [activeSurfaceKey, setActiveSurfaceKey] = useState<string | null>(null);
-  const [textures, setTextures] = useState<Record<string, string | null>>({});
+
+  // ✅ THAY ĐỔI: Lưu Map<materialName, canvasElement>
+  const [canvasElements, setCanvasElements] = useState<
+    Map<string, HTMLCanvasElement>
+  >(new Map());
+
   const editorRefs = useRef<Record<string, EditorCanvasRef | null>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -39,7 +43,7 @@ export function useDesignEditor() {
   );
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
-  // === TẢI SẢN PHẨM === (Giữ nguyên)
+  // === TẢI SẢN PHẨM ===
   useEffect(() => {
     if (!productId) {
       toast.error("Lỗi: Không tìm thấy ID sản phẩm.");
@@ -51,11 +55,11 @@ export function useDesignEditor() {
         setIsLoading(true);
         const fetchedProduct = await editorService.getProductById(productId);
         setProduct(fetchedProduct);
-        const initialTextures: Record<string, string | null> = {};
-        for (const surface of fetchedProduct.assets.surfaces) {
-          initialTextures[surface.materialName] = null;
-        }
-        setTextures(initialTextures);
+
+        // ✅ Khởi tạo Map rỗng cho các materials
+        const initialMap = new Map<string, HTMLCanvasElement>();
+        setCanvasElements(initialMap);
+
         const firstSurface = fetchedProduct.assets.surfaces[0];
         setActiveSurfaceKey(firstSurface.key);
       } catch (err: any) {
@@ -68,27 +72,32 @@ export function useDesignEditor() {
     fetchProduct();
   }, [productId, navigate]);
 
-  // === HANDLERS === (Giữ nguyên handleSurfaceUpdate, handleToolbarImageUpload, getActiveEditorRef)
+  // ✅ HANDLER MỚI: Nhận canvas element thay vì base64
   const handleSurfaceUpdate = useCallback(
-    (materialKey: string, base64DataUrl: string) => {
-      setTextures((prevTextures) => ({
-        ...prevTextures,
-        [materialKey]: base64DataUrl,
-      }));
+    (materialKey: string, canvasElement: HTMLCanvasElement) => {
+      setCanvasElements((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(materialKey, canvasElement);
+        console.log(
+          `🎨 [useDesignEditor] Canvas element updated for: ${materialKey}`
+        );
+        return newMap;
+      });
     },
     []
   );
+
   const handleToolbarImageUpload = useCallback((file: File) => {
     toast.success(`Đã thêm ảnh: ${file.name}`);
   }, []);
+
   const getActiveEditorRef = useCallback(() => {
     if (!activeSurfaceKey) return null;
     return editorRefs.current[activeSurfaceKey];
   }, [activeSurfaceKey]);
 
-  // === Handlers cho LayersPanel (CẬP NHẬT) ===
+  // === Handlers cho LayersPanel ===
   const updateLayers = useCallback(() => {
-    // ... (logic updateLayers giữ nguyên) ...
     const editor = getActiveEditorRef();
     if (editor) {
       const canvas = editor.getCanvas();
@@ -111,7 +120,6 @@ export function useDesignEditor() {
 
   const handleSelectLayer = useCallback(
     (obj: any) => {
-      // ... (logic giữ nguyên) ...
       const editor = getActiveEditorRef();
       if (editor) {
         const canvas = editor.getCanvas();
@@ -146,16 +154,15 @@ export function useDesignEditor() {
               break;
           }
           canvas.renderAll();
-          updateLayers(); // ✅ SỬA LỖI: Thêm updateLayers()
+          updateLayers();
         }
       }
     },
-    [getActiveEditorRef, updateLayers] // ✅ Thêm updateLayers vào dependency
+    [getActiveEditorRef, updateLayers]
   );
 
   const handleToggleVisibility = useCallback(
     (obj: any) => {
-      // ... (logic giữ nguyên) ...
       obj.set("visible", !obj.visible);
       const editor = getActiveEditorRef();
       if (editor) {
@@ -176,16 +183,15 @@ export function useDesignEditor() {
         const canvas = editor.getCanvas();
         if (canvas) {
           canvas.remove(obj);
-          updateLayers(); // ✅ SỬA LỖI: Thêm updateLayers()
+          updateLayers();
         }
       }
     },
-    [getActiveEditorRef, updateLayers] // ✅ Thêm updateLayers vào dependency
+    [getActiveEditorRef, updateLayers]
   );
 
-  // === LƯU VÀ THÊM VÀO GIỎ === (Giữ nguyên)
+  // === LƯU VÀ THÊM VÀO GIỎ ===
   const handleSaveAndAddToCart = async () => {
-    // ... (logic giữ nguyên) ...
     if (!product || !product.assets?.surfaces) return;
     setIsSaving(true);
     try {
@@ -196,14 +202,22 @@ export function useDesignEditor() {
           editorDataPerSurface[surface.key] = JSON.parse(editor.getJSON());
         }
       }
-      const finalPreviewImageUrl =
-        textures[product.assets.surfaces[0].materialName] ||
-        product.images?.[0]?.url;
+
+      // ✅ Lấy preview từ canvas element đầu tiên
+      const firstMaterialKey = product.assets.surfaces[0].materialName;
+      const firstCanvas = canvasElements.get(firstMaterialKey);
+      let finalPreviewImageUrl = product.images?.[0]?.url;
+
+      if (firstCanvas) {
+        finalPreviewImageUrl = firstCanvas.toDataURL("image/png", 0.8);
+      }
+
       const newCustomizedDesignId = await editorService.saveCustomDesign(
         product._id,
         editorDataPerSurface,
         finalPreviewImageUrl
       );
+
       await addToCart({
         productId: product._id,
         quantity: product.pricing[0]?.minQuantity || 1,
@@ -213,6 +227,7 @@ export function useDesignEditor() {
           customizedDesignId: newCustomizedDesignId,
         },
       });
+
       toast.success("Đã lưu thiết kế và thêm vào giỏ hàng!");
       navigate("/checkout");
     } catch (err) {
@@ -223,12 +238,11 @@ export function useDesignEditor() {
     }
   };
 
-  // === RETURN === (Giữ nguyên)
   return {
     product,
     activeSurfaceKey,
     setActiveSurfaceKey,
-    textures,
+    canvasElements, // ✅ Trả về Map thay vì textures object
     editorRefs,
     isLoading,
     isSaving,

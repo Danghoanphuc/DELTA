@@ -1,12 +1,13 @@
 // editor/components/EditorCanvas.tsx
 // ✅ PHIÊN BẢN ĐÃ REFACTOR: Chỉ làm nhiệm vụ "lắp ráp" logic Artboard
+// ✅ SỬA LỖI: Cập nhật interface 'onCanvasUpdate' để nhận HTMLCanvasElement
 
 import React, {
   useRef,
   useEffect,
   forwardRef,
   useImperativeHandle,
-  useState, // <-- Import useState
+  useState,
 } from "react";
 import * as fabric from "fabric";
 
@@ -23,13 +24,18 @@ import { useFabricZoom } from "../hooks/useFabricZoom";
 
 // Components con (Bạn đã có)
 import { ContextMenu, useFabricContextMenu } from "./ContextMenu";
-import { CanvasControls } from "./CanvasControls"; // (File bạn tạo ở bước trước)
+import { CanvasControls } from "./CanvasControls";
 
 // ==================== TYPES ====================
 interface EditorCanvasProps {
   materialKey: string;
   dielineSvgUrl: string;
-  onCanvasUpdate: (materialKey: string, base64DataUrl: string) => void;
+  // ✅ SỬA LỖI TẠI ĐÂY:
+  // Đổi 'base64DataUrl: string' thành 'canvasElement: HTMLCanvasElement'
+  onCanvasUpdate: (
+    materialKey: string,
+    canvasElement: HTMLCanvasElement
+  ) => void;
   onObjectChange?: () => void;
   isReadyToLoad?: boolean;
 }
@@ -122,6 +128,7 @@ export const EditorCanvas = forwardRef<EditorCanvasRef, EditorCanvasProps>(
       });
 
     // Hook quản lý Events (Quan trọng: Artboard logic)
+    // Giờ 'onCanvasUpdate' đã có kiểu dữ liệu đúng
     useFabricEvents(fabricCanvas, isDielineLoaded, materialKey, {
       onCanvasUpdate,
       onObjectChange,
@@ -204,7 +211,7 @@ export const EditorCanvas = forwardRef<EditorCanvasRef, EditorCanvasProps>(
           onUndo={undo}
           onRedo={redo}
           canUndo={canUndo}
-          canRedo={canRedo}
+          canRedf={canRedo}
         />
 
         {/* Hint cho người dùng (nổi) */}

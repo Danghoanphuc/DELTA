@@ -1,5 +1,5 @@
-// src/features/editor/components/ViewerModel.tsx
-// ✅ SỬA LỖI: Thêm lại logic "fallbackTexture"
+// frontend/src/features/editor/components/ViewerModel.tsx
+// ✅ BẢN CẢI THIỆN: Đã sửa lỗi UV Map (flipY = true) và làm sắc nét (NearestFilter)
 
 import React, { useMemo, useEffect, useRef } from "react";
 import { useGLTF } from "@react-three/drei";
@@ -9,19 +9,16 @@ import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 interface ViewerModelProps {
   modelUrl: string;
-  textures: Record<string, string | null>;
+  canvasElements: Map<string, HTMLCanvasElement>;
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
   dimensions?: { length?: number; width?: number; height?: number };
   onModelLoaded?: () => void;
   initialRotationY?: number;
 }
 
-// Bộ đệm (cache) cho texture (Giữ nguyên)
-const textureCache = new Map<string, THREE.Texture>();
-
 export function ViewerModel({
   modelUrl,
-  textures = {},
+  canvasElements,
   controlsRef,
   dimensions,
   onModelLoaded,
@@ -30,20 +27,23 @@ export function ViewerModel({
   const group = useRef<THREE.Group>(null);
   const gltf = useGLTF(modelUrl);
 
-  // Hook auto-fit camera (Giữ nguyên)
+  // Cache texture objects (THREE.CanvasTexture)
+  const textureCache = useRef<Map<string, THREE.CanvasTexture>>(new Map());
+
+  // Hook auto-fit camera
   useCameraAutoFit(group, gltf.scene, controlsRef);
 
-  // Báo model đã tải xong (Giữ nguyên)
+  // Báo model đã tải xong
   useEffect(() => {
     if (gltf.scene) {
       onModelLoaded?.();
     }
   }, [gltf.scene, onModelLoaded]);
 
-  // Lưu trữ vật liệu gốc (Giữ nguyên)
+  // Lưu trữ vật liệu gốc
   const originalMaterials = useRef<Record<string, THREE.Material>>({});
   useEffect(() => {
-    if (Object.keys(originalMaterials.current).length > 0) return; // Chỉ lưu 1 lần
+    if (Object.keys(originalMaterials.current).length > 0) return;
 
     gltf.scene.traverse((child) => {
       if (
@@ -56,74 +56,74 @@ export function ViewerModel({
     });
   }, [gltf.scene]);
 
-  // Logic tải và cache texture (Giữ nguyên)
-  const loadedTextures = useMemo(() => {
-    const newTextures: Record<string, THREE.Texture> = {};
-    for (const materialName in textures) {
-      const textureData = textures[materialName];
-      if (textureData) {
-        if (textureCache.has(textureData)) {
-          newTextures[materialName] = textureCache.get(textureData)!;
-        } else {
-          const loader = new THREE.TextureLoader();
-          const loadedTexture = loader.load(textureData);
-          loadedTexture.flipY = false;
-          loadedTexture.needsUpdate = true;
-          loadedTexture.colorSpace = THREE.SRGBColorSpace;
-          loadedTexture.minFilter = THREE.NearestFilter;
-          loadedTexture.magFilter = THREE.NearestFilter;
-          loadedTexture.generateMipmaps = false;
-
-          textureCache.set(textureData, loadedTexture);
-          newTextures[materialName] = loadedTexture;
-        }
-      }
-    }
-    // Dọn dẹp cache
-    if (textureCache.size > 10) {
-      const firstKey = Array.from(textureCache.keys())[0];
-      textureCache.get(firstKey)?.dispose();
-      textureCache.delete(firstKey);
-    }
-    return newTextures;
-  }, [textures]);
-
-  // ✅ SỬA LỖI: Logic áp (apply) texture lên model
+  // TẠO VÀ CẬP NHẬT THREE.CanvasTexture
   useEffect(() => {
-    // ✅ THÊM LẠI LOGIC FALLBACK
-    // Vì đây là trình chỉnh sửa 1-bề-mặt, chúng ta chỉ có 1 texture
-    // Lấy texture đó, bất kể tên key là gì
-    const firstTextureKey = Object.keys(loadedTextures)[0];
-    const fallbackTexture = loadedTextures[firstTextureKey];
+    // SỬA LỖI (GUARD CLAUSE):
+    // Ngăn crash nếu useEffect chạy trước khi prop canvasElements sẵn sàng
+    if (!gltf.scene || !canvasElements) {
+      console.warn("[ViewerModel] Đang chờ scene hoặc canvasElements map...");
+      return; // Bỏ qua nếu chưa sẵn sàng
+    }
 
     gltf.scene.traverse((child) => {
       if (child instanceof THREE.Mesh && child.material) {
         const materialName = child.material.name;
-        const originalMaterial = originalMaterials.current[materialName];
 
-        // ✅ SỬA LỖI: Thử tìm texture khớp tên, NẾU KHÔNG CÓ, dùng fallback
-        const newTexture = loadedTextures[materialName] || fallbackTexture;
+        const canvasElement = canvasElements.get(materialName);
 
-        if (newTexture) {
-          // Có texture mới -> áp dụng
+        if (canvasElement) {
+          // Kiểm tra cache
+          let texture = textureCache.current.get(materialName);
+
+          if (!texture) {
+            // TẠO MỚI CanvasTexture
+            texture = new THREE.CanvasTexture(canvasElement);
+
+            // ✅ CẢI THIỆN 1: Sửa lỗi UV map, lật texture theo trục Y
+            texture.flipY = true;
+
+            texture.colorSpace = THREE.SRGBColorSpace;
+
+            // ✅ CẢI THIỆN 2: Dùng NearestFilter để ảnh sắc nét, không bị mờ
+            texture.minFilter = THREE.NearestFilter;
+            texture.magFilter = THREE.NearestFilter;
+
+            texture.generateMipmaps = false;
+
+            textureCache.current.set(materialName, texture);
+            console.log(
+              `🎨 [ViewerModel] Created CanvasTexture for: ${materialName}`
+            );
+          } else {
+            // CẬP NHẬT texture hiện có
+            texture.needsUpdate = true;
+            // (Không cần log ở đây vì nó log quá nhiều, có thể bật khi debug)
+            // console.log(
+            //   `🔄 [ViewerModel] Updated CanvasTexture for: ${materialName}`
+            // );
+          }
+
+          // Áp dụng texture vào material
+          const originalMaterial = originalMaterials.current[materialName];
           if (originalMaterial) {
             child.material = originalMaterial.clone();
             if ("map" in child.material) {
-              child.material.map = newTexture;
+              child.material.map = texture;
             }
             child.material.needsUpdate = true;
           }
         } else {
-          // Không có texture mới -> trả về bản gốc
+          // Không có canvas -> trả về material gốc
+          const originalMaterial = originalMaterials.current[materialName];
           if (originalMaterial) {
             child.material = originalMaterial;
           }
         }
       }
     });
-  }, [gltf.scene, loadedTextures, textures]);
+  }, [gltf.scene, canvasElements]);
 
-  // Logic scale kích thước (Giữ nguyên)
+  // Logic scale kích thước
   useEffect(() => {
     if (!group.current || !gltf.scene) return;
     if (!group.current.userData.originalBox) {
@@ -140,11 +140,22 @@ export function ViewerModel({
     group.current.scale.set(scaleX, scaleY, scaleZ);
   }, [dimensions, gltf.scene]);
 
-  // Logic xoay (Giữ nguyên)
+  // Logic xoay
   const rotationYInRadians = useMemo(() => {
     const rotationDegrees = initialRotationY ?? 180;
     return (rotationDegrees * Math.PI) / 180;
   }, [initialRotationY]);
+
+  // Cleanup textures on unmount
+  useEffect(() => {
+    return () => {
+      textureCache.current.forEach((texture) => {
+        texture.dispose();
+      });
+      textureCache.current.clear();
+      console.log("🗑️ [ViewerModel] Disposed all CanvasTextures");
+    };
+  }, []);
 
   return (
     <primitive
