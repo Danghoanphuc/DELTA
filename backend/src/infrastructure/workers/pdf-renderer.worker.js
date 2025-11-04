@@ -1,8 +1,8 @@
 // backend/src/infrastructure/workers/pdf-renderer.worker.js
 // ✅ NHIỆM VỤ 1: Worker bất đồng bộ render PDF CMYK print-ready
 
-import { fabric } from "fabric";
-import { createCanvas, loadImage } from "canvas";
+// import { fabric } from "fabric";
+// import { createCanvas, loadImage } from "canvas";
 import fs from "fs/promises";
 import path from "path";
 import { PDFDocument, rgb, cmyk } from "pdf-lib";

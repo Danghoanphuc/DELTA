@@ -6,6 +6,8 @@ import cookieParser from "cookie-parser";
 import session from "express-session";
 import passport from "passport";
 import { validateEnv } from "./config/env.config.js";
+import helmet from "helmet";
+import morgan from "morgan";
 
 dotenv.config();
 validateEnv();
@@ -29,6 +31,7 @@ import chatRoutes from "./modules/chat/chat.routes.js";
 import { productRoutes } from "./modules/products/index.js";
 import designRoutes from "./modules/designs/design.routes.js";
 import studioRoutes from "./modules/printer-studio/studio.routes.js";
+import pdfRenderRoutes from "./modules/printer-studio/pdf-render/pdf-render.routes.js";
 const app = express();
 const PORT = process.env.PORT || 5001;
 
@@ -51,12 +54,13 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 };
 
-app.use(cors(corsOptions));
-
 // ================= Body parsing middleware ====================
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(helmet());
+app.use(cors(corsOptions));
 app.use(cookieParser());
+app.use(morgan("dev"));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 //==================== Session configuration ===================
 app.use(
@@ -92,6 +96,9 @@ app.get("/", (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
 //==================== API Routes ===============================
 app.use("/api/auth", authRoutes);
@@ -104,6 +111,7 @@ app.use("/api/printers", printerRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/designs", designRoutes);
 app.use("/api/printer-studio", studioRoutes);
+app.use("/api/pdf-render", pdfRenderRoutes);
 
 //==================== 404 handler ==================================
 app.use((req, res) => {
