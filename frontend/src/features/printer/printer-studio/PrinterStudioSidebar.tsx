@@ -8,7 +8,7 @@ import {
   // CardTitle,
   CardContent,
 } from "@/shared/components/ui/card";
-import { ScrollArea } from "@/shared/components/ui/scroll-area";
+import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
 // ❌ Xóa các import không cần nữa
 // import { Separator } from "@/shared/components/ui/separator";
 // import { TextPropertiesPanel } from "@/features/editor/components/TextPropertiesPanel";

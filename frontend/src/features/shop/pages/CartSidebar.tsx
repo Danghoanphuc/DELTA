@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { X, ShoppingBag, Trash2, Plus, Minus } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { ScrollArea } from "@/shared/components/ui/scroll-area";
+import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
 import { useCartStore } from "@/stores/useCartStore";
 import { useAuthStore } from "@/stores/useAuthStore"; // ✅ THÊM
 import { LoginPopup } from "@/features/auth/components/LoginPopup"; // ✅ THÊM

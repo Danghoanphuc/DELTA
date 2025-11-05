@@ -3,7 +3,7 @@
 // KHẮC PHỤC: Thêm import Card và CardContent
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { toast } from "sonner";
-import { ScrollArea } from "@/shared/components/ui/scroll-area";
+import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useNavigate } from "react-router-dom";
 import { UserProfileCard } from "@/features/printer/components/UserProfileCard";

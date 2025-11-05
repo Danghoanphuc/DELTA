@@ -1,5 +1,5 @@
 // src/pages/printer/SettingsPage.tsx
-import { ScrollArea } from "@/shared/components/ui/scroll-area";
+import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
 import { SettingsHeader } from "@/features/printer/components/SettingsHeader";
 // ... (Tạm thời bỏ các import chưa dùng)
 

@@ -18,17 +18,14 @@ import {
   Square,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { ScrollArea } from "@/shared/components/ui/scroll-area";
+import { NativeScrollArea } from "@/shared/components/ui/NativeScrollArea";
 
 // ... (Interface và các hàm helper getLayerName, getLayerIcon giữ nguyên) ...
 interface LayersPanelProps {
   layers: any[];
   activeObjectId: string | null;
   onSelectLayer: (obj: any) => void;
-  onMoveLayer: (
-    obj: any,
-    direction: "up" | "down" | "top" | "bottom"
-  ) => void;
+  onMoveLayer: (obj: any, direction: "up" | "down" | "top" | "bottom") => void;
   onToggleVisibility: (obj: any) => void;
   onDeleteLayer: (obj: any) => void;
   className?: string;
@@ -72,7 +69,7 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
       )}
     >
       <h4 className="p-4 text-lg font-semibold border-b">Layers</h4>
-      <ScrollArea className="flex-1">
+      <NativeScrollArea className="flex-1">
         {reversedLayers.length === 0 ? (
           <p className="p-4 text-sm text-gray-500">Canvas is empty</p>
         ) : (
@@ -145,7 +142,7 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
             })}
           </div>
         )}
-      </ScrollArea>
+      </NativeScrollArea>
     </div>
   );
 };

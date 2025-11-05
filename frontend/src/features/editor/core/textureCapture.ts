@@ -1,5 +1,5 @@
 // frontend/src/features/editor/core/textureCapture.ts
-// ✅ BẢN VÁ 100%: Tối ưu "near-zero-cost" (Điểm nghẽn 2)
+// ✅ BẢN HOÀN CHỈNH: Pipeline "Zero-Cost"
 
 import * as fabric from "fabric";
 
@@ -9,13 +9,8 @@ interface TextureCaptureOptions {
   quality?: number;
 }
 
-// ==================================================
-// ✅✅✅ GIẢI QUYẾT ĐIỂM NGHẼN 2 ✅✅✅
-// ==================================================
-// Tái sử dụng 1 canvas duy nhất để đạt hiệu suất "near-zero-cost"
 let offscreenCanvas: HTMLCanvasElement | null = null;
 let ctx: CanvasRenderingContext2D | null = null;
-// ==================================================
 
 export function captureTextureFromCanvas(
   fabricCanvas: fabric.Canvas,
@@ -23,7 +18,7 @@ export function captureTextureFromCanvas(
   dielineRef: fabric.Image | null,
   options: TextureCaptureOptions = {}
 ): HTMLCanvasElement | null {
-  const { outputSize = 2048, removeBackground = true, quality = 1 } = options;
+  const { outputSize = 2048, removeBackground = true } = options;
 
   if (!fabricCanvas || !artboardRef) {
     console.warn("⚠️ [TextureCapture] Canvas hoặc Artboard không tồn tại");
@@ -36,7 +31,7 @@ export function captureTextureFromCanvas(
     return null;
   }
 
-  // ✅ Chỉ tạo nếu chưa tồn tại
+  // ✅ Tái sử dụng canvas
   if (!offscreenCanvas) {
     offscreenCanvas = document.createElement("canvas");
     ctx = offscreenCanvas.getContext("2d", { alpha: removeBackground });
@@ -47,7 +42,6 @@ export function captureTextureFromCanvas(
     return null;
   }
 
-  // ✅ Luôn đảm bảo kích thước canvas đúng
   if (
     offscreenCanvas.width !== outputSize ||
     offscreenCanvas.height !== outputSize
@@ -90,7 +84,6 @@ export function captureTextureFromCanvas(
   } catch (err) {
     console.error("❌ [TextureCapture] Error:", err);
   } finally {
-    // Khôi phục trạng thái
     if (dielineRef) {
       dielineRef.visible = dielineWasVisible;
     }
@@ -103,17 +96,11 @@ export function captureTextureFromCanvas(
   return offscreenCanvas;
 }
 
-// ... (getCaptureBounds giữ nguyên) ...
 function getCaptureBounds(
   fabricCanvas: fabric.Canvas,
   artboardRef: fabric.Rect,
   dielineRef: fabric.Image | null
-): {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-} | null {
+): { left: number; top: number; width: number; height: number } | null {
   if (dielineRef && dielineRef.width && dielineRef.height) {
     const dielineBounds = dielineRef.getBoundingRect();
     const artboardBounds = artboardRef.getBoundingRect();
@@ -129,10 +116,12 @@ function getCaptureBounds(
     );
     return { left, top, width: right - left, height: bottom - top };
   }
+
   if (artboardRef) {
     const artboardBounds = artboardRef.getBoundingRect();
     return { ...artboardBounds };
   }
+
   return {
     left: 0,
     top: 0,

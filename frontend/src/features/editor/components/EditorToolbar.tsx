@@ -23,7 +23,7 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { EditorCanvasRef } from "./EditorCanvas";
 import { LayersPanel } from "./LayersPanel";
-import { ScrollArea } from "@/shared/components/ui/scroll-area";
+import { NativeScrollArea } from "@/shared/components/ui/NativeScrollArea";
 import { Separator } from "@/shared/components/ui/separator";
 import { TextPropertiesPanel } from "./TextPropertiesPanel";
 import { ImagePropertiesPanel } from "./ImagePropertiesPanel";
@@ -140,7 +140,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </TabsTrigger>
       </TabsList>
 
-      <ScrollArea className="flex-1 h-full">
+      <NativeScrollArea className="flex-1 h-full">
         {/* Tab "Upload" (Giữ nguyên) */}
         <TabsContent value="upload" className="m-0 h-full">
           <div className="p-4 space-y-3">
@@ -352,7 +352,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             onDeleteLayer={onDeleteLayer}
           />
         </TabsContent>
-      </ScrollArea>
+      </NativeScrollArea>
     </Tabs>
   );
 };

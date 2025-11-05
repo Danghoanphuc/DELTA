@@ -14,7 +14,7 @@ import {
   History,
   PanelRightOpen,
 } from "lucide-react";
-import { ScrollArea } from "@/shared/components/ui/scroll-area";
+import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
 import { ChatMessage } from "@/types/chat";
 
 interface QuickAccessWidgetProps {

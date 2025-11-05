@@ -1,7 +1,7 @@
 // src/components/ChatMessages.tsx (CẬP NHẬT)
 
 import { useEffect, useRef } from "react";
-import { ScrollArea } from "@/shared/components/ui/scroll-area";
+import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
 import { ChatMessage, TextMessage } from "@/types/chat";
 import { cn } from "@/shared/lib/utils";
 import UserAvatarFallback from "@/components/UserAvatarFallback";

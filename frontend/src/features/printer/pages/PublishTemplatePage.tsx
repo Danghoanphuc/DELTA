@@ -20,7 +20,7 @@ import {
 import { Switch } from "@/shared/components/ui/switch";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { ArrowLeft, Save, Loader2, Eye, CheckCircle2 } from "lucide-react";
-import { ScrollArea } from "@/shared/components/ui/scroll-area";
+import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
 import { Separator } from "@/shared/components/ui/separator";
 
 // Types
