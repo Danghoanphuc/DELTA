@@ -39,6 +39,14 @@ const ProductSchema = new mongoose.Schema(
     assets: {
       modelUrl: { type: String }, // Link đến file .glb (Phôi 3D)
       dielineUrl: { type: String }, // Link đến file .svg (Khuôn 2D)
+      surfaces: [
+        {
+          materialName: { type: String, required: true },
+          surfaceKey: { type: String, required: true },
+          name: { type: String, required: true },
+          dielineSvgUrl: { type: String },
+        },
+      ],
     },
 
     // Description & Images

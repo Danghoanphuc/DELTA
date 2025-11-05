@@ -1,8 +1,12 @@
 // src/modules/products/product.controller.js
+// ✅ BẢN VÁ FULL 100%: Sửa lỗi 400 / ECONNRESET (Xử lý FormData)
+
 import { ProductService } from "./product.service.js";
 import { ApiResponse } from "../../shared/utils/index.js";
 import { API_CODES } from "../../shared/constants/index.js";
 import { Logger } from "../../shared/utils/logger.util.js";
+// ✅ BỔ SUNG: Import exception
+import { ValidationException } from "../../shared/exceptions/index.js";
 
 /**
  * ProductController - Handles HTTP requests for products
@@ -20,10 +24,37 @@ export class ProductController {
    */
   createProduct = async (req, res, next) => {
     try {
+      // ==================================================
+      // ✅✅✅ SỬA LỖI 400 / ECONNRESET TẠI ĐÂY ✅✅✅
+      // ==================================================
+      // 1. Kiểm tra file (từ multer)
+      //    (Service cũng sẽ kiểm tra, nhưng controller kiểm tra trước
+      //     để phản hồi lỗi nhanh hơn nếu backend của anh yêu cầu)
+      if (!req.files || req.files.length === 0) {
+        // Lỗi này đã được backend của anh báo: "Phải có ít nhất 1 ảnh sản phẩm"
+        throw new ValidationException("Phải có ít nhất 1 ảnh sản phẩm");
+      }
+
+      // 2. Kiểm tra và "giải nén" productData
+      if (!req.body.productData) {
+        throw new ValidationException("Thiếu dữ liệu 'productData' JSON.");
+      }
+
+      let productData;
+      try {
+        productData = JSON.parse(req.body.productData);
+      } catch (e) {
+        throw new ValidationException(
+          "Dữ liệu 'productData' JSON không hợp lệ."
+        );
+      }
+      // ==================================================
+
+      // 3. Gọi service với dữ liệu đã "sạch"
       const product = await this.productService.createProduct(
-        req.body,
+        productData, // ✅ Đã là object
         req.user._id,
-        req.files
+        req.files // ✅ Là mảng file
       );
 
       res
@@ -41,10 +72,32 @@ export class ProductController {
    */
   updateProduct = async (req, res, next) => {
     try {
+      // ✅ ÁP DỤNG LOGIC "GIẢI NÉN" TƯƠNG TỰ CHO UPDATE
+
+      let productData;
+
+      if (req.body.productData) {
+        // Flow 1: Gửi bằng FormData (khi có upload file ảnh mới)
+        try {
+          productData = JSON.parse(req.body.productData);
+        } catch (e) {
+          throw new ValidationException(
+            "Dữ liệu 'productData' JSON không hợp lệ."
+          );
+        }
+      } else {
+        // Flow 2: Gửi bằng JSON (khi chỉ cập nhật text, không có file)
+        productData = req.body;
+      }
+
+      // req.files (từ multer) có thể là undefined (nếu không upload ảnh mới)
+      // Service sẽ xử lý việc này.
+
       const product = await this.productService.updateProduct(
         req.params.id,
-        req.body,
-        req.user._id
+        productData, // ✅ Đã là object
+        req.user._id,
+        req.files // ✅ Là mảng file (hoặc undefined)
       );
 
       res
@@ -88,32 +141,25 @@ export class ProductController {
       next(error);
     }
   };
-  // THÊM PHIÊN BẢN ĐÚNG NÀY VÀO
+
   /**
    * Get a single product by ID
    * GET /api/products/:id
    * @access Public
    */
-  // SỬA 1: Dùng arrow function để giữ 'this'
-  // SỬA 2: Dùng (req, res, next)
   getProductById = async (req, res, next) => {
     try {
-      // SỬA 3: Lấy 'id' từ req.params (dựa trên product.routes.js)
       const productId = req.params.id;
-
       Logger.debug(`[Controller] Nhận yêu cầu GET /api/products/${productId}`);
-
-      // SỬA 4: Gọi 'this.productService' (đã có logic đúng)
       const product = await this.productService.getProductById(productId);
 
-      // SỬA 5: Trả về JSON response
       res.status(API_CODES.SUCCESS).json(ApiResponse.success({ product }));
     } catch (error) {
-      // SỬA 6: Chuyển lỗi cho middleware
       Logger.error(`[Controller] Lỗi trong getProductById: ${error.message}`);
       next(error);
     }
   };
+
   /**
    * Get all products of the authenticated printer
    * GET /api/products/my-products
@@ -121,6 +167,7 @@ export class ProductController {
    */
   getMyProducts = async (req, res, next) => {
     try {
+      // ✅ SỬA LỖI 404: Gọi service (đã được sửa)
       const products = await this.productService.getMyProducts(req.user._id);
 
       res.status(API_CODES.SUCCESS).json(
