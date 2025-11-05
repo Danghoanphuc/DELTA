@@ -3,7 +3,7 @@
 
 import React from "react";
 // ✅ SỬA LỖI IMPORT: Trỏ đến file hook CÙNG THƯ MỤC
-import { useAddProductFlow } from "./useAddProductFlow";
+import { useAddProductFlow } from "../hooks/useAddProductFlow";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -31,6 +31,16 @@ import {
   Image as ImageIcon,
   X,
 } from "lucide-react";
+import { ProductPrice } from "@/types/product";
+
+// Kiểu dữ liệu cho 1 bề mặt (trong wizard)
+interface WizardSurface {
+  key: string;
+  name: string;
+  dielineSvgUrl: string | null;
+  materialName: string;
+  svgUrlValid: boolean;
+}
 
 interface AssetWizardPageProps {
   productId?: string;
@@ -208,7 +218,7 @@ export function AssetWizardPage({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {surfaces.map((surface, index) => (
+            {surfaces.map((surface: WizardSurface, index: number) => (
               <div
                 key={surface.key}
                 className="grid grid-cols-3 gap-4 p-4 border rounded-lg"
@@ -275,7 +285,7 @@ export function AssetWizardPage({
                       <SelectValue placeholder="Chọn vật liệu 3D tương ứng..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {modelMaterials.map((matName) => (
+                      {modelMaterials.map((matName: string) => (
                         <SelectItem key={matName} value={matName}>
                           {matName}
                         </SelectItem>
@@ -310,7 +320,7 @@ export function AssetWizardPage({
           {/* Preview ảnh */}
           <div className="flex gap-2 flex-wrap">
             {/* Ảnh mới upload (preview) */}
-            {previewImages.map((src, idx) => (
+            {previewImages.map((src: string, idx: number) => (
               <img
                 key={idx}
                 src={src}
@@ -321,7 +331,7 @@ export function AssetWizardPage({
             {/* Ảnh đã tồn tại (chế độ sửa) */}
             {isEditMode &&
               previewImages.length === 0 &&
-              existingImageUrls.map((url, idx) => (
+              existingImageUrls.map((url: string, idx: number) => (
                 <img
                   key={idx}
                   src={url}
@@ -345,7 +355,7 @@ export function AssetWizardPage({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {pricing.map((price, index) => (
+          {pricing.map((price: ProductPrice, index: number) => (
             <div
               key={index}
               className="flex items-end gap-3 p-3 bg-gray-50 rounded-lg"

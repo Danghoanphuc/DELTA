@@ -22,7 +22,6 @@ interface PrinterStudioSidebarProps {
   onPropertiesUpdate: () => void;
   baseProduct: Product | null;
   phoiAssets: { materialName: string } | null;
-  texturesForViewer: Record<string, string>;
   productId?: string;
   modelUrl: string;
   onModelLoaded: () => void;
@@ -33,7 +32,6 @@ export const PrinterStudioSidebar: React.FC<PrinterStudioSidebarProps> = ({
   onPropertiesUpdate,
   baseProduct,
   phoiAssets,
-  texturesForViewer,
   productId,
   modelUrl,
   onModelLoaded,

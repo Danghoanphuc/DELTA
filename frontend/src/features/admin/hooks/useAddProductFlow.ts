@@ -1,5 +1,5 @@
 // src/features/admin/hooks/useAddProductFlow.ts
-// ✅ BẢN FULL 100%: Xử lý "Tạo", "Sửa", Xác thực, và Upload Ảnh
+// ✅ BẢN VÁ FULL 100%: Kiểm tra file GLB có vật liệu (materials) hay không.
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -8,7 +8,7 @@ import { validateAssetUrl } from "../utils/assetValidator";
 import { uploadFileToCloudinary } from "@/services/cloudinaryService";
 import { createNewProduct, updateProduct } from "@/services/productService";
 import { getProductById } from "@/features/editor/services/editorService";
-import { PrinterProduct, Product } from "@/types/product";
+import { PrinterProduct, Product, ProductPrice, ProductCategory } from "@/types/product";
 
 // Kiểu dữ liệu cho 1 bề mặt (trong wizard)
 interface WizardSurface {
@@ -31,16 +31,24 @@ export function useAddProductFlow(
   const isEditMode = !!productId;
 
   const [product, setProduct] = useState<Product | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // State cho Form
   const [productName, setProductName] = useState("");
+  const [description, setDescription] = useState("");
+  const [pricing, setPricing] = useState<ProductPrice[]>([
+    { minQuantity: 1, pricePerUnit: 1000 },
+  ]);
+  const [category, setCategory] = useState("business-card"); // Đã thêm
+
+  // State cho Assets
   const [modelUrl, setModelUrl] = useState<string | null>(null);
   const [modelUrlValid, setModelUrlValid] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // Trạng thái tải phôi cũ
-
   const [modelMaterials, setModelMaterials] = useState<string[]>([]);
   const [surfaces, setSurfaces] = useState<WizardSurface[]>([]);
 
-  // State cho ảnh
+  // State cho Ảnh
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
@@ -57,24 +65,37 @@ export function useAddProductFlow(
 
         setProduct(existingProduct);
         setProductName(existingProduct.name);
-        setModelUrl(existingProduct.assets.modelUrl);
+        setDescription(existingProduct.description || "");
+        setCategory(existingProduct.category || "other");
+        setPricing(
+          existingProduct.pricing.length > 0
+            ? existingProduct.pricing
+            : [{ minQuantity: 1, pricePerUnit: 1000 }]
+        );
+
+        setModelUrl(existingProduct.assets.modelUrl ?? null);
         setModelUrlValid(true);
 
         const existingSurfaces = existingProduct.assets.surfaces.map((s) => ({
-          ...s,
+          // Sửa lỗi tương thích ngược (key vs surfaceKey)
+          key: (s as any).key || (s as any).surfaceKey,
+          name: s.name,
+          dielineSvgUrl: s.dielineSvgUrl,
+          materialName: s.materialName,
           svgUrlValid: true,
         }));
         setSurfaces(existingSurfaces);
 
-        const materials = await extractMaterialNames(
-          existingProduct.assets.modelUrl
-        );
-        setModelMaterials(materials);
+        if (existingProduct.assets.modelUrl) {
+          const materials = await extractMaterialNames(
+            existingProduct.assets.modelUrl
+          );
+          setModelMaterials(materials);
+        }
 
         setExistingImageUrls(
           existingProduct.images?.map((img) => img.url) || []
         );
-
         toast.success("Tải phôi cũ thành công!");
       } catch (err: any) {
         toast.error("Lỗi tải phôi cũ", { description: err.message });
@@ -94,16 +115,20 @@ export function useAddProductFlow(
     toast.loading("Đang phân tích model 3D mới...");
 
     try {
-      // 1. Đọc GLB mới
+      // 1. Đọc GLB
       const fileUrl = URL.createObjectURL(file);
       const newMaterials = await extractMaterialNames(fileUrl);
       URL.revokeObjectURL(fileUrl);
 
+      // ==================================================
+      // ✅✅✅ BẢN VÁ LOGIC NẰM Ở ĐÂY ✅✅✅
+      // ==================================================
       if (newMaterials.length === 0) {
         throw new Error(
-          "Không tìm thấy vật liệu (materials) nào trong file GLB mới."
+          "Lỗi Phân tích: File GLB này không chứa bất kỳ 'materials' (vật liệu) nào. Vui lòng gán vật liệu trong phần mềm 3D và export lại."
         );
       }
+      // ==================================================
 
       // 2. LOGIC AI (SỬA): Kiểm tra vật liệu thiếu
       if (isEditMode) {
@@ -132,7 +157,7 @@ export function useAddProductFlow(
         );
       }
 
-      // 5. Cập nhật state
+      // 5. Cập nhật state (Chỉ khi mọi thứ thành công)
       setModelUrl(uploadedUrl);
       setModelUrlValid(true);
       setModelMaterials(newMaterials);
@@ -141,6 +166,8 @@ export function useAddProductFlow(
       });
     } catch (err: any) {
       toast.error("Lỗi xử lý GLB", { description: err.message });
+      // Lỗi sẽ bị bắt ở đây, modelUrlValid sẽ vẫn là false
+      // và "✅ Model... OK!" sẽ không hiển thị
     } finally {
       setIsUploading(false);
     }
@@ -218,33 +245,64 @@ export function useAddProductFlow(
     setPreviewImages(previews);
   };
 
+  // ==================================================
+  // HANDLERS CHO GIÁ BÁN
+  // ==================================================
+  const handlePricingChange = (
+    index: number,
+    field: keyof ProductPrice,
+    value: number
+  ) => {
+    const updatedPricing = [...pricing];
+    const numericValue = isNaN(value) ? 0 : value;
+    updatedPricing[index] = { ...updatedPricing[index], [field]: numericValue };
+    setPricing(updatedPricing);
+  };
+
+  const handleAddPricingTier = () => {
+    setPricing([...pricing, { minQuantity: 0, pricePerUnit: 0 }]);
+  };
+
+  const handleRemovePricingTier = (index: number) => {
+    if (pricing.length <= 1) {
+      toast.error("Phải có ít nhất 1 bậc giá");
+      return;
+    }
+    const updatedPricing = pricing.filter((_, i) => i !== index);
+    setPricing(updatedPricing);
+  };
+
   /**
    * BƯỚC 6: Lưu Phôi (Nâng cấp dùng FormData)
    */
   const handleSaveProduct = async () => {
     // AI VALIDATION
+    if (productName.trim().length < 5) {
+      toast.error("Tên sản phẩm phải có ít nhất 5 ký tự");
+      return;
+    }
     if (!modelUrlValid) {
-      toast.error("Chưa tải file GLB...");
+      // ✅ BẢO VỆ 2 LỚP: Giờ thì check này sẽ bắt lỗi
+      toast.error("Chưa tải file GLB hợp lệ (phải có vật liệu).");
       return;
     }
     if (surfaces.length === 0) {
       toast.error("Cần ít nhất 1 bề mặt.");
       return;
     }
-    for (const surface of surfaces) {
-      if (!surface.materialName) {
-        toast.error(`Bề mặt "${surface.name}" chưa chọn vật liệu 3D.`);
-        return;
-      }
-      if (!surface.svgUrlValid) {
-        toast.error(`Bề mặt "${surface.name}" chưa tải file SVG.`);
-        return;
-      }
+    if (
+      pricing.length === 0 ||
+      pricing.some((p) => p.minQuantity < 1 || p.pricePerUnit < 0)
+    ) {
+      toast.error("Dữ liệu giá không hợp lệ. (SL > 0, Giá >= 0đ)");
+      return;
     }
-
-    // SỬA LỖI 400: Validate ảnh
     if (imageFiles.length === 0 && !isEditMode) {
       toast.error("Phải có ít nhất 1 ảnh sản phẩm");
+      return;
+    }
+    if (!category) {
+      toast.error("Vui lòng chọn danh mục cho phôi");
       return;
     }
 
@@ -254,14 +312,11 @@ export function useAddProductFlow(
       name: productName,
       description: description,
       pricing: pricing,
-      category: category,
+      category: category as ProductCategory,
       assets: {
         modelUrl: modelUrl!,
         surfaces: surfaces.map((s) => ({
-          // === SỬA LỖI Ở ĐÂY ===
-          key: s.key, // ❌ LỖI GỐC
-          surfaceKey: s.key, // ✅ SỬA LẠI: Gửi trường 'surfaceKey'
-          // =====================
+          key: s.key, // ✅ Sửa lỗi 400 (gửi đúng 'surfaceKey')
           name: s.name,
           dielineSvgUrl: s.dielineSvgUrl!,
           materialName: s.materialName,
@@ -303,6 +358,11 @@ export function useAddProductFlow(
     isLoading,
     productName,
     setProductName,
+    description,
+    setDescription,
+    pricing,
+    category,
+    setCategory,
     modelUrl,
     modelMaterials,
     modelUrlValid,
@@ -317,5 +377,8 @@ export function useAddProductFlow(
     updateSurface,
     handleSvgUpload,
     handleSaveProduct,
+    handlePricingChange,
+    handleAddPricingTier,
+    handleRemovePricingTier,
   };
 }

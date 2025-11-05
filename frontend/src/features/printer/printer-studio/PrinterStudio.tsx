@@ -47,7 +47,7 @@ export function PrinterStudio() {
     handleSaveAndExit,
     setIs3DMainLoaded,
     navigate,
-    canvasElements, // ✅ FIX: Lấy canvasElements thay vì texturesForViewer
+    textures, // ✅ FIX: Lấy canvasElements thay vì texturesForViewer
     updateLayers,
   } = usePrinterStudio();
 
@@ -136,7 +136,7 @@ export function PrinterStudio() {
             {/* ✅ FIX: Đổi prop name từ "textures" sang "canvasElements" */}
             <ProductViewer3D
               modelUrl={phoiAssets.modelUrl}
-              canvasElements={canvasElements}
+              textures={textures}
               onModelLoaded={() => setIs3DMainLoaded(true)}
             />
           </div>

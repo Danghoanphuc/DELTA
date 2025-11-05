@@ -3,6 +3,7 @@
 
 import React, { memo } from "react"; // ✅ THÊM 'memo'
 import { Loader2 } from "lucide-react";
+import * as THREE from 'three';
 import {
   EditorCanvas,
   EditorCanvasRef,
@@ -25,10 +26,9 @@ interface PrinterStudioCanvasProps {
     dielineUrl: string; // ✅ (Fix) Đổi tên từ dielineSvgUrl
     materialName: string;
   } | null;
-  // ✅ (Fix) Đổi từ base64Image sang canvasElement
   onCanvasUpdate: (
     materialKey: string,
-    canvasElement: HTMLCanvasElement
+    texture: THREE.CanvasTexture
   ) => void;
   onObjectChange: () => void;
   is3DMainLoaded: boolean;

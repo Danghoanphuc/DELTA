@@ -30,13 +30,13 @@ export const useFabricJSApi = (canvasRef: React.RefObject<fabric.Canvas | null>)
       const canvas = getCanvas();
       if (!canvas) return;
 
-      fabric.Image.fromURL(imageUrl, (img) => {
+      fabric.Image.fromURL(imageUrl, { crossOrigin: 'anonymous' }).then((img) => {
         img.scaleToWidth(200);
         canvas.add(img);
         canvas.centerObject(img);
         canvas.setActiveObject(img);
         canvas.renderAll();
-      }, { crossOrigin: 'anonymous' });
+      });
     },
     [getCanvas]
   );
@@ -112,7 +112,7 @@ export const useFabricJSApi = (canvasRef: React.RefObject<fabric.Canvas | null>)
     if (!canvas) return;
     const activeObject = canvas.getActiveObject();
     if (activeObject) {
-      activeObject.clone((cloned: fabric.Object) => {
+      activeObject.clone().then((cloned: fabric.Object) => {
         cloned.set({
           left: cloned.left! + 20,
           top: cloned.top! + 20,
@@ -124,6 +124,88 @@ export const useFabricJSApi = (canvasRef: React.RefObject<fabric.Canvas | null>)
     }
   }, [getCanvas]);
 
+  const updateTextStyle = useCallback((property: string, value: any) => {
+    const canvas = getCanvas();
+    const activeObject = canvas?.getActiveObject();
+    if (activeObject instanceof fabric.Textbox) {
+      activeObject.set(property as any, value);
+      canvas?.renderAll();
+    }
+  }, [getCanvas]);
+
+  const bringToFront = useCallback(() => {
+    const canvas = getCanvas();
+    const activeObject = canvas?.getActiveObject();
+    if (activeObject) {
+      (canvas as any)?.bringToFront(activeObject);
+      canvas?.renderAll();
+    }
+  }, [getCanvas]);
+
+  const sendToBack = useCallback(() => {
+    const canvas = getCanvas();
+    const activeObject = canvas?.getActiveObject();
+    if (activeObject) {
+      (canvas as any)?.sendToBack(activeObject);
+      canvas?.renderAll();
+    }
+  }, [getCanvas]);
+
+  const bringForward = useCallback(() => {
+    const canvas = getCanvas();
+    const activeObject = canvas?.getActiveObject();
+    if (activeObject) {
+      (canvas as any)?.bringForward(activeObject);
+      canvas?.renderAll();
+    }
+  }, [getCanvas]);
+
+  const sendBackwards = useCallback(() => {
+    const canvas = getCanvas();
+    const activeObject = canvas?.getActiveObject();
+    if (activeObject) {
+      (canvas as any)?.sendBackwards(activeObject);
+      canvas?.renderAll();
+    }
+  }, [getCanvas]);
+
+  const align = useCallback((alignment: string) => {
+    // Implementation for align
+  }, [getCanvas]);
+
+  const applyFilter = useCallback((filter: string) => {
+    // Implementation for applyFilter
+  }, [getCanvas]);
+
+  const exportCanvas = useCallback(async (format: string) => {
+    // Implementation for exportCanvas
+  }, [getCanvas]);
+
+  const toggleLock = useCallback(() => {
+    const canvas = getCanvas();
+    const activeObject = canvas?.getActiveObject();
+    if (activeObject) {
+      activeObject.set({
+        lockMovementX: !activeObject.lockMovementX,
+        lockMovementY: !activeObject.lockMovementY,
+        lockScalingX: !activeObject.lockScalingX,
+        lockScalingY: !activeObject.lockScalingY,
+        lockRotation: !activeObject.lockRotation,
+      });
+      canvas?.renderAll();
+    }
+  }, [getCanvas]);
+
+  const toggleVisibility = useCallback(() => {
+    const canvas = getCanvas();
+    const activeObject = canvas?.getActiveObject();
+    if (activeObject) {
+      activeObject.set({ visible: !activeObject.visible });
+      canvas?.renderAll();
+    }
+  }, [getCanvas]);
+
+
   return { 
     addText, 
     addImage, 
@@ -131,6 +213,16 @@ export const useFabricJSApi = (canvasRef: React.RefObject<fabric.Canvas | null>)
     getJSON, 
     getCanvas, 
     deleteSelected, 
-    duplicateSelected 
+    duplicateSelected,
+    updateTextStyle,
+    bringToFront,
+    sendToBack,
+    bringForward,
+    sendBackwards,
+    align,
+    applyFilter,
+    exportCanvas,
+    toggleLock,
+    toggleVisibility
   };
 };

@@ -50,7 +50,7 @@ export function AssetWizardPage({ productId }: AssetWizardPageProps) {
     updateSurface,
     handleSvgUpload,
     handleSaveProduct, // ✅ Đổi tên hàm
-  } = useAddProductFlow(productId); // ✅ Truyền productId vào hook
+  } = useAddProductFlow(productId, () => {}); // ✅ Truyền productId vào hook
 
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,

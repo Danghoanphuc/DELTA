@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import api from "@/shared/lib/axios";
 import { Product } from "@/types/product";
 import { EditorCanvasRef } from "@/features/editor/components/EditorCanvas";
+import * as THREE from 'three';
 
 // === TYPES ===
 interface PhoiAssets {
@@ -65,9 +66,7 @@ export function usePrinterStudio() {
   // === STATE ===
   const [baseProduct, setBaseProduct] = useState<Product | null>(null);
   const [phoiAssets, setPhoiAssets] = useState<PhoiAssets | null>(null);
-  const [canvasElements, setCanvasElements] = useState<
-    Map<string, HTMLCanvasElement>
-  >(new Map());
+  const [textures, setTextures] = useState<Record<string, THREE.CanvasTexture | null>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [is3DMainLoaded, setIs3DMainLoaded] = useState(false);
   const [selectedObject, setSelectedObject] = useState<any>(null);
@@ -226,16 +225,11 @@ export function usePrinterStudio() {
 
   // ✅ ỔN ĐỊNH HÀM GÂY RA VÒNG LẶP
   const handleCanvasUpdate = useCallback(
-    (materialKey: string, canvasElement: HTMLCanvasElement) => {
-      setCanvasElements((prev) => {
-        const newMap = new Map(prev);
-        newMap.set(materialKey, canvasElement);
-        // Tạm tắt log spam
-        // console.log(
-        //   `🎨 [usePrinterStudio] Canvas element updated for: ${materialKey}`
-        // );
-        return newMap;
-      });
+    (materialKey: string, texture: THREE.CanvasTexture) => {
+      setTextures((prev) => ({
+        ...prev,
+        [materialKey]: texture,
+      }));
     },
     [] // ✅ Dependency rỗng
   );
@@ -307,7 +301,7 @@ export function usePrinterStudio() {
     editorRef,
     baseProduct,
     phoiAssets,
-    canvasElements,
+    textures,
     isLoading,
     is3DMainLoaded,
     selectedObject,
