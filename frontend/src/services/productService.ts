@@ -1,6 +1,8 @@
 // src/services/productService.ts
+// ✅ BẢN VÁ FULL: Sửa 404 endpoint và chuyển sang FormData
+
 import api from "@/shared/lib/axios";
-import { PrinterProduct } from "@/types/product";
+import { PrinterProduct, Product } from "@/types/product";
 
 // Kiểu dữ liệu trả về từ API (giả định)
 type MyProductsResponse = {
@@ -9,12 +11,36 @@ type MyProductsResponse = {
   };
 };
 
+type ProductResponse = {
+  data: {
+    product: PrinterProduct;
+  };
+};
+
+type GetProductResponse = {
+  data: {
+    product: Product; // Dùng kiểu 'Product' chi tiết
+  };
+};
+
+/**
+ * Lấy chi tiết sản phẩm bằng ID (dùng cho cả editor và admin)
+ */
+export const getProductById = async (productId: string): Promise<Product> => {
+  const res = await api.get<GetProductResponse>(`/products/${productId}`);
+  const product = res.data?.data?.product;
+  if (!product) {
+    throw new Error("Không tìm thấy sản phẩm.");
+  }
+  return product;
+};
+
 /**
  * Lấy danh sách sản phẩm của nhà in
  */
 export const getMyProducts = async (): Promise<PrinterProduct[]> => {
-  const res = await api.get<MyProductsResponse>("/products/my-products");
-  // Cung cấp fallback an toàn
+  // ✅ SỬA LỖI 404: Endpoint đúng là /products
+  const res = await api.get<MyProductsResponse>("/products");
   return res.data?.data?.products || [];
 };
 
@@ -27,13 +53,27 @@ export const deleteProduct = async (productId: string): Promise<void> => {
 
 /**
  * Cập nhật một sản phẩm
+ * ✅ SỬA LỖI 400: Nhận FormData
  */
 export const updateProduct = async (
   productId: string,
-  data: Partial<PrinterProduct>
+  data: FormData // ✅ Đổi từ Partial<Product> sang FormData
 ): Promise<PrinterProduct> => {
-  const res = await api.put(`/products/${productId}`, data);
+  const res = await api.put<ProductResponse>(`/products/${productId}`, data, {
+    headers: { "Content-Type": "multipart/form-data" }, // ✅ Thêm header
+  });
   return res.data?.data?.product;
 };
 
-// Bạn có thể thêm createProduct, v.v. ở đây
+/**
+ * Tạo một sản phẩm (phôi) mới
+ * ✅ SỬA LỖI 400: Nhận FormData
+ */
+export const createNewProduct = async (
+  productData: FormData // ✅ Đổi từ Partial<Product> sang FormData
+): Promise<PrinterProduct> => {
+  const res = await api.post<ProductResponse>("/products", productData, {
+    headers: { "Content-Type": "multipart/form-data" }, // ✅ Thêm header
+  });
+  return res.data?.data?.product;
+};

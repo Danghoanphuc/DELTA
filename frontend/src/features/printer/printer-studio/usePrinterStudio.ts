@@ -1,23 +1,21 @@
 // frontend/src/features/printer/printer-studio/usePrinterStudio.ts
-// ✅ BẢN HOÀN THIỆN (Đã sửa lỗi logic "texturesForViewer")
+// ✅ BẢN VÁ FULL 100%: Ổn định (useCallback) các hàm
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import api from "@/shared/lib/axios";
 import { Product } from "@/types/product";
-
-// ✅ 1. SỬA LỖI: Import Ref type chính xác từ EditorCanvas
 import { EditorCanvasRef } from "@/features/editor/components/EditorCanvas";
 
-// === TYPES === (Giữ nguyên)
+// === TYPES ===
 interface PhoiAssets {
   modelUrl: string;
   dielineUrl: string;
   materialName: string;
 }
 
-// === HELPERS === (Giữ nguyên)
+// === HELPERS ===
 function dataURLtoBlob(dataurl: string): Blob {
   const arr = dataurl.split(",");
   const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
@@ -51,7 +49,8 @@ function extractDielineUrl(assets: any): string | undefined {
 function extractMaterialName(assets: any): string {
   if (assets?.surfaces?.[0]?.materialName)
     return assets.surfaces[0].materialName;
-  return "DefaultMaterial";
+  // Fallback an toàn
+  return "Material";
 }
 
 // ====================
@@ -61,20 +60,21 @@ export function usePrinterStudio() {
   const navigate = useNavigate();
   const { productId } = useParams();
 
-  // ✅ 2. SỬA LỖI: Sử dụng đúng Ref type
   const editorRef = useRef<EditorCanvasRef>(null);
 
-  // === STATE === (Giữ nguyên)
+  // === STATE ===
   const [baseProduct, setBaseProduct] = useState<Product | null>(null);
   const [phoiAssets, setPhoiAssets] = useState<PhoiAssets | null>(null);
-  const [textureData, setTextureData] = useState<string | null>(null);
+  const [canvasElements, setCanvasElements] = useState<
+    Map<string, HTMLCanvasElement>
+  >(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [is3DMainLoaded, setIs3DMainLoaded] = useState(false);
   const [selectedObject, setSelectedObject] = useState<any>(null);
   const [layers, setLayers] = useState<any[]>([]);
   const [activeObjectId, setActiveObjectId] = useState<string | null>(null);
 
-  // === DATA FETCHING === (Giữ nguyên)
+  // === DATA FETCHING ===
   useEffect(() => {
     let isCancelled = false;
     const controller = new AbortController();
@@ -121,6 +121,12 @@ export function usePrinterStudio() {
             throw new Error(`Phôi này thiếu file 3D hoặc file Dieline SVG.`);
           }
         }
+
+        console.log("✅ [usePrinterStudio] Assets loaded:", {
+          modelUrl,
+          dielineUrl,
+          materialName,
+        });
         setBaseProduct(productData);
         setPhoiAssets({ modelUrl, dielineUrl, materialName });
       } catch (err: any) {
@@ -141,9 +147,13 @@ export function usePrinterStudio() {
     };
   }, [productId, navigate]);
 
-  // === HANDLERS === (Giữ nguyên)
+  // === HANDLERS ===
 
-  // (Layers)
+  // ==================================================
+  // ✅✅✅ SỬA LỖI VÒNG LẶP (Context Lost) ✅✅✅
+  // ==================================================
+  // Ổn định (memoize) các hàm này bằng useCallback
+
   const updateLayers = useCallback(() => {
     const canvas = editorRef.current?.getCanvas();
     if (!canvas) return;
@@ -159,7 +169,7 @@ export function usePrinterStudio() {
       setActiveObjectId(null);
       setSelectedObject(null);
     }
-  }, []);
+  }, []); // ✅ Dependency rỗng
 
   const handleSelectLayer = useCallback(
     (obj: any) => {
@@ -170,7 +180,7 @@ export function usePrinterStudio() {
         updateLayers();
       }
     },
-    [updateLayers]
+    [updateLayers] // ✅ Ổn định
   );
 
   const handleMoveLayer = useCallback(
@@ -194,7 +204,7 @@ export function usePrinterStudio() {
       canvas.renderAll();
       updateLayers();
     },
-    [updateLayers]
+    [updateLayers] // ✅ Ổn định
   );
 
   const handleToggleVisibility = useCallback(
@@ -203,7 +213,7 @@ export function usePrinterStudio() {
       editorRef.current?.getCanvas()?.renderAll();
       updateLayers();
     },
-    [updateLayers]
+    [updateLayers] // ✅ Ổn định
   );
 
   const handleDeleteLayer = useCallback(
@@ -211,16 +221,23 @@ export function usePrinterStudio() {
       editorRef.current?.getCanvas()?.remove(obj);
       updateLayers();
     },
-    [updateLayers]
+    [updateLayers] // ✅ Ổn định
   );
 
-  // (Canvas)
+  // ✅ ỔN ĐỊNH HÀM GÂY RA VÒNG LẶP
   const handleCanvasUpdate = useCallback(
-    (materialKey: string, base64Image: string) => {
-      // Logic này đúng cho single-surface
-      setTextureData(base64Image);
+    (materialKey: string, canvasElement: HTMLCanvasElement) => {
+      setCanvasElements((prev) => {
+        const newMap = new Map(prev);
+        newMap.set(materialKey, canvasElement);
+        // Tạm tắt log spam
+        // console.log(
+        //   `🎨 [usePrinterStudio] Canvas element updated for: ${materialKey}`
+        // );
+        return newMap;
+      });
     },
-    []
+    [] // ✅ Dependency rỗng
   );
 
   const handleImageUpload = (file: File) => {
@@ -229,7 +246,7 @@ export function usePrinterStudio() {
 
   const handlePropertiesUpdate = useCallback(() => {
     editorRef.current?.getCanvas()?.renderAll();
-  }, []);
+  }, []); // ✅ Ổn định
 
   // (Saving)
   const createCanvasSnapshot = useCallback((): {
@@ -254,7 +271,7 @@ export function usePrinterStudio() {
     });
     const previewBlob = dataURLtoBlob(previewDataURL);
     return { json, previewBlob };
-  }, []);
+  }, []); // ✅ Ổn định
 
   const handleSaveAndExit = useCallback(() => {
     if (!editorRef.current) {
@@ -283,26 +300,14 @@ export function usePrinterStudio() {
       navigate("/printer/publish-template");
     };
     reader.readAsDataURL(snapshot.previewBlob);
-  }, [baseProduct, createCanvasSnapshot, navigate]);
+  }, [baseProduct, createCanvasSnapshot, navigate]); // ✅ Ổn định
 
-  // === MEMOS ===
-  const texturesForViewer = useMemo(() => {
-    if (!textureData) return {};
-    const result: Record<string, string> = {};
-    const materialKey = phoiAssets?.materialName || "DefaultMaterial";
-
-    // ✅ Chỉ gán 1 texture cho 1 material key.
-    result[materialKey] = textureData;
-
-    return result;
-  }, [textureData, phoiAssets]);
-
-  // === RETURN === (Giữ nguyên)
+  // === RETURN ===
   return {
     editorRef,
     baseProduct,
     phoiAssets,
-    textureData,
+    canvasElements,
     isLoading,
     is3DMainLoaded,
     selectedObject,
@@ -314,12 +319,11 @@ export function usePrinterStudio() {
     handleMoveLayer,
     handleToggleVisibility,
     handleDeleteLayer,
-    handleCanvasUpdate,
-    handlePropertiesUpdate,
-    handleSaveAndExit,
+    handleCanvasUpdate, // ✅ Đã ổn định
+    handlePropertiesUpdate, // ✅ Đã ổn định
+    handleSaveAndExit, // ✅ Đã ổn định
     setIs3DMainLoaded,
     navigate,
-    texturesForViewer,
-    updateLayers,
+    updateLayers, // ✅ Đã ổn định
   };
 }

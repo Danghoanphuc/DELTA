@@ -1,5 +1,5 @@
 // frontend/src/features/editor/hooks/useFabricDieline.ts
-// ✅ CẬP NHẬT: Logic Artboard "CONTAIN" (đặt lọt thỏm)
+// ✅ BẢN VÁ 100%: Gỡ bỏ isReadyToLoad (Điểm nghẽn 3)
 
 import { useState, useEffect, useRef } from "react";
 import { Canvas, Image as FabricImage, Rect } from "fabric";
@@ -8,16 +8,13 @@ import { toast } from "sonner";
 
 interface DielineOptions {
   dielineSvgUrl: string;
-  isReadyToLoad: boolean;
+  // isReadyToLoad: boolean; // ❌ XÓA BỎ
   saveState: () => void;
 }
 
-// Artboard (và texture) LUÔN LUÔN là hình vuông.
-const ARTBOARD_SIZE = 800; // 800x800 pixels
+const ARTBOARD_SIZE = 800;
 
-/**
- * (Helper) Đọc file SVG text để tìm kích thước gốc
- */
+// ... (getSvgDimensions giữ nguyên) ...
 const getSvgDimensions = (
   svgText: string
 ): { width: number; height: number } => {
@@ -38,7 +35,6 @@ const getSvgDimensions = (
       height: parseFloat(heightMatch[1]),
     };
   }
-  // Mặc định trả về 1:1 nếu không tìm thấy
   return { width: ARTBOARD_SIZE, height: ARTBOARD_SIZE };
 };
 
@@ -47,7 +43,7 @@ export const useFabricDieline = (
   containerRef: React.RefObject<HTMLDivElement | null>,
   options: DielineOptions
 ) => {
-  const { dielineSvgUrl, isReadyToLoad, saveState } = options;
+  const { dielineSvgUrl, saveState } = options; // ❌ XÓA BỎ isReadyToLoad
   const [isDielineLoaded, setIsDielineLoaded] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
 
@@ -59,20 +55,15 @@ export const useFabricDieline = (
     const container = containerRef.current;
     if (!canvas || !container || !dielineSvgUrl) return;
 
-    if (!isReadyToLoad) {
-      // (Logic chờ 3D giữ nguyên)
-      setIsDielineLoaded(false);
-      setLoadFailed(false);
-      return;
-    }
+    // ❌ XÓA BỎ: logic if (!isReadyToLoad)
 
+    // ✅ FIX: Logic 2D tự chạy
     const loadArtboardAndDieline = async () => {
       setIsDielineLoaded(false);
       setLoadFailed(false);
       canvas.clear();
 
       try {
-        // --- 1. Tạo Artboard (Bảng vẽ) HÌNH VUÔNG ---
         const artboard = new Rect({
           width: ARTBOARD_SIZE,
           height: ARTBOARD_SIZE,
@@ -83,17 +74,13 @@ export const useFabricDieline = (
         });
         artboardRef.current = artboard;
         canvas.add(artboard);
-        canvas.centerObject(artboard); // Căn giữa Artboard vào Viewport
+        canvas.centerObject(artboard);
 
-        // --- 2. Tải SVG (dưới dạng text) để đọc kích thước ---
         const response = await fetch(dielineSvgUrl);
         if (!response.ok) throw new Error("Network response was not ok");
         const svgText = await response.text();
         const svgDims = getSvgDimensions(svgText);
 
-        // --- 3. Tải Dieline (SVG) bằng Canvg ---
-        // (Chúng ta KHÔNG dùng offscreenCanvas ở đây vì Canvg
-        // sẽ tự động render đúng kích thước của SVG)
         const ctx = document.createElement("canvas").getContext("2d");
         if (!ctx) throw new Error("Không thể tạo 2D context");
 
@@ -106,30 +93,25 @@ export const useFabricDieline = (
 
         if (!fabricCanvas.current || !artboardRef.current) return;
 
-        // --- 4. SỬA LỖI: Áp dụng logic "CONTAIN" ---
-        // Tính toán tỷ lệ để "đặt lọt thỏm" Dieline vào Artboard
-        const scaleX = ARTBOARD_SIZE / dielineImg.width;
-        const scaleY = ARTBOARD_SIZE / dielineImg.height;
-        const scale = Math.min(scaleX, scaleY); // Lấy tỷ lệ nhỏ nhất
+        const scaleX = ARTBOARD_SIZE / (dielineImg.width || ARTBOARD_SIZE);
+        const scaleY = ARTBOARD_SIZE / (dielineImg.height || ARTBOARD_SIZE);
+        const scale = Math.min(scaleX, scaleY);
 
-        dielineImg.scale(scale); // Scale Dieline
+        dielineImg.scale(scale);
         dielineImg.set({
-          left: artboardRef.current.left, // Đặt Dieline trùng vị trí Artboard
+          left: artboardRef.current.left,
           top: artboardRef.current.top,
-          originX: "left", // Căn theo Artboard
+          originX: "left",
           originY: "top",
           selectable: false,
           evented: false,
           opacity: 0.5,
         });
 
-        // Căn giữa Dieline (đã scale) bên trong Artboard
         canvas.centerObject(dielineImg);
 
         dielineRef.current = dielineImg;
         canvas.add(dielineImg);
-
-        // (Đã loại bỏ clipPath ở bước trước)
 
         canvas.renderAll();
         setIsDielineLoaded(true);
@@ -143,39 +125,32 @@ export const useFabricDieline = (
 
     loadArtboardAndDieline();
 
-    // Xử lý ResizeObserver (Giữ nguyên - chỉ căn giữa Artboard)
+    // ... (ResizeObserver giữ nguyên) ...
     const observer = new ResizeObserver((entries) => {
       if (!entries || entries.length === 0) return;
       const { width, height } = entries[0].contentRect;
-
       if (fabricCanvas.current) {
         fabricCanvas.current.setWidth(width);
         fabricCanvas.current.setHeight(height);
-
-        // Luôn căn giữa Artboard
         if (artboardRef.current) {
           fabricCanvas.current.centerObject(artboardRef.current);
         }
-        // Căn Dieline theo Artboard
         if (dielineRef.current && artboardRef.current) {
           dielineRef.current.set({
             left: artboardRef.current.left,
             top: artboardRef.current.top,
           });
-          // Căn giữa Dieline (đã scale) bên trong Artboard
           fabricCanvas.current.centerObject(dielineRef.current);
         }
         fabricCanvas.current.renderAll();
       }
     });
-
     observer.observe(container);
 
-    // Cleanup
     return () => {
       observer.disconnect();
     };
-  }, [fabricCanvas, containerRef, dielineSvgUrl, isReadyToLoad, saveState]);
+  }, [fabricCanvas, containerRef, dielineSvgUrl, saveState]); // ❌ XÓA BỎ isReadyToLoad
 
   return {
     isDielineLoaded,

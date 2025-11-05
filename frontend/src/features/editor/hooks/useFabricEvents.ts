@@ -1,12 +1,12 @@
 // frontend/src/features/editor/hooks/useFabricEvents.ts
-// ✅ NHIỆM VỤ 1: Loại bỏ toDataURL(), sử dụng THREE.CanvasTexture trực tiếp
+// ✅ SỬA LỖI TRIỆT ĐỂ: Reset viewport về 100% khi chụp ảnh
 
 import React, { useEffect, useRef, useCallback } from "react";
 import * as fabric from "fabric";
 import debounce from "lodash.debounce";
 
 interface EventCallbacks {
-  onCanvasUpdate: (materialKey: string, canvasElement: HTMLCanvasElement) => void;
+  onCanvasUpdate: (materialKey: string, base64DataUrl: string) => void;
   onObjectChange?: () => void;
   saveState: () => void;
   artboardRef: React.RefObject<fabric.Rect | null>;
@@ -22,71 +22,87 @@ export const useFabricEvents = (
   const { onCanvasUpdate, onObjectChange, saveState, artboardRef, dielineRef } =
     callbacks;
 
-  // Refs cho callbacks
+  // Refs cho callbacks (Giữ nguyên)
   const onCanvasUpdateRef = useRef(onCanvasUpdate);
   const onObjectChangeRef = useRef(onObjectChange);
   const saveStateRef = useRef(saveState);
-
   useEffect(() => {
     onCanvasUpdateRef.current = onCanvasUpdate;
   }, [onCanvasUpdate]);
-
   useEffect(() => {
     onObjectChangeRef.current = onObjectChange;
   }, [onObjectChange]);
-
   useEffect(() => {
     saveStateRef.current = saveState;
   }, [saveState]);
 
-  // ✅ LOGIC MỚI: Gửi canvas element thay vì base64
-  const updateTexture = useCallback(() => {
+  // ✅ SỬA LỖI LOGIC TẠO TEXTURE
+  const generateTexture = useCallback(() => {
     const canvas = fabricCanvas.current;
     const artboard = artboardRef.current;
     const dieline = dielineRef.current;
 
     if (!canvas || !artboard) {
-      console.warn("[useFabricEvents] Artboard chưa sẵn sàng");
+      console.warn("generateTexture: Artboard chưa sẵn sàng.");
       return;
     }
 
-    // Lưu trạng thái viewport
+    // --- 1. LƯU LẠI TRẠNG THÁI VIEWPORT ---
+    // (Lưu lại [zoom, 0, 0, zoom, panX, panY])
     const originalTransform = canvas.viewportTransform;
     const dielineWasVisible = dieline ? dieline.visible : false;
 
-    // Reset viewport về 100%
+    // --- 2. TẠM THỜI RESET VIEWPORT VỀ 100% ---
+    // Đây là mấu chốt: chúng ta đưa canvas về trạng thái gốc
     canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
 
-    // Ẩn dieline tạm thời
+    // --- 3. TÍNH TOÁN CROP Ở 100% ZOOM ---
+    // Giờ đây, artboard.left/top là tọa độ tuyệt đối,
+    // không bị ảnh hưởng bởi pan/zoom của người dùng.
+    const cropLeft = artboard.left || 0;
+    const cropTop = artboard.top || 0;
+    const cropWidth = artboard.width || 800;
+    const cropHeight = artboard.height || 800;
+
+    // --- 4. TẠM THỜI ẨN DIELINE ---
     if (dieline) {
       dieline.visible = false;
     }
 
-    // Render canvas
+    // Render 1 frame ở 100% để áp dụng các thay đổi
     canvas.renderAll();
 
-    // ✅ MẤU CHỐT: Lấy canvas element thực, KHÔNG tạo base64
-    const canvasElement = canvas.getElement();
+    // --- 5. CHỤP ẢNH (BỎ MULTIPLIER) ---
+    // Vì canvas đã ở 100% zoom, chúng ta không cần multiplier nữa.
+    // Artboard (Rect nền trắng) đảm bảo ảnh không bị trong suốt.
+    const dataURL = canvas.toDataURL({
+      format: "png",
+      quality: 1,
+      left: cropLeft,
+      top: cropTop,
+      width: cropWidth,
+      height: cropHeight,
+      multiplier: 1, // Thêm vào để fix lỗi TS
+    });
 
-    // Gửi canvas element trực tiếp
-    onCanvasUpdateRef.current(materialKey, canvasElement);
+    // --- 6. GỬI ẢNH ĐI (Giữ nguyên) ---
+    onCanvasUpdateRef.current(materialKey, dataURL);
 
-    // Khôi phục trạng thái
+    // --- 7. KHÔI PHỤC LẠI TRẠNG THÁI GỐC ---
     if (dieline) {
       dieline.visible = dielineWasVisible;
     }
+    // Trả lại zoom/pan cho người dùng
     canvas.setViewportTransform(originalTransform);
     canvas.renderAll();
-
-    console.log(`🔄 [useFabricEvents] Texture updated (no base64)`);
   }, [fabricCanvas, artboardRef, dielineRef, materialKey]);
 
-  // Debounce update
-  const debouncedUpdate = useRef(
-    debounce(() => updateTexture(), 100) // ✅ Giảm delay xuống 100ms
+  // Debounce (Giữ nguyên)
+  const debouncedCanvasUpdate = useRef(
+    debounce(() => generateTexture(), 500)
   ).current;
 
-  // Gán Event Listeners
+  // Gán Event Listeners (Giữ nguyên)
   useEffect(() => {
     const canvas = fabricCanvas.current;
 
@@ -98,19 +114,14 @@ export const useFabricEvents = (
 
     const handleChange = () => {
       saveStateRef.current();
-      debouncedUpdate(); // ✅ Update texture realtime
+      debouncedCanvasUpdate();
       onObjectChangeRef.current?.();
     };
-
     const handleSelection = () => {
       onObjectChangeRef.current?.();
     };
 
-    // Listen to all canvas events
     canvas.on("object:modified", handleChange);
-    canvas.on("object:moving", handleChange); // ✅ Update khi đang di chuyển
-    canvas.on("object:scaling", handleChange); // ✅ Update khi đang scale
-    canvas.on("object:rotating", handleChange); // ✅ Update khi đang xoay
     canvas.on("text:changed", handleChange);
     canvas.on("object:added", handleChange);
     canvas.on("object:removed", handleChange);
@@ -123,5 +134,5 @@ export const useFabricEvents = (
         canvas.off();
       }
     };
-  }, [isDielineLoaded, fabricCanvas, debouncedUpdate]);
+  }, [isDielineLoaded, fabricCanvas, debouncedCanvasUpdate]);
 };

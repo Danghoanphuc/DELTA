@@ -28,7 +28,7 @@ export const useCameraAutoFit = (
 
     // ✅ SỬA LỖI "DÍ SÁT" TẠI ĐÂY:
     // Tăng từ 1.3 lên 1.5 để lùi camera ra xa hơn
-    cameraZ *= 2.2;
+    cameraZ *= 1.5;
 
     targetPos.current.set(center.x, center.y, center.z + cameraZ);
     targetCenter.current.copy(center);

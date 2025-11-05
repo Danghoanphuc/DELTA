@@ -48,7 +48,6 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
-    "drei": "^2.2.21",
     "embla-carousel-react": "^8.6.0",
     "fabric": "^6.7.1",
     "framer-motion": "^12.23.24",

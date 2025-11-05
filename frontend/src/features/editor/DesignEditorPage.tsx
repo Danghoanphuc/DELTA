@@ -1,7 +1,9 @@
-// frontend/src/features/editor/DesignEditorPage.tsx
-// ✅ NHIỆM VỤ 1: TÍCH HỢP REALTIME 3D VỚI THREE.CanvasTexture
+// editor/DesignEditorPage.tsx
+// ✅ SỬA LỖI GỐC:
+// Đã sử dụng hàm `handleModelLoaded` (đã được bọc `useCallback`)
+// và truyền nó vào `onModelLoaded` của `ProductViewer3D`.
 
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react"; // <-- Đã import useCallback
 import { Button } from "@/shared/components/ui/button";
 import { Save, Loader2, GripVertical, Download } from "lucide-react";
 import {
@@ -10,6 +12,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/shared/components/ui/tabs";
+import * as THREE from "three";
 
 import { EditorCanvas } from "./components/EditorCanvas";
 import ProductViewer3D from "./components/ProductViewer3D";
@@ -17,9 +20,11 @@ import { EditorToolbar } from "./components/EditorToolbar";
 import { useDesignEditor } from "./hooks/useDesignEditor";
 import { CanvasLoadingSkeleton } from "./components/LoadingSkeleton";
 import { Rnd } from "react-rnd";
+
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { ExportDialog } from "./components/ExportDialog";
 
+// Skeleton (giữ nguyên)
 const EditorLoadingSkeleton = () => (
   <div className="flex h-screen w-full items-center justify-center bg-gray-100">
     <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
@@ -32,12 +37,12 @@ export function DesignEditorPage() {
     product,
     activeSurfaceKey,
     setActiveSurfaceKey,
-    canvasElements, // ✅ Map<materialName, canvasElement>
+    textures,
     editorRefs,
     isLoading,
     isSaving,
     isModelLoaded,
-    setIsModelLoaded,
+    setIsModelLoaded, // <-- Lấy hàm setState
     handleSurfaceUpdate,
     handleToolbarImageUpload,
     getActiveEditorRef,
@@ -54,14 +59,30 @@ export function DesignEditorPage() {
     setIsExportDialogOpen,
   } = useDesignEditor();
 
+  // Ổn định (stabilize) hàm callback
+  const handleModelLoaded = useCallback(() => {
+    setIsModelLoaded(true);
+  }, [setIsModelLoaded]); // Phụ thuộc vào `setIsModelLoaded` (đã ổn định)
+
+  // useMemo cho textures (giữ nguyên)
+  const texturesFor3D = useMemo(() => {
+    const result: Record<string, THREE.CanvasTexture> = {};
+    for (const [materialName, textureData] of Object.entries(textures)) {
+      if (textureData) {
+        result[materialName] = textureData;
+      }
+    }
+    return result;
+  }, [textures]);
+
   if (isLoading || !product) {
     return <EditorLoadingSkeleton />;
   }
 
-  // Bố cục floating
+  // Bố cục (giữ nguyên)
   return (
     <div className="flex h-screen bg-gray-100 relative overflow-hidden">
-      {/* 1. Bảng điều khiển bên trái (Floating Panel) */}
+      {/* (Toàn bộ các panel, button... giữ nguyên) */}
       <div className="absolute top-4 left-4 z-20 w-80 bg-white rounded-lg shadow-xl">
         <EditorToolbar
           editorRef={{ current: getActiveEditorRef() }}
@@ -76,8 +97,6 @@ export function DesignEditorPage() {
           onPropertiesUpdate={updateLayers}
         />
       </div>
-
-      {/* 2. PANEL THUỘC TÍNH (BÊN PHẢI) */}
       <div className="absolute top-4 right-4 z-20 w-72">
         <PropertiesPanel
           selectedObject={selectedObject}
@@ -85,14 +104,10 @@ export function DesignEditorPage() {
           onUpdate={updateLayers}
         />
       </div>
-
-      {/* 3. Bảng thông tin phôi (Floating) */}
       <div className="absolute top-4 left-[21rem] z-20 bg-white p-3 rounded-lg shadow-xl">
         <h3 className="text-sm font-semibold">Upload & Design</h3>
         <p className="text-xs text-gray-600">{product.name}</p>
       </div>
-
-      {/* 4. Nút Lưu & Xuất (Floating) */}
       <div className="absolute bottom-4 right-4 z-20 flex gap-2">
         <Button
           variant="outline"
@@ -112,7 +127,7 @@ export function DesignEditorPage() {
         </Button>
       </div>
 
-      {/* Vùng 2D Editor */}
+      {/* Vùng 2D Editor (giữ nguyên) */}
       <div className="flex-1 flex flex-col items-center justify-center p-4 overflow-auto">
         <Tabs
           value={activeSurfaceKey || ""}
@@ -155,12 +170,7 @@ export function DesignEditorPage() {
 
       {/* 5. Preview 3D (Floating Popup) */}
       <Rnd
-        default={{
-          x: window.innerWidth - 680,
-          y: 20,
-          width: 350,
-          height: 400,
-        }}
+        default={{ x: window.innerWidth - 680, y: 20, width: 350, height: 400 }}
         minWidth={250}
         minHeight={300}
         bounds="parent"
@@ -175,17 +185,20 @@ export function DesignEditorPage() {
             <p className="text-xs text-gray-400">(Các nút chọn màu ở đây)</p>
           </div>
           <div className="flex-1">
-            {/* ✅ TRUYỀN canvasElements VÀO ProductViewer3D */}
+            {/* ✅ SỬA LỖI TẠI ĐÂY:
+                Truyền hàm `handleModelLoaded` đã được ổn định,
+                thay vì hàm ẩn danh `() => setIsModelLoaded(true)`
+            */}
             <ProductViewer3D
               modelUrl={product.assets.modelUrl!}
-              canvasElements={canvasElements}
-              onModelLoaded={() => setIsModelLoaded(true)}
+              textures={texturesFor3D}
+              onModelLoaded={handleModelLoaded}
             />
           </div>
         </div>
       </Rnd>
 
-      {/* 6. DIALOG XUẤT FILE */}
+      {/* 6. Dialog xuất file (giữ nguyên) */}
       <ExportDialog
         isOpen={isExportDialogOpen}
         onClose={() => setIsExportDialogOpen(false)}
