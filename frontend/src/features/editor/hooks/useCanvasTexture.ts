@@ -1,7 +1,7 @@
 // frontend/src/features/editor/hooks/useCanvasTexture.ts
-// ✅ BẢN HOÀN CHỈNH: Quản lý THREE.CanvasTexture
+// ✅ BẢN TỐI ƯU: Quản lý THREE.CanvasTexture hiệu quả
 
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import * as THREE from "three";
 
 interface UseCanvasTextureOptions {
@@ -11,23 +11,25 @@ interface UseCanvasTextureOptions {
 
 export const useCanvasTexture = (options: UseCanvasTextureOptions) => {
   const { materialKey, onTextureReady } = options;
-  const sourceCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const textureRef = useRef<THREE.CanvasTexture | null>(null);
 
-  const createTexture = useMemo(() => {
-    return (canvas: HTMLCanvasElement) => {
-      if (textureRef.current) {
-        textureRef.current.image = canvas;
-        textureRef.current.needsUpdate = true;
-        return textureRef.current;
-      }
+  // ✅ Dùng ref để tránh re-create texture
+  const textureRef = useRef<THREE.CanvasTexture | null>(null);
+  const sourceCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // ✅ FIX: Callback để tạo texture (chỉ chạy 1 lần)
+  const createTexture = useCallback(
+    (canvas: HTMLCanvasElement) => {
+      console.log(`🎨 [CanvasTexture] Creating texture for: ${materialKey}`);
 
       const texture = new THREE.CanvasTexture(canvas);
+
+      // ✅ Cấu hình texture tối ưu
       texture.colorSpace = THREE.SRGBColorSpace;
-      texture.minFilter = THREE.NearestFilter;
-      texture.magFilter = THREE.NearestFilter;
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
       texture.generateMipmaps = false;
       texture.flipY = false;
+      texture.needsUpdate = true;
 
       textureRef.current = texture;
 
@@ -35,27 +37,43 @@ export const useCanvasTexture = (options: UseCanvasTextureOptions) => {
         onTextureReady(texture);
       }
 
-      console.log(`✅ [CanvasTexture] Created for material: ${materialKey}`);
+      console.log(`✅ [CanvasTexture] Texture created for: ${materialKey}`);
       return texture;
-    };
-  }, [materialKey, onTextureReady]);
+    },
+    [materialKey, onTextureReady]
+  );
 
-  const updateTexture = (canvas: HTMLCanvasElement) => {
-    if (!canvas) return;
-    sourceCanvasRef.current = canvas;
+  // ✅ FIX: Update texture hiệu quả
+  const updateTexture = useCallback(
+    (canvas: HTMLCanvasElement) => {
+      if (!canvas) {
+        console.warn(
+          `⚠️ [CanvasTexture] Received null canvas for: ${materialKey}`
+        );
+        return;
+      }
 
-    if (textureRef.current) {
-      textureRef.current.needsUpdate = true;
-    } else {
-      createTexture(canvas);
-    }
-  };
+      sourceCanvasRef.current = canvas;
 
+      if (textureRef.current) {
+        // ✅ Reuse existing texture - chỉ update image
+        textureRef.current.image = canvas;
+        textureRef.current.needsUpdate = true;
+        console.log(`🔄 [CanvasTexture] Texture updated for: ${materialKey}`);
+      } else {
+        // ✅ Tạo texture mới lần đầu
+        createTexture(canvas);
+      }
+    },
+    [materialKey, createTexture]
+  );
+
+  // ✅ Cleanup khi unmount
   useEffect(() => {
     return () => {
       if (textureRef.current) {
         textureRef.current.dispose();
-        console.log(`🗑️ [CanvasTexture] Disposed for: ${materialKey}`);
+        console.log(`🗑️ [CanvasTexture] Disposed texture for: ${materialKey}`);
       }
     };
   }, [materialKey]);

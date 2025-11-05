@@ -56,11 +56,16 @@ export function ViewerModel({
 
   // Load textures
   const loadedTextures = useMemo(() => {
+    console.log(`🖼️ [ViewerModel] Processing textures...`);
     const newTextures: Record<string, THREE.Texture> = {};
     for (const materialName in textures) {
       const textureData = textures[materialName];
+
       if (textureData instanceof THREE.CanvasTexture) {
         newTextures[materialName] = textureData;
+        console.log(`✅ [ViewerModel] Texture loaded for: ${materialName}`);
+      } else {
+        console.warn(`⚠️ [ViewerModel] Invalid texture for: ${materialName}`);
       }
     }
     return newTextures;
@@ -70,6 +75,8 @@ export function ViewerModel({
   useEffect(() => {
     if (!gltf.scene) return;
 
+    console.log(`🎨 [ViewerModel] Applying textures to model...`);
+
     gltf.scene.traverse((child) => {
       if (child instanceof THREE.Mesh && child.material) {
         const materialName = child.material.name;
@@ -77,17 +84,26 @@ export function ViewerModel({
         const newTexture = loadedTextures[materialName];
 
         if (newTexture && originalMaterial) {
-          child.material = originalMaterial.clone();
-          if ("map" in child.material) {
-            child.material.map = newTexture;
+          // ✅ Clone material để tránh ảnh hưởng đến material khác
+          const clonedMaterial = originalMaterial.clone();
+
+          if ("map" in clonedMaterial) {
+            clonedMaterial.map = newTexture;
+            clonedMaterial.needsUpdate = true;
           }
-          child.material.needsUpdate = true;
-        } else if (originalMaterial) {
+
+          child.material = clonedMaterial;
+          console.log(`✅ [ViewerModel] Applied texture to: ${materialName}`);
+        } else if (originalMaterial && !newTexture) {
+          // ✅ Khôi phục material gốc nếu không có texture
           child.material = originalMaterial;
+          console.log(
+            `🔄 [ViewerModel] Restored original material: ${materialName}`
+          );
         }
       }
     });
-  }, [gltf.scene, loadedTextures, textures]);
+  }, [gltf.scene, loadedTextures]);
 
   // Scale
   useEffect(() => {

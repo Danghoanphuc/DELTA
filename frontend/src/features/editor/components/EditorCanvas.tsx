@@ -1,4 +1,4 @@
-import * as fabric from 'fabric';
+import * as fabric from "fabric";
 // frontend/src/features/editor/components/EditorCanvas.tsx
 // ✅ PHIÊN BẢN HOÀN CHỈNH: Pipeline "Zero-Cost"
 
@@ -105,16 +105,20 @@ export const EditorCanvas = forwardRef<EditorCanvasRef, EditorCanvasProps>(
       onObjectChange || (() => {})
     );
     const api = useFabricJSApi(fabricCanvas);
-    const { isDielineLoaded, loadFailed, artboardRef, dielineRef } = useFabricDieline(fabricCanvas, containerRef, {
+    const { isDielineLoaded, loadFailed, artboardRef, dielineRef } =
+      useFabricDieline(fabricCanvas, containerRef, {
         dielineSvgUrl,
         saveState,
       });
 
     // === 3. ✅ PIPELINE "ZERO-COST" ===
-    const onTextureReady = useCallback((tex: THREE.CanvasTexture) => {
-      tex.needsUpdate = true;
-      onCanvasUpdate(materialKey, tex);
-    }, [onCanvasUpdate, materialKey]);
+    const onTextureReady = useCallback(
+      (tex: THREE.CanvasTexture) => {
+        tex.needsUpdate = true;
+        onCanvasUpdate(materialKey, tex);
+      },
+      [onCanvasUpdate, materialKey]
+    );
 
     const { updateTexture: updateThreeTexture } = useCanvasTexture({
       materialKey,
@@ -122,27 +126,28 @@ export const EditorCanvas = forwardRef<EditorCanvasRef, EditorCanvasProps>(
     });
 
     const debouncedCanvasUpdate = useMemo(
-      () => debounce(() => {
-        const canvas = fabricCanvas.current;
-        const artboard = artboardRef.current;
-        const dieline = dielineRef.current;
+      () =>
+        debounce(() => {
+          const canvas = fabricCanvas.current;
+          const artboard = artboardRef.current;
+          const dieline = dielineRef.current;
 
-        if (!canvas || !artboard || !updateThreeTexture) return;
+          if (!canvas || !artboard || !updateThreeTexture) return;
 
-        const capturedCanvas = captureTextureFromCanvas(
-          canvas,
-          artboard,
-          dieline,
-          {
-            outputSize: TEXTURE_OUTPUT_SIZE,
-            removeBackground: false,
+          const capturedCanvas = captureTextureFromCanvas(
+            canvas,
+            artboard,
+            dieline,
+            {
+              outputSize: TEXTURE_OUTPUT_SIZE,
+              removeBackground: false,
+            }
+          );
+
+          if (capturedCanvas) {
+            updateThreeTexture(capturedCanvas);
           }
-        );
-
-        if (capturedCanvas) {
-          updateThreeTexture(capturedCanvas);
-        }
-      }, 250),
+        }, 250),
       [artboardRef, dielineRef, updateThreeTexture, materialKey]
     );
 
@@ -150,14 +155,18 @@ export const EditorCanvas = forwardRef<EditorCanvasRef, EditorCanvasProps>(
     useEffect(() => {
       const canvas = fabricCanvas.current;
       if (!canvas || !isDielineLoaded) return;
+      console.log(
+        `🔗 [EditorCanvas] Binding events for material: ${materialKey}`
+      );
 
       const notifyParent = () => {
         if (onObjectChange) onObjectChange();
       };
 
       const handleChange = () => {
+        console.log(`🎨 [EditorCanvas] Canvas modified, triggering updates...`);
         saveState();
-        debouncedCanvasUpdate();
+        debouncedCanvasUpdate(); // ✅ Đã debounced - safe
         notifyParent();
       };
 
@@ -172,11 +181,21 @@ export const EditorCanvas = forwardRef<EditorCanvasRef, EditorCanvasProps>(
       // handleChange(); // Trigger lần đầu - Removed to prevent infinite loop
 
       return () => {
-        if (canvas) canvas.off();
+        if (canvas) {
+          canvas.off("object:modified", handleChange);
+          canvas.off("text:changed", handleChange);
+          canvas.off("object:added", handleChange);
+          canvas.off("object:removed", handleChange);
+          canvas.off("selection:created", notifyParent);
+          canvas.off("selection:updated", notifyParent);
+          canvas.off("selection:cleared", notifyParent);
+        }
+        // ✅ Cancel pending debounced calls
+        debouncedCanvasUpdate.cancel();
       };
     }, [
       isDielineLoaded,
-      fabricCanvas,
+      materialKey, // ✅ Chỉ re-bind khi material thay đổi
       saveState,
       debouncedCanvasUpdate,
       onObjectChange,

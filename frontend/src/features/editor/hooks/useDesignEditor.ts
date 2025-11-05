@@ -78,18 +78,29 @@ export function useDesignEditor() {
 
   // === HANDLERS ===
 
-  // ✅ THAY ĐỔI LỚN 2: Handler này giờ nhận `THREE.CanvasTexture`
   const handleSurfaceUpdate = useCallback(
     (materialKey: string, texture: THREE.CanvasTexture) => {
-      setTextures((prevTextures) => ({
-        ...prevTextures,
-        [materialKey]: texture,
-      }));
+      console.log(`🔄 [useDesignEditor] Texture updated for: ${materialKey}`);
+
+      // Chỉ update nếu thực sự có thay đổi
+      setTextures((prevTextures) => {
+        if (prevTextures[materialKey] === texture) {
+          console.log(
+            `⏭️ [useDesignEditor] Texture unchanged, skipping update`
+          );
+          return prevTextures;
+        }
+        return {
+          ...prevTextures,
+          [materialKey]: texture,
+        };
+      });
     },
-    []
+    [] // ✅ No dependencies - perfectly stable
   );
 
   const handleToolbarImageUpload = useCallback((file: File) => {
+    console.log(`📁 [useDesignEditor] Image uploaded: ${file.name}`);
     toast.success(`Đã thêm ảnh: ${file.name}`);
   }, []);
 
@@ -98,76 +109,73 @@ export function useDesignEditor() {
     return editorRefs.current[activeSurfaceKey];
   }, [activeSurfaceKey]);
 
-  // === Handlers cho LayersPanel (Không thay đổi) ===
+  // ✅ FIX: Ổn định updateLayers
   const updateLayers = useCallback(() => {
     const editor = getActiveEditorRef();
-    if (editor) {
-      const canvas = editor.getCanvas();
-      if (canvas) {
-        const objects = canvas.getObjects();
-        objects.forEach(ensureObjectId);
-        setLayers([...objects]);
-        const activeObj = canvas.getActiveObject();
-        if (activeObj) {
-          ensureObjectId(activeObj);
-          setActiveObjectId((activeObj as any).id || null);
-          setSelectedObject(activeObj);
-        } else {
-          setActiveObjectId(null);
-          setSelectedObject(null);
-        }
-      }
+    if (!editor) return;
+
+    const canvas = editor.getCanvas();
+    if (!canvas) return;
+
+    const objects = canvas.getObjects();
+    objects.forEach(ensureObjectId);
+    setLayers([...objects]);
+
+    const activeObj = canvas.getActiveObject();
+    if (activeObj) {
+      ensureObjectId(activeObj);
+      setActiveObjectId((activeObj as any).id || null);
+      setSelectedObject(activeObj);
+    } else {
+      setActiveObjectId(null);
+      setSelectedObject(null);
     }
-  }, [getActiveEditorRef]);
+  }, [getActiveEditorRef]); // ✅ Chỉ phụ thuộc getActiveEditorRef
 
   const handleSelectLayer = useCallback(
     (obj: any) => {
       const editor = getActiveEditorRef();
-      if (editor) {
-        const canvas = editor.getCanvas();
-        if (canvas) {
-          canvas.setActiveObject(obj);
-          canvas.renderAll();
-          updateLayers();
-        }
+      if (!editor) return;
+
+      const canvas = editor.getCanvas();
+      if (canvas) {
+        canvas.setActiveObject(obj);
+        canvas.renderAll();
+        updateLayers();
       }
     },
     [getActiveEditorRef, updateLayers]
   );
 
-  // (Các hàm move, toggle, delete giữ nguyên)
   const handleMoveLayer = useCallback(
     (obj: any, direction: "up" | "down" | "top" | "bottom") => {
-      // ... (logic giữ nguyên)
       const editor = getActiveEditorRef();
-      if (editor) {
-        const canvas = editor.getCanvas();
-        if (canvas) {
-          switch (direction) {
-            case "up":
-              (canvas as any).bringForward(obj);
-              break;
-            case "down":
-              (canvas as any).sendBackwards(obj);
-              break;
-            case "top":
-              (canvas as any).bringToFront(obj);
-              break;
-            case "bottom":
-              (canvas as any).sendToBack(obj);
-              break;
-          }
-          canvas.renderAll();
-          updateLayers();
+      if (!editor) return;
+
+      const canvas = editor.getCanvas();
+      if (canvas) {
+        switch (direction) {
+          case "up":
+            (canvas as any).bringForward(obj);
+            break;
+          case "down":
+            (canvas as any).sendBackwards(obj);
+            break;
+          case "top":
+            (canvas as any).bringToFront(obj);
+            break;
+          case "bottom":
+            (canvas as any).sendToBack(obj);
+            break;
         }
+        canvas.renderAll();
+        updateLayers();
       }
     },
     [getActiveEditorRef, updateLayers]
   );
-
   const handleToggleVisibility = useCallback(
     (obj: any) => {
-      // ... (logic giữ nguyên)
       obj.set("visible", !obj.visible);
       const editor = getActiveEditorRef();
       if (editor) {
@@ -183,7 +191,6 @@ export function useDesignEditor() {
 
   const handleDeleteLayer = useCallback(
     (obj: any) => {
-      // ... (logic giữ nguyên)
       const editor = getActiveEditorRef();
       if (editor) {
         const canvas = editor.getCanvas();
