@@ -35,7 +35,7 @@ export default function ProductViewer3D({
   const HIGH_QUALITY_DPR = 2;
 
   return (
-    <div className={`w-full h-full bg-gray-100 rounded-lg ${className || ""}`}>
+    <div className={`w-full h-full bg-gray-100 rounded-lg border-black border-[1.5px] ${className || ""}`}>
       <Canvas
         gl={{
           preserveDrawingBuffer: true,

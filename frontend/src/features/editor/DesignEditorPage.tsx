@@ -1,9 +1,16 @@
 // frontend/src/features/editor/DesignEditorPage.tsx
-// ✅ BẢN HOÀN CHỈNH: Tích hợp đầy đủ 3 trụ cột
+// ✅ THÊM: Tích hợp DebugPanel & MaterialMapper
 
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
-import { Save, Loader2, GripVertical, Download } from "lucide-react";
+import {
+  Save,
+  Loader2,
+  GripVertical,
+  Download,
+  Bug,
+  Wrench,
+} from "lucide-react"; // ✅ Thêm icons
 import {
   Tabs,
   TabsContent,
@@ -18,8 +25,11 @@ import ProductViewer3D from "./components/ProductViewer3D";
 import { EditorToolbar } from "./components/EditorToolbar";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { ExportDialog } from "./components/ExportDialog";
+import { DebugPanel } from "./components/DebugPanel"; // ✅ Import
+import { MaterialMapper } from "./components/MaterialMapper"; // ✅ Import
 import { useDesignEditor } from "./hooks/useDesignEditor";
 import { CanvasLoadingSkeleton } from "./components/LoadingSkeleton";
+import { useSearchParams } from "react-router-dom"; // ✅ Import
 
 const EditorLoadingSkeleton = () => (
   <div className="flex h-screen w-full items-center justify-center bg-gray-100">
@@ -55,13 +65,37 @@ export function DesignEditorPage() {
     setIsExportDialogOpen,
   } = useDesignEditor();
 
-  // ✅ ỔN ĐỊNH HÀM CALLBACK CHO ViewerModel
+  // ✅ THÊM: Debug panel state
+  const [searchParams] = useSearchParams();
+  const debugMode =
+    searchParams.get("debug") === "true" ||
+    process.env.NODE_ENV === "development";
+  const [showDebugPanel, setShowDebugPanel] = useState(debugMode);
+
+  // ✅ THÊM: Material mapper state
+  const [showMaterialMapper, setShowMaterialMapper] = useState(false);
+  const [selectedSurfaceForMapping, setSelectedSurfaceForMapping] = useState<
+    string | null
+  >(null);
+
   const handleModelLoaded = useCallback(() => {
     console.log("✅ [DesignEditorPage] 3D Model loaded!");
     setIsModelLoaded(true);
   }, [setIsModelLoaded]);
 
-  // ✅ CHUYỂN ĐỔI TEXTURES SANG ĐỊNH DẠNG CHO 3D VIEWER
+  // ✅ THÊM: Convert textures to Map for DebugPanel
+  const canvasElementsMap = useMemo(() => {
+    const map = new Map<string, HTMLCanvasElement>();
+
+    for (const [materialName, texture] of Object.entries(textures)) {
+      if (texture && texture.image instanceof HTMLCanvasElement) {
+        map.set(materialName, texture.image);
+      }
+    }
+
+    return map;
+  }, [textures]);
+
   const texturesFor3D = useMemo(() => {
     const result: Record<string, THREE.CanvasTexture> = {};
     for (const [materialName, textureData] of Object.entries(textures)) {
@@ -72,9 +106,31 @@ export function DesignEditorPage() {
     return result;
   }, [textures]);
 
+  // ✅ THÊM: Handle material mapper
+  const handleOpenMaterialMapper = useCallback(() => {
+    if (activeSurfaceKey) {
+      setSelectedSurfaceForMapping(activeSurfaceKey);
+      setShowMaterialMapper(true);
+    }
+  }, [activeSurfaceKey]);
+
+  const handleMaterialNameChange = useCallback((newMaterialName: string) => {
+    // ⚠️ TODO: Update product config hoặc local state
+    // Hiện tại chỉ log, cần implement persistence
+    console.log("🔄 Material name changed to:", newMaterialName);
+    alert(
+      `Material mapping updated to: ${newMaterialName}\n\n⚠️ Note: This change is not persisted yet. Implement product config update.`
+    );
+  }, []);
+
   if (isLoading || !product) {
     return <EditorLoadingSkeleton />;
   }
+
+  // ✅ THÊM: Get current surface for material mapper
+  const currentSurface = product.assets.surfaces.find(
+    (s) => s.key === selectedSurfaceForMapping
+  );
 
   return (
     <div className="flex h-screen bg-gray-100 relative overflow-hidden">
@@ -107,6 +163,32 @@ export function DesignEditorPage() {
       <div className="absolute top-4 left-[21rem] z-20 bg-white p-3 rounded-lg shadow-xl">
         <h3 className="text-sm font-semibold">Upload & Design</h3>
         <p className="text-xs text-gray-600">{product.name}</p>
+      </div>
+
+      {/* ✅ THÊM: DEBUG CONTROLS */}
+      <div className="absolute top-4 right-80 z-20 flex gap-2">
+        {/* Toggle Debug Panel */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-white"
+          onClick={() => setShowDebugPanel(!showDebugPanel)}
+        >
+          <Bug size={16} className="mr-2" />
+          {showDebugPanel ? "Hide" : "Show"} Debug
+        </Button>
+
+        {/* Open Material Mapper */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="bg-white"
+          onClick={handleOpenMaterialMapper}
+          disabled={!activeSurfaceKey}
+        >
+          <Wrench size={16} className="mr-2" />
+          Material Mapper
+        </Button>
       </div>
 
       {/* 4. ACTION BUTTONS NỔI (DƯỚI PHẢI) */}
@@ -195,6 +277,27 @@ export function DesignEditorPage() {
           </div>
         </div>
       </Rnd>
+
+      {/* ✅ THÊM: DEBUG PANEL */}
+      {showDebugPanel && (
+        <DebugPanel
+          canvasElements={canvasElementsMap}
+          materialKey={activeSurfaceKey || undefined}
+          isVisible={true}
+        />
+      )}
+
+      {/* ✅ THÊM: MATERIAL MAPPER */}
+      {currentSurface && (
+        <MaterialMapper
+          isOpen={showMaterialMapper}
+          onClose={() => setShowMaterialMapper(false)}
+          modelUrl={product.assets.modelUrl!}
+          surfaceName={currentSurface.name}
+          currentMaterialName={currentSurface.materialName}
+          onMaterialNameChange={handleMaterialNameChange}
+        />
+      )}
 
       {/* 7. EXPORT DIALOG */}
       <ExportDialog

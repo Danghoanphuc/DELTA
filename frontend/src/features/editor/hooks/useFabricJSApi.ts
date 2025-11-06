@@ -1,8 +1,10 @@
 // frontend/src/features/editor/hooks/useFabricJSApi.ts
-import { useCallback } from 'react';
-import * as fabric from 'fabric';
+import { useCallback } from "react";
+import * as fabric from "fabric";
 
-export const useFabricJSApi = (canvasRef: React.RefObject<fabric.Canvas | null>) => {
+export const useFabricJSApi = (
+  canvasRef: React.RefObject<fabric.Canvas | null>
+) => {
   const getCanvas = useCallback(() => canvasRef.current, [canvasRef]);
 
   const addText = useCallback(
@@ -14,8 +16,8 @@ export const useFabricJSApi = (canvasRef: React.RefObject<fabric.Canvas | null>)
         left: 100,
         top: 100,
         fontSize: 40,
-        fontFamily: 'Arial',
-        fill: '#000000',
+        fontFamily: "Arial",
+        fill: "#000000",
       });
 
       canvas.add(textObj);
@@ -30,53 +32,55 @@ export const useFabricJSApi = (canvasRef: React.RefObject<fabric.Canvas | null>)
       const canvas = getCanvas();
       if (!canvas) return;
 
-      fabric.Image.fromURL(imageUrl, { crossOrigin: 'anonymous' }).then((img) => {
-        img.scaleToWidth(200);
-        canvas.add(img);
-        canvas.centerObject(img);
-        canvas.setActiveObject(img);
-        canvas.renderAll();
-      });
+      fabric.Image.fromURL(imageUrl, { crossOrigin: "anonymous" }).then(
+        (img) => {
+          img.scaleToWidth(200);
+          canvas.add(img);
+          canvas.centerObject(img);
+          canvas.setActiveObject(img);
+          canvas.renderAll();
+        }
+      );
     },
     [getCanvas]
   );
 
   const addShape = useCallback(
-    (shape: 'rect' | 'circle' | 'triangle' | 'line') => {
+    (shape: "rect" | "circle" | "triangle" | "line") => {
       const canvas = getCanvas();
       if (!canvas) return;
 
       let shapeObj;
       switch (shape) {
-        case 'rect':
+        case "rect":
           shapeObj = new fabric.Rect({
             left: 100,
             top: 100,
             width: 100,
             height: 100,
-            fill: '#ff0000',
+            fill: "#ff0000",
           });
           break;
-        case 'circle':
+        case "circle":
           shapeObj = new fabric.Circle({
             left: 100,
             top: 100,
             radius: 50,
-            fill: '#0000ff',
+            fill: "#0000ff",
           });
           break;
-        case 'triangle':
+        case "triangle":
           shapeObj = new fabric.Triangle({
             left: 100,
             top: 100,
             width: 100,
             height: 100,
-            fill: '#00ff00',
+            fill: "#00ff00",
           });
           break;
-        case 'line':
+        case "line":
           shapeObj = new fabric.Line([50, 50, 200, 50], {
-            stroke: '#000000',
+            stroke: "#000000",
             strokeWidth: 2,
           });
           break;
@@ -93,7 +97,7 @@ export const useFabricJSApi = (canvasRef: React.RefObject<fabric.Canvas | null>)
 
   const getJSON = useCallback(() => {
     const canvas = getCanvas();
-    return canvas ? JSON.stringify(canvas.toJSON()) : '';
+    return canvas ? JSON.stringify(canvas.toJSON()) : "";
   }, [getCanvas]);
 
   const deleteSelected = useCallback(() => {
@@ -124,14 +128,17 @@ export const useFabricJSApi = (canvasRef: React.RefObject<fabric.Canvas | null>)
     }
   }, [getCanvas]);
 
-  const updateTextStyle = useCallback((property: string, value: any) => {
-    const canvas = getCanvas();
-    const activeObject = canvas?.getActiveObject();
-    if (activeObject instanceof fabric.Textbox) {
-      activeObject.set(property as any, value);
-      canvas?.renderAll();
-    }
-  }, [getCanvas]);
+  const updateTextStyle = useCallback(
+    (property: string, value: any) => {
+      const canvas = getCanvas();
+      const activeObject = canvas?.getActiveObject();
+      if (activeObject instanceof fabric.Textbox) {
+        activeObject.set(property as any, value);
+        canvas?.renderAll();
+      }
+    },
+    [getCanvas]
+  );
 
   const bringToFront = useCallback(() => {
     const canvas = getCanvas();
@@ -169,17 +176,26 @@ export const useFabricJSApi = (canvasRef: React.RefObject<fabric.Canvas | null>)
     }
   }, [getCanvas]);
 
-  const align = useCallback((alignment: string) => {
-    // Implementation for align
-  }, [getCanvas]);
+  const align = useCallback(
+    (alignment: string) => {
+      // Implementation for align
+    },
+    [getCanvas]
+  );
 
-  const applyFilter = useCallback((filter: string) => {
-    // Implementation for applyFilter
-  }, [getCanvas]);
+  const applyFilter = useCallback(
+    (filter: string) => {
+      // Implementation for applyFilter
+    },
+    [getCanvas]
+  );
 
-  const exportCanvas = useCallback(async (format: string) => {
-    // Implementation for exportCanvas
-  }, [getCanvas]);
+  const exportCanvas = useCallback(
+    async (format: string) => {
+      // Implementation for exportCanvas
+    },
+    [getCanvas]
+  );
 
   const toggleLock = useCallback(() => {
     const canvas = getCanvas();
@@ -205,14 +221,13 @@ export const useFabricJSApi = (canvasRef: React.RefObject<fabric.Canvas | null>)
     }
   }, [getCanvas]);
 
-
-  return { 
-    addText, 
-    addImage, 
-    addShape, 
-    getJSON, 
-    getCanvas, 
-    deleteSelected, 
+  return {
+    addText,
+    addImage,
+    addShape,
+    getJSON,
+    getCanvas,
+    deleteSelected,
     duplicateSelected,
     updateTextStyle,
     bringToFront,
@@ -223,6 +238,6 @@ export const useFabricJSApi = (canvasRef: React.RefObject<fabric.Canvas | null>)
     applyFilter,
     exportCanvas,
     toggleLock,
-    toggleVisibility
+    toggleVisibility,
   };
 };

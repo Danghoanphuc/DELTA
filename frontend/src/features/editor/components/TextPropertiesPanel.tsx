@@ -60,7 +60,7 @@ export const TextPropertiesPanel: React.FC<TextPropertiesPanelProps> = ({
   };
 
   return (
-    <Card>
+    <Card className="border-black border-[1.5px]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-sm">
           <Type size={16} />

@@ -109,7 +109,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     <Tabs
       defaultValue="upload"
       orientation="vertical"
-      className="flex w-80 bg-white rounded-lg shadow-xl overflow-hidden h-full"
+      className="flex w-80 bg-white rounded-lg shadow-xl overflow-hidden h-[calc(100%-50px)] border-black border-[1.5px]"
     >
       {/* TabsList (Giữ nguyên) */}
       <TabsList className="flex flex-col h-full gap-1 p-2 border-r">
@@ -118,25 +118,25 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           className="flex flex-col w-full py-4 h-auto"
         >
           <Upload size={20} />
-          <span className="text-xs mt-1">Uploads</span>
+          <span className="text-xs mt-1">Tải lên</span>
         </TabsTrigger>
         <TabsTrigger value="text" className="flex flex-col w-full py-4 h-auto">
           <Type size={20} />
-          <span className="text-xs mt-1">Text</span>
+          <span className="text-xs mt-1">Văn bản</span>
         </TabsTrigger>
         <TabsTrigger
           value="shapes"
           className="flex flex-col w-full py-4 h-auto"
         >
           <Square size={20} />
-          <span className="text-xs mt-1">Elements</span>
+          <span className="text-xs mt-1">Thành phần</span>
         </TabsTrigger>
         <TabsTrigger
           value="layers"
           className="flex flex-col w-full py-4 h-auto"
         >
           <Layers size={20} />
-          <span className="text-xs mt-1">Layers</span>
+          <span className="text-xs mt-1">Các lớp</span>
         </TabsTrigger>
       </TabsList>
 
@@ -148,16 +148,16 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             <Label
               htmlFor="image-upload"
               className={cn(
-                "flex flex-col items-center justify-center gap-2 w-full px-4 py-8 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors",
-                isDragging && "bg-blue-50 border-blue-500"
+                "flex flex-col items-center justify-center gap-4 w-full px-8 py-16 border-2 border-dashed border-gray-400 rounded-lg cursor-pointer hover:bg-blue-100 hover:border-blue-600 transition-colors",
+                isDragging && "bg-blue-100 border-blue-600"
               )}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              <Upload size={24} className="text-gray-400" />
-              <span className="text-sm text-gray-600 font-medium">
-                Click or drop
+              <Upload size={32} className="text-gray-500" />
+              <span className="text-base text-gray-700 font-medium text-center">
+                Nhấn hoặc kéo thả file vào đây
               </span>
             </Label>
             <Input

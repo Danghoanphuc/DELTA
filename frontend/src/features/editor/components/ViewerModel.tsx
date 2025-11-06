@@ -1,5 +1,5 @@
 // frontend/src/features/editor/components/ViewerModel.tsx
-// ✅ BẢN HOÀN CHỈNH: Fix race condition + texture mapping
+// ✅ THÊM: Material validation và debug logging
 
 import React, { useMemo, useEffect, useRef } from "react";
 import { useGLTF } from "@react-three/drei";
@@ -31,12 +31,11 @@ export function ViewerModel({
 
   useCameraAutoFit(group, gltf.scene, controlsRef);
 
-  // ✅ FIX RACE CONDITION: Chỉ phụ thuộc vào gltf.scene
   useEffect(() => {
     if (gltf.scene) {
       onModelLoaded?.();
     }
-  }, [gltf.scene]); // ✅ Không include onModelLoaded
+  }, [gltf.scene]);
 
   // Lưu trữ vật liệu gốc
   const originalMaterials = useRef<Record<string, THREE.Material>>({});
@@ -53,6 +52,95 @@ export function ViewerModel({
       }
     });
   }, [gltf.scene]);
+
+  // ✅ THÊM: Validate material mapping
+  useEffect(() => {
+    if (!gltf.scene) return;
+
+    // 1. Collect all material names from model
+    const modelMaterials = new Set<string>();
+    gltf.scene.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach((mat) => modelMaterials.add(mat.name));
+        } else {
+          modelMaterials.add(child.material.name);
+        }
+      }
+    });
+
+    // 2. Get provided texture keys
+    const providedMaterials = Object.keys(textures).filter(
+      (key) => textures[key] !== null
+    );
+
+    // 3. Find matches and mismatches
+    const matched: string[] = [];
+    const unmatched: string[] = [];
+
+    providedMaterials.forEach((matName) => {
+      if (modelMaterials.has(matName)) {
+        matched.push(matName);
+      } else {
+        unmatched.push(matName);
+      }
+    });
+
+    const modelMaterialsArray = Array.from(modelMaterials);
+
+    // 4. Log validation results
+    console.group("🔍 [ViewerModel] Material Mapping Validation");
+    console.log("📦 Model materials:", modelMaterialsArray);
+    console.log("🎨 Provided textures:", providedMaterials);
+    console.log("✅ Matched materials:", matched);
+
+    if (unmatched.length > 0) {
+      console.warn("⚠️ Unmatched materials:", unmatched);
+      console.warn("💡 These textures won't be applied to the 3D model");
+      console.warn("💡 Check your product config 'materialName' values");
+      console.warn("💡 Material names are case-sensitive!");
+
+      // Suggest similar names
+      unmatched.forEach((unmatchedName) => {
+        const similar = modelMaterialsArray.filter(
+          (modelName) =>
+            modelName.toLowerCase().includes(unmatchedName.toLowerCase()) ||
+            unmatchedName.toLowerCase().includes(modelName.toLowerCase())
+        );
+        if (similar.length > 0) {
+          console.warn(
+            `   🔍 Did you mean: ${similar.join(
+              ", "
+            )} instead of "${unmatchedName}"?`
+          );
+        }
+      });
+    }
+
+    if (matched.length === 0 && providedMaterials.length > 0) {
+      console.error("❌ CRITICAL: NO MATERIALS MATCHED!");
+      console.error("❌ Textures will NOT be applied to the 3D model");
+      console.error("💡 Possible causes:");
+      console.error("   1. Material names in product config don't match GLB");
+      console.error("   2. Case mismatch (e.g., 'Material' vs 'material')");
+      console.error("   3. Wrong material names in surfaces config");
+      console.error("");
+      console.error("💡 Fix:");
+      console.error(
+        `   Update your product config to use: [${modelMaterialsArray.join(
+          ", "
+        )}]`
+      );
+    }
+
+    if (matched.length > 0) {
+      console.log(
+        `✅ ${matched.length}/${providedMaterials.length} materials mapped successfully`
+      );
+    }
+
+    console.groupEnd();
+  }, [gltf.scene, textures]);
 
   // Load textures
   const loadedTextures = useMemo(() => {
@@ -77,6 +165,9 @@ export function ViewerModel({
 
     console.log(`🎨 [ViewerModel] Applying textures to model...`);
 
+    let appliedCount = 0;
+    let skippedCount = 0;
+
     gltf.scene.traverse((child) => {
       if (child instanceof THREE.Mesh && child.material) {
         const materialName = child.material.name;
@@ -84,7 +175,7 @@ export function ViewerModel({
         const newTexture = loadedTextures[materialName];
 
         if (newTexture && originalMaterial) {
-          // ✅ Clone material để tránh ảnh hưởng đến material khác
+          // Clone material để tránh ảnh hưởng đến material khác
           const clonedMaterial = originalMaterial.clone();
 
           if ("map" in clonedMaterial) {
@@ -93,16 +184,22 @@ export function ViewerModel({
           }
 
           child.material = clonedMaterial;
+          appliedCount++;
           console.log(`✅ [ViewerModel] Applied texture to: ${materialName}`);
         } else if (originalMaterial && !newTexture) {
-          // ✅ Khôi phục material gốc nếu không có texture
+          // Khôi phục material gốc nếu không có texture
           child.material = originalMaterial;
+          skippedCount++;
           console.log(
-            `🔄 [ViewerModel] Restored original material: ${materialName}`
+            `🔄 [ViewerModel] Restored original material: ${materialName} (no texture provided)`
           );
         }
       }
     });
+
+    console.log(
+      `📊 [ViewerModel] Texture application summary: ${appliedCount} applied, ${skippedCount} skipped`
+    );
   }, [gltf.scene, loadedTextures]);
 
   // Scale

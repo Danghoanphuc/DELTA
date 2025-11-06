@@ -46,7 +46,7 @@ export const ImagePropertiesPanel: React.FC<ImagePropertiesPanelProps> = ({
   };
 
   return (
-    <Card>
+    <Card className="border-black border-[1.5px]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-sm">
           <ImageIcon size={16} />

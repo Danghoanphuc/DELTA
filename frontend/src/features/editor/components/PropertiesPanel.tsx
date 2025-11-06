@@ -16,7 +16,7 @@ interface PropertiesPanelProps {
 
 // ✅ FIX 1: Tách EmptyState thành component riêng để tránh re-render
 const EmptyState = memo(() => (
-  <Card>
+  <Card className="border-black border-[1.5px]">
     <CardContent className="p-4 text-center">
       <p className="text-sm text-gray-500">Chọn một đối tượng để chỉnh sửa</p>
     </CardContent>
@@ -31,7 +31,7 @@ interface DefaultPanelProps {
 }
 
 const DefaultPanel = memo(({ objectType, isLocked }: DefaultPanelProps) => (
-  <Card>
+  <Card className="border-black border-[1.5px]">
     <CardContent className="p-4 space-y-2 text-xs">
       <div className="flex justify-between">
         <span className="text-gray-600">Loại đối tượng:</span>

@@ -105,7 +105,9 @@ export const useFabricEvents = (
       if (dieline) {
         dieline.visible = dielineWasVisible;
       }
-      canvas.setViewportTransform(originalTransform as [number, number, number, number, number, number]);
+      canvas.setViewportTransform(
+        originalTransform as [number, number, number, number, number, number]
+      );
       canvas.renderAll();
     } catch (error) {
       console.error("[useFabricEvents] Error generating texture:", error);
