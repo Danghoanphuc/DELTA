@@ -1,5 +1,5 @@
 // frontend/src/features/editor/DesignEditorPage.tsx
-// ✅ THÊM: Tích hợp DebugPanel & MaterialMapper
+// ✅ BẢN GỘP: Tích hợp DebugPanel & MaterialMapper + Sửa lỗi `surfaceKey`
 
 import React, { useMemo, useCallback, useState, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
@@ -76,7 +76,7 @@ export function DesignEditorPage() {
   useEffect(() => {
     const updateDebugInfo = () => {
       const activeEditor = getActiveEditorRef();
-      if (activeEditor && typeof activeEditor.getDebugInfo === 'function') {
+      if (activeEditor && typeof activeEditor.getDebugInfo === "function") {
         const info = activeEditor.getDebugInfo();
         setDebugInfo(info);
       }
@@ -141,8 +141,9 @@ export function DesignEditorPage() {
   }
 
   // ✅ THÊM: Get current surface for material mapper
+  // ✅ SỬA: Dùng surfaceKey
   const currentSurface = product.assets.surfaces.find(
-    (s) => s.key === selectedSurfaceForMapping
+    (s) => s.surfaceKey === selectedSurfaceForMapping
   );
 
   return (
@@ -233,7 +234,8 @@ export function DesignEditorPage() {
         >
           <TabsList className="mb-2">
             {product.assets.surfaces.map((surface) => (
-              <TabsTrigger key={surface.key} value={surface.key}>
+              // ✅ SỬA: Dùng surfaceKey
+              <TabsTrigger key={surface.surfaceKey} value={surface.surfaceKey}>
                 {surface.name}
               </TabsTrigger>
             ))}
@@ -241,8 +243,9 @@ export function DesignEditorPage() {
 
           {product.assets.surfaces.map((surface) => (
             <TabsContent
-              key={surface.key}
-              value={surface.key}
+              // ✅ SỬA: Dùng surfaceKey
+              key={surface.surfaceKey}
+              value={surface.surfaceKey}
               className="m-0"
               style={{ width: 600, height: 600 }}
             >
@@ -251,7 +254,8 @@ export function DesignEditorPage() {
               ) : (
                 <EditorCanvas
                   ref={(el) => {
-                    editorRefs.current[surface.key] = el;
+                    // ✅ SỬA: Dùng surfaceKey
+                    editorRefs.current[surface.surfaceKey] = el;
                   }}
                   materialKey={surface.materialName}
                   dielineSvgUrl={surface.dielineSvgUrl}

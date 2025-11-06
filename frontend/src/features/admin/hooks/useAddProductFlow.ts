@@ -12,7 +12,7 @@ import { PrinterProduct, Product, ProductPrice, ProductCategory } from "@/types/
 
 // Kiểu dữ liệu cho 1 bề mặt (trong wizard)
 interface WizardSurface {
-  key: string;
+  surfaceKey: string;
   name: string;
   dielineSvgUrl: string | null;
   materialName: string;
@@ -78,7 +78,7 @@ export function useAddProductFlow(
 
         const existingSurfaces = existingProduct.assets.surfaces.map((s) => ({
           // Sửa lỗi tương thích ngược (key vs surfaceKey)
-          key: (s as any).key || (s as any).surfaceKey,
+          surfaceKey: (s as any).surfaceKey,
           name: s.name,
           dielineSvgUrl: s.dielineSvgUrl,
           materialName: s.materialName,
@@ -180,7 +180,7 @@ export function useAddProductFlow(
     setSurfaces([
       ...surfaces,
       {
-        key: `surface_${Date.now()}`,
+        surfaceKey: `surface_${Date.now()}`,
         name: "Bề mặt mới",
         dielineSvgUrl: null,
         materialName: modelMaterials[0] || "", // Gợi ý AI
@@ -193,21 +193,21 @@ export function useAddProductFlow(
    * BƯỚC 3: Cập nhật mapping
    */
   const updateSurface = (
-    key: string,
+    surfaceKey: string,
     field: keyof WizardSurface,
     value: string
   ) => {
     setSurfaces(
-      surfaces.map((s) => (s.key === key ? { ...s, [field]: value } : s))
+      surfaces.map((s) => (s.surfaceKey === surfaceKey ? { ...s, [field]: value } : s))
     );
   };
 
   /**
    * BƯỚC 4: Xử lý tải file SVG
    */
-  const handleSvgUpload = async (key: string, file: File) => {
+  const handleSvgUpload = async (surfaceKey: string, file: File) => {
     setIsUploading(true);
-    toast.loading(`Đang tải SVG cho ${key}...`);
+    toast.loading(`Đang tải SVG cho ${surfaceKey}...`);
     try {
       const uploadedUrl = await uploadFileToCloudinary(file);
       const isValid = await validateAssetUrl(uploadedUrl);
@@ -216,7 +216,7 @@ export function useAddProductFlow(
       }
       setSurfaces(
         surfaces.map((s) =>
-          s.key === key
+          s.surfaceKey === surfaceKey
             ? { ...s, dielineSvgUrl: uploadedUrl, svgUrlValid: true }
             : s
         )
@@ -316,7 +316,7 @@ export function useAddProductFlow(
       assets: {
         modelUrl: modelUrl!,
         surfaces: surfaces.map((s) => ({
-          key: s.key, // ✅ Sửa lỗi 400 (gửi đúng 'surfaceKey')
+          surfaceKey: s.surfaceKey, // ✅ Sửa lỗi 400 (gửi đúng 'surfaceKey')
           name: s.name,
           dielineSvgUrl: s.dielineSvgUrl!,
           materialName: s.materialName,

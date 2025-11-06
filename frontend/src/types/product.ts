@@ -49,7 +49,7 @@ export interface ProductCustomization {
  * Đại diện cho một bề mặt có thể thiết kế trên mô hình 3D.
  */
 export interface DesignSurface {
-  key: string; // ID định danh duy nhất (vd: 'lid', 'body')
+  surfaceKey: string; // ID định danh duy nhất (vd: 'lid', 'body')
   name: string; // Tên hiển thị cho người dùng (vd: 'Nắp hộp', 'Thân hộp')
 
   /**

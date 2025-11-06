@@ -1,6 +1,7 @@
 // editor/hooks/useDesignEditor.ts
 // ✅ NÂNG CẤP "ZERO-COST"
 // Thay đổi state `textures` từ string (base64) sang THREE.CanvasTexture
+// ✅ SỬA LỖI: Đồng bộ sang `surfaceKey` (thay vì `key`)
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -65,7 +66,8 @@ export function useDesignEditor() {
         setTextures(initialTextures);
 
         const firstSurface = fetchedProduct.assets.surfaces[0];
-        setActiveSurfaceKey(firstSurface.key);
+        // ✅ SỬA: Dùng surfaceKey (theo schema backend)
+        setActiveSurfaceKey(firstSurface.surfaceKey);
       } catch (err: any) {
         toast.error(err.message || "Không thể tải dữ liệu sản phẩm.");
         navigate("/shop");
@@ -204,16 +206,20 @@ export function useDesignEditor() {
   );
 
   // === LƯU VÀ THÊM VÀO GIỎ ===
-  // ✅ THAY ĐỔI LỚN 3: Cần tạo base64 chỉ 1 LẦN khi lưu
+  // ✅ THAY ĐỔI LỚN 3: Cần tạo base60 chỉ 1 LẦN khi lưu
   const handleSaveAndAddToCart = async () => {
     if (!product || !product.assets?.surfaces) return;
     setIsSaving(true);
     try {
       const editorDataPerSurface: Record<string, any> = {};
       for (const surface of product.assets.surfaces) {
-        const editor = editorRefs.current[surface.key];
+        // ✅ SỬA: Dùng surfaceKey (theo schema backend)
+        const editor = editorRefs.current[surface.surfaceKey];
         if (editor) {
-          editorDataPerSurface[surface.key] = JSON.parse(editor.getJSON());
+          // ✅ SỬA: Dùng surfaceKey (theo schema backend)
+          editorDataPerSurface[surface.surfaceKey] = JSON.parse(
+            editor.getJSON()
+          );
         }
       }
 

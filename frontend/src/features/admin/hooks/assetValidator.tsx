@@ -130,7 +130,7 @@ export function AssetWizardPage({ productId }: AssetWizardPageProps) {
           <CardContent className="space-y-4">
             {surfaces.map((surface, index) => (
               <div
-                key={surface.key}
+                key={surface.surfaceKey}
                 className="grid grid-cols-3 gap-4 p-4 border rounded-lg"
               >
                 {/* Cột 1: Thông tin 2D */}
@@ -140,30 +140,30 @@ export function AssetWizardPage({ productId }: AssetWizardPageProps) {
                     placeholder="Tên (vd: Mặt trước)"
                     value={surface.name}
                     onChange={(e) =>
-                      updateSurface(surface.key, "name", e.target.value)
+                      updateSurface(surface.surfaceKey, "name", e.target.value)
                     }
                   />
                   <Input
                     placeholder="Key (vd: front)"
-                    value={surface.key}
+                    value={surface.surfaceKey}
                     onChange={(e) =>
-                      updateSurface(surface.key, "key", e.target.value)
+                      updateSurface(surface.surfaceKey, "surfaceKey", e.target.value)
                     }
                   />
                 </div>
 
                 {/* Cột 2: File SVG */}
                 <div className="space-y-2">
-                  <Label htmlFor={`svgUpload-${surface.key}`}>
+                  <Label htmlFor={`svgUpload-${surface.surfaceKey}`}>
                     Khuôn 2D (.svg)
                   </Label>
                   <Input
-                    id={`svgUpload-${surface.key}`}
+                    id={`svgUpload-${surface.surfaceKey}`}
                     type="file"
                     accept=".svg"
                     onChange={(e) =>
                       handleFileChange(e, (file) =>
-                        handleSvgUpload(surface.key, file)
+                        handleSvgUpload(surface.surfaceKey, file)
                       )
                     }
                     disabled={isUploading}
@@ -186,7 +186,7 @@ export function AssetWizardPage({ productId }: AssetWizardPageProps) {
                   <Select
                     value={surface.materialName}
                     onValueChange={(value) =>
-                      updateSurface(surface.key, "materialName", value)
+                      updateSurface(surface.surfaceKey, "materialName", value)
                     }
                   >
                     <SelectTrigger>
