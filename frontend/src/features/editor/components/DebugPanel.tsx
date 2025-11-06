@@ -14,13 +14,13 @@ import { Badge } from "@/shared/components/ui/badge";
 import { Bug, ZoomIn } from "lucide-react"; // Sửa icon
 
 // ✅ THÊM: Định nghĩa kiểu cho bounds
-interface BoundsInfo {
+export interface BoundsInfo {
   left?: number;
   top?: number;
   width?: number;
   height?: number;
 }
-interface DebugInfo {
+export interface DebugInfo {
   artboardBounds?: BoundsInfo;
   dielineBounds?: BoundsInfo;
 }

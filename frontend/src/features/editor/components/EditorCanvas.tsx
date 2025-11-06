@@ -60,6 +60,10 @@ export interface EditorCanvasRef {
   sendBackwards: () => void;
   toggleLock: () => void;
   toggleVisibility: () => void;
+  getDebugInfo: () => {
+    artboardBounds?: { left?: number; top?: number; width?: number; height?: number };
+    dielineBounds?: { left?: number; top?: number; width?: number; height?: number };
+  } | null;
 }
 
 export const EditorCanvas = forwardRef<EditorCanvasRef, EditorCanvasProps>(
@@ -221,7 +225,22 @@ export const EditorCanvas = forwardRef<EditorCanvasRef, EditorCanvasProps>(
     const handleZoomOut = () => setZoom(zoom / 1.2);
 
     // === 6. EXPOSE API ===
-    useImperativeHandle(ref, () => ({ ...api, undo, redo, setZoom }));
+    useImperativeHandle(ref, () => ({
+      ...api,
+      undo,
+      redo,
+      setZoom,
+      getDebugInfo: () => {
+        const artboard = artboardRef.current;
+        const dieline = dielineRef.current;
+        if (!artboard) return null;
+
+        return {
+          artboardBounds: artboard.getBoundingRect(),
+          dielineBounds: dieline ? dieline.getBoundingRect() : undefined,
+        };
+      },
+    }));
 
     // === 7. RENDER ===
     return (

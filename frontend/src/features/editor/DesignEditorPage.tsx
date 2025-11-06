@@ -1,7 +1,7 @@
 // frontend/src/features/editor/DesignEditorPage.tsx
 // ✅ THÊM: Tích hợp DebugPanel & MaterialMapper
 
-import React, { useMemo, useCallback, useState } from "react";
+import React, { useMemo, useCallback, useState, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
 import {
   Save,
@@ -25,7 +25,7 @@ import ProductViewer3D from "./components/ProductViewer3D";
 import { EditorToolbar } from "./components/EditorToolbar";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { ExportDialog } from "./components/ExportDialog";
-import { DebugPanel } from "./components/DebugPanel"; // ✅ Import
+import { DebugPanel, DebugInfo } from "./components/DebugPanel"; // ✅ Import
 import { MaterialMapper } from "./components/MaterialMapper"; // ✅ Import
 import { useDesignEditor } from "./hooks/useDesignEditor";
 import { CanvasLoadingSkeleton } from "./components/LoadingSkeleton";
@@ -71,6 +71,19 @@ export function DesignEditorPage() {
     searchParams.get("debug") === "true" ||
     process.env.NODE_ENV === "development";
   const [showDebugPanel, setShowDebugPanel] = useState(debugMode);
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
+
+  useEffect(() => {
+    const updateDebugInfo = () => {
+      const activeEditor = getActiveEditorRef();
+      if (activeEditor && typeof activeEditor.getDebugInfo === 'function') {
+        const info = activeEditor.getDebugInfo();
+        setDebugInfo(info);
+      }
+    };
+
+    updateDebugInfo();
+  }, [layers, activeSurfaceKey, getActiveEditorRef]);
 
   // ✅ THÊM: Material mapper state
   const [showMaterialMapper, setShowMaterialMapper] = useState(false);
@@ -284,6 +297,7 @@ export function DesignEditorPage() {
           canvasElements={canvasElementsMap}
           materialKey={activeSurfaceKey || undefined}
           isVisible={true}
+          debugInfo={debugInfo}
         />
       )}
 
