@@ -1,5 +1,5 @@
-// frontend/src/components/Sidebar.tsx (ĐÃ CẬP NHẬT)
-import Logout from "../features/auth/components/Logout";
+// frontend/src/components/Sidebar.tsx (✅ UPDATED WITH CONTEXT SWITCHER)
+import Logout from "@/features/auth/components/Logout";
 import {
   Home,
   Lightbulb,
@@ -8,6 +8,9 @@ import {
   Settings,
   ShoppingBag,
   LogIn,
+  Store, // ✅ THÊM
+  Repeat, // ✅ THÊM
+  Loader2, // ✅ THÊM
 } from "lucide-react";
 import UserAvatarFallback from "@/components/UserAvatarFallback";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -22,12 +25,18 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/shared/components/ui/popover";
-import { Link, useLocation } from "react-router-dom";
+// ✅ THÊM useNavigate
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import printzLogo from "@/assets/img/logo-printz.png";
 import { Button } from "../shared/components/ui/button";
+import { Separator } from "@/shared/components/ui/separator"; // ✅ THÊM
+
 export function Sidebar() {
-  const user = useAuthStore((s) => s.user);
+  // ✅ LẤY STATE & HÀM MỚI
+  const { user, activeContext, setActiveContext, isContextLoading } =
+    useAuthStore();
   const location = useLocation();
+  const navigate = useNavigate(); // ✅ KHỞI TẠO
 
   const menuItems = [
     { icon: Home, label: "Trang chủ", path: "/" },
@@ -38,7 +47,11 @@ export function Sidebar() {
     { icon: Settings, label: "Cài đặt", path: "/settings" },
   ];
 
-  // ... (Phần còn lại giữ nguyên) ...
+  // ✅ HÀM GỌI CHUYỂN BỐI CẢNH
+  const handleContextSwitch = (context: "customer" | "printer") => {
+    setActiveContext(context, navigate);
+  };
+
   return (
     <TooltipProvider>
       {/* Chỉ hiển thị trên desktop */}
@@ -86,7 +99,7 @@ export function Sidebar() {
           <PopoverTrigger asChild>
             <button className="w-12 h-12 rounded-full overflow-hidden hover:ring-2 hover:ring-blue-400 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2">
               <UserAvatarFallback
-                name={user?.displayName || user?.username || "G"}
+                name={user?.displayName || "G"}
                 size={48}
                 bgColor={user ? "bg-indigo-100" : "bg-gray-200"}
                 textColor={user ? "text-indigo-600" : "text-gray-600"}
@@ -127,7 +140,58 @@ export function Sidebar() {
                     </p>
                   </div>
                 </div>
+
+                {/* ✅ BƯỚC 4: THÊM LOGIC CHUYỂN BỐI CẢNH */}
                 <div className="flex flex-col space-y-1">
+                  {isContextLoading ? (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                    </div>
+                  ) : (
+                    <>
+                      {/* 1. Nếu đang là KHÁCH HÀNG */}
+                      {activeContext === "customer" && (
+                        <>
+                          {/* 1a. Nếu CÓ HỒ SƠ NHÀ IN */}
+                          {user.printerProfileId ? (
+                            <Button
+                              variant="ghost"
+                              className="text-left justify-start"
+                              onClick={() => handleContextSwitch("printer")}
+                            >
+                              <Repeat size={16} className="mr-2" />
+                              Chuyển sang Bán hàng
+                            </Button>
+                          ) : (
+                            // 1b. Nếu CHƯA CÓ HỒ SƠ NHÀ IN
+                            <Button
+                              variant="ghost"
+                              className="text-left justify-start text-orange-600 hover:text-orange-700"
+                              onClick={() => navigate("/printer/onboarding")}
+                            >
+                              <Store size={16} className="mr-2" />
+                              Mở Xưởng in (Miễn phí)
+                            </Button>
+                          )}
+                        </>
+                      )}
+
+                      {/* 2. Nếu đang là NHÀ IN */}
+                      {activeContext === "printer" && (
+                        <Button
+                          variant="ghost"
+                          className="text-left justify-start"
+                          onClick={() => handleContextSwitch("customer")}
+                        >
+                          <Repeat size={16} className="mr-2" />
+                          Chuyển sang Mua hàng
+                        </Button>
+                      )}
+                    </>
+                  )}
+
+                  <Separator className="my-1" />
+
                   <Link
                     to="/settings"
                     className="text-left text-sm px-2 py-1.5 hover:bg-gray-100 rounded block"

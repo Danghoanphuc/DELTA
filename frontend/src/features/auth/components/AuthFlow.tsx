@@ -1,4 +1,4 @@
-// src/components/auth/AuthFlow.tsx (✅ FIXED VERSION)
+// src/features/auth/components/AuthFlow.tsx (✅ FIXED & SIMPLIFIED)
 
 import { useState, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
@@ -8,11 +8,10 @@ import { Input } from "@/shared/components/ui/input";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom"; // Giữ useLocation
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { SocialButton } from "@/shared/components/ui/SocialButton";
 import { toast } from "sonner";
-import api from "@/shared/lib/axios";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useCartStore } from "@/stores/useCartStore";
 import printzLogo from "@/assets/img/logo-printz.png";
@@ -29,23 +28,24 @@ const authFlowSchema = z.object({
 type AuthFlowValues = z.infer<typeof authFlowSchema>;
 
 type AuthMode = "signIn" | "signUp";
-type AuthRole = "customer" | "printer";
+// ❌ XÓA: AuthRole
 type AuthStep = "email" | "name" | "password" | "verifySent";
 
 interface AuthFlowProps {
   mode: AuthMode;
-  role: AuthRole;
+  // ❌ XÓA: role: AuthRole;
 }
 
 const EMAIL_PREFETCH_KEY = "auth-email-prefetch";
 
-export function AuthFlow({ mode, role }: AuthFlowProps) {
+export function AuthFlow({ mode }: AuthFlowProps) {
+  // ❌ XÓA: role
   const navigate = useNavigate();
-  // ✅ FIX: Lấy 'user' từ store
+  const location = useLocation(); // Giữ lại để điều hướng sau khi login
   const { signIn, signUp, user } = useAuthStore();
   const [step, setStep] = useState<AuthStep>("email");
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isFormLoading, setIsFormLoading] = useState(false);
 
   const {
     register,
@@ -79,31 +79,26 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
     }
   }, [mode, setValue]);
 
-  // ✅ FIX: BACKUP MECHANISM (Tự động navigate nếu đã đăng nhập)
+  // (Logic redirect tự động - giữ nguyên từ lần fix trước)
   useEffect(() => {
     const currentPath = window.location.pathname;
-    const authPaths = [
-      "/signin",
-      "/signup",
-      "/printer/signin",
-      "/printer/signup",
-    ];
+    const authPaths = ["/signin", "/signup"];
 
-    // ⚠️ THÊM ĐIỀU KIỆN: Chỉ chạy nếu KHÔNG đang loading
-    if (user && !isLoading && authPaths.includes(currentPath)) {
-      setTimeout(() => {
-        // ⚠️ SỬA LOGIC CHUYỂN HƯỚNG:
-        // Chuyển hướng dựa trên vai trò, giống như logic onSubmit
-        if (user.role === "printer") {
-          navigate("/printer/dashboard", { replace: true });
-        } else {
-          navigate("/", { replace: true });
-        }
-      }, 200);
+    if (user && authPaths.includes(currentPath)) {
+      const from = location.state?.from?.pathname;
+
+      if (from) {
+        toast.success("Đăng nhập thành công, đang quay lại...");
+        navigate(from, { replace: true });
+        return;
+      }
+
+      // Fallback: Nếu không có 'from', về trang chủ (sẽ tự động sang /app)
+      navigate("/", { replace: true });
     }
-  }, [user, navigate, isLoading]);
+  }, [user, navigate, location.state]);
 
-  // (Các hàm xử lý bước giữ nguyên)
+  // (Các hàm handleEmailSubmit, handleNameSubmit giữ nguyên)
   const handleEmailSubmit = async () => {
     const isValid = await trigger("email");
     if (!isValid) return;
@@ -112,13 +107,8 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
   };
 
   const handleNameSubmit = async () => {
-    const isFirstValid = await trigger("firstName", {
-      shouldFocus: true,
-    });
-    const isLastValid = await trigger("lastName", {
-      shouldFocus: true,
-    });
-
+    const isFirstValid = await trigger("firstName", { shouldFocus: true });
+    const isLastValid = await trigger("lastName", { shouldFocus: true });
     const firstName = watch("firstName");
     const lastName = watch("lastName");
     if (!firstName || !lastName || !isFirstValid || !isLastValid) {
@@ -128,114 +118,68 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
     setStep("password");
   };
 
-  // --- Logic Gửi Form (Đã cập nhật) ---
+  // (Hàm onSubmit - giữ nguyên logic từ lần fix trước)
   const onSubmit = async (data: AuthFlowValues) => {
-    setIsLoading(true);
+    setIsFormLoading(true);
     try {
       if (mode === "signUp") {
-        // --- Flow Đăng Ký (Giữ nguyên) ---
         const { email, password, firstName, lastName, confirmPassword } = data;
 
         if (password !== confirmPassword) {
           toast.error("Mật khẩu xác nhận không khớp!");
-          setIsLoading(false); // 👈 Thêm
+          setIsFormLoading(false);
           return;
         }
 
         const displayName = `${firstName} ${lastName}`.trim();
 
-        if (role === "printer") {
-          await api.post("/auth/signup-printer", {
-            email,
-            password,
-            displayName,
-          });
-        } else {
-          await signUp(email, password, displayName);
-        }
+        // ❌ XÓA: Logic if (role === 'printer')
+        await signUp(email, password, displayName);
+
         setStep("verifySent");
       } else {
-        // --- Flow Đăng Nhập (ĐÃ SỬA) ---
+        // --- Flow Đăng Nhập (Email/Pass) ---
         const { email, password } = data;
-
-        // 1. Đăng nhập
         await signIn(email, password);
+        await useCartStore.getState().mergeGuestCartToServer();
 
-        // 2. Merge guest cart (Sửa lỗi gọi hàm)
-        try {
-          // Gọi hàm merge từ cart store
-          await useCartStore.getState().mergeGuestCartToServer();
-        } catch (mergeErr) {
-          console.error("Lỗi merge cart:", mergeErr);
-          // Không block, tiếp tục
-        }
-
-        // 3. Lấy user VỪA ĐĂNG NHẬP xong từ store
-        const loggedInUser = useAuthStore.getState().user;
-
-        // 4. Chuyển hướng DỰA TRÊN VAI TRÒ
+        // Logic điều hướng đã được xử lý bởi useEffect ở trên
+        // (Nếu useEffect chạy trước, form này sẽ không bao giờ submit)
+        // (Đây là một backup an toàn)
+        const from = location.state?.from?.pathname;
         setTimeout(() => {
-          if (loggedInUser && loggedInUser.role === "printer") {
-            // Nếu là printer -> vào dashboard
-            navigate("/printer/dashboard", { replace: true });
+          if (from) {
+            navigate(from, { replace: true });
           } else {
-            // Nếu là customer (hoặc mặc định) -> về trang chủ
             navigate("/", { replace: true });
           }
         }, 100);
       }
     } catch (err: any) {
       console.error("Lỗi AuthFlow:", err);
-      // Đảm bảo tắt loading nếu có lỗi
-      setIsLoading(false);
+      setIsFormLoading(false);
     } finally {
-      // Chỉ tắt loading nếu không phải là bước "verifySent"
       if (step !== "verifySent") {
-        setIsLoading(false);
+        setIsFormLoading(false);
       }
     }
   };
-  // (Hàm renderLinks giữ nguyên)
+
+  // ✅ SỬA: Đơn giản hóa renderLinks
   const renderLinks = () => {
     if (step === "email") {
       if (mode === "signIn") {
         return (
-          <>
-            <Link to="/signup" className="text-indigo-600 font-medium text-sm">
-              Chưa có tài khoản? Đăng ký
-            </Link>
-            <Link
-              to="/printer/signup"
-              className="text-orange-600 font-medium text-sm"
-            >
-              Bạn là nhà in? Đăng ký tại đây
-            </Link>
-          </>
+          <Link to="/signup" className="text-indigo-600 font-medium text-sm">
+            Chưa có tài khoản? Đăng ký
+          </Link>
         );
       }
       if (mode === "signUp") {
         return (
-          <>
-            <Link to="/signin" className="text-indigo-600 font-medium text-sm">
-              Đã có tài khoản? Đăng nhập
-            </Link>
-            {role === "customer" && (
-              <Link
-                to="/printer/signup"
-                className="text-orange-600 font-medium text-sm"
-              >
-                Bạn là nhà in?
-              </Link>
-            )}
-            {role === "printer" && (
-              <Link
-                to="/signup"
-                className="text-indigo-600 font-medium text-sm"
-              >
-                Bạn là khách hàng?
-              </Link>
-            )}
-          </>
+          <Link to="/signin" className="text-indigo-600 font-medium text-sm">
+            Đã có tài khoản? Đăng nhập
+          </Link>
         );
       }
     }
@@ -254,7 +198,7 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
   return (
     <Card className="w-full max-w-sm p-6 md:p-8 bg-white/95 backdrop-blur-md shadow-xl border-none relative">
       <div className="flex flex-col gap-6">
-        {/* (Header giữ nguyên) */}
+        {/* Header */}
         <div className="flex flex-col items-center text-center gap-4">
           {backButtonAction && (
             <Button
@@ -270,11 +214,7 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
           <img src={printzLogo} alt="PrintZ Logo" className="w-16 h-16" />
           <h1 className="text-2xl font-bold text-gray-900">
             {step === "email" &&
-              (mode === "signIn"
-                ? "Chào mừng quay lại!"
-                : role === "printer"
-                ? "Đăng ký Xưởng in"
-                : "Tạo tài khoản")}
+              (mode === "signIn" ? "Chào mừng quay lại!" : "Tạo tài khoản")}
             {step === "name" && "Chúng tôi nên gọi bạn là gì?"}
             {step === "password" &&
               (mode === "signIn" ? "Nhập mật khẩu" : "Tạo mật khẩu")}
@@ -282,8 +222,8 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
           </h1>
         </div>
 
-        {/* (Nút Google giữ nguyên) */}
-        {step === "email" && <SocialButton provider="google" role={role} />}
+        {/* ✅ SỬA: Nút Google (không cần 'role') */}
+        {step === "email" && <SocialButton provider="google" />}
 
         {/* --- FORM ĐA BƯỚC --- */}
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
@@ -310,7 +250,7 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
               type="button"
               className="w-full h-12 text-base"
               onClick={handleEmailSubmit}
-              disabled={isLoading}
+              disabled={isFormLoading}
             >
               Tiếp tục
             </Button>
@@ -339,7 +279,7 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
                 type="button"
                 className="w-full h-12 text-base"
                 onClick={handleNameSubmit}
-                disabled={isLoading}
+                disabled={isFormLoading}
               >
                 Tiếp tục
               </Button>
@@ -403,9 +343,9 @@ export function AuthFlow({ mode, role }: AuthFlowProps) {
             <Button
               type="submit"
               className="w-full h-12 text-base"
-              disabled={isLoading}
+              disabled={isFormLoading}
             >
-              {isLoading
+              {isFormLoading
                 ? "Đang xử lý..."
                 : mode === "signIn"
                 ? "Đăng nhập"

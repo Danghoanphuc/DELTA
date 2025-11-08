@@ -2,14 +2,18 @@
 
 export interface User {
   _id: string;
-  username: string;
   email: string;
   displayName: string;
-  role: "customer" | "printer" | "admin";
   avatarUrl?: string;
   isVerified: boolean;
   phone?: string;
-  printerProfile?: string; // ID tham chiếu đến PrinterProfile
+
+  // --- THAY THẾ 'role' ---
+  customerProfileId: string;
+  printerProfileId: string | null; // Có thể chưa phải là nhà in
+  // role: (Đã xóa)
+  // printerProfile: (Đã xóa)
+
   createdAt?: string;
   updatedAt?: string;
 }

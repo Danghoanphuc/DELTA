@@ -1,4 +1,4 @@
-// frontend/src/App.tsx (CẬP NHẬT)
+// frontend/src/App.tsx (✅ UPDATED ROUTES)
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import ProtectedRoute from "./features/auth/components/ProtectedRoute";
@@ -10,27 +10,26 @@ import { toast } from "sonner";
 
 // ==================== PAGE IMPORTS ====================
 // Public Pages
-import SmartLanding from "@/features/landing/SmartLanding"; // ✅ Fixed
+import SmartLanding from "@/features/landing/SmartLanding";
 import ChatAppPage from "@/features/chat/pages/ChatAppPage";
 import { ShopPage } from "@/features/shop/pages/ShopPage";
 import { ProductDetailPage } from "@/features/shop/pages/ProductDetailPage";
 import { InspirationPage } from "@/features/customer/pages/InspirationPage";
 import { TrendsPage } from "@/features/customer/pages/TrendsPage";
 import PolicyPage from "@/features/landing/PolicyPage";
-// --- THÊM CÁC IMPORT NÀY ---
 import ContactPage from "@/features/landing/ContactPage";
 import ProcessPage from "@/features/landing/ProcessPage";
 import TemplateLibraryPage from "@/features/landing/TemplateLibraryPage";
-// ----------------------------
 
 // Auth Pages
 import SignInPage from "@/features/auth/pages/SignInPage";
 import SignUpPage from "@/features/customer/pages/SignUpPage";
 import VerifyEmailPage from "@/features/auth/components/VerifyEmailPage";
 import ResetPasswordPage from "@/features/auth/components/ResetPasswordPage";
-import PrinterSignUpPage from "@/features/auth/pages/PrinterSignUpPage";
-import PrinterSignInPage from "@/features/auth/pages/PrinterSignInPage";
 import CheckEmailPage from "@/features/auth/pages/CheckEmailPage";
+// ❌ XÓA:
+// import PrinterSignUpPage from "@/features/auth/pages/PrinterSignUpPage";
+// import PrinterSignInPage from "@/features/auth/pages/PrinterSignInPage";
 
 // Protected Pages
 import { CheckoutPage } from "@/features/customer/pages/CheckoutPage";
@@ -44,23 +43,29 @@ import { OrderConfirmationPage } from "@/features/customer/pages/OrderConfirmati
 // Printer Pages
 import PrinterApp from "@/features/printer/pages/PrinterApp";
 import { PrinterStudio } from "@/features/printer/printer-studio/PrinterStudio";
-// import { PrinterStudio } from "@/features/printer/pages/PrinterStudio";
+// ✅ THÊM IMPORT TRANG ONBOARDING MỚI
+import { PrinterOnboardingPage } from "@/features/printer/pages/PrinterOnboardingPage";
+
 const API_ORIGIN = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
 function App() {
-  // ... (Phần logic listener giữ nguyên) ...
   const { setAccessToken } = useAuthStore();
   const mergeGuestCart = useCartStore((s) => s.mergeGuestCartToServer);
 
   useEffect(() => {
     const handleOAuthMessage = async (event: MessageEvent) => {
+      // ✅ SỬA: Đảm bảo origin là "sạch" (không có /api)
       if (event.origin !== API_ORIGIN) return;
+
+      // ✅ SỬA: Đọc payload đã được chuẩn hóa (bao gồm user)
       const { success, accessToken, user, error } = event.data;
+
       if (success && accessToken && user) {
         console.log("[OAuth] ✅ Đã nhận tín hiệu thành công từ popup");
         closeOAuthPopup();
         setAccessToken(accessToken);
-        useAuthStore.getState().setUser(user);
+        useAuthStore.getState().setUser(user); // Đặt user ngay lập tức
+
         try {
           await mergeGuestCart();
         } catch (mergeErr) {
@@ -68,6 +73,9 @@ function App() {
           toast.error("Không thể tự động gộp giỏ hàng cũ.");
         }
         toast.success(`Chào mừng, ${user.displayName}!`);
+
+        // Điều hướng về trang chủ, logic trong AuthFlow/RootPage sẽ xử lý
+        window.location.href = "/";
       } else if (error) {
         console.error(`[OAuth] ❌ Lỗi từ popup: ${error}`);
         toast.error(error || "Đăng nhập Google thất bại");
@@ -91,19 +99,16 @@ function App() {
         <Route path="/trends" element={<TrendsPage />} />
         <Route path="/policy" element={<PolicyPage />} />
         <Route path="/check-email" element={<CheckEmailPage />} />
-
-        {/* --- THÊM CÁC ROUTE MỚI CHO LANDING PAGE --- */}
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/process" element={<ProcessPage />} />
         <Route path="/templates" element={<TemplateLibraryPage />} />
-        {/* ---------------------------------------------- */}
 
         {/* ==================== AUTH ROUTES ==================== */}
-        {/* ... (Phần còn lại giữ nguyên) ... */}
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/signup" element={<SignUpPage />} />
-        <Route path="/printer/signup" element={<PrinterSignUpPage />} />
-        <Route path="/printer/signin" element={<PrinterSignInPage />} />
+        {/* ❌ XÓA 2 ROUTE SAU: */}
+        {/* <Route path="/printer/signup" element={<PrinterSignUpPage />} /> */}
+        {/* <Route path="/printer/signin" element={<PrinterSignInPage />} /> */}
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
@@ -123,11 +128,13 @@ function App() {
           <Route path="/design-editor" element={<DesignEditorPage />} />
 
           {/* ============== PRINTER ROUTES === */}
-          <Route path="/printer/dashboard" element={<PrinterApp />} />
+          {/* ✅ THÊM ROUTE ONBOARDING MỚI */}
           <Route
-            path="/printer/orders/:orderId"
-            element={<OrderDetailPage />}
+            path="/printer/onboarding"
+            element={<PrinterOnboardingPage />}
           />
+
+          <Route path="/printer/dashboard" element={<PrinterApp />} />
           <Route
             path="/printer/orders/:orderId"
             element={<OrderDetailPage />}

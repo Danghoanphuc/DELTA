@@ -1,25 +1,27 @@
 // src/pages/RootPage.tsx
 import { useAuthStore } from "@/stores/useAuthStore";
 import ChatAppPage from "@/features/chat/pages/ChatAppPage";
-import PrinterApp from "@/features/printer/pages/PrinterApp"; // 👈 Sửa import
+import PrinterApp from "@/features/printer/pages/PrinterApp";
+import { Loader2 } from "lucide-react"; // ✅ THÊM
 
 const RootPage = () => {
-  const { user, loading } = useAuthStore();
+  // ✅ LẤY BỐI CẢNH (CONTEXT)
+  const { user, loading, activeContext, isContextLoading } = useAuthStore();
 
-  if (loading || !user) {
+  if (loading || isContextLoading || !user) {
     return (
       <div className="flex h-screen items-center justify-center">
-        Đang tải trang của bạn...
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
-  // Phân luồng dựa trên vai trò
-  if (user.role === "printer") {
-    return <PrinterApp />; // 👈 Trỏ đến PrinterApp
+  // ✅ PHÂN LUỒNG DỰA TRÊN BỐI CẢNH (CONTEXT)
+  if (activeContext === "printer") {
+    return <PrinterApp />; // Trỏ đến PrinterApp
   }
 
-  // Mặc định (hoặc user.role === "customer")
+  // Mặc định (activeContext === "customer")
   return <ChatAppPage />;
 };
 

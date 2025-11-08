@@ -1,6 +1,5 @@
-// frontend/src/components/ui/SocialButton.tsx (Thêm lưu trữ popup ref)
+// frontend/src/components/ui/SocialButton.tsx (✅ SIMPLIFIED)
 
-// import { useRef } from "react"; // <-- Thêm useRef
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "sonner";
@@ -18,13 +17,14 @@ export const closeOAuthPopup = () => {
   }
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001"; // Sử dụng import.meta.env ở đây vẫn ổn
+// ✅ SỬA: Đảm bảo sử dụng API_HOST "sạch" (không có /api)
+const API_HOST = import.meta.env.VITE_API_URL || "http://localhost:5001";
 type SocialProvider = "google" | "email";
-type AuthRole = "customer" | "printer";
+// ❌ XÓA: AuthRole
 
 interface SocialButtonProps {
   provider: SocialProvider;
-  role: AuthRole;
+  // ❌ XÓA: role: AuthRole;
   className?: string;
   onClick?: () => void;
   children?: React.ReactNode;
@@ -32,7 +32,7 @@ interface SocialButtonProps {
 
 export function SocialButton({
   provider,
-  role,
+  // ❌ XÓA: role,
   className,
   onClick,
   children,
@@ -85,11 +85,12 @@ export function SocialButton({
     const height = 700;
     const left = window.screen.width / 2 - width / 2;
     const top = window.screen.height / 2 - height / 2;
-    const oauthUrl = `${API_BASE_URL}/api/auth/google?role=${role}`;
+
+    // ✅ SỬA: Thêm /api và XÓA `role`
+    const oauthUrl = `${API_HOST}/api/auth/google`;
 
     console.log(`🔄 Mở popup OAuth: ${oauthUrl}`);
 
-    // Mở popup và lưu tham chiếu vào biến module
     oauthPopupRef = window.open(
       oauthUrl,
       "googleLogin",
@@ -100,15 +101,6 @@ export function SocialButton({
       toast.error("Không thể mở cửa sổ đăng nhập. Vui lòng cho phép popup!");
       return;
     }
-
-    // Không cần interval check nữa vì App.tsx sẽ đóng popup
-    // const checkPopup = setInterval(() => {
-    //   if (oauthPopupRef && oauthPopupRef.closed) {
-    //     clearInterval(checkPopup);
-    //     console.log("ℹ️ Popup đã đóng (tự động hoặc bị chặn)");
-    //     oauthPopupRef = null; // Reset ref
-    //   }
-    // }, 1000);
   };
 
   return (
