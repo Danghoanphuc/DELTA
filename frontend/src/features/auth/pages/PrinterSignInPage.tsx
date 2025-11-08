@@ -6,11 +6,10 @@ const PrinterSignInPage = () => {
   return (
     <div className="bg-muted flex min-h-svh flex-col items-center justify-center p-6 md:p-10 absolute inset-0 z-0 bg-gradient-purple">
       {/*
-        Chúng ta dùng AuthFlow ở chế độ "signIn"
-        và vai trò "printer" để nút Google (nếu dùng)
-        biết cách gán vai trò.
+        Chúng ta dùng AuthFlow ở chế độ "signIn".
+        Vai trò sẽ được xác định tự động hoặc trong các bước tiếp theo.
       */}
-      <AuthFlow mode="signIn" role="printer" />
+      <AuthFlow mode="signIn" />
     </div>
   );
 };

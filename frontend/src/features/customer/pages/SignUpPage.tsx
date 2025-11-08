@@ -4,7 +4,7 @@ import { AuthFlow } from "@/features/auth/components/AuthFlow"; // <-- IMPORT Má
 const SignUpPage = () => {
   return (
     <div className="bg-muted flex min-h-svh flex-col items-center justify-center p-6 md:p-10 absolute inset-0 z-0 bg-gradient-purple">
-      <AuthFlow mode="signUp" role="customer" />
+      <AuthFlow mode="signUp" />
     </div>
   );
 };
