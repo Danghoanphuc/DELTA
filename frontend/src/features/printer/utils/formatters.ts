@@ -1,3 +1,4 @@
+// printer/utils/formatters.ts
 // src/shared/utils/formatters.ts
 
 export const formatPrice = (price: number): string => {

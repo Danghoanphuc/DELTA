@@ -2,7 +2,6 @@
   "compilerOptions": {
     "composite": true,
     "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -14,8 +13,13 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "types": ["vite/client", "node"],
-    "baseUrl": ".",
+
+    // ✅ ĐÃ GỘP LIB
+    "lib": ["ES2020", "DOM", "DOM.Iterable", "ESNext"],
+
+    // ✅ ĐÃ GỘP TYPES (Thêm lại "vite/client" và "node")
+    "types": ["vite/client", "node", "jest", "@testing-library/jest-dom"],
+
     "paths": {
       "@/*": ["./src/*"]
     }

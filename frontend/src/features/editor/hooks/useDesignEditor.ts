@@ -1,285 +1,518 @@
-// editor/hooks/useDesignEditor.ts
-// ✅ NÂNG CẤP "ZERO-COST"
-// Thay đổi state `textures` từ string (base64) sang THREE.CanvasTexture
-// ✅ SỬA LỖI: Đồng bộ sang `surfaceKey` (thay vì `key`)
+// features/editor/hooks/useDesignEditor.ts
+// ✅ BẢN VÁ: Bổ sung 2 useEffects cho logic giá (sửa lỗi 'nextCreate is not a function')
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import * as THREE from "three";
 import { useCartStore } from "@/stores/useCartStore";
 import { Product } from "@/types/product";
 import * as editorService from "../services/editorService";
-import { EditorCanvasRef } from "../components/EditorCanvas";
-import * as fabric from "fabric";
-import { type FabricObject } from "fabric";
-import * as THREE from "three"; // <-- Import THREE
+import { EditorItem, DecalItem, GroupItem } from "../types/decal.types";
+import { InteractionResult } from "./use3DInteraction";
+import {
+  getMyMediaAssets,
+  createMediaAsset,
+  UploadedImageVM,
+} from "@/services/mediaAssetService";
+import { arrayMove } from "@dnd-kit/sortable";
+// ✅ SỬA: Bỏ import không dùng
+// import { Interaction } from "three";
 
-// Helper (Giữ nguyên)
-const ensureObjectId = (obj: FabricObject) => {
-  if (!(obj as any).id) {
-    (obj as any).id =
-      fabric.util.getRandomInt(1000, 9999).toString() + Date.now();
-  }
-};
+// (Helper createId giữ nguyên)
+const createId = (prefix: "decal" | "group") =>
+  `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+export type GizmoMode = "translate" | "scale" | "rotate";
 
 export function useDesignEditor() {
   const navigate = useNavigate();
-  const { addToCart } = useCartStore();
   const [searchParams] = useSearchParams();
-  const productId = searchParams.get("productId");
+  const { addToCart } = useCartStore();
+
+  // === STATE ===
   const [product, setProduct] = useState<Product | null>(null);
-  const [activeSurfaceKey, setActiveSurfaceKey] = useState<string | null>(null);
-
-  // ✅ THAY ĐỔI LỚN 1: State `textures` giờ đây lưu trữ đối tượng CanvasTexture
-  const [textures, setTextures] = useState<
-    Record<string, THREE.CanvasTexture | null>
-  >({});
-
-  const editorRefs = useRef<Record<string, EditorCanvasRef | null>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isModelLoaded, setIsModelLoaded] = useState(false);
-  const [layers, setLayers] = useState<any[]>([]);
-  const [activeObjectId, setActiveObjectId] = useState<string | null>(null);
-  const [selectedObject, setSelectedObject] = useState<FabricObject | null>(
-    null
-  );
-  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
-  // === TẢI SẢN PHẨM === (Logic giữ nguyên)
+  const [items, setItems] = useState<EditorItem[]>([]);
+  const [activeToolbarTab, setActiveToolbarTab] = useState<string>("templates");
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<UploadedImageVM[]>([]);
+  const [gizmoMode, setGizmoMode] = useState<GizmoMode>("translate");
+  const [isSnapping, setIsSnapping] = useState(false);
+
+  // (State về giá)
+  const [selectedQuantity, setSelectedQuantity] = useState(1);
+  const [selectedPriceIndex, setSelectedPriceIndex] = useState(0);
+
+  // === MEMOS (Tính toán dẫn xuất) ===
+
+  const flatDecalItems = useMemo((): DecalItem[] => {
+    return items.filter((item) => item.type === "decal") as DecalItem[];
+  }, [items]);
+
+  const firstSelectedItem = useMemo((): EditorItem | null => {
+    if (selectedItemIds.length !== 1) return null;
+    return items.find((item) => item.id === selectedItemIds[0]) || null;
+  }, [items, selectedItemIds]);
+
+  // (useEffect tải dữ liệu)
   useEffect(() => {
-    if (!productId) {
-      toast.error("Lỗi: Không tìm thấy ID sản phẩm.");
-      navigate("/shop");
-      return;
-    }
-    const fetchProduct = async () => {
-      try {
-        setIsLoading(true);
-        const fetchedProduct = await editorService.getProductById(productId);
-        setProduct(fetchedProduct);
+    const fetchStudioData = async () => {
+      setIsLoading(true);
+      const productId = searchParams.get("productId");
 
-        const initialTextures: Record<string, null> = {};
-        for (const surface of fetchedProduct.assets.surfaces) {
-          initialTextures[surface.materialName] = null;
-        }
-        setTextures(initialTextures);
-
-        const firstSurface = fetchedProduct.assets.surfaces[0];
-        // ✅ SỬA: Dùng surfaceKey (theo schema backend)
-        setActiveSurfaceKey(firstSurface.surfaceKey);
-      } catch (err: any) {
-        toast.error(err.message || "Không thể tải dữ liệu sản phẩm.");
+      if (!productId) {
+        toast.error("Không tìm thấy ID sản phẩm trong URL.");
         navigate("/shop");
+        return;
+      }
+
+      const fetchProduct = async () => {
+        try {
+          const fetchedProduct = await editorService.getProductById(productId);
+          setProduct(fetchedProduct);
+          if (fetchedProduct.pricing && fetchedProduct.pricing.length > 0) {
+            // Cập nhật state ở đây
+            setSelectedQuantity(fetchedProduct.pricing[0].minQuantity || 1);
+          }
+        } catch (err: any) {
+          console.error("Lỗi tải Product:", err);
+          toast.error(
+            err.message || "Không thể tải sản phẩm (lỗi editorService)"
+          );
+          navigate("/shop");
+          throw err;
+        }
+      };
+
+      const fetchLibrary = async () => {
+        try {
+          const assets = await getMyMediaAssets();
+          const viewModels: UploadedImageVM[] = assets
+            .map((asset) => ({
+              id: asset._id,
+              url: asset.url,
+              name: asset.name,
+              isLoading: false,
+            }))
+            .reverse();
+          setUploadedImages(viewModels);
+        } catch (err) {
+          console.error("Lỗi tải thư viện media:", err);
+          toast.error("Không thể tải thư viện ảnh");
+        }
+      };
+
+      try {
+        await Promise.all([fetchProduct(), fetchLibrary()]);
+      } catch (err) {
+        console.error("Lỗi nghiêm trọng khi tải studio:", err);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchProduct();
-  }, [productId, navigate]);
 
-  // === HANDLERS ===
+    fetchStudioData();
+  }, [searchParams, navigate]);
 
-  const handleSurfaceUpdate = useCallback(
-    (materialKey: string, texture: THREE.CanvasTexture) => {
-      console.log(`🔄 [useDesignEditor] Texture updated for: ${materialKey}`);
-
-      // Chỉ update nếu thực sự có thay đổi
-      setTextures((prevTextures) => {
-        if (prevTextures[materialKey] === texture) {
-          console.log(
-            `⏭️ [useDesignEditor] Texture unchanged, skipping update`
-          );
-          return prevTextures;
-        }
-        return {
-          ...prevTextures,
-          [materialKey]: texture,
-        };
-      });
-    },
-    [] // ✅ No dependencies - perfectly stable
-  );
-
-  const handleToolbarImageUpload = useCallback((file: File) => {
-    console.log(`📁 [useDesignEditor] Image uploaded: ${file.name}`);
-    toast.success(`Đã thêm ảnh: ${file.name}`);
+  // (useEffect Snapping)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Shift") setIsSnapping(true);
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Shift") setIsSnapping(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keyup", handleKeyUp);
+    };
   }, []);
 
-  const getActiveEditorRef = useCallback(() => {
-    if (!activeSurfaceKey) return null;
-    return editorRefs.current[activeSurfaceKey];
-  }, [activeSurfaceKey]);
+  // === HANDLERS (Core Logic) ===
 
-  // ✅ FIX: Ổn định updateLayers
-  const updateLayers = useCallback(() => {
-    const editor = getActiveEditorRef();
-    if (!editor) return;
+  // (Handler: handleSelectItem)
+  const handleSelectItem = useCallback(
+    (itemId: string | null, isMultiSelect: boolean) => {
+      if (!itemId) {
+        setSelectedItemIds([]);
+        return;
+      }
 
-    const canvas = editor.getCanvas();
-    if (!canvas) return;
+      const item = items.find((i) => i.id === itemId);
+      if (item?.isLocked) {
+        toast.info("Lớp này đã bị khóa.");
+        setSelectedItemIds([]); // Bỏ chọn khi click vào item bị khoá
+        return;
+      }
 
-    const objects = canvas.getObjects();
-    objects.forEach(ensureObjectId);
-    setLayers([...objects]);
+      setSelectedItemIds((prevIds) => {
+        if (isMultiSelect) {
+          if (prevIds.includes(itemId)) {
+            return prevIds.filter((id) => id !== itemId);
+          } else {
+            return [...prevIds, itemId];
+          }
+        } else {
+          // Nếu chỉ chọn 1, và item đó đã được chọn, thì không làm gì cả
+          if (prevIds.length === 1 && prevIds[0] === itemId) {
+            return prevIds;
+          }
+          return [itemId];
+        }
+      });
+    },
+    [items]
+  );
 
-    const activeObj = canvas.getActiveObject();
-    if (activeObj) {
-      ensureObjectId(activeObj);
-      setActiveObjectId((activeObj as any).id || null);
-      setSelectedObject(activeObj);
-    } else {
-      setActiveObjectId(null);
-      setSelectedObject(null);
+  // (Handler: deselectAll)
+  const deselectAll = useCallback(() => {
+    setSelectedItemIds([]);
+  }, []);
+
+  // (Handler: addItem)
+  const addItem = useCallback(
+    (
+      itemType: "decal",
+      dropData: any,
+      interactionResult: InteractionResult
+    ) => {
+      let newDecal: DecalItem | null = null;
+      const id = createId("decal");
+      const pos = interactionResult.worldPoint.toArray();
+      const norm = interactionResult.worldNormal.toArray();
+      const defaultRotation: [number, number, number] = [0, 0, 0];
+      let parentId: string | null = null;
+      if (firstSelectedItem && firstSelectedItem.type === "group") {
+        parentId = firstSelectedItem.id;
+      }
+
+      if (dropData.type === "image") {
+        newDecal = {
+          id,
+          type: "decal",
+          parentId,
+          decalType: "image",
+          imageUrl: dropData.imageUrl,
+          position: pos,
+          normal: norm,
+          size: [0.15, 0.15],
+          rotation: defaultRotation,
+          isVisible: true,
+          isLocked: false,
+        };
+      } else if (dropData.type === "text") {
+        newDecal = {
+          id,
+          type: "decal",
+          parentId,
+          decalType: "text",
+          text: dropData.text || "New Text",
+          color: dropData.color || "#000000",
+          position: pos,
+          normal: norm,
+          size: [0.3, 0.1],
+          rotation: defaultRotation,
+          isVisible: true,
+          isLocked: false,
+        };
+      } else if (dropData.type === "shape") {
+        newDecal = {
+          id,
+          type: "decal",
+          parentId,
+          decalType: "shape",
+          shapeType: dropData.shapeType || "rect",
+          color: dropData.color || "#3498db",
+          position: pos,
+          normal: norm,
+          size: [0.15, 0.15],
+          rotation: defaultRotation,
+          isVisible: true,
+          isLocked: false,
+        };
+      }
+
+      if (newDecal) {
+        setItems((prev) => [...prev, newDecal!]);
+        handleSelectItem(newDecal.id, false);
+      }
+    },
+    [firstSelectedItem, handleSelectItem] // ✅ SỬA: Thêm handleSelectItem
+  );
+
+  // (Handler: deleteSelectedItems)
+  const deleteSelectedItems = useCallback(() => {
+    if (selectedItemIds.length === 0) return;
+    setItems((prevItems) => {
+      const itemsToDelete = new Set<string>(selectedItemIds);
+      const stack = [...selectedItemIds];
+      while (stack.length > 0) {
+        const currentId = stack.pop()!;
+        const children = prevItems.filter((i) => i.parentId === currentId);
+        children.forEach((child) => {
+          itemsToDelete.add(child.id);
+          if (child.type === "group") {
+            stack.push(child.id);
+          }
+        });
+      }
+      return prevItems.filter((item) => !itemsToDelete.has(item.id));
+    });
+    setSelectedItemIds([]);
+  }, [selectedItemIds]);
+
+  // (Handler: updateItemProperties)
+  const updateItemProperties = useCallback(
+    (itemId: string, updates: Partial<DecalItem> | Partial<GroupItem>) => {
+      setItems(
+        (prev) =>
+          prev.map((item) =>
+            item.id === itemId ? { ...item, ...updates } : item
+          ) as EditorItem[]
+      );
+    },
+    []
+  );
+
+  // (Handler: handleGroupSelection)
+  const handleGroupSelection = useCallback(() => {
+    if (selectedItemIds.length < 2) return;
+    const newGroupId = createId("group");
+    const newGroup: GroupItem = {
+      id: newGroupId,
+      type: "group",
+      parentId: null,
+      name: "Nhóm mới",
+      isVisible: true,
+      isLocked: false,
+    };
+
+    setItems((prevItems) => {
+      const firstParentId = prevItems.find(
+        (i) => i.id === selectedItemIds[0]
+      )?.parentId;
+      const allHaveSameParent = selectedItemIds.every(
+        (id) => prevItems.find((i) => i.id === id)?.parentId === firstParentId
+      );
+      newGroup.parentId = (allHaveSameParent ? firstParentId : null) || null;
+      const updatedItems = prevItems.map((item) => {
+        if (selectedItemIds.includes(item.id)) {
+          return { ...item, parentId: newGroupId };
+        }
+        return item;
+      });
+      return [...updatedItems, newGroup];
+    });
+    setSelectedItemIds([newGroupId]);
+    toast.success("Đã nhóm các lớp!");
+  }, [selectedItemIds]);
+
+  // (Handler: handleUngroupSelection)
+  const handleUngroupSelection = useCallback(() => {
+    const selectedGroup = firstSelectedItem;
+    if (!selectedGroup || selectedGroup.type !== "group") return;
+    const groupParentId = selectedGroup.parentId;
+    setItems((prevItems) => {
+      const itemsWithoutGroup = prevItems.filter(
+        (item) => item.id !== selectedGroup.id
+      );
+      const updatedItems = itemsWithoutGroup.map((item) => {
+        if (item.parentId === selectedGroup.id) {
+          return { ...item, parentId: groupParentId };
+        }
+        return item;
+      });
+      return updatedItems;
+    });
+    setSelectedItemIds([]);
+    toast.success("Đã rã nhóm!");
+  }, [firstSelectedItem]);
+
+  // (Handler: reorderItems)
+  const reorderItems = useCallback(
+    (activeId: string, overId: string | null, containerId: string | null) => {
+      setItems((prevItems) => {
+        const activeItem = prevItems.find((i) => i.id === activeId);
+        const overItem = prevItems.find((i) => i.id === overId);
+        if (!activeItem || !overItem) return prevItems;
+
+        const activeIndex = prevItems.findIndex((i) => i.id === activeId);
+        const overIndex = prevItems.findIndex((i) => i.id === overId);
+
+        if (activeItem.parentId === overItem.parentId) {
+          return arrayMove(prevItems, activeIndex, overIndex);
+        }
+
+        const newParentId = containerId === "root" ? null : containerId;
+        if (activeItem.parentId !== newParentId) {
+          const updatedItem = { ...activeItem, parentId: newParentId };
+          const newItems = prevItems.filter((i) => i.id !== activeId);
+          newItems.splice(overIndex, 0, updatedItem);
+          return newItems;
+        }
+
+        return arrayMove(prevItems, activeIndex, overIndex);
+      });
+    },
+    []
+  );
+
+  // (Handler: handleToolbarImageUpload)
+  const handleToolbarImageUpload = useCallback(
+    async (file: File) => {
+      const existingFile = uploadedImages.find(
+        (img) => img.name === file.name && !img.isLoading
+      );
+      if (existingFile) {
+        toast.warning(`Ảnh "${file.name}" đã có trong thư viện.`);
+        return;
+      }
+      const id = `upload_${Date.now()}`;
+      const placeholder: UploadedImageVM = {
+        id,
+        url: "",
+        name: file.name,
+        isLoading: true,
+      };
+      setUploadedImages((prev) => [placeholder, ...prev]);
+      toast.info(`Đang tải lên: ${file.name}`);
+      try {
+        const newAsset = await createMediaAsset(file);
+        setUploadedImages((prev) =>
+          prev.map((img) =>
+            img.id === id
+              ? {
+                  id: newAsset._id,
+                  url: newAsset.url,
+                  name: newAsset.name,
+                  isLoading: false,
+                }
+              : img
+          )
+        );
+        toast.success(`Tải lên thành công: ${file.name}`);
+      } catch (err: any) {
+        console.error("Lỗi upload/create media asset:", err);
+        toast.error(`Không thể tải lên: ${file.name}`);
+        setUploadedImages((prev) => prev.filter((img) => img.id !== id));
+      }
+    },
+    [uploadedImages]
+  );
+
+  // === (Logic Giá & Lưu vào giỏ hàng) ===
+
+  // ✅ SỬA: Đã copy lại đầy đủ logic giá (useMemo + useEffects)
+  const minQuantity = useMemo(
+    () => product?.pricing[0]?.minQuantity || 1,
+    [product]
+  );
+
+  const currentPricePerUnit = useMemo(
+    () => product?.pricing[selectedPriceIndex]?.pricePerUnit ?? 0,
+    [product, selectedPriceIndex]
+  );
+
+  // ✅ ĐÂY LÀ 2 HOOK BỊ THIẾU TRONG LẦN TRƯỚC:
+  useEffect(() => {
+    // Chỉ set khi quantity < minQuantity (lần đầu load)
+    if (minQuantity > 0 && selectedQuantity < minQuantity) {
+      setSelectedQuantity(minQuantity);
     }
-  }, [getActiveEditorRef]); // ✅ Chỉ phụ thuộc getActiveEditorRef
+  }, [minQuantity, selectedQuantity]); // Thêm selectedQuantity
 
-  const handleSelectLayer = useCallback(
-    (obj: any) => {
-      const editor = getActiveEditorRef();
-      if (!editor) return;
-
-      const canvas = editor.getCanvas();
-      if (canvas) {
-        canvas.setActiveObject(obj);
-        canvas.renderAll();
-        updateLayers();
-      }
-    },
-    [getActiveEditorRef, updateLayers]
-  );
-
-  const handleMoveLayer = useCallback(
-    (obj: any, direction: "up" | "down" | "top" | "bottom") => {
-      const editor = getActiveEditorRef();
-      if (!editor) return;
-
-      const canvas = editor.getCanvas();
-      if (canvas) {
-        switch (direction) {
-          case "up":
-            (canvas as any).bringForward(obj);
-            break;
-          case "down":
-            (canvas as any).sendBackwards(obj);
-            break;
-          case "top":
-            (canvas as any).bringToFront(obj);
-            break;
-          case "bottom":
-            (canvas as any).sendToBack(obj);
-            break;
-        }
-        canvas.renderAll();
-        updateLayers();
-      }
-    },
-    [getActiveEditorRef, updateLayers]
-  );
-  const handleToggleVisibility = useCallback(
-    (obj: any) => {
-      obj.set("visible", !obj.visible);
-      const editor = getActiveEditorRef();
-      if (editor) {
-        const canvas = editor.getCanvas();
-        if (canvas) {
-          canvas.renderAll();
-          updateLayers();
+  useEffect(() => {
+    if (!product?.pricing) return;
+    let bestTierIndex = 0;
+    for (let i = 0; i < product.pricing.length; i++) {
+      if (selectedQuantity >= product.pricing[i].minQuantity) {
+        if (
+          product.pricing[i].minQuantity >=
+          product.pricing[bestTierIndex].minQuantity
+        ) {
+          bestTierIndex = i;
         }
       }
-    },
-    [getActiveEditorRef, updateLayers]
-  );
+    }
+    setSelectedPriceIndex(bestTierIndex);
+  }, [selectedQuantity, product?.pricing]);
+  // === HẾT LOGIC GIÁ ===
 
-  const handleDeleteLayer = useCallback(
-    (obj: any) => {
-      const editor = getActiveEditorRef();
-      if (editor) {
-        const canvas = editor.getCanvas();
-        if (canvas) {
-          canvas.remove(obj);
-          updateLayers();
-        }
-      }
-    },
-    [getActiveEditorRef, updateLayers]
-  );
-
-  // === LƯU VÀ THÊM VÀO GIỎ ===
-  // ✅ THAY ĐỔI LỚN 3: Cần tạo base60 chỉ 1 LẦN khi lưu
   const handleSaveAndAddToCart = async () => {
-    if (!product || !product.assets?.surfaces) return;
+    if (!product) {
+      toast.error("Lỗi: Không có thông tin sản phẩm gốc.");
+      return;
+    }
     setIsSaving(true);
     try {
-      const editorDataPerSurface: Record<string, any> = {};
-      for (const surface of product.assets.surfaces) {
-        // ✅ SỬA: Dùng surfaceKey (theo schema backend)
-        const editor = editorRefs.current[surface.surfaceKey];
-        if (editor) {
-          // ✅ SỬA: Dùng surfaceKey (theo schema backend)
-          editorDataPerSurface[surface.surfaceKey] = JSON.parse(
-            editor.getJSON()
-          );
-        }
-      }
+      // (Tính toán giá)
+      const basePrice = currentPricePerUnit;
+      const quantity = selectedQuantity;
+      const decalCost = flatDecalItems.length * 5000; // Tạm thời
+      const finalPricePerUnit = basePrice + decalCost;
 
-      let finalPreviewImageUrl: string | undefined = product.images?.[0]?.url;
-      const firstMaterialName = product.assets.surfaces[0].materialName;
-      const firstTexture = textures[firstMaterialName];
-
-      if (firstTexture && firstTexture.image instanceof HTMLCanvasElement) {
-        finalPreviewImageUrl = firstTexture.image.toDataURL("image/png");
-      }
-
-      const newCustomizedDesignId = await editorService.saveCustomDesign(
-        product._id,
-        editorDataPerSurface,
-        finalPreviewImageUrl
-      );
+      const newDesignId = await editorService.saveCustomDesign(product._id, {
+        items: items, // Gửi cấu trúc tree
+      });
 
       await addToCart({
         productId: product._id,
-        quantity: product.pricing[0]?.minQuantity || 1,
-        selectedPriceIndex: 0,
+        quantity: quantity,
+        selectedPriceIndex: selectedPriceIndex,
         customization: {
-          notes: `Thiết kế tùy chỉnh ${product.name}`,
-          customizedDesignId: newCustomizedDesignId,
+          notes: "Thiết kế tùy chỉnh 3D",
+          customizedDesignId: newDesignId,
         },
       });
-      toast.success("Đã lưu thiết kế và thêm vào giỏ hàng!");
+      toast.success("Đã lưu thiết kế và thêm vào giỏ hàng!");
       navigate("/checkout");
-    } catch (err) {
-      console.error("Lỗi khi lưu thiết kế:", err);
-      toast.error("Không thể lưu thiết kế của bạn.");
+    } catch (err: any) {
+      console.error("Lỗi khi lưu và thêm vào giỏ:", err);
+      toast.error(err.message || "Lưu thiết kế thất bại");
     } finally {
       setIsSaving(false);
     }
   };
 
-  // === RETURN === (Không thay đổi)
+  // === RETURN ===
   return {
     product,
-    activeSurfaceKey,
-    setActiveSurfaceKey,
-    textures, // <-- Giờ đây là { [key: string]: THREE.CanvasTexture }
-    editorRefs,
     isLoading,
     isSaving,
     isModelLoaded,
     setIsModelLoaded,
-    handleSurfaceUpdate, // <-- Giờ nhận (key, texture)
+
+    items,
+    flatDecalItems,
+    selectedItemIds,
+    firstSelectedItem,
+
+    handleSelectItem,
+    deselectAll,
+    addItem,
+    deleteSelectedItems,
+    updateItemProperties,
+    handleGroupSelection,
+    handleUngroupSelection,
+    reorderItems,
+
+    activeToolbarTab,
+    setActiveToolbarTab,
+    uploadedImages,
     handleToolbarImageUpload,
-    getActiveEditorRef,
+    gizmoMode,
+    setGizmoMode,
+    isSnapping,
+    selectedQuantity,
+    setSelectedQuantity,
+    minQuantity,
+    currentPricePerUnit,
     handleSaveAndAddToCart,
-    layers,
-    activeObjectId,
-    updateLayers,
-    handleSelectLayer,
-    handleMoveLayer,
-    handleToggleVisibility,
-    handleDeleteLayer,
-    selectedObject,
-    isExportDialogOpen,
-    setIsExportDialogOpen,
   };
 }

@@ -1,11 +1,8 @@
 // src/features/printer/pages/ProductManagement.tsx
-// ✅ BẢN VÁ FULL: Kích hoạt "Trợ lý AI" + Sửa lỗi a11y (DialogTitle)
+// ✅ ĐÃ KHẮC PHỤC: Đồng bộ với hook, render dựa trên 'action' từ URL
 
 import { useProductManagement } from "@/features/printer/hooks/useProductManagement";
-// ✅ KÍCH HOẠT "TRỢ LÝ AI":
-import { AssetWizardPage } from "@/features/admin/components/AssetWizardPage";
-// ❌ XÓA BỎ Modal cũ
-// import { EditProductModal } from "@/features/printer/components/EditProductModal";
+import { CreateProductWizard } from "@/features/printer/pages/CreateProductWizard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,92 +15,84 @@ import {
 } from "@/shared/components/ui/alert-dialog";
 import { ProductListHeader } from "@/features/printer/components/ProductListHeader";
 import { ProductTable } from "@/features/printer/components/ProductTable";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader, // ✅ Thêm
-  DialogTitle, // ✅ Thêm
-  DialogDescription, // ✅ Thêm
-} from "@/shared/components/ui/dialog";
+import { ProductEmptyState } from "@/features/printer/components/ProductEmptyState"; // Import Empty State
 
 export function ProductManagement() {
   const {
     products,
     loading,
-    showAddForm,
-    setShowAddForm,
-    editingProduct,
-    showEditModal,
+
+    // ✅ 1. Lấy state ĐÚNG từ hook (đọc từ URL)
+    action,
+    editingProductId,
+
     deletingProduct,
     showDeleteDialog,
     handleDeleteProduct,
-    openEditModal,
-    closeEditModal,
+
+    // ✅ 2. Lấy các hàm điều hướng ĐÚNG
+    openAddForm,
+    openEditForm,
+    closeForm,
     openDeleteDialog,
     closeDeleteDialog,
     onProductAdded,
     onProductEdited,
   } = useProductManagement();
 
+  // ❌ 3. LOẠI BỎ logic 'showAddForm', 'showEditModal' cũ
+
+  // ✅ 4. THAY ĐỔI LOGIC RENDER
+
+  // Render flow "Tạo" (Toàn trang)
+  if (action === "new") {
+    return (
+      <CreateProductWizard
+        onFormClose={closeForm} // ✅ Dùng hàm điều hướng
+        onSuccess={onProductAdded}
+      />
+    );
+  }
+
+  // Render flow "Sửa" (Toàn trang)
+  if (action === "edit" && editingProductId) {
+    return (
+      <CreateProductWizard
+        productId={editingProductId}
+        onFormClose={closeForm} // ✅ Dùng hàm điều hướng
+        onSuccess={onProductEdited}
+      />
+    );
+  }
+
+  // Render Màn hình chính (Bảng) - khi action là null
   return (
     <div className="flex-1 overflow-auto bg-gray-50">
       <div className="p-8 max-w-7xl mx-auto">
         <ProductListHeader
-          isAdding={showAddForm || showEditModal}
-          onAddNew={() => setShowAddForm(true)}
+          isAdding={!!action} // Nút "Thêm mới" sẽ bị ẩn khi 'action' tồn tại
+          onAddNew={openAddForm} // ✅ 5. GỌI HÀM ĐÚNG: openAddForm
         />
 
-        {/* --- KÍCH HOẠT FLOW MỚI --- */}
-        {/* Render flow "Tạo" trong Dialog */}
-        <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            {/* ✅ SỬA LỖI a11y: Thêm Title và Description */}
-            <DialogHeader>
-              <DialogTitle>Trợ lý AI Tạo Phôi Mới</DialogTitle>
-              <DialogDescription>
-                Điền thông tin phôi, "Trợ lý AI" sẽ xác thực và tạo phôi mới.
-              </DialogDescription>
-            </DialogHeader>
-            <AssetWizardPage
-              onFormClose={() => setShowAddForm(false)}
-              onSuccess={onProductAdded}
-            />
-          </DialogContent>
-        </Dialog>
-
-        {/* Render flow "Sửa" trong Dialog */}
-        <Dialog open={showEditModal} onOpenChange={closeEditModal}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            {/* ✅ SỬA LỖI a11y: Thêm Title và Description */}
-            <DialogHeader>
-              <DialogTitle>Trợ lý AI (Chế độ Sửa)</DialogTitle>
-              <DialogDescription>
-                Cập nhật thông tin phôi. AI sẽ kiểm tra tính tương thích của
-                file GLB mới.
-              </DialogDescription>
-            </DialogHeader>
-            <AssetWizardPage
-              productId={editingProduct?._id}
-              onFormClose={closeEditModal}
-              onSuccess={onProductEdited}
-            />
-          </DialogContent>
-        </Dialog>
-
-        {/* ✅ Hiển thị bảng khi không ở flow nào */}
-        {!showAddForm && !showEditModal && (
+        {/* ✅ SỬA: Thêm logic loading và empty state */}
+        {loading ? (
+          <div className="text-center p-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-blue-600"></div>
+            <p className="mt-4 text-gray-500">Đang tải sản phẩm...</p>
+          </div>
+        ) : products.length === 0 ? (
+          <ProductEmptyState />
+        ) : (
           <ProductTable
             products={products}
-            loading={loading}
-            onEdit={openEditModal}
+            loading={loading} // (Prop này giờ không cần thiết lắm nhưng cứ để)
+            onEdit={openEditForm} // ✅ 6. GỌI HÀM ĐÚNG: openEditForm
             onDelete={openDeleteDialog}
           />
         )}
       </div>
 
-      {/* ❌ Đã xóa Modal cũ */}
-
-      {/* Delete Confirmation Dialog (Đã sửa lỗi typo) */}
+      {/* Delete Confirmation Dialog (Giữ nguyên) */}
       <AlertDialog open={showDeleteDialog} onOpenChange={closeDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>

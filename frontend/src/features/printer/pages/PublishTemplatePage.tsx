@@ -1,6 +1,4 @@
 // src/features/printer/pages/PublishTemplatePage.tsx
-// ✅ TASK 1: TRANG ĐĂNG BÁN RIÊNG BIỆT - Chứa Form đã tách ra
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -31,25 +29,19 @@ type TemplateFormData = {
   tags: string;
 };
 
-// Utility
-function dataURLtoBlob(dataurl: string): Blob {
-  const arr = dataurl.split(",");
-  const mime = arr[0].match(/:(.*?);/)?.[1] || "image/png";
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
-  }
-  return new Blob([u8arr], { type: mime });
-}
+// ❌ Xóa: Utility dataURLtoBlob (vì previewDataUrl giờ là null)
 
 export function PublishTemplatePage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // State này giờ sẽ chứa { baseProductId, decals, timestamp, previewDataUrl: null }
   const [designData, setDesignData] = useState<any>(null);
 
-  // Form
+  // State này sẽ là NULL vì chưa có snapshot 3D
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Form (Giữ nguyên)
   const {
     register,
     handleSubmit,
@@ -67,18 +59,32 @@ export function PublishTemplatePage() {
     const tempData = sessionStorage.getItem("tempDesignData");
     if (!tempData) {
       toast.error("Không tìm thấy dữ liệu thiết kế tạm thời!");
-      navigate("/printer/studio/new");
+      // Quay về trang studio của nhà in (giả định)
+      navigate("/printer/dashboard/products");
       return;
     }
 
     try {
       const parsed = JSON.parse(tempData);
-      console.log("📥 [PublishTemplate] Loaded from sessionStorage:", parsed);
+
+      // ✅ KIỂM TRA LOGIC MỚI
+      if (!parsed.decals || !Array.isArray(parsed.decals)) {
+        throw new Error("Dữ liệu thiết kế không hợp lệ (thiếu 'decals').");
+      }
+
+      console.log(
+        "📥 [PublishTemplate] Loaded 'decals' from sessionStorage:",
+        parsed
+      );
       setDesignData(parsed);
-    } catch (err) {
+
+      // ❌ Xóa logic xử lý previewDataUrl (vì nó là null)
+      // Chúng ta sẽ hiển thị placeholder
+      setPreviewUrl(null);
+    } catch (err: any) {
       console.error("❌ [PublishTemplate] Parse error:", err);
-      toast.error("Dữ liệu thiết kế không hợp lệ!");
-      navigate("/printer/studio/new");
+      toast.error(err.message || "Dữ liệu thiết kế không hợp lệ!");
+      navigate("/printer/dashboard/products");
     }
   }, [navigate]);
 
@@ -93,26 +99,27 @@ export function PublishTemplatePage() {
     toast.info("Đang chuẩn bị dữ liệu...");
 
     try {
-      // Convert preview base64 thành blob
-      const previewBlob = dataURLtoBlob(designData.previewDataUrl);
+      // ❌ Xóa: Logic convert preview
+      // ❌ Xóa: Logic tạo production SVG
 
-      // Tạo production SVG (từ editorJson)
-      // Note: Bạn có thể cần thêm logic để convert JSON thành SVG ở đây
-      // Hiện tại tôi giả sử bạn đã có sẵn logic này trong canvas
-      const productionBlob = new Blob(
-        [JSON.stringify({ editorData: designData.editorJson })],
-        { type: "application/json" }
-      );
-
-      // Build FormData
+      // ✅ Build FormData (Logic MỚI)
       const formData = new FormData();
       formData.append("name", data.name);
       formData.append("description", data.description);
       formData.append("isPublic", String(data.isPublic));
       formData.append("baseProductId", designData.baseProductId);
-      formData.append("editorData", designData.editorJson);
-      formData.append("previewFile", previewBlob, "preview.png");
-      formData.append("productionFile", productionBlob, "design.json");
+
+      // Gửi 'decals' dưới dạng JSON
+      formData.append(
+        "editorData",
+        JSON.stringify({ decals: designData.decals })
+      );
+      formData.append("dataType", "3d-native-v1"); // Đánh dấu loại dữ liệu
+
+      // TODO: Gửi file preview (khi có snapshot 3D)
+      // if (previewBlob) {
+      //   formData.append("previewFile", previewBlob, "preview.png");
+      // }
 
       if (data.tags) {
         const tagsArray = data.tags
@@ -132,7 +139,7 @@ export function PublishTemplatePage() {
 
       // Clear session storage
       sessionStorage.removeItem("tempDesignData");
-      localStorage.removeItem("tempProductAssets");
+      localStorage.removeItem("tempProductAssets"); // Xóa luôn data phôi tạm
 
       toast.success("🎉 Đăng bán mẫu thành công!");
       navigate("/printer/dashboard/products");
@@ -176,7 +183,7 @@ export function PublishTemplatePage() {
                       "Bạn có chắc muốn quay lại? Dữ liệu chưa lưu sẽ bị mất."
                     )
                   ) {
-                    navigate(-1);
+                    navigate(-1); // Quay lại studio
                   }
                 }}
               >
@@ -213,15 +220,20 @@ export function PublishTemplatePage() {
               </CardHeader>
               <CardContent>
                 <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden border">
-                  {designData.previewDataUrl ? (
+                  {/* ✅ SỬA: Hiển thị placeholder vì previewUrl là null */}
+                  {previewUrl ? (
                     <img
-                      src={designData.previewDataUrl}
+                      src={previewUrl}
                       alt="Preview"
                       className="w-full h-full object-contain"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400">
-                      <Eye size={48} />
+                    <div className="w-full h-full flex items-center justify-center text-gray-400 p-4">
+                      <p className="text-center text-sm">
+                        ⚠️ Không có ảnh preview
+                        <br />
+                        (Cần triển khai snapshot 3D)
+                      </p>
                     </div>
                   )}
                 </div>
@@ -229,6 +241,10 @@ export function PublishTemplatePage() {
                   <div>
                     <span className="font-medium">Thời gian tạo:</span>{" "}
                     {new Date(designData.timestamp).toLocaleString("vi-VN")}
+                  </div>
+                  <div>
+                    <span className="font-medium">Số lượng decals:</span>{" "}
+                    {designData.decals.length}
                   </div>
                 </div>
               </CardContent>
@@ -265,9 +281,6 @@ export function PublishTemplatePage() {
                         {errors.name.message}
                       </p>
                     )}
-                    <p className="text-xs text-gray-500">
-                      Tên hiển thị cho khách hàng khi duyệt mẫu
-                    </p>
                   </div>
 
                   <Separator />
@@ -278,13 +291,10 @@ export function PublishTemplatePage() {
                     <Textarea
                       id="description"
                       {...register("description")}
-                      placeholder="Mô tả ngắn về mẫu thiết kế, phong cách, màu sắc..."
+                      placeholder="Mô tả ngắn về mẫu thiết kế..."
                       rows={4}
                       disabled={isSubmitting}
                     />
-                    <p className="text-xs text-gray-500">
-                      {watchedDescription?.length || 0}/500 ký tự
-                    </p>
                   </div>
 
                   <Separator />
@@ -298,9 +308,6 @@ export function PublishTemplatePage() {
                       placeholder="VD: card visit, giáng sinh, đỏ, sang trọng"
                       disabled={isSubmitting}
                     />
-                    <p className="text-xs text-gray-500">
-                      Giúp khách hàng dễ tìm kiếm mẫu của bạn
-                    </p>
                   </div>
 
                   <Separator />
@@ -322,21 +329,6 @@ export function PublishTemplatePage() {
                       disabled={isSubmitting}
                     />
                   </div>
-
-                  {/* Tips */}
-                  <Card className="bg-blue-50 border-blue-200">
-                    <CardContent className="pt-6">
-                      <h4 className="font-medium text-sm mb-2 text-blue-900">
-                        💡 Lưu ý
-                      </h4>
-                      <ul className="text-xs text-blue-700 space-y-1">
-                        <li>• Tên mẫu nên rõ ràng, dễ hiểu</li>
-                        <li>• Mô tả chi tiết giúp tăng tỷ lệ chọn mẫu</li>
-                        <li>• Sử dụng tags phù hợp để khách dễ tìm</li>
-                        <li>• Mẫu công khai sẽ hiện trong thư viện</li>
-                      </ul>
-                    </CardContent>
-                  </Card>
 
                   {/* Submit Buttons */}
                   <div className="flex gap-3 pt-4">

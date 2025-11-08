@@ -34,7 +34,7 @@ export function HeroSection({
           Bạn muốn in gì hôm nay?
         </ResponsiveH1>
         <p className="text-gray-600 text-sm md:text-base lg:text-lg px-2 md:px-4">
-          PrintZ Assistant sẵn sàng giúp bạn tạo ra những ấn phẩm tuyệt vời
+          Printz AI sẵn sàng giúp bạn tạo ra những ấn phẩm tuyệt vời
         </p>
       </div>
 

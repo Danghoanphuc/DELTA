@@ -1,4 +1,4 @@
-// src/features/chat/components/ChatProductCarousel.tsx (TẠO MỚI)
+// src/features/chat/components/ChatProductCarousel.tsx (CẬP NHẬT)
 
 import {
   Carousel,
@@ -9,12 +9,14 @@ import {
 } from "@/shared/components/ui/carousel";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { PrinterProduct } from "@/types/product";
-import { Link } from "react-router-dom";
+// ❌ Xóa import Link
 import { ImageWithFallback } from "@/features/figma/ImageWithFallback";
 import { Button } from "@/shared/components/ui/button";
+import { useChatContext } from "../context/ChatProvider"; // ✅ BƯỚC 1: IMPORT CONTEXT
 
 // Một phiên bản thẻ ProductCard đơn giản hơn cho chat
 const ChatProductCard = ({ product }: { product: PrinterProduct }) => {
+  const { openQuickView } = useChatContext(); // ✅ BƯỚC 2: LẤY HANDLER
   const primaryImage = product.images?.[0]?.url || "/placeholder-product.jpg";
   const lowestPrice =
     product.pricing.reduce(
@@ -40,10 +42,13 @@ const ChatProductCard = ({ product }: { product: PrinterProduct }) => {
           <span className="text-blue-600 font-bold text-sm">
             {lowestPrice.toLocaleString("vi-VN")}đ
           </span>
-          <Button size="sm" asChild variant="outline">
-            <Link to={`/products/${product._id}`} target="_blank">
-              Xem
-            </Link>
+          {/* ✅ BƯỚC 3: THAY ĐỔI LOGIC NÚT "XEM" */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => openQuickView(product._id)} // <-- Kích hoạt modal
+          >
+            Xem
           </Button>
         </div>
       </CardContent>

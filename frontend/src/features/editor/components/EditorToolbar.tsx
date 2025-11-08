@@ -1,163 +1,226 @@
-// frontend/src/features/editor/components/EditorToolbar.tsx
-// ✅ EXAMPLE: Thêm Drag Support cho Drag-and-Apply
+// src/features/editor/components/EditorToolbar.tsx
+// ✅ PHIÊN BẢN SỬA LỖI: Gỡ bỏ hoàn toàn Tab "Thuộc tính"
+// và các props liên quan.
 
-import React, { useState } from "react";
-import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
+import React, { useState, useCallback } from "react";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/shared/components/ui/tabs";
+import { Label } from "@/shared/components/ui/label";
+import { Input } from "@/shared/components/ui/input";
+import { Button } from "@/shared/components/ui/button";
+// ❌ Gỡ bỏ Slider, ToggleGroup, Magnet, v.v.
+import { Textarea } from "@/shared/components/ui/textarea";
 import {
   Upload,
   Type,
   Square,
-  Layers,
+  // ❌ Gỡ bỏ Settings, Move, Scale, RotateCcw
+  Loader2,
+  Library,
+  LayoutTemplate,
+  Sparkles,
   Circle,
-  Triangle,
-  Minus,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
-import { EditorCanvasRef } from "./EditorCanvas";
-import { LayersPanel } from "./LayersPanel";
-import { NativeScrollArea } from "@/shared/components/ui/NativeScrollArea";
-import { Separator } from "@/shared/components/ui/separator";
-import { TextPropertiesPanel } from "./TextPropertiesPanel";
-import { ImagePropertiesPanel } from "./ImagePropertiesPanel";
+import { toast } from "sonner";
+// ❌ Gỡ bỏ DecalInfo, GizmoMode
+import { UploadedImageVM } from "@/services/mediaAssetService";
 
+// (Component DraggableImageItem giữ nguyên)
+const DraggableImageItem: React.FC<{ image: UploadedImageVM }> = ({
+  image,
+}) => {
+  const onDragStart = (e: React.DragEvent) => {
+    if (image.isLoading) {
+      e.preventDefault();
+      return;
+    }
+    const dragData = { type: "image", imageUrl: image.url };
+    e.dataTransfer.setData("application/json", JSON.stringify(dragData));
+    e.dataTransfer.effectAllowed = "copy";
+  };
+  return (
+    <div
+      className={cn(
+        "relative aspect-square border rounded-md overflow-hidden cursor-move hover:ring-2 hover:ring-blue-500 transition-all",
+        image.isLoading && "cursor-wait opacity-50"
+      )}
+      draggable={!image.isLoading}
+      onDragStart={onDragStart}
+    >
+      {image.url ? (
+        <img
+          src={image.url}
+          alt={image.name}
+          className="w-full h-full object-cover"
+        />
+      ) : null}
+      {image.isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ✅ SỬA: Gỡ bỏ các props không còn dùng
 interface EditorToolbarProps {
-  editorRef: React.RefObject<EditorCanvasRef | null>;
+  activeTab: string;
+  onTabChange: (tab: string) => void;
+  uploadedImages: UploadedImageVM[];
   onImageUpload: (file: File) => void;
-  layers: any[];
-  activeObjectId: string | null;
-  onSelectLayer: (obj: any) => void;
-  onMoveLayer: (obj: any, direction: "up" | "down" | "top" | "bottom") => void;
-  onToggleVisibility: (obj: any) => void;
-  onDeleteLayer: (obj: any) => void;
-  selectedObject: any | null;
-  onPropertiesUpdate: () => void;
+  onImageFileRead: (file: File, imageUrl: string) => void;
+  imageDropQueue: File | null;
+  // ❌ Gỡ bỏ: decals, selectedDecalId, onDecalUpdate
+  // ❌ Gỡ bỏ: gizmoMode, onGizmoModeChange, isSnapping
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
-  editorRef,
+  activeTab,
+  onTabChange,
+  uploadedImages,
   onImageUpload,
-  layers,
-  activeObjectId,
-  onSelectLayer,
-  onMoveLayer,
-  onToggleVisibility,
-  onDeleteLayer,
-  selectedObject,
-  onPropertiesUpdate,
+  onImageFileRead,
+  imageDropQueue,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
 
-  // Handlers (Giữ nguyên)
-  const handleAddText = () => {
-    editorRef.current?.addText("Nhấn để chỉnh sửa");
-  };
-
-  const handleAddShape = (shape: "rect" | "circle" | "triangle" | "line") => {
-    editorRef.current?.addShape(shape);
-  };
-
+  // (Các hàm handler file upload giữ nguyên)
   const processFile = (file: File) => {
-    if (file) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Chỉ hỗ trợ file ảnh (PNG, JPG, WEBP)");
+      return;
+    }
+    if (imageDropQueue && imageDropQueue.name === file.name) {
       const reader = new FileReader();
-      reader.onload = (event) => {
-        const imageUrl = event.target?.result as string;
-        editorRef.current?.addImage(imageUrl);
+      reader.onload = (e) => {
+        onImageFileRead(file, e.target?.result as string);
       };
       reader.readAsDataURL(file);
+    } else {
       onImageUpload(file);
     }
   };
-
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      processFile(file);
-    }
+    if (file) processFile(file);
+    e.target.value = "";
   };
-
-  const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragging(true);
   };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLLabelElement>) => {
+  const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragging(false);
   };
-
-  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) {
-      processFile(file);
-    }
+    if (file) processFile(file);
   };
+
+  // ❌ Gỡ bỏ 'selectedDecal'
 
   return (
     <Tabs
-      defaultValue="upload"
+      value={activeTab}
+      onValueChange={onTabChange}
       orientation="vertical"
-      className="flex w-80 bg-white rounded-lg shadow-xl overflow-hidden h-[calc(100%-50px)] border-black border-[1.5px]"
+      className="flex w-full"
     >
-      {/* TabsList (Giữ nguyên) */}
-      <TabsList className="flex flex-col h-full gap-1 p-2 border-r">
+      {/* Tabs List */}
+      <TabsList className="flex flex-col h-auto min-h-[300px] gap-1 p-2 border-r bg-gray-50/50">
         <TabsTrigger
-          value="upload"
-          className="flex flex-col w-full py-4 h-auto"
+          value="templates"
+          className="flex flex-col w-full py-3 h-auto data-[state=active]:bg-white data-[state=active]:shadow-sm"
         >
-          <Upload size={20} />
-          <span className="text-xs mt-1">Tải lên</span>
+          <LayoutTemplate size={18} />
+          <span className="text-[10px] mt-1 font-medium">Mẫu</span>
         </TabsTrigger>
-        <TabsTrigger value="text" className="flex flex-col w-full py-4 h-auto">
-          <Type size={20} />
-          <span className="text-xs mt-1">Văn bản</span>
+        <TabsTrigger
+          value="ai"
+          className="flex flex-col w-full py-3 h-auto data-[state=active]:bg-white data-[state=active]:shadow-sm"
+        >
+          <Sparkles size={18} />
+          <span className="text-[10px] mt-1 font-medium">AI</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="library"
+          className="flex flex-col w-full py-3 h-auto data-[state=active]:bg-white data-[state=active]:shadow-sm"
+        >
+          <Library size={18} />
+          <span className="text-[10px] mt-1 font-medium">Thư viện</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="text"
+          className="flex flex-col w-full py-3 h-auto data-[state=active]:bg-white data-[state=active]:shadow-sm"
+        >
+          <Type size={18} />
+          <span className="text-[10px] mt-1 font-medium">Văn bản</span>
         </TabsTrigger>
         <TabsTrigger
           value="shapes"
-          className="flex flex-col w-full py-4 h-auto"
+          className="flex flex-col w-full py-3 h-auto data-[state=active]:bg-white data-[state=active]:shadow-sm"
         >
-          <Square size={20} />
-          <span className="text-xs mt-1">Thành phần</span>
+          <Square size={18} />
+          <span className="text-[10px] mt-1 font-medium">Hình khối</span>
         </TabsTrigger>
-        <TabsTrigger
-          value="layers"
-          className="flex flex-col w-full py-4 h-auto"
-        >
-          <Layers size={20} />
-          <span className="text-xs mt-1">Các lớp</span>
-        </TabsTrigger>
+        {/* ❌ Gỡ bỏ Trigger 'properties' */}
       </TabsList>
 
-      <NativeScrollArea className="flex-1 h-full">
-        {/* Tab "Upload" (Giữ nguyên) */}
-        <TabsContent value="upload" className="m-0 h-full">
-          <div className="p-4 space-y-3">
-            <h3 className="font-semibold text-sm">Upload ảnh</h3>
+      {/* Tabs Content Area */}
+      <div className="flex-1 min-h-[300px] max-h-[50vh] overflow-y-auto custom-scrollbar">
+        {/* (Tab Mẫu, AI, Thư viện, Văn bản, Hình khối... giữ nguyên) */}
+
+        {/* Tab Mẫu */}
+        <TabsContent value="templates" className="m-0 p-4">
+          <h3 className="font-semibold text-sm mb-2">Mẫu Thiết kế</h3>
+          <p className="text-xs text-gray-500">
+            (Tính năng đang phát triển...)
+          </p>
+        </TabsContent>
+
+        {/* Tab AI */}
+        <TabsContent value="ai" className="m-0 p-4 space-y-3">
+          <h3 className="font-semibold text-sm">Tạo bằng AI</h3>
+          <Textarea
+            placeholder="Mô tả hình ảnh bạn muốn..."
+            rows={3}
+            className="resize-none text-sm"
+          />
+          <Button className="w-full bg-gradient-to-r from-purple-500 to-blue-500 border-0">
+            <Sparkles size={16} className="mr-2" /> Tạo ngay
+          </Button>
+        </TabsContent>
+
+        {/* Tab Thư viện */}
+        <TabsContent value="library" className="m-0 p-4 flex flex-col gap-4">
+          <div
+            className={cn(
+              "flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg cursor-pointer transition-all bg-gray-50/50 hover:bg-blue-50/50 hover:border-blue-300",
+              isDragging && "border-blue-500 bg-blue-50"
+            )}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
             <Label
               htmlFor="image-upload"
-              className={cn(
-                "flex flex-col items-center justify-center gap-4 w-full px-8 py-16 border-2 border-dashed border-gray-400 rounded-lg cursor-pointer hover:bg-blue-100 hover:border-blue-600 transition-colors",
-                isDragging && "bg-blue-100 border-blue-600"
-              )}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
+              className="cursor-pointer flex flex-col items-center"
             >
-              <Upload size={32} className="text-gray-500" />
-              <span className="text-base text-gray-700 font-medium text-center">
-                Nhấn hoặc kéo thả file vào đây
+              <Upload size={24} className="text-gray-400 mb-2" />
+              <span className="text-xs text-gray-600 font-medium text-center">
+                Kéo thả hoặc nhấn để tải ảnh
+              </span>
+              <span className="text-[10px] text-gray-400 mt-1">
+                (JPG, PNG, tối đa 5MB)
               </span>
             </Label>
             <Input
@@ -167,192 +230,77 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               onChange={handleFileUpload}
               className="hidden"
             />
-            {selectedObject && selectedObject.type === "image" && (
-              <>
-                <Separator className="my-4" />
-                <ImagePropertiesPanel
-                  selectedObject={selectedObject}
-                  editorRef={editorRef}
-                  onUpdate={onPropertiesUpdate}
-                />
-              </>
-            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {uploadedImages.map((img) => (
+              <DraggableImageItem key={img.id} image={img} />
+            ))}
           </div>
         </TabsContent>
 
-        {/* Tab "Text" - ✅ ĐÃ THÊM DRAG SUPPORT */}
-        <TabsContent value="text" className="m-0 h-full">
-          <div className="p-4 space-y-3">
-            <h3 className="font-semibold text-sm">Thêm văn bản</h3>
+        {/* Tab Văn bản */}
+        <TabsContent value="text" className="m-0 p-4 space-y-3">
+          <h3 className="font-semibold text-sm">Thêm văn bản</h3>
+          <Button
+            variant="outline"
+            className="w-full justify-start cursor-move hover:border-blue-300 hover:bg-blue-50"
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData(
+                "application/json",
+                JSON.stringify({ type: "text", text: "Nhập văn bản..." })
+              );
+            }}
+          >
+            <Type size={18} className="mr-2 text-gray-500" />
+            Tiêu đề lớn
+          </Button>
+        </TabsContent>
 
-            {/* ✅ THÊM: Draggable Button */}
+        {/* Tab Hình khối */}
+        <TabsContent value="shapes" className="m-0 p-4 space-y-3">
+          <h3 className="font-semibold text-sm">Hình cơ bản</h3>
+          <div className="grid grid-cols-2 gap-2">
             <Button
               variant="outline"
-              className="w-full justify-start cursor-move" // ✅ Thêm cursor-move
-              onClick={handleAddText}
-              // ✅ THÊM: Drag Support
+              className="justify-start cursor-move hover:border-blue-300 hover:bg-blue-50"
               draggable
               onDragStart={(e) => {
-                const dragData = {
-                  type: "text",
-                  text: "Nhấn để chỉnh sửa",
-                };
                 e.dataTransfer.setData(
                   "application/json",
-                  JSON.stringify(dragData)
-                );
-                e.dataTransfer.effectAllowed = "copy";
-
-                // ✅ Optional: Thêm drag image
-                const dragImage = document.createElement("div");
-                dragImage.textContent = "📝 Text";
-                dragImage.style.cssText =
-                  "position: absolute; top: -1000px; padding: 8px; background: white; border: 2px solid blue; border-radius: 4px; font-size: 14px;";
-                document.body.appendChild(dragImage);
-                e.dataTransfer.setDragImage(dragImage, 0, 0);
-                setTimeout(() => document.body.removeChild(dragImage), 0);
-              }}
-              onDragEnd={(e) => {
-                // ✅ Optional: Cleanup nếu cần
-                console.log("[EditorToolbar] Drag ended");
-              }}
-            >
-              <Type size={18} className="mr-2" />
-              Thêm văn bản
-            </Button>
-
-            <p className="text-xs text-gray-500">
-              💡 Kéo vào model 3D hoặc click để thêm
-            </p>
-
-            {selectedObject && selectedObject.type === "i-text" && (
-              <>
-                <Separator className="my-4" />
-                <TextPropertiesPanel
-                  selectedObject={selectedObject}
-                  editorRef={editorRef}
-                  onUpdate={onPropertiesUpdate}
-                />
-              </>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* Tab "Shapes" - ✅ ĐÃ THÊM DRAG SUPPORT */}
-        <TabsContent value="shapes" className="m-0 h-full">
-          <div className="p-4 space-y-3">
-            <h3 className="font-semibold text-sm">Hình dạng</h3>
-            <div className="grid grid-cols-1 gap-2">
-              {/* ✅ THÊM: Draggable Shapes */}
-
-              {/* Vuông */}
-              <Button
-                variant="outline"
-                onClick={() => handleAddShape("rect")}
-                className="justify-start cursor-move"
-                draggable
-                onDragStart={(e) => {
-                  const dragData = {
+                  JSON.stringify({
                     type: "shape",
                     shapeType: "rect",
-                  };
-                  e.dataTransfer.setData(
-                    "application/json",
-                    JSON.stringify(dragData)
-                  );
-                  e.dataTransfer.effectAllowed = "copy";
-                }}
-              >
-                <Square size={18} className="mr-2" />
-                Vuông
-              </Button>
-
-              {/* Tròn */}
-              <Button
-                variant="outline"
-                onClick={() => handleAddShape("circle")}
-                className="justify-start cursor-move"
-                draggable
-                onDragStart={(e) => {
-                  const dragData = {
+                    color: "#3498db",
+                  })
+                );
+              }}
+            >
+              <Square size={18} className="mr-2 text-blue-500" /> Vuông
+            </Button>
+            <Button
+              variant="outline"
+              className="justify-start cursor-move hover:border-blue-300 hover:bg-blue-50"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData(
+                  "application/json",
+                  JSON.stringify({
                     type: "shape",
                     shapeType: "circle",
-                  };
-                  e.dataTransfer.setData(
-                    "application/json",
-                    JSON.stringify(dragData)
-                  );
-                  e.dataTransfer.effectAllowed = "copy";
-                }}
-              >
-                <Circle size={18} className="mr-2" />
-                Tròn
-              </Button>
-
-              {/* Tam giác */}
-              <Button
-                variant="outline"
-                onClick={() => handleAddShape("triangle")}
-                className="justify-start cursor-move"
-                draggable
-                onDragStart={(e) => {
-                  const dragData = {
-                    type: "shape",
-                    shapeType: "triangle",
-                  };
-                  e.dataTransfer.setData(
-                    "application/json",
-                    JSON.stringify(dragData)
-                  );
-                  e.dataTransfer.effectAllowed = "copy";
-                }}
-              >
-                <Triangle size={18} className="mr-2" />
-                Tam giác
-              </Button>
-
-              {/* Đường */}
-              <Button
-                variant="outline"
-                onClick={() => handleAddShape("line")}
-                className="justify-start cursor-move"
-                draggable
-                onDragStart={(e) => {
-                  const dragData = {
-                    type: "shape",
-                    shapeType: "line",
-                  };
-                  e.dataTransfer.setData(
-                    "application/json",
-                    JSON.stringify(dragData)
-                  );
-                  e.dataTransfer.effectAllowed = "copy";
-                }}
-              >
-                <Minus size={18} className="mr-2" />
-                Đường
-              </Button>
-            </div>
-
-            <p className="text-xs text-gray-500">
-              💡 Kéo vào model 3D hoặc click để thêm
-            </p>
+                    color: "#e74c3c",
+                  })
+                );
+              }}
+            >
+              <Circle size={18} className="mr-2 text-red-500" /> Tròn
+            </Button>
           </div>
         </TabsContent>
 
-        {/* Tab "Layers" (Giữ nguyên) */}
-        <TabsContent value="layers" className="m-0 h-full">
-          <LayersPanel
-            className="w-full h-full border-l-0 border-t-0"
-            layers={layers}
-            activeObjectId={activeObjectId || null}
-            onSelectLayer={onSelectLayer}
-            onMoveLayer={onMoveLayer}
-            onToggleVisibility={onToggleVisibility}
-            onDeleteLayer={onDeleteLayer}
-          />
-        </TabsContent>
-      </NativeScrollArea>
+        {/* ❌ Gỡ bỏ 'TabsContent' cho "properties" */}
+      </div>
     </Tabs>
   );
 };

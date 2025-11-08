@@ -1,4 +1,4 @@
-// src/components/ChatMessages.tsx (CẬP NHẬT)
+// src/components/ChatMessages.tsx (FULL FILE)
 
 import { useEffect, useRef } from "react";
 import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
@@ -8,7 +8,7 @@ import UserAvatarFallback from "@/components/UserAvatarFallback";
 import { useAuthStore } from "@/stores/useAuthStore";
 import zinAvatar from "@/assets/img/zin-avatar.png";
 import { ChatProductCarousel } from "@/features/chat/components/ChatProductCarousel";
-
+import { ChatOrderCarousel } from "@/features/chat/components/ChatOrderCarousel";
 // (BotAvatar và UserAvatar giữ nguyên)
 const BotAvatar = () => (
   <div className="w-7 h-7 md:w-10 md:h-10 rounded-xl md:rounded-2xl flex items-center justify-center overflow-hidden flex-shrink-0 shadow-lg">
@@ -35,7 +35,7 @@ const UserAvatar = () => {
 // Component render nội dung tin nhắn
 const MessageContent = ({ msg }: { msg: ChatMessage }) => {
   switch (msg.type) {
-    // ✅ CẬP NHẬT: Thêm case cho "ai_response"
+    // ✅ CẬP NHẬT: Thêm case cho "ai_response" (vẫn giữ)
     case "ai_response":
     case "text":
       return (
@@ -44,18 +44,13 @@ const MessageContent = ({ msg }: { msg: ChatMessage }) => {
             "p-3 rounded-xl max-w-xs md:max-w-md",
             msg.senderType === "User"
               ? "bg-blue-600 text-white rounded-br-none"
-              : // Cả "text" và "ai_response" đều là của AI
-                "bg-gray-100 text-gray-800 rounded-bl-none"
+              : "bg-gray-100 text-gray-800 rounded-bl-none"
           )}
         >
-          {/* Dù là type "text" hay "ai_response",
-            chúng ta đều chỉ hiển thị trường "text" bên trong content
-          */}
           <p className="whitespace-pre-wrap">{msg.content.text}</p>
         </div>
       );
 
-    // (Các case khác giữ nguyên)
     case "product_selection":
       return (
         <div className="p-3 rounded-xl bg-gray-100 rounded-bl-none">
@@ -68,7 +63,7 @@ const MessageContent = ({ msg }: { msg: ChatMessage }) => {
       return (
         <div className="p-3 rounded-xl bg-gray-100 rounded-bl-none">
           <p className="mb-3">{msg.content.text}</p>
-          <p className="text-xs text-gray-500">(Render Order Carousel ở đây)</p>
+          <ChatOrderCarousel orders={msg.content.orders} />
         </div>
       );
 
@@ -82,7 +77,6 @@ interface ChatMessagesProps {
   isLoadingAI: boolean;
 }
 
-// (Phần còn lại của file ChatMessages giữ nguyên)
 export function ChatMessages({ messages, isLoadingAI }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 

@@ -3,7 +3,17 @@
 import { PrinterProduct } from "./product";
 import { Order } from "./order";
 
-// ... (Các interface QuickReply, TextMessageContent, v.v. giữ nguyên) ...
+// ===================================
+// ✅ MỚI: ĐỊNH NGHĨA CUỘC TRÒ CHUYỆN
+// ===================================
+export interface ChatConversation {
+  _id: string;
+  userId: string;
+  title: string; // Tên do AI tự động đặt (hoặc do người dùng sửa)
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ===================================
 // 1. CÁC THÀNH PHẦN CƠ BẢN
 // ===================================
@@ -26,7 +36,6 @@ export interface OrderSelectionContent {
   orders: Order[];
 }
 
-// ✅ MỚI: Thêm nội dung cho ai_response (để bao gồm entities, printers)
 export interface AiResponseContent {
   text: string;
   entities?: any;
@@ -40,6 +49,9 @@ interface BaseMessage {
   _id: string;
   senderType: "User" | "AI";
   createdAt?: string;
+
+  // ✅ THÊM: Liên kết tin nhắn với cuộc trò chuyện
+  conversationId: string;
 }
 
 export interface TextMessage extends BaseMessage {
@@ -47,7 +59,6 @@ export interface TextMessage extends BaseMessage {
   content: TextMessageContent;
 }
 
-// ✅ MỚI: Thêm type cho "ai_response"
 export interface AiResponseMessage extends BaseMessage {
   type: "ai_response";
   senderType: "AI";
@@ -65,10 +76,9 @@ export interface OrderSelectionMessage extends BaseMessage {
   content: OrderSelectionContent;
 }
 
-// ✅ CẬP NHẬT UNION TYPE
 export type ChatMessage =
   | TextMessage
-  | AiResponseMessage // <-- Thêm vào đây
+  | AiResponseMessage
   | ProductSelectionMessage
   | OrderSelectionMessage;
 
@@ -76,13 +86,17 @@ export type ChatMessage =
 // 4. CẤU TRÚC PHẢN HỒI TỪ API
 // ===================================
 export interface AiApiResponse {
-  type: ChatMessage["type"]; // "text" | "ai_response" | "product_selection" | ...
+  type: ChatMessage["type"];
   content:
     | TextMessageContent
-    | AiResponseContent // <-- Thêm vào đây
+    | AiResponseContent
     | ProductSelectionContent
     | OrderSelectionContent;
   quickReplies?: QuickReply[];
   isGuest?: boolean;
   savedToHistory?: boolean;
+
+  // ✅ THÊM: Khi một cuộc trò chuyện MỚI được tạo,
+  // backend phải trả về thông tin của nó.
+  newConversation?: ChatConversation;
 }

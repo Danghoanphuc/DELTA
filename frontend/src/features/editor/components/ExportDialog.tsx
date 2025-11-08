@@ -16,7 +16,8 @@ import { Label } from "@/shared/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group";
 import { toast } from "sonner";
 import { Download, Loader2, FileImage, FileCode } from "lucide-react";
-import { EditorCanvasRef } from "./EditorCanvas";
+// import { EditorCanvasRef } from "./EditorCanvas";
+type EditorCanvasRef = any;
 
 // ... (Interface và type giữ nguyên) ...
 interface ExportDialogProps {

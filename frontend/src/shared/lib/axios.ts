@@ -1,18 +1,33 @@
 // frontend/src/lib/axios.ts
+// ✅ PHIÊN BẢN SỬA LỖI (THEO NGUYÊN TẮC "SINGLE SOURCE OF TRUTH")
+
 import axios from "axios";
 import { useAuthStore } from "@/stores/useAuthStore"; // Đảm bảo đường dẫn này đúng
 
-// Lấy URL backend từ biến môi trường, fallback về localhost nếu không có
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
+// =================================================================
+// BƯỚC 1: Đảm bảo file .env của anh đã sửa thành:
+// VITE_API_URL=http://localhost:5001/api
+// =================================================================
+
+// 1. Lấy URL backend từ biến môi trường
+// (Biến này BÂY GIỜ đã bao gồm /api)
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+if (!API_BASE_URL) {
+  console.error(
+    "Lỗi cấu hình: VITE_API_URL chưa được định nghĩa trong file .env"
+  );
+}
 
 const api = axios.create({
-  // Nối '/api' nếu backend routes của bạn bắt đầu bằng /api
-  // Nếu VITE_API_URL đã bao gồm /api thì chỉ cần API_BASE_URL
-  baseURL: API_BASE_URL + "/api",
+  // ✅ SỬA LỖI: Chỉ cần gán thẳng baseURL.
+  // KHÔNG cộng thêm "/api" ở đây.
+  baseURL: API_BASE_URL,
   withCredentials: true,
 });
 
-// --- Interceptors giữ nguyên ---
+// --- Interceptors (Giữ nguyên - Rất tốt) ---
+
 // Gắn access token vào req header
 api.interceptors.request.use(
   (config) => {
@@ -73,25 +88,32 @@ api.interceptors.response.use(
 
       try {
         console.log("🔄 Access token expired, refreshing...");
+        // Quan trọng: Lời gọi refresh cũng phải là đường dẫn tương đối
         const refreshRes = await api.post("/auth/refresh");
-        const newAccessToken = refreshRes.data.accessToken;
+        const newAccessToken = refreshRes.data.data.accessToken; // Cập nhật theo cấu trúc ApiResponse
 
         if (!newAccessToken) {
-          throw new Error("No access token received");
+          throw new Error("No access token received from refresh");
         }
 
         useAuthStore.getState().setAccessToken(newAccessToken);
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        
+
         processQueue(null, newAccessToken);
         return api(originalRequest);
-      } catch (refreshError) {
-        console.error("❌ Failed to refresh token:", refreshError);
+      } catch (refreshError: any) {
+        console.error(
+          "❌ Failed to refresh token:",
+          refreshError.response?.data?.message || refreshError.message
+        );
         processQueue(refreshError, null);
         useAuthStore.getState().clearState();
-        
+
         // Redirect to signin page
-        if (typeof window !== "undefined" && !window.location.pathname.includes("/signin")) {
+        if (
+          typeof window !== "undefined" &&
+          !window.location.pathname.includes("/signin")
+        ) {
           window.location.href = "/signin";
         }
         return Promise.reject(refreshError);

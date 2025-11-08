@@ -1,328 +1,224 @@
-// frontend/src/features/editor/DesignEditorPage.tsx
-// ✅ BẢN GỘP: Tích hợp DebugPanel & MaterialMapper + Sửa lỗi `surfaceKey`
+// features/editor/DesignEditorPage.tsx
+// ✅ NÂNG CẤP: Sử dụng state `items` và `selectedItemIds`
+// ✅ BẢN VÁ: Sửa lỗi `surfaceMapping` (lấp đầy useMemo)
 
-import React, { useMemo, useCallback, useState, useEffect } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
-import {
-  Save,
-  Loader2,
-  GripVertical,
-  Download,
-  Bug,
-  Wrench,
-} from "lucide-react"; // ✅ Thêm icons
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/shared/components/ui/tabs";
+import { Layers, DollarSign, ArrowLeft } from "lucide-react";
 import * as THREE from "three";
-import { Rnd } from "react-rnd";
+import { useNavigate } from "react-router-dom";
+import { Card } from "@/shared/components/ui/card";
+import { NativeScrollArea } from "@/shared/components/ui/NativeScrollArea";
 
-import { EditorCanvas } from "./components/EditorCanvas";
 import ProductViewer3D from "./components/ProductViewer3D";
 import { EditorToolbar } from "./components/EditorToolbar";
-import { PropertiesPanel } from "./components/PropertiesPanel";
-import { ExportDialog } from "./components/ExportDialog";
-import { DebugPanel, DebugInfo } from "./components/DebugPanel"; // ✅ Import
-import { MaterialMapper } from "./components/MaterialMapper"; // ✅ Import
+import { DecalList } from "./components/DecalList";
 import { useDesignEditor } from "./hooks/useDesignEditor";
-import { CanvasLoadingSkeleton } from "./components/LoadingSkeleton";
-import { useSearchParams } from "react-router-dom"; // ✅ Import
-
-const EditorLoadingSkeleton = () => (
-  <div className="flex h-screen w-full items-center justify-center bg-gray-100">
-    <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-    <p className="ml-4 text-gray-600">Đang tải dữ liệu sản phẩm...</p>
-  </div>
-);
+import { StudioLoadingSkeleton } from "./components/LoadingSkeleton";
+import { InteractionResult, SurfaceDefinition } from "./hooks/use3DInteraction";
+import { LiveQuotePanel } from "@/features/shop/components/LiveQuotePanel";
+import { formatPrice } from "@/features/printer/utils/formatters";
+import EditorFooterToolbar from "./components/EditorFooterToolbar";
+import { ContextualPropertyBar } from "./components/ContextualPropertyBar";
+import { toast } from "sonner"; // ✅ Thêm toast
 
 export function DesignEditorPage() {
+  const navigate = useNavigate();
+
+  // 1. Hook đã được cập nhật
   const {
     product,
-    activeSurfaceKey,
-    setActiveSurfaceKey,
-    textures,
-    editorRefs,
     isLoading,
     isSaving,
     isModelLoaded,
     setIsModelLoaded,
-    handleSurfaceUpdate,
+
+    // State mới
+    items,
+    flatDecalItems,
+    selectedItemIds,
+
+    // Handlers mới
+    handleSelectItem,
+    deselectAll,
+    addItem,
+    deleteSelectedItems,
+    updateItemProperties,
+    handleGroupSelection,
+    handleUngroupSelection,
+    reorderItems,
+
+    // State/Handlers cũ
+    activeToolbarTab,
+    setActiveToolbarTab,
+    uploadedImages,
     handleToolbarImageUpload,
-    getActiveEditorRef,
+    gizmoMode,
+    setGizmoMode,
+    isSnapping,
+    selectedQuantity,
+    setSelectedQuantity,
+    minQuantity,
+    currentPricePerUnit,
     handleSaveAndAddToCart,
-    layers,
-    activeObjectId,
-    updateLayers,
-    handleSelectLayer,
-    handleMoveLayer,
-    handleToggleVisibility,
-    handleDeleteLayer,
-    selectedObject,
-    isExportDialogOpen,
-    setIsExportDialogOpen,
   } = useDesignEditor();
 
-  // ✅ THÊM: Debug panel state
-  const [searchParams] = useSearchParams();
-  const debugMode =
-    searchParams.get("debug") === "true" ||
-    process.env.NODE_ENV === "development";
-  const [showDebugPanel, setShowDebugPanel] = useState(debugMode);
-  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
+  // (imageDropQueue và các handler file/drop giữ nguyên,
+  // nhưng gọi `addItem` thay vì `addDecal`)
+  const [imageDropQueue, setImageDropQueue] = useState<{
+    file: File;
+    interactionResult: InteractionResult;
+  } | null>(null);
 
-  useEffect(() => {
-    const updateDebugInfo = () => {
-      const activeEditor = getActiveEditorRef();
-      if (activeEditor && typeof activeEditor.getDebugInfo === "function") {
-        const info = activeEditor.getDebugInfo();
-        setDebugInfo(info);
+  const handle3DDrop = useCallback(
+    (dropData: any, interactionResult: InteractionResult) => {
+      if (dropData.type === "imageFile") {
+        setImageDropQueue({ file: dropData.file, interactionResult });
+      } else {
+        addItem("decal", dropData, interactionResult); // ✅ SỬA
       }
-    };
-
-    updateDebugInfo();
-  }, [layers, activeSurfaceKey, getActiveEditorRef]);
-
-  // ✅ THÊM: Material mapper state
-  const [showMaterialMapper, setShowMaterialMapper] = useState(false);
-  const [selectedSurfaceForMapping, setSelectedSurfaceForMapping] = useState<
-    string | null
-  >(null);
-
-  const handleModelLoaded = useCallback(() => {
-    console.log("✅ [DesignEditorPage] 3D Model loaded!");
-    setIsModelLoaded(true);
-  }, [setIsModelLoaded]);
-
-  // ✅ THÊM: Convert textures to Map for DebugPanel
-  const canvasElementsMap = useMemo(() => {
-    const map = new Map<string, HTMLCanvasElement>();
-
-    for (const [materialName, texture] of Object.entries(textures)) {
-      if (texture && texture.image instanceof HTMLCanvasElement) {
-        map.set(materialName, texture.image);
-      }
-    }
-
-    return map;
-  }, [textures]);
-
-  const texturesFor3D = useMemo(() => {
-    const result: Record<string, THREE.CanvasTexture> = {};
-    for (const [materialName, textureData] of Object.entries(textures)) {
-      if (textureData) {
-        result[materialName] = textureData;
-      }
-    }
-    return result;
-  }, [textures]);
-
-  // ✅ THÊM: Handle material mapper
-  const handleOpenMaterialMapper = useCallback(() => {
-    if (activeSurfaceKey) {
-      setSelectedSurfaceForMapping(activeSurfaceKey);
-      setShowMaterialMapper(true);
-    }
-  }, [activeSurfaceKey]);
-
-  const handleMaterialNameChange = useCallback((newMaterialName: string) => {
-    // ⚠️ TODO: Update product config hoặc local state
-    // Hiện tại chỉ log, cần implement persistence
-    console.log("🔄 Material name changed to:", newMaterialName);
-    alert(
-      `Material mapping updated to: ${newMaterialName}\n\n⚠️ Note: This change is not persisted yet. Implement product config update.`
-    );
-  }, []);
-
-  if (isLoading || !product) {
-    return <EditorLoadingSkeleton />;
-  }
-
-  // ✅ THÊM: Get current surface for material mapper
-  // ✅ SỬA: Dùng surfaceKey
-  const currentSurface = product.assets.surfaces.find(
-    (s) => s.surfaceKey === selectedSurfaceForMapping
+    },
+    [addItem] // ✅ SỬA
   );
 
+  const handleImageFileRead = (file: File, imageUrl: string) => {
+    if (imageDropQueue && imageDropQueue.file === file) {
+      const dropData = { type: "image", imageUrl: imageUrl };
+      addItem("decal", dropData, imageDropQueue.interactionResult); // ✅ SỬA
+      setImageDropQueue(null);
+    } else {
+      handleToolbarImageUpload(file);
+    }
+  };
+
+  // ✅✅✅ SỬA LỖI TẠI ĐÂY ✅✅✅
+  // (Lấp đầy logic cho useMemo)
+  const surfaceMapping = useMemo((): SurfaceDefinition[] => {
+    if (!product?.assets?.surfaces) return [];
+    return product.assets.surfaces.map((s) => ({
+      materialName: s.materialName,
+      surfaceKey: s.surfaceKey,
+      // Tạm thời, sau này sẽ lấy từ CSDL
+      artboardSize: { width: 1024, height: 1024 },
+    }));
+  }, [product]); // ✅ Phụ thuộc vào product
+
+  const handleExit = () => {
+    if (
+      window.confirm("Bạn có chắc muốn thoát? Mọi thay đổi chưa lưu sẽ bị mất.")
+    ) {
+      navigate(-1); // Quay lại trang trước đó
+    }
+  };
+
+  if (isLoading || !product) {
+    return <StudioLoadingSkeleton />;
+  }
+
+  // === RENDER ===
   return (
-    <div className="flex h-screen bg-gray-100 relative overflow-hidden">
-      {/* 1. TOOLBAR NỔI (BÊN TRÁI) */}
-      <div className="absolute top-4 left-4 z-20 w-80 bg-white rounded-lg shadow-xl">
-        <EditorToolbar
-          editorRef={{ current: getActiveEditorRef() }}
-          onImageUpload={handleToolbarImageUpload}
-          layers={layers}
-          activeObjectId={activeObjectId}
-          onSelectLayer={handleSelectLayer}
-          onMoveLayer={handleMoveLayer}
-          onToggleVisibility={handleToggleVisibility}
-          onDeleteLayer={handleDeleteLayer}
-          selectedObject={selectedObject}
-          onPropertiesUpdate={updateLayers}
+    <div className="flex h-screen w-full bg-gray-100 relative overflow-hidden">
+      {/* 1. VÙNG 3D (NỀN) */}
+      <div className="absolute inset-0 z-0" onClick={deselectAll}>
+        <ProductViewer3D
+          modelUrl={product.assets.modelUrl!}
+          onModelLoaded={() => setIsModelLoaded(true)}
+          decals={flatDecalItems}
+          surfaceMapping={surfaceMapping} // ✅ Đã có dữ liệu
+          onDrop={handle3DDrop}
+          selectedDecalId={
+            selectedItemIds.length === 1 ? selectedItemIds[0] : null
+          }
+          onDecalSelect={handleSelectItem}
+          onDecalUpdate={updateItemProperties} // ✅ Prop tên 'onDecalUpdate'
+          gizmoMode={gizmoMode}
+          isSnapping={isSnapping}
         />
       </div>
 
-      {/* 2. PROPERTIES PANEL NỔI (BÊN PHẢI) */}
-      <div className="absolute top-4 right-4 z-20 w-72">
-        <PropertiesPanel
-          selectedObject={selectedObject}
-          editorRef={{ current: getActiveEditorRef() }}
-          onUpdate={updateLayers}
-        />
-      </div>
-
-      {/* 3. HEADER NỔI (GIỮA TRÊN) */}
-      <div className="absolute top-4 left-[21rem] z-20 bg-white p-3 rounded-lg shadow-xl">
-        <h3 className="text-sm font-semibold">Upload & Design</h3>
-        <p className="text-xs text-gray-600">{product.name}</p>
-      </div>
-
-      {/* ✅ THÊM: DEBUG CONTROLS */}
-      <div className="absolute top-4 right-80 z-20 flex gap-2">
-        {/* Toggle Debug Panel */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="bg-white"
-          onClick={() => setShowDebugPanel(!showDebugPanel)}
-        >
-          <Bug size={16} className="mr-2" />
-          {showDebugPanel ? "Hide" : "Show"} Debug
-        </Button>
-
-        {/* Open Material Mapper */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="bg-white"
-          onClick={handleOpenMaterialMapper}
-          disabled={!activeSurfaceKey}
-        >
-          <Wrench size={16} className="mr-2" />
-          Material Mapper
-        </Button>
-      </div>
-
-      {/* 4. ACTION BUTTONS NỔI (DƯỚI PHẢI) */}
-      <div className="absolute bottom-4 right-4 z-20 flex gap-2">
-        <Button
-          variant="outline"
-          className="bg-white"
-          onClick={() => setIsExportDialogOpen(true)}
-        >
-          <Download size={16} className="mr-2" />
-          Export
-        </Button>
-        <Button
-          className="bg-blue-600 hover:bg-blue-700"
-          onClick={handleSaveAndAddToCart}
-          disabled={isSaving}
-        >
-          {isSaving ? <Loader2 className="animate-spin" /> : <Save />}
-          Lưu & Tiếp tục
-        </Button>
-      </div>
-
-      {/* 5. VÙNG 2D EDITOR (TRUNG TÂM) */}
-      <div className="flex-1 flex flex-col items-center justify-center p-4 overflow-auto">
-        <Tabs
-          value={activeSurfaceKey || ""}
-          onValueChange={setActiveSurfaceKey}
-          className="w-full max-w-[600px] flex flex-col"
-        >
-          <TabsList className="mb-2">
-            {product.assets.surfaces.map((surface) => (
-              // ✅ SỬA: Dùng surfaceKey
-              <TabsTrigger key={surface.surfaceKey} value={surface.surfaceKey}>
-                {surface.name}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {product.assets.surfaces.map((surface) => (
-            <TabsContent
-              // ✅ SỬA: Dùng surfaceKey
-              key={surface.surfaceKey}
-              value={surface.surfaceKey}
-              className="m-0"
-              style={{ width: 600, height: 600 }}
-            >
-              {!isModelLoaded ? (
-                <CanvasLoadingSkeleton />
-              ) : (
-                <EditorCanvas
-                  ref={(el) => {
-                    // ✅ SỬA: Dùng surfaceKey
-                    editorRefs.current[surface.surfaceKey] = el;
-                  }}
-                  materialKey={surface.materialName}
-                  dielineSvgUrl={surface.dielineSvgUrl}
-                  onCanvasUpdate={handleSurfaceUpdate}
-                  onObjectChange={updateLayers}
-                  isReadyToLoad={isModelLoaded}
-                />
-              )}
-            </TabsContent>
-          ))}
-        </Tabs>
-      </div>
-
-      {/* 6. PREVIEW 3D (POPUP NỔI) */}
-      <Rnd
-        default={{ x: window.innerWidth - 680, y: 20, width: 350, height: 400 }}
-        minWidth={250}
-        minHeight={300}
-        bounds="parent"
-        className="bg-white rounded-lg shadow-xl overflow-hidden"
+      {/* 2. HEADER (Nút Thoát) */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleExit}
+        className="absolute top-4 left-4 z-30 bg-white/80 backdrop-blur-md shadow-lg"
       >
-        <div className="w-full h-full flex flex-col">
-          <div className="h-10 bg-gray-100 flex items-center justify-between px-3 cursor-move">
-            <span className="text-sm font-semibold">Package Preview</span>
-            <GripVertical className="text-gray-400" size={18} />
+        <ArrowLeft size={20} />
+      </Button>
+
+      {/* 3. Thanh thuộc tính nổi (Header) */}
+      <ContextualPropertyBar
+        selectedItemIds={selectedItemIds}
+        items={items}
+        onItemUpdate={updateItemProperties}
+        onGroup={handleGroupSelection}
+        onUngroup={handleUngroupSelection}
+        onDelete={deleteSelectedItems}
+        gizmoMode={gizmoMode}
+        onGizmoModeChange={setGizmoMode}
+        isSnapping={isSnapping}
+      />
+
+      {/* 4. PANEL TRÁI (Toolbar + Layers) */}
+      <Card
+        className="absolute left-4 top-20 bottom-24 z-10 w-80 flex flex-col overflow-hidden 
+                   border-gray-200/50 shadow-2xl bg-white/95 backdrop-blur-md transition-all"
+      >
+        {/* 4.1 Toolbar (Giữ nguyên) */}
+        <div className="flex-shrink-0">
+          <EditorToolbar
+            activeTab={activeToolbarTab}
+            onTabChange={setActiveToolbarTab}
+            uploadedImages={uploadedImages}
+            onImageUpload={handleToolbarImageUpload}
+            onImageFileRead={handleImageFileRead}
+            imageDropQueue={imageDropQueue?.file || null}
+          />
+        </div>
+
+        {/* 4.2 Layers */}
+        <div className="flex-1 flex flex-col min-h-0 border-t border-gray-100">
+          <div className="p-3 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between flex-shrink-0">
+            <h3 className="font-semibold text-xs text-gray-500 uppercase flex items-center">
+              <Layers size={14} className="mr-1.5" />
+              Lớp ({items.length})
+            </h3>
           </div>
-          <div className="p-3 border-b text-center">
-            <p className="text-xs text-gray-400">(Color selector here)</p>
-          </div>
-          <div className="flex-1">
-            <ProductViewer3D
-              modelUrl={product.assets.modelUrl!}
-              textures={texturesFor3D}
-              onModelLoaded={handleModelLoaded}
+          <DecalList
+            items={items}
+            selectedItemIds={selectedItemIds}
+            onSelect={handleSelectItem}
+            onDelete={deleteSelectedItems}
+            onUpdate={updateItemProperties}
+            onReorder={reorderItems}
+          />
+        </div>
+      </Card>
+
+      {/* 5. PANEL PHẢI (Báo giá) */}
+      <Card
+        className="absolute right-4 top-4 bottom-24 z-10 w-80 overflow-hidden
+                   border-gray-200/50 shadow-2xl bg-white/95 backdrop-blur-md"
+      >
+        <NativeScrollArea className="flex-1">
+          <div className="p-4">
+            <LiveQuotePanel
+              product={product}
+              decals={flatDecalItems}
+              basePrice={currentPricePerUnit}
+              minQuantity={minQuantity}
+              formatPrice={formatPrice}
+              isSaving={isSaving}
+              onSaveAndAddToCart={handleSaveAndAddToCart}
+              selectedQuantity={selectedQuantity}
+              onQuantityChange={setSelectedQuantity}
             />
           </div>
-        </div>
-      </Rnd>
+        </NativeScrollArea>
+      </Card>
 
-      {/* ✅ THÊM: DEBUG PANEL */}
-      {showDebugPanel && (
-        <DebugPanel
-          canvasElements={canvasElementsMap}
-          materialKey={activeSurfaceKey || undefined}
-          isVisible={true}
-          debugInfo={debugInfo}
-        />
-      )}
-
-      {/* ✅ THÊM: MATERIAL MAPPER */}
-      {currentSurface && (
-        <MaterialMapper
-          isOpen={showMaterialMapper}
-          onClose={() => setShowMaterialMapper(false)}
-          modelUrl={product.assets.modelUrl!}
-          surfaceName={currentSurface.name}
-          currentMaterialName={currentSurface.materialName}
-          onMaterialNameChange={handleMaterialNameChange}
-        />
-      )}
-
-      {/* 7. EXPORT DIALOG */}
-      <ExportDialog
-        isOpen={isExportDialogOpen}
-        onClose={() => setIsExportDialogOpen(false)}
-        editorRef={{ current: getActiveEditorRef() }}
-      />
+      {/* 6. FOOTER TOOLBAR */}
+      <EditorFooterToolbar />
     </div>
   );
 }

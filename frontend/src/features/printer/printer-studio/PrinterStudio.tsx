@@ -1,21 +1,19 @@
 // frontend/src/features/printer/printer-studio/PrinterStudio.tsx
-// ✅ PATCH 3: SỬA PROP NAME VÀ LOẠI BỎ texturesForViewer
+// ✅ SỬA LỖI: Bổ sung 'activeToolbarTab' và 'setActiveToolbarTab' từ hook
 
-import React from "react";
-import { Loader2, Save, GripVertical } from "lucide-react";
-import { Button } from "@/shared/components/ui/button";
-import { Rnd } from "react-rnd";
-
-// 1. Import Hook
+import React, { useCallback, useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
+import * as THREE from "three";
 import { usePrinterStudio } from "./usePrinterStudio";
-
-// 2. Import Modules
-import { EditorToolbar } from "@/features/editor/components/EditorToolbar";
-import { PrinterStudioCanvas } from "./PrinterStudioCanvas";
-import { PrinterStudioSidebar } from "./PrinterStudioSidebar";
 import ProductViewer3D from "@/features/editor/components/ProductViewer3D";
+import { PrinterStudioHeader } from "./PrinterStudioHeader";
+import { StudioLoadingSkeleton } from "@/features/editor/components/LoadingSkeleton";
+import { InteractionResult } from "@/features/editor/hooks/use3DInteraction";
+import { PrinterStudioToolbar } from "./PrinterStudioToolbar";
+import { DecalList } from "@/features/editor/components/DecalList";
+import { DecalItem, GroupItem } from "@/features/editor/types/decal.types";
 
-// Loading Skeleton
+// (Loading Skeleton giữ nguyên)
 const FullPageLoader = () => (
   <div className="flex h-screen items-center justify-center bg-gray-50">
     <div className="text-center">
@@ -26,122 +24,150 @@ const FullPageLoader = () => (
 );
 
 export function PrinterStudio() {
-  // 3. Sử dụng "bộ não"
+  // Lấy TẤT CẢ state/handler từ hook
   const {
-    editorRef,
     baseProduct,
     phoiAssets,
     isLoading,
     is3DMainLoaded,
-    selectedObject,
-    layers,
-    activeObjectId,
     productId,
-    handleImageUpload,
-    handleSelectLayer,
-    handleMoveLayer,
-    handleToggleVisibility,
-    handleDeleteLayer,
-    handleCanvasUpdate,
-    handlePropertiesUpdate,
     handleSaveAndExit,
     setIs3DMainLoaded,
     navigate,
-    textures, // ✅ FIX: Lấy canvasElements thay vì texturesForViewer
-    updateLayers,
-  } = usePrinterStudio();
+    decals,
+    addDecal,
+    deleteDecal,
+    updateDecal,
 
-  // 4. Render (Loading)
+    // ✅ SỬA LỖI: Bổ sung 2 state còn thiếu
+    activeToolbarTab,
+    setActiveToolbarTab,
+
+    selectedDecalId,
+    setSelectedDecalId,
+    uploadedImages,
+    handleToolbarImageUpload,
+    gizmoMode,
+    setGizmoMode,
+    isSnapping,
+  } = usePrinterStudio(); //
+
+  // State image drop (Giữ nguyên)
+  const [imageDropQueue, setImageDropQueue] = useState<{
+    file: File;
+    interactionResult: InteractionResult;
+  } | null>(null);
+
+  /**
+   * Xử lý khi có drop 3D (Giữ nguyên)
+   */
+  const handle3DDrop = useCallback(
+    (dropData: any, interactionResult: InteractionResult) => {
+      if (dropData.type === "imageFile") {
+        setImageDropQueue({ file: dropData.file, interactionResult });
+      } else {
+        addDecal(dropData, interactionResult);
+      }
+    },
+    [addDecal]
+  );
+
+  /**
+   * Xử lý khi file đã được đọc (Sửa lỗi "mất ảnh")
+   */
+  const handleImageFileRead = (file: File, imageUrl: string) => {
+    if (imageDropQueue && imageDropQueue.file === file) {
+      // Tình huống 1: Kéo từ Desktop -> Thả vào 3D
+      const dropData = { type: "image", imageUrl: imageUrl };
+      addDecal(dropData, imageDropQueue.interactionResult);
+      handleToolbarImageUpload(file); // Thêm vào toolbar
+      setImageDropQueue(null);
+    } else {
+      // Tình huống 2: Upload từ nút/dropzone của Toolbar
+      handleToolbarImageUpload(file);
+    }
+  }; //
+
+  // Lấy surfaceMapping (Giữ nguyên)
+  const surfaceMapping = useMemo(() => {
+    if (!phoiAssets) return [];
+    return [
+      {
+        materialName: phoiAssets.materialName,
+        surfaceKey: phoiAssets.surfaceKey,
+        artboardSize: { width: 100, height: 100 },
+      },
+    ];
+  }, [phoiAssets]); //
+
+  // Render (Loading)
   if (isLoading || !phoiAssets) {
     return <FullPageLoader />;
   }
 
-  // 5. Render (Main Layout)
+  const filteredDecals = useMemo(() => {
+    return decals.filter((decal) => decal.type === "decal") as DecalItem[];
+  }, [decals]);
+
+  // Render (Main Layout)
   return (
-    <div className="flex h-screen bg-gray-100 relative overflow-hidden">
-      {/* CENTER: EDITOR */}
-      <div className="w-full flex flex-col">
-        <PrinterStudioCanvas
-          editorRef={editorRef}
-          phoiAssets={phoiAssets}
-          onCanvasUpdate={handleCanvasUpdate}
-          onObjectChange={updateLayers}
-          is3DMainLoaded={is3DMainLoaded}
-        />
-      </div>
-
-      {/* TOOLBAR NỔI */}
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-60 h-[700px]">
-        <EditorToolbar
-          editorRef={editorRef}
-          onImageUpload={handleImageUpload}
-          layers={layers}
-          activeObjectId={activeObjectId}
-          onSelectLayer={handleSelectLayer}
-          onMoveLayer={handleMoveLayer}
-          onToggleVisibility={handleToggleVisibility}
-          onDeleteLayer={handleDeleteLayer}
-          selectedObject={selectedObject}
-          onPropertiesUpdate={handlePropertiesUpdate}
-        />
-      </div>
-
-      {/* SIDEBAR NỔI */}
-      <div className="absolute right-0 top-0 h-full z-10 w-96">
-        <PrinterStudioSidebar
-          selectedObject={selectedObject}
-          onPropertiesUpdate={handlePropertiesUpdate}
+    <div className="flex h-screen w-full bg-gray-100 relative overflow-hidden">
+      {/* 1. HEADER (Giữ nguyên) */}
+      <div className="absolute top-0 left-0 right-0 z-20">
+        <PrinterStudioHeader
           baseProduct={baseProduct}
-          phoiAssets={phoiAssets}
           productId={productId}
-          modelUrl={phoiAssets.modelUrl}
-          onModelLoaded={() => setIs3DMainLoaded(true)}
+          onSaveAndExit={handleSaveAndExit}
+          onGoBack={() => navigate("/printer/dashboard/products")}
         />
       </div>
 
-      {/* NÚT SAVE NỔI */}
-      <div className="absolute bottom-4 right-4 z-20">
-        <Button
-          type="button"
-          onClick={handleSaveAndExit}
-          className="bg-orange-500 hover:bg-orange-600"
-        >
-          <Save size={18} className="mr-2" />
-          Lưu & Tiếp tục
-        </Button>
+      {/* 2. TOOLBAR BÊN TRÁI (Giữ nguyên) */}
+      <div className="z-10 w-80 h-full pt-16">
+        <PrinterStudioToolbar
+          activeTab={activeToolbarTab} // ✅ Biến 'activeTab' giờ đã tồn tại
+          onTabChange={setActiveToolbarTab} // ✅ 'setActiveToolbarTab' giờ đã tồn tại
+          uploadedImages={uploadedImages}
+          onImageUpload={handleToolbarImageUpload}
+          onImageFileRead={handleImageFileRead}
+          imageDropQueue={imageDropQueue?.file || null}
+          decals={decals}
+          selectedDecalId={selectedDecalId}
+          onDecalUpdate={updateDecal}
+          gizmoMode={gizmoMode}
+          onGizmoModeChange={setGizmoMode}
+          isSnapping={isSnapping}
+        />
       </div>
 
-      {/* POPUP 3D PREVIEW */}
-      <Rnd
-        default={{
-          x: window.innerWidth - 400,
-          y: 100,
-          width: 350,
-          height: 400,
-        }}
-        minWidth={250}
-        minHeight={300}
-        bounds="parent"
-        className="bg-white rounded-lg shadow-xl overflow-hidden z-30"
-        cancel=".no-drag"
-      >
-        <div className="w-full h-full flex flex-col">
-          <div className="h-10 bg-gray-100 flex items-center justify-between px-3 cursor-move">
-            <span className="text-sm font-semibold">
-              Xem trước 3D (Real-time)
-            </span>
-            <GripVertical className="text-gray-400" size={18} />
-          </div>
-          <div className="flex-1 no-drag">
-            {/* ✅ FIX: Đổi prop name từ "textures" sang "canvasElements" */}
-            <ProductViewer3D
-              modelUrl={phoiAssets.modelUrl}
-              textures={textures}
-              onModelLoaded={() => setIs3DMainLoaded(true)}
-            />
-          </div>
-        </div>
-      </Rnd>
+      {/* 3. VÙNG 3D EDITOR (TRUNG TÂM) (Giữ nguyên) */}
+      <div className="flex-1 h-full pt-16 relative">
+        <ProductViewer3D
+          modelUrl={phoiAssets.modelUrl}
+          decals={filteredDecals}
+          surfaceMapping={surfaceMapping}
+          onDrop={handle3DDrop}
+          selectedDecalId={selectedDecalId}
+          onDecalSelect={setSelectedDecalId}
+          onDecalUpdate={updateDecal}
+          gizmoMode={gizmoMode}
+          isSnapping={isSnapping}
+        />
+      </div>
+
+      {/* 4. DECAL LIST (BÊN PHẢI) (Giữ nguyên) */}
+      <div className="z-10 w-72 h-full pt-16">
+        <DecalList
+          items={decals}
+          selectedItemIds={selectedDecalId ? [selectedDecalId] : []}
+          onSelect={(id, isMultiSelect) => setSelectedDecalId(id)}
+          onDelete={deleteDecal}
+          onUpdate={updateDecal}
+          onReorder={() => {
+            console.warn("Reorder not implemented in PrinterStudio");
+          }}
+        />
+      </div>
     </div>
   );
 }

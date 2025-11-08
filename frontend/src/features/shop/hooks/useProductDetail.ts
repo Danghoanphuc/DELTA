@@ -1,14 +1,15 @@
 // features/shop/hooks/useProductDetail.ts
+// File này đã hoàn chỉnh, cung cấp biến logic 'isCustomizable'
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { PrinterProduct } from "@/types/product";
-import { PrinterProfile } from "@/types/printerProfile";
-import api from "@/shared/lib/axios";
+import { Product, PrinterProduct } from "../../../types/product";
+import { PrinterProfile } from "../../../types/printerProfile";
+import api from "../../../shared/lib/axios";
 import { toast } from "sonner";
-import { useCartStore } from "@/stores/useCartStore";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { useCartStore } from "../../../stores/useCartStore";
+import { useAuthStore } from "../../../stores/useAuthStore";
 
-interface ProductWithPrinter extends PrinterProduct {
+interface ProductWithPrinter extends Product {
   printerInfo?: PrinterProfile;
 }
 
@@ -86,6 +87,17 @@ export const useProductDetail = () => {
     [product, isInCart, isAuthenticated]
   );
 
+  // === LOGIC MỤC TIÊU 2 ===
+  const isCustomizable = useMemo(() => {
+    return (
+      product &&
+      product.assets &&
+      product.assets.surfaces &&
+      product.assets.surfaces.length > 0
+    );
+  }, [product]);
+  // === KẾT THÚC ===
+
   // Handlers
   const handleAddToCart = async () => {
     if (!product || isAddingToCart || inCart) return;
@@ -126,5 +138,6 @@ export const useProductDetail = () => {
     handleAddToCart,
     formatPrice,
     navigate,
+    isCustomizable, // <-- Trả ra biến logic
   };
 };
