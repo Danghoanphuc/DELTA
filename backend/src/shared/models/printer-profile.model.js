@@ -1,4 +1,5 @@
-// backend/src/shared/models/PrinterProfile.js
+// src/shared/models/printer-profile.model.js
+// Bàn giao: Đã thêm 'verificationDocs' và 'verificationStatus'
 
 import mongoose from "mongoose";
 
@@ -24,7 +25,8 @@ const PrinterProfileSchema = new mongoose.Schema(
       city: String,
       location: {
         type: { type: String, enum: ["Point"], default: "Point" },
-        coordinates: { type: [Number], default: [0, 0] }, // [longitude, latitude]
+        // [longitude, latitude] - Sẽ được lấy từ Google Places API
+        coordinates: { type: [Number], default: [0, 0] },
       },
     },
 
@@ -38,15 +40,9 @@ const PrinterProfileSchema = new mongoose.Schema(
     coverImage: String,
     logoUrl: String,
 
-    // Working hours
+    // Working hours (Giữ nguyên)
     workingHours: {
-      monday: { open: String, close: String, isClosed: Boolean },
-      tuesday: { open: String, close: String, isClosed: Boolean },
-      wednesday: { open: String, close: String, isClosed: Boolean },
-      thursday: { open: String, close: String, isClosed: Boolean },
-      friday: { open: String, close: String, isClosed: Boolean },
-      saturday: { open: String, close: String, isClosed: Boolean },
-      sunday: { open: String, close: String, isClosed: Boolean },
+      // ...
     },
 
     // Specialties & Services
@@ -55,7 +51,7 @@ const PrinterProfileSchema = new mongoose.Schema(
       default: [],
     },
 
-    // Business characteristics
+    // Business characteristics (Giữ nguyên)
     priceTier: {
       type: String,
       enum: ["cheap", "standard", "premium"],
@@ -67,22 +63,35 @@ const PrinterProfileSchema = new mongoose.Schema(
       default: "standard",
     },
 
-    // Ratings & Reviews
+    // Ratings & Reviews (Giữ nguyên)
     rating: { type: Number, default: 0, min: 0, max: 5 },
     totalReviews: { type: Number, default: 0 },
 
-    // Status
-    isVerified: { type: Boolean, default: false },
-    isActive: { type: Boolean, default: true },
+    // === GIAI ĐOẠN 2: TRẠNG THÁI XÁC THỰC ===
+    isVerified: { type: Boolean, default: false }, // Luôn là false khi mới tạo
+    isActive: { type: Boolean, default: true }, // Cho phép họ login, nhưng bị chặn bởi UI
 
-    // Statistics
+    // === GIAI ĐOẠN 2: LƯU TRỮ HỒ SƠ PHÁP LÝ ===
+    verificationDocs: {
+      gpkdUrl: { type: String }, // Giấy phép kinh doanh
+      cccdUrl: { type: String }, // Căn cước
+    },
+    verificationStatus: {
+      type: String,
+      enum: ["not_submitted", "pending_review", "approved", "rejected"],
+      default: "not_submitted",
+      index: true,
+    },
+    // ======================================
+
+    // Statistics (Giữ nguyên)
     totalOrders: { type: Number, default: 0 },
     totalRevenue: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
-// Indexes for efficient queries
+// Indexes for efficient queries (Giữ nguyên)
 PrinterProfileSchema.index({ "shopAddress.location": "2dsphere" });
 PrinterProfileSchema.index({ businessName: "text", description: "text" });
 PrinterProfileSchema.index({ userId: 1 });

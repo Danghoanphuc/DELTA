@@ -3,7 +3,7 @@ import { ApiResponse } from "../../shared/utils/api-response.util.js";
 import { API_CODES } from "../../shared/constants/api-codes.constants.js";
 import { ValidationException } from "../../shared/exceptions/ValidationException.js";
 // ✅ BƯỚC 1: Import Cloudinary và Logger
-import { cloudinary } from "../../infrastructure/storage/cloudinary.config.js";
+import { cloudinary } from "../../infrastructure/storage/multer.config.js";
 import { Logger } from "../../shared/utils/index.js";
 
 export class UploadController {

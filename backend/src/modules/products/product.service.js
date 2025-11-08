@@ -5,7 +5,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from "../../shared/exceptions/index.js";
-import { cloudinary } from "../../infrastructure/storage/cloudinary.config.js";
+import { cloudinary } from "../../infrastructure/storage/multer.config.js";
 import { Logger } from "../../shared/utils/index.js";
 
 export class ProductService {

@@ -1,4 +1,4 @@
-// backend/src/middleware/authMiddleware.js (ĐÃ CẬP NHẬT - THÊM optionalAuth)
+// backend/src/middleware/authMiddleware.js (✅ UPDATED - CONTEXT-AWARE)
 
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
@@ -21,8 +21,9 @@ const protect = async (req, res, next) => {
     try {
       const decodedUser = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
+      // ✅ SỬA: Lấy user đầy đủ (bao gồm cả các ID hồ sơ)
       const user = await User.findById(decodedUser.userId).select(
-        "-hashedPassword"
+        "-hashedPassword -verificationToken -verificationTokenExpiresAt"
       );
 
       if (!user) {
@@ -51,47 +52,36 @@ const protect = async (req, res, next) => {
 };
 
 /**
- * ✨ NEW: Middleware for OPTIONAL authentication
- * Allows requests to pass through with OR without a token
- * - If token exists and is valid → attaches user to req.user
- * - If no token or invalid token → req.user = null (guest user)
- *
- * Use this for endpoints that work for both guests and authenticated users
- * Example: View products, chat with AI, browse catalog
+ * Middleware for OPTIONAL authentication
+ * (Giữ nguyên)
  */
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
 
-    // No token? That's fine, continue as guest
     if (!token) {
       req.user = null;
       return next();
     }
 
-    // Token exists? Try to verify it
     try {
       const decodedUser = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
       const user = await User.findById(decodedUser.userId).select(
-        "-hashedPassword"
+        "-hashedPassword -verificationToken -verificationTokenExpiresAt"
       );
 
       if (user && user.isActive) {
-        req.user = user; // Attach user if valid
+        req.user = user;
       } else {
-        req.user = null; // Invalid user, continue as guest
+        req.user = null;
       }
     } catch (err) {
-      // Token invalid or expired? Continue as guest
-      console.log("Optional auth: Invalid token, continuing as guest");
       req.user = null;
     }
 
     next();
   } catch (error) {
-    console.error("Lỗi trong middleware optionalAuth:", error);
-    // Even if error, continue as guest
     req.user = null;
     next();
   }
@@ -99,10 +89,10 @@ const optionalAuth = async (req, res, next) => {
 
 /**
  * Middleware to check if the authenticated user is a printer
- * Must be used AFTER 'protect' or 'optionalAuth' middleware
+ * ✅ SỬA LOGIC: Kiểm tra 'printerProfileId' thay vì 'role'
  */
 const isPrinter = (req, res, next) => {
-  if (req.user && req.user.role === "printer") {
+  if (req.user && req.user.printerProfileId) {
     next();
   } else {
     res.status(403).json({ message: "Forbidden: Yêu cầu quyền nhà in" });
@@ -110,9 +100,8 @@ const isPrinter = (req, res, next) => {
 };
 
 /**
- * ✨ NEW: Middleware to require authentication with friendly message
- * Returns JSON response asking user to login
- * Use this for endpoints that absolutely need authentication
+ * Middleware to require authentication with friendly message
+ * (Giữ nguyên)
  */
 const requireAuth = (req, res, next) => {
   if (!req.user) {
@@ -126,5 +115,4 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
-// Export tất cả middleware
 export { protect, optionalAuth, isPrinter, requireAuth };

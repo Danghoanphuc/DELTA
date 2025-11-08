@@ -1,6 +1,6 @@
 // src/modules/media-assets/media-asset.service.js
 import { MediaAssetRepository } from "./media-asset.repository.js";
-import { cloudinary } from "../../infrastructure/storage/cloudinary.config.js";
+import { cloudinary } from "../../infrastructure/storage/multer.config.js";
 import { Logger } from "../../shared/utils/index.js";
 import {
   ForbiddenException,

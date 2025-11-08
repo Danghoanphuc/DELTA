@@ -3,67 +3,68 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import dotenv from "dotenv";
 import { User } from "../../shared/models/user.model.js";
-import { PrinterProfile } from "../../shared/models/printer-profile.model.js";
+// ✅ IMPORT MODEL MỚI
+import { CustomerProfile } from "../../shared/models/customer-profile.model.js";
 
 dotenv.config();
 
 /**
  * Hàm tìm hoặc tạo user mới từ Google profile
- * Role sẽ được lấy từ state parameter (không dùng session)
+ * LUÔN LUÔN tạo/tìm user với vai trò 'customer'
  */
-const findOrCreateUser = async (profile, role = "customer") => {
+const findOrCreateUser = async (profile) => {
   try {
-    console.log(
-      `🔍 Finding/Creating user with Google ID: ${profile.id}, role: ${role}`
-    );
+    const email = profile.emails[0].value;
+    console.log(`🔍 Finding/Creating user with Google ID: ${profile.id}`);
 
-    // 1. Tìm user hiện có
+    // 1. Tìm user hiện có bằng email hoặc googleId
     let user = await User.findOne({
-      $or: [{ googleId: profile.id }, { email: profile.emails[0].value }],
+      $or: [{ googleId: profile.id }, { email: email }],
     });
 
     // 2. Nếu user đã tồn tại
     if (user) {
       console.log(`✅ User found: ${user.email}`);
-
-      // Cập nhật Google ID nếu chưa có
+      let updated = false;
       if (!user.googleId) {
         user.googleId = profile.id;
-        await user.save();
+        updated = true;
       }
-
+      if (!user.isVerified) {
+        user.isVerified = true;
+        updated = true;
+      }
+      if (updated) await user.save();
       return user;
     }
 
-    // 3. Tạo user mới
-    console.log(`➕ Creating new user with role: ${role}`);
+    // 3. Tạo user mới (Mặc định là customer)
+    console.log(`➕ Creating new user (default as customer)`);
 
     const newUser = new User({
       googleId: profile.id,
-      username: profile.emails[0].value,
-      email: profile.emails[0].value,
-      displayName: profile.displayName || profile.emails[0].value.split("@")[0],
+      email: email,
+      displayName: profile.displayName || email.split("@")[0],
       avatarUrl: profile.photos?.[0]?.value,
-      role: role,
       isVerified: true, // Google đã verify email
+      printerProfileId: null,
+      authMethod: "google",
     });
 
-    // 4. Nếu là printer, tạo thêm PrinterProfile
-    if (role === "printer") {
-      const newProfile = new PrinterProfile({
-        userId: newUser._id,
-        businessName: newUser.displayName,
-      });
+    // 4. Tạo CustomerProfile
+    const newProfile = new CustomerProfile({
+      userId: newUser._id,
+      savedAddresses: [],
+    });
 
-      newUser.printerProfile = newProfile._id;
+    // 5. Liên kết
+    newUser.customerProfileId = newProfile._id;
 
-      await newProfile.save();
-      console.log(`✅ PrinterProfile created for user ${newUser.email}`);
-    }
-
+    // 6. Lưu
     await newUser.save();
-    console.log(`✅ New user created: ${newUser.email}`);
+    await newProfile.save();
 
+    console.log(`✅ New user created: ${newUser.email}`);
     return newUser;
   } catch (error) {
     console.error("❌ Error in findOrCreateUser:", error);
@@ -82,25 +83,16 @@ passport.use(
       callbackURL: `${
         process.env.SERVER_URL || "http://localhost:5001"
       }/api/auth/google/callback`,
-      passReqToCallback: true, // Để truy cập req trong callback
+      passReqToCallback: true, // ❌ BỎ QUA req.query.state
     },
     async (req, accessToken, refreshToken, profile, done) => {
       try {
         console.log("🎯 Google Strategy Callback triggered");
-        console.log("📧 Google Profile Email:", profile.emails?.[0]?.value);
+        // ❌ XÓA BỎ LOGIC LẤY ROLE TỪ STATE
 
-        // Lấy role từ state parameter (đã encode trong URL)
-        // State format: "role=customer" hoặc "role=printer"
-        const role = req.query.state?.includes("printer")
-          ? "printer"
-          : "customer";
+        // Tìm hoặc tạo user (luôn là customer)
+        const user = await findOrCreateUser(profile);
 
-        console.log(`🎭 Detected role from state: ${role}`);
-
-        // Tìm hoặc tạo user
-        const user = await findOrCreateUser(profile, role);
-
-        // Trả về user cho Passport
         done(null, user);
       } catch (error) {
         console.error("❌ Error in Google Strategy:", error);
