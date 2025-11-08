@@ -1,12 +1,12 @@
-// src/modules/chat/chat.tools.service.js (NEW FILE)
+// src/modules/chat/chat.tools.service.js (✅ UPDATED - TOOL DESCRIPTION)
 import { ProductRepository } from "../products/product.repository.js";
 import { OrderRepository } from "../orders/order.repository.js";
 import { ChatRepository } from "./chat.repository.js";
-import { ChatResponseUtil } from "./chat.response.util.js"; // Sẽ tạo ở bước 3
+import { ChatResponseUtil } from "./chat.response.util.js";
 import { Logger } from "../../shared/utils/index.js";
 
 /**
- * Định nghĩa các công cụ mà AI có thể sử dụng.
+ * 🔥 ĐịNH NGHĨA CÁC CÔNG CỤ MÀ AI CÓ THỂ SỮ DỤNG
  */
 const tools = [
   {
@@ -58,9 +58,55 @@ const tools = [
     type: "function",
     function: {
       name: "get_recent_orders",
+      // ✅ SỬA LỖI: Làm rõ mô tả, bỏ chữ "đặt lại"
       description:
-        "Lấy lịch sử đơn hàng gần đây của người dùng đã đăng nhập. Dùng khi người dùng yêu cầu 'xem lại đơn hàng' hoặc 'đặt lại'.",
+        "Lấy lịch sử đơn hàng gần đây của người dùng. Dùng khi người dùng yêu cầu 'xem lại đơn hàng', 'đơn hàng cũ của tôi' hoặc 'tôi đã mua gì'.",
       parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "reorder_from_template",
+      description:
+        "🎯 [MỤC TIÊU 2: GIẢM MA SÁT] Tạo đơn hàng nhanh dựa trên thông tin đơn hàng cũ (reorder). Dùng khi user nói 'đặt lại giống lần trước' hoặc 'in lại'.",
+      parameters: {
+        type: "object",
+        properties: {
+          order_id: {
+            type: "string",
+            description: "ID của đơn hàng cũ cần sao chép.",
+          },
+          quantity: {
+            type: "number",
+            description: "Số lượng mới (nếu khác đơn cũ).",
+          },
+        },
+        required: ["order_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "suggest_value_added_services",
+      description:
+        "🧠 [MỤC TIÊU 3: LỢI NHUẬN TỪ NGỮ CẢNH] Đề xuất dịch vụ giá trị gia tăng (VAS) dựa trên vai trò user và ngữ cảnh. Ví dụ: mockup 3D, giao hỏa tốc, thiết kế miễn phí.",
+      parameters: {
+        type: "object",
+        properties: {
+          user_role: {
+            type: "string",
+            description:
+              "Vai trò của user (designer, business_owner, customer).",
+          },
+          product_type: {
+            type: "string",
+            description: "Loại sản phẩm đang quan tâm.",
+          },
+        },
+        required: ["user_role"],
+      },
     },
   },
 ];
@@ -82,15 +128,20 @@ export class ChatToolService {
   /**
    * Thực thi một công cụ được AI yêu cầu
    * @param {object} toolCall - Object tool_call từ OpenAI
-   * @param {object} context - Thông tin bổ sung (userId, isGuest, v.v.)
+   * @param {object} context - Ngữ cảnh (actorId, actorType, user, latitude, longitude)
    * @returns {object} { response: (Payload cho AI hoặc Frontend), isTerminal: (bool) }
    */
   async executeTool(toolCall, context) {
     const functionName = toolCall.function.name;
     const functionArgs = JSON.parse(toolCall.function.arguments);
-    const { userId, isGuest, latitude, longitude } = context;
+
+    // 🔥 SỬA LỖI: Đọc context object đã được chuẩn hóa
+    const { actorId, actorType, latitude, longitude } = context;
 
     Logger.debug(`[ChatToolSvc] Executing tool: ${functionName}`, functionArgs);
+    Logger.debug(
+      `[ChatToolSvc] Context: actorId=${actorId}, actorType=${actorType}`
+    );
 
     try {
       switch (functionName) {
@@ -110,7 +161,8 @@ export class ChatToolService {
 
         // --- CÔNG CỤ 2: XEM ĐƠN HÀNG (Terminal) ---
         case "get_recent_orders":
-          if (isGuest || !userId) {
+          // ✅ LỖI ĐÃ ĐƯỢC SỬA: actorType và actorId giờ đã đúng
+          if (actorType === "Guest" || !actorId) {
             return {
               response: ChatResponseUtil.createGuestRedirectResponse(
                 "Vui lòng đăng nhập để xem đơn hàng."
@@ -118,7 +170,7 @@ export class ChatToolService {
               isTerminal: true,
             };
           }
-          const orders = await this.orderRepository.findByCustomerId(userId);
+          const orders = await this.orderRepository.findByCustomerId(actorId);
           return {
             response: ChatResponseUtil.createOrderResponse(orders),
             isTerminal: true,
@@ -159,6 +211,97 @@ export class ChatToolService {
               }),
             },
             isTerminal: false, // false: Cần gọi lại AI với dữ liệu này
+          };
+
+        // --- 🎯 CÔNG CỤ 4: REORDER NHANH (MỤC TIÊU 2) ---
+        case "reorder_from_template":
+          // ✅ LỖI ĐÃ ĐƯỢC SỬA: actorType và actorId giờ đã đúng
+          if (actorType === "Guest" || !actorId) {
+            return {
+              response: ChatResponseUtil.createGuestRedirectResponse(
+                "Vui lòng đăng nhập để đặt lại đơn hàng."
+              ),
+              isTerminal: true,
+            };
+          }
+
+          const oldOrder = await this.orderRepository.findById(
+            functionArgs.order_id
+          );
+
+          if (!oldOrder) {
+            return {
+              response: ChatResponseUtil.createTextResponse(
+                "Không tìm thấy đơn hàng này. Vui lòng kiểm tra lại.",
+                false
+              ),
+              isTerminal: true,
+            };
+          }
+
+          // (Logic này có thể cần populate product, tạm thời giữ nguyên)
+          const reorderTemplate = {
+            productId: oldOrder.items[0]?.productId,
+            productName: oldOrder.items[0]?.productName,
+            oldQuantity: oldOrder.items[0]?.quantity,
+            newQuantity: functionArgs.quantity || oldOrder.items[0]?.quantity,
+            oldPrice: oldOrder.total,
+            // (Cần logic tính giá mới chính xác hơn)
+            estimatedNewPrice:
+              (oldOrder.total / (oldOrder.items[0]?.quantity || 1)) *
+              (functionArgs.quantity || oldOrder.items[0]?.quantity || 1),
+          };
+
+          return {
+            response: {
+              tool_call_id: toolCall.id,
+              role: "tool",
+              content: JSON.stringify({
+                success: true,
+                reorderTemplate: reorderTemplate,
+                message: `Đã chuẩn bị thông tin đặt lại: ${reorderTemplate.productName}, SL: ${reorderTemplate.newQuantity}`,
+              }),
+            },
+            isTerminal: false, // Trả lại AI để tổng hợp
+          };
+
+        // --- 🧠 CÔNG CỤ 5: GỢI Ý VAS (MỤC TIÊU 3) ---
+        case "suggest_value_added_services":
+          const userRole = functionArgs.user_role || "customer";
+          const productType = functionArgs.product_type || "general";
+
+          // Logic đơn giản: Map role -> VAS
+          const vasMap = {
+            designer: [
+              "Mockup 3D preview (+50.000đ)",
+              "File nguồn AI/PSD (+100.000đ)",
+              "Tư vấn màu sắc miễn phí",
+            ],
+            business_owner: [
+              "Giao hỏa tốc 2h (+150.000đ)",
+              "Đóng gói cao cấp (+80.000đ)",
+              "Thiết kế logo đơn giản miễn phí",
+            ],
+            customer: [
+              "Bảo hành 1 năm (+30.000đ)",
+              "Giao hàng miễn phí (đơn >500k)",
+              "Tích điểm thành viên",
+            ],
+          };
+
+          const suggestedVAS = vasMap[userRole] || vasMap.customer;
+
+          return {
+            response: {
+              tool_call_id: toolCall.id,
+              role: "tool",
+              content: JSON.stringify({
+                user_role: userRole,
+                product_type: productType,
+                suggested_services: suggestedVAS,
+              }),
+            },
+            isTerminal: false, // Trả lại AI để chào hàng
           };
 
         default:

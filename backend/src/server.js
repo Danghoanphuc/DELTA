@@ -1,4 +1,4 @@
-// src/server.js
+// src/server.js (ĐÃ CẬP NHẬT)
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -32,6 +32,11 @@ import { productRoutes } from "./modules/products/index.js";
 import designRoutes from "./modules/designs/design.routes.js";
 import studioRoutes from "./modules/printer-studio/studio.routes.js";
 import pdfRenderRoutes from "./modules/printer-studio/pdf-render/pdf-render.routes.js";
+import assetRoutes from "./modules/assets/asset.routes.js";
+import uploadRoutes from "./modules/uploads/upload.routes.js";
+// ✅ BƯỚC 1: IMPORT MODULE MEDIA-ASSETS
+import mediaAssetRoutes from "./modules/media-assets/media-asset.routes.js";
+
 const app = express();
 const PORT = process.env.PORT || 5001;
 
@@ -112,6 +117,10 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/designs", designRoutes);
 app.use("/api/printer-studio", studioRoutes);
 app.use("/api/pdf-render", pdfRenderRoutes);
+app.use("/api/assets", assetRoutes);
+app.use("/api/uploads", uploadRoutes);
+// ✅ BƯỚC 2: ĐĂNG KÝ ROUTE VÀO EXPRESS
+app.use("/api/media-assets", mediaAssetRoutes);
 
 //==================== 404 handler ==================================
 app.use((req, res) => {
