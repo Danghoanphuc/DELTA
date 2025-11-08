@@ -54,34 +54,41 @@ function App() {
 
   useEffect(() => {
     const handleOAuthMessage = async (event: MessageEvent) => {
-      // ✅ SỬA: Đảm bảo origin là "sạch" (không có /api)
-      if (event.origin !== API_ORIGIN) return;
+      // ✅ FIX: OAuth callback gửi từ backend origin
+      if (event.origin !== API_ORIGIN) {
+        console.log(`[OAuth] Ignored message from: ${event.origin}`);
+        return;
+      }
 
-      // ✅ SỬA: Đọc payload đã được chuẩn hóa (bao gồm user)
       const { success, accessToken, user, error } = event.data;
 
       if (success && accessToken && user) {
         console.log("[OAuth] ✅ Đã nhận tín hiệu thành công từ popup");
-        closeOAuthPopup();
-        setAccessToken(accessToken);
-        useAuthStore.getState().setUser(user); // Đặt user ngay lập tức
 
+        // Lưu thông tin auth
+        setAccessToken(accessToken);
+        useAuthStore.getState().setUser(user);
+
+        // Merge cart
         try {
           await mergeGuestCart();
         } catch (mergeErr) {
           console.error("[OAuth] 🛒 Lỗi merge cart:", mergeErr);
           toast.error("Không thể tự động gộp giỏ hàng cũ.");
         }
+
         toast.success(`Chào mừng, ${user.displayName}!`);
 
-        // Điều hướng về trang chủ, logic trong AuthFlow/RootPage sẽ xử lý
-        window.location.href = "/";
+        // ✅ FIX: Đợi một chút trước khi redirect để đảm bảo state đã lưu
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 100);
       } else if (error) {
         console.error(`[OAuth] ❌ Lỗi từ popup: ${error}`);
         toast.error(error || "Đăng nhập Google thất bại");
-        closeOAuthPopup();
       }
     };
+
     window.addEventListener("message", handleOAuthMessage);
     return () => window.removeEventListener("message", handleOAuthMessage);
   }, [setAccessToken, mergeGuestCart]);
