@@ -4,25 +4,19 @@
 import axios from "axios";
 import { useAuthStore } from "@/stores/useAuthStore"; // Đảm bảo đường dẫn này đúng
 
-// =================================================================
-// BƯỚC 1: Đảm bảo file .env của anh đã sửa thành:
-// VITE_API_URL=http://localhost:5001/api
-// =================================================================
+const API_HOST = import.meta.env.VITE_API_URL;
 
-// 1. Lấy URL backend từ biến môi trường
-// (Biến này BÂY GIỜ đã bao gồm /api)
-const API_BASE_URL = import.meta.env.VITE_API_URL;
-
-if (!API_BASE_URL) {
+if (!API_HOST) {
   console.error(
     "Lỗi cấu hình: VITE_API_URL chưa được định nghĩa trong file .env"
   );
 }
 
 const api = axios.create({
-  // ✅ SỬA LỖI: Chỉ cần gán thẳng baseURL.
-  // KHÔNG cộng thêm "/api" ở đây.
-  baseURL: API_BASE_URL,
+  // ✅ SỬA LỖI: Gắn cứng hậu tố /api tại đây.
+  // Giờ đây baseURL sẽ là 'http://localhost:5001/api' (local)
+  // hoặc 'https://delta-j7qn.onrender.com/api' (production)
+  baseURL: `${API_HOST}/api`,
   withCredentials: true,
 });
 
@@ -67,9 +61,10 @@ api.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
-      originalRequest.url !== "/auth/refresh" &&
-      originalRequest.url !== "/auth/signin" &&
-      originalRequest.url !== "/auth/signup"
+      // ✅ SỬA LOGIC: Đường dẫn bây giờ là tương đối (đã bao gồm /api)
+      !originalRequest.url.endsWith("/auth/refresh") &&
+      !originalRequest.url.endsWith("/auth/signin") &&
+      !originalRequest.url.endsWith("/auth/signup")
     ) {
       if (isRefreshing) {
         // If already refreshing, queue this request
@@ -88,9 +83,12 @@ api.interceptors.response.use(
 
       try {
         console.log("🔄 Access token expired, refreshing...");
-        // Quan trọng: Lời gọi refresh cũng phải là đường dẫn tương đối
+        // Quan trọng: Lời gọi refresh cũng là đường dẫn tương đối
         const refreshRes = await api.post("/auth/refresh");
-        const newAccessToken = refreshRes.data.data.accessToken; // Cập nhật theo cấu trúc ApiResponse
+
+        // Cập nhật theo cấu trúc data của anh
+        const newAccessToken =
+          refreshRes.data.accessToken || refreshRes.data.data.accessToken;
 
         if (!newAccessToken) {
           throw new Error("No access token received from refresh");
