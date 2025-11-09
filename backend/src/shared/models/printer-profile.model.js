@@ -1,6 +1,4 @@
 // src/shared/models/printer-profile.model.js
-// Bàn giao: Đã thêm 'verificationDocs' và 'verificationStatus'
-
 import mongoose from "mongoose";
 
 const PrinterProfileSchema = new mongoose.Schema(
@@ -25,7 +23,6 @@ const PrinterProfileSchema = new mongoose.Schema(
       city: String,
       location: {
         type: { type: String, enum: ["Point"], default: "Point" },
-        // [longitude, latitude] - Sẽ được lấy từ Google Places API
         coordinates: { type: [Number], default: [0, 0] },
       },
     },
@@ -35,23 +32,26 @@ const PrinterProfileSchema = new mongoose.Schema(
     contactEmail: String,
     website: String,
 
-    // Profile details
+    // Profile details (Trường "nhẹ")
     description: { type: String, maxlength: 2000 },
     coverImage: String,
     logoUrl: String,
-
-    // Working hours (Giữ nguyên)
-    workingHours: {
-      // ...
-    },
-
-    // Specialties & Services
     specialties: {
       type: [String],
       default: [],
     },
 
-    // Business characteristics (Giữ nguyên)
+    // === TRƯỜNG "NẶNG" MỚI (SẼ BỊ LOẠI TRỪ KHI POPULATE GOM) ===
+    factoryImages: [
+      {
+        url: { type: String, required: true },
+        caption: { type: String },
+      },
+    ],
+    factoryVideoUrl: { type: String },
+    // ========================================================
+
+    // (Các trường khác... priceTier, productionSpeed, rating, isVerified... giữ nguyên)
     priceTier: {
       type: String,
       enum: ["cheap", "standard", "premium"],
@@ -62,19 +62,13 @@ const PrinterProfileSchema = new mongoose.Schema(
       enum: ["fast", "standard"],
       default: "standard",
     },
-
-    // Ratings & Reviews (Giữ nguyên)
     rating: { type: Number, default: 0, min: 0, max: 5 },
     totalReviews: { type: Number, default: 0 },
-
-    // === GIAI ĐOẠN 2: TRẠNG THÁI XÁC THỰC ===
-    isVerified: { type: Boolean, default: false }, // Luôn là false khi mới tạo
-    isActive: { type: Boolean, default: true }, // Cho phép họ login, nhưng bị chặn bởi UI
-
-    // === GIAI ĐOẠN 2: LƯU TRỮ HỒ SƠ PHÁP LÝ ===
+    isVerified: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
     verificationDocs: {
-      gpkdUrl: { type: String }, // Giấy phép kinh doanh
-      cccdUrl: { type: String }, // Căn cước
+      gpkdUrl: { type: String },
+      cccdUrl: { type: String },
     },
     verificationStatus: {
       type: String,
@@ -82,16 +76,13 @@ const PrinterProfileSchema = new mongoose.Schema(
       default: "not_submitted",
       index: true,
     },
-    // ======================================
-
-    // Statistics (Giữ nguyên)
     totalOrders: { type: Number, default: 0 },
     totalRevenue: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
-// Indexes for efficient queries (Giữ nguyên)
+// (Indexes giữ nguyên)
 PrinterProfileSchema.index({ "shopAddress.location": "2dsphere" });
 PrinterProfileSchema.index({ businessName: "text", description: "text" });
 PrinterProfileSchema.index({ userId: 1 });

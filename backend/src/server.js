@@ -1,5 +1,4 @@
-// backend/src/server.js
-// BÀN GIAO: Đã sửa lại import (thêm dấu {}) để khớp với connection.js
+// src/server.js
 
 import "dotenv/config";
 import express from "express";
@@ -17,7 +16,7 @@ import authRoutes from "./modules/auth/auth.routes.js";
 import oauthRoutes from "./modules/auth/auth-oauth.routes.js";
 import userRoutes from "./modules/users/user.routes.js";
 import printerRoutes from "./modules/printers/printer.routes.js";
-import printerProfileRoutes from "./modules/printers/printer.profile.routes.js";
+// import printerProfileRoutes from "./modules/printers/printer.profile.routes.js"; // <-- ĐÃ XÓA: Gây xung đột
 import productRoutes from "./modules/products/product.routes.js";
 import assetRoutes from "./modules/assets/asset.routes.js";
 import mediaAssetRoutes from "./modules/media-assets/media-asset.routes.js";
@@ -28,7 +27,7 @@ import studioRoutes from "./modules/printer-studio/studio.routes.js";
 import pdfRenderRoutes from "./modules/printer-studio/pdf-render/pdf-render.routes.js";
 import chatRoutes from "./modules/chat/chat.routes.js";
 import uploadRoutes from "./modules/uploads/upload.routes.js";
-
+import customerRoutes from "./modules/customer/customer.routes.js";
 // == Cấu hình Server ==
 const app = express();
 
@@ -60,8 +59,7 @@ connectToDatabase();
 app.use("/api/auth", authRoutes);
 app.use("/api/auth", oauthRoutes); // /google, /google/callback
 app.use("/api/users", userRoutes);
-app.use("/api/printers", printerRoutes); // public
-app.use("/api/printer-profile", printerProfileRoutes); // private
+app.use("/api/printers", printerRoutes); // ✅ UNIFIED PATH
 app.use("/api/products", productRoutes);
 app.use("/api/assets", assetRoutes);
 app.use("/api/media-assets", mediaAssetRoutes);
@@ -72,6 +70,7 @@ app.use("/api/studio", studioRoutes);
 app.use("/api/pdf-render", pdfRenderRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/uploads", uploadRoutes);
+app.use("/api/customer", customerRoutes);
 
 // == Route kiểm tra sức khoẻ ==
 app.get("/", (req, res) => {

@@ -1,26 +1,33 @@
-// src/modules/printers/printer.profile.routes.js
+// src/modules/printers/printer.routes.js
 import { Router } from "express";
 import { PrinterController } from "./printer.controller.js";
 import { protect, isPrinter } from "../../shared/middleware/index.js";
+import { uploadLegalDocs } from "../../infrastructure/storage/multer.config.js";
 
 const router = Router();
 const printerController = new PrinterController();
 
-// Tất cả route này đều yêu cầu là Printer
-router.use(protect, isPrinter);
+// === PUBLIC ROUTES ===
+router.post("/onboarding", protect, printerController.createMyProfile);
 
 /**
- * @route   GET /api/printers/my-profile
- * @desc    Get my printer profile
- * @access  Private (Printer only)
+ * HÀM MỚI: Endpoint công khai để tải gallery (dữ liệu nặng)
+ * @route   GET /api/printers/public-gallery/:profileId
+ * @desc    Lấy gallery ảnh/video của nhà in (cho lazy-load)
+ * @access  Public
  */
-router.get("/my-profile", printerController.getMyProfile);
+router.get("/public-gallery/:profileId", printerController.getPublicGallery);
 
-/**
- * @route   PUT /api/printers/profile
- * @desc    Update my printer profile
- * @access  Private (Printer only)
- */
-router.put("/profile", printerController.updateMyProfile);
+// === PRIVATE ROUTES (Printer Profile Management) ===
+// (Các route private khác giữ nguyên)
+router.get("/my-profile", protect, isPrinter, printerController.getMyProfile);
+router.put("/profile", protect, isPrinter, printerController.updateMyProfile);
+router.put(
+  "/submit-verification",
+  protect,
+  isPrinter,
+  uploadLegalDocs,
+  printerController.submitVerificationDocs
+);
 
 export default router;

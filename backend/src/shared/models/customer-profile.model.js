@@ -1,4 +1,32 @@
+// src/shared/models/customer-profile.model.js
 import mongoose from "mongoose";
+
+// ✅ ĐỊNH NGHĨA SCHEMA CHO BRAND KIT
+const BrandKitSchema = new mongoose.Schema(
+  {
+    logos: [
+      {
+        mediaAssetId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "MediaAsset",
+        },
+        url: String,
+      },
+    ],
+    colors: [
+      {
+        hex: { type: String, match: /^#(?:[0-9a-fA-F]{3}){1,2}$/ },
+      },
+    ],
+    fonts: [
+      {
+        name: String,
+        url: String, // (Nếu hỗ trợ font tự tải lên)
+      },
+    ],
+  },
+  { _id: false }
+); // Không cần _id cho sub-document này
 
 const CustomerProfileSchema = new mongoose.Schema(
   {
@@ -8,7 +36,6 @@ const CustomerProfileSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    // Lưu các địa chỉ đã dùng
     savedAddresses: [
       {
         recipientName: String,
@@ -17,9 +44,15 @@ const CustomerProfileSchema = new mongoose.Schema(
         ward: String,
         district: String,
         city: String,
+        isDefault: { type: Boolean, default: false }, // ✅ Thêm
       },
     ],
-    // (Trong tương lai có thể thêm: phương thức thanh toán đã lưu, v.v.)
+
+    // ✅ THÊM TRƯỜNG MỚI CHO MODULE 2
+    brandKit: {
+      type: BrandKitSchema,
+      default: () => ({ logos: [], colors: [], fonts: [] }), // Khởi tạo rỗng
+    },
   },
   { timestamps: true }
 );

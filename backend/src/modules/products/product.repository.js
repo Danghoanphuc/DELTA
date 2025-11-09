@@ -1,99 +1,83 @@
 // src/modules/products/product.repository.js
 import { Product } from "../../shared/models/product.model.js";
-import mongoose from "mongoose"; // ✅ 1. IMPORT MONGOOSE
+import mongoose from "mongoose";
+import { Logger } from "../../shared/utils/index.js";
 
-/**
- * ProductRepository - Handles all database operations for products
- * Follows Repository Pattern for clean separation of data access logic
- */
 export class ProductRepository {
-  /**
-   * Create a new product
-   * @param {Object} productData - Product data to create
-   * @returns {Promise<Object>} Created product
-   */
-  async create(productData) {
-    return await Product.create(productData);
-  }
-
-  /**
-   * Find product by ID (basic)
-   * @param {string} productId - Product ID
-   * @returns {Promise<Object|null>} Product or null
-   */
-  async findById(productId) {
-    return await Product.findById(productId);
-  }
-
-  /**
-   * Find product by ID with printer information populated and transformed
-   * @param {string} productId - Product ID (có thể là _id hoặc taxonomyId)
-   * @returns {Promise<Object|null>} Transformed product with printerInfo
-   */
-  async findByIdPopulated(productId) {
-    // ✅ 2. TẠO LOGIC TÌM KIẾM MỚI
-    // Kiểm tra xem productId có phải là ObjectId hợp lệ hay không
-    const isObjectId = mongoose.Types.ObjectId.isValid(productId);
-
-    // Xây dựng query:
-    // 1. Nếu là ObjectId -> tìm bằng _id
-    // 2. Nếu không phải -> tìm bằng taxonomyId
-    const query = isObjectId ? { _id: productId } : { taxonomyId: productId };
-
-    // ✅ 3. SỬA HÀM TÌM KIẾM
-    // Đổi từ Product.findById(productId) thành Product.findOne(query)
-    const productDoc = await Product.findOne(query).populate({
-      path: "printerId",
-      select: "displayName email avatarUrl printerProfile",
-      populate: {
-        path: "printerProfile",
-        model: "PrinterProfile",
-      },
-    });
-
-    if (!productDoc) {
-      return null;
-    }
-
-    // Convert to plain object to allow modification
+  // (Hàm _transformProduct giữ nguyên)
+  _transformProduct(productDoc) {
+    if (!productDoc) return null;
     const product = productDoc.toObject();
-
-    // Manually hoist the nested printerProfile to the top-level printerInfo
-    if (product.printerId && product.printerId.printerProfile) {
-      product.printerInfo = product.printerId.printerProfile;
+    if (product.printerId && product.printerId.printerProfileId) {
+      product.printerInfo = product.printerId.printerProfileId;
+    } else {
+      Logger.warn(
+        `[Repo.Transform] Product ${product._id} missing populated printerProfileId`
+      );
     }
-
+    if (product.printerId) {
+      delete product.printerId.printerProfileId;
+    }
     return product;
   }
 
   /**
-   * Find all products by printer ID
-   * @param {string} printerId - Printer's user ID
-   * @returns {Promise<Array>} Array of products
+   * ✅ ĐÃ TỐI ƯU:
+   * Populate 'printerProfileId' nhưng loại trừ các trường "nặng".
    */
+  _getPopulateConfig() {
+    return {
+      path: "printerId", // 1. Populate User
+      select: "displayName email avatarUrl printerProfileId",
+      populate: {
+        path: "printerProfileId", // 2. Populate PrinterProfile
+        model: "PrinterProfile",
+        // 3. CHỈ ĐỊNH CÁC TRƯỜNG "NHẸ" (Tối ưu tốc độ)
+        // Bằng cách dùng dấu "-", ta loại bỏ các trường nặng
+        select: "-factoryImages -factoryVideoUrl",
+      },
+    };
+  }
+
+  // (Các hàm create, findById, findByPrinterId, ... giữ nguyên)
+  // ...
+  async create(productData) {
+    return await Product.create(productData);
+  }
+
+  async findById(productId) {
+    return await Product.findById(productId);
+  }
+
+  async findByIdPopulated(productId) {
+    Logger.debug(`[Repo.findByIdPopulated] Finding product by: ${productId}`);
+    const isObjectId = mongoose.Types.ObjectId.isValid(productId);
+    const query = isObjectId ? { _id: productId } : { taxonomyId: productId };
+    const productDoc = await Product.findOne(query).populate(
+      this._getPopulateConfig()
+    );
+    return this._transformProduct(productDoc);
+  }
+
   async findByPrinterId(printerId) {
     return await Product.find({ printerId }).sort({ createdAt: -1 });
   }
 
-  /**
-   * Find products with filters and transform them to include printerInfo
-   * @param {Object} filters - Filter options
-   * @returns {Promise<Array>} Transformed products
-   */
   async findWithFilters(filters) {
+    Logger.debug(
+      "[Repo.findWithFilters] Finding products with filters:",
+      filters
+    );
     const safeFilters = filters || {};
     const { category, search, sort } = safeFilters;
-
     const query = {};
     query.isActive =
       safeFilters.isActive === undefined
         ? true
         : safeFilters.isActive === "true";
-
     if (category && category !== "all") {
       query.category = category;
     }
-
     if (search) {
       query.$text = {
         $search: search,
@@ -101,41 +85,25 @@ export class ProductRepository {
         $diacriticSensitive: false,
       };
     }
-
     let sortOption = { createdAt: -1 };
     if (sort === "price-asc") sortOption = { "pricing.0.pricePerUnit": 1 };
     if (sort === "price-desc") sortOption = { "pricing.0.pricePerUnit": -1 };
     if (sort === "popular") sortOption = { totalSold: -1, views: -1 };
 
     const productDocs = await Product.find(query)
-      .populate({
-        path: "printerId",
-        select: "displayName avatarUrl printerProfile",
-        populate: {
-          path: "printerProfile",
-          model: "PrinterProfile",
-        },
-      })
+      .populate(this._getPopulateConfig()) // <- Đã dùng config tối ưu
       .sort(sortOption);
 
-    // Transform all products in the list to match the desired frontend structure
-    const products = productDocs.map((doc) => {
-      const product = doc.toObject();
-      if (product.printerId && product.printerId.printerProfile) {
-        product.printerInfo = product.printerId.printerProfile;
-      }
-      return product;
-    });
-
+    Logger.debug(
+      `[Repo.findWithFilters] Found ${productDocs.length} documents.`
+    );
+    const products = productDocs.map((doc) => this._transformProduct(doc));
+    Logger.debug(
+      `[Repo.findWithFilters] Transformed ${products.length} products.`
+    );
     return products;
   }
 
-  /**
-   * Update product by ID
-   * @param {string} productId - Product ID
-   * @param {Object} updateData - Data to update
-   * @returns {Promise<Object>} Updated product
-   */
   async update(productId, updateData) {
     return await Product.findByIdAndUpdate(productId, updateData, {
       new: true,
@@ -143,11 +111,6 @@ export class ProductRepository {
     });
   }
 
-  /**
-   * Soft delete product (set isActive = false)
-   * @param {string} productId - Product ID
-   * @returns {Promise<Object>} Updated product
-   */
   async softDelete(productId) {
     return await Product.findByIdAndUpdate(
       productId,
@@ -156,12 +119,11 @@ export class ProductRepository {
     );
   }
 
-  /**
-   * Hard delete product (remove from database)
-   * @param {string} productId - Product ID
-   * @returns {Promise<Object>} Deleted product
-   */
   async hardDelete(productId) {
     return await Product.findByIdAndDelete(productId);
+  }
+
+  async findByIds(productIds) {
+    return await Product.find({ _id: { $in: productIds } });
   }
 }
