@@ -1,4 +1,5 @@
-// src/features/auth/components/AuthFlow.tsx (✅ FIXED & SIMPLIFIED)
+// frontend/src/features/auth/components/AuthFlow.tsx
+// ✅ FIXED: Removed role prop, improved error handling and UX
 
 import { useState, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
@@ -8,15 +9,15 @@ import { Input } from "@/shared/components/ui/input";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate, Link, useLocation } from "react-router-dom"; // Giữ useLocation
-import { Mail, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
+import { Mail, Lock, Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
 import { SocialButton } from "@/shared/components/ui/SocialButton";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useCartStore } from "@/stores/useCartStore";
 import printzLogo from "@/assets/img/logo-printz.png";
 
-// --- Schema (Giữ nguyên) ---
+// Validation schema
 const authFlowSchema = z.object({
   email: z.string().email("Email không hợp lệ"),
   firstName: z.string().optional(),
@@ -26,23 +27,21 @@ const authFlowSchema = z.object({
 });
 
 type AuthFlowValues = z.infer<typeof authFlowSchema>;
-
 type AuthMode = "signIn" | "signUp";
-// ❌ XÓA: AuthRole
 type AuthStep = "email" | "name" | "password" | "verifySent";
 
 interface AuthFlowProps {
   mode: AuthMode;
-  // ❌ XÓA: role: AuthRole;
 }
 
 const EMAIL_PREFETCH_KEY = "auth-email-prefetch";
 
 export function AuthFlow({ mode }: AuthFlowProps) {
-  // ❌ XÓA: role
   const navigate = useNavigate();
-  const location = useLocation(); // Giữ lại để điều hướng sau khi login
+  const location = useLocation();
   const { signIn, signUp, user } = useAuthStore();
+  const mergeGuestCart = useCartStore((s) => s.mergeGuestCartToServer);
+
   const [step, setStep] = useState<AuthStep>("email");
   const [showPassword, setShowPassword] = useState(false);
   const [isFormLoading, setIsFormLoading] = useState(false);
@@ -68,7 +67,7 @@ export function AuthFlow({ mode }: AuthFlowProps) {
 
   const email = watch("email");
 
-  // (Logic pre-fill email giữ nguyên)
+  // Pre-fill email from verification
   useEffect(() => {
     const prefillEmail = localStorage.getItem(EMAIL_PREFETCH_KEY);
     if (prefillEmail && mode === "signIn") {
@@ -79,7 +78,7 @@ export function AuthFlow({ mode }: AuthFlowProps) {
     }
   }, [mode, setValue]);
 
-  // (Logic redirect tự động - giữ nguyên từ lần fix trước)
+  // Auto-redirect if already logged in
   useEffect(() => {
     const currentPath = window.location.pathname;
     const authPaths = ["/signin", "/signup"];
@@ -87,18 +86,15 @@ export function AuthFlow({ mode }: AuthFlowProps) {
     if (user && authPaths.includes(currentPath)) {
       const from = location.state?.from?.pathname;
 
-      if (from) {
-        toast.success("Đăng nhập thành công, đang quay lại...");
+      if (from && from !== currentPath) {
+        toast.success("Đã đăng nhập, đang chuyển hướng...");
         navigate(from, { replace: true });
-        return;
+      } else {
+        navigate("/", { replace: true });
       }
-
-      // Fallback: Nếu không có 'from', về trang chủ (sẽ tự động sang /app)
-      navigate("/", { replace: true });
     }
   }, [user, navigate, location.state]);
 
-  // (Các hàm handleEmailSubmit, handleNameSubmit giữ nguyên)
   const handleEmailSubmit = async () => {
     const isValid = await trigger("email");
     if (!isValid) return;
@@ -111,6 +107,7 @@ export function AuthFlow({ mode }: AuthFlowProps) {
     const isLastValid = await trigger("lastName", { shouldFocus: true });
     const firstName = watch("firstName");
     const lastName = watch("lastName");
+
     if (!firstName || !lastName || !isFirstValid || !isLastValid) {
       toast.error("Vui lòng nhập đầy đủ Họ và Tên");
       return;
@@ -118,9 +115,9 @@ export function AuthFlow({ mode }: AuthFlowProps) {
     setStep("password");
   };
 
-  // (Hàm onSubmit - giữ nguyên logic từ lần fix trước)
   const onSubmit = async (data: AuthFlowValues) => {
     setIsFormLoading(true);
+
     try {
       if (mode === "signUp") {
         const { email, password, firstName, lastName, confirmPassword } = data;
@@ -132,31 +129,30 @@ export function AuthFlow({ mode }: AuthFlowProps) {
         }
 
         const displayName = `${firstName} ${lastName}`.trim();
-
-        // ❌ XÓA: Logic if (role === 'printer')
         await signUp(email, password, displayName);
-
         setStep("verifySent");
       } else {
-        // --- Flow Đăng Nhập (Email/Pass) ---
+        // Sign In flow
         const { email, password } = data;
         await signIn(email, password);
-        await useCartStore.getState().mergeGuestCartToServer();
 
-        // Logic điều hướng đã được xử lý bởi useEffect ở trên
-        // (Nếu useEffect chạy trước, form này sẽ không bao giờ submit)
-        // (Đây là một backup an toàn)
-        const from = location.state?.from?.pathname;
+        // Merge guest cart after successful login
+        try {
+          await mergeGuestCart();
+        } catch (err) {
+          console.error("[AuthFlow] Cart merge failed:", err);
+          // Don't block login flow
+        }
+
+        // Redirect is handled by useEffect above
+        // But we add a backup timeout just in case
         setTimeout(() => {
-          if (from) {
-            navigate(from, { replace: true });
-          } else {
-            navigate("/", { replace: true });
-          }
-        }, 100);
+          const from = location.state?.from?.pathname;
+          navigate(from || "/", { replace: true });
+        }, 200);
       }
     } catch (err: any) {
-      console.error("Lỗi AuthFlow:", err);
+      console.error("[AuthFlow] Error:", err);
       setIsFormLoading(false);
     } finally {
       if (step !== "verifySent") {
@@ -165,19 +161,24 @@ export function AuthFlow({ mode }: AuthFlowProps) {
     }
   };
 
-  // ✅ SỬA: Đơn giản hóa renderLinks
   const renderLinks = () => {
     if (step === "email") {
       if (mode === "signIn") {
         return (
-          <Link to="/signup" className="text-indigo-600 font-medium text-sm">
+          <Link
+            to="/signup"
+            className="text-indigo-600 font-medium text-sm hover:underline"
+          >
             Chưa có tài khoản? Đăng ký
           </Link>
         );
       }
       if (mode === "signUp") {
         return (
-          <Link to="/signin" className="text-indigo-600 font-medium text-sm">
+          <Link
+            to="/signin"
+            className="text-indigo-600 font-medium text-sm hover:underline"
+          >
             Đã có tài khoản? Đăng nhập
           </Link>
         );
@@ -186,13 +187,13 @@ export function AuthFlow({ mode }: AuthFlowProps) {
     return null;
   };
 
-  // (Hàm nút Back giữ nguyên)
   const getBackButtonAction = () => {
     if (step === "name") return () => setStep("email");
     if (step === "password")
       return () => setStep(mode === "signUp" ? "name" : "email");
     return undefined;
   };
+
   const backButtonAction = getBackButtonAction();
 
   return (
@@ -222,12 +223,26 @@ export function AuthFlow({ mode }: AuthFlowProps) {
           </h1>
         </div>
 
-        {/* ✅ SỬA: Nút Google (không cần 'role') */}
+        {/* Google Button */}
         {step === "email" && <SocialButton provider="google" />}
 
-        {/* --- FORM ĐA BƯỚC --- */}
+        {/* Divider */}
+        {step === "email" && (
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-muted-foreground">
+                Hoặc tiếp tục với
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
-          {/* ----- Bước 1: Email (Giữ nguyên) ----- */}
+          {/* Step 1: Email */}
           <div
             className={cn("flex flex-col gap-5", step !== "email" && "hidden")}
           >
@@ -239,6 +254,8 @@ export function AuthFlow({ mode }: AuthFlowProps) {
                 placeholder="Email"
                 {...register("email")}
                 className="pl-12 h-12 text-base"
+                disabled={isFormLoading}
+                autoFocus
               />
             </div>
             {errors.email && (
@@ -256,7 +273,7 @@ export function AuthFlow({ mode }: AuthFlowProps) {
             </Button>
           </div>
 
-          {/* ----- Bước 2: Tên (Giữ nguyên) ----- */}
+          {/* Step 2: Name (Sign Up only) */}
           {mode === "signUp" && (
             <div
               className={cn("flex flex-col gap-5", step !== "name" && "hidden")}
@@ -267,6 +284,8 @@ export function AuthFlow({ mode }: AuthFlowProps) {
                 placeholder="Tên"
                 {...register("firstName")}
                 className="h-12 text-base"
+                disabled={isFormLoading}
+                autoFocus
               />
               <Input
                 type="text"
@@ -274,6 +293,7 @@ export function AuthFlow({ mode }: AuthFlowProps) {
                 placeholder="Họ"
                 {...register("lastName")}
                 className="h-12 text-base"
+                disabled={isFormLoading}
               />
               <Button
                 type="button"
@@ -286,7 +306,7 @@ export function AuthFlow({ mode }: AuthFlowProps) {
             </div>
           )}
 
-          {/* ----- Bước 3: Mật khẩu (Giữ nguyên) ----- */}
+          {/* Step 3: Password */}
           <div
             className={cn(
               "flex flex-col gap-5",
@@ -308,18 +328,22 @@ export function AuthFlow({ mode }: AuthFlowProps) {
                 type={showPassword ? "text" : "password"}
                 id="password"
                 placeholder="Mật khẩu"
-                {...register("password", {
-                  required: "Vui lòng nhập mật khẩu",
-                  minLength: { value: 6, message: "Cần ít nhất 6 ký tự" },
-                })}
+                {...register("password")}
                 className="pl-12 pr-12 h-12 text-base"
+                disabled={isFormLoading}
+                autoFocus
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700"
+                disabled={isFormLoading}
               >
-                {showPassword ? <EyeOff /> : <Eye />}
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
               </button>
             </div>
             {errors.password && (
@@ -336,6 +360,8 @@ export function AuthFlow({ mode }: AuthFlowProps) {
                   id="confirmPassword"
                   placeholder="Xác nhận mật khẩu"
                   {...register("confirmPassword")}
+                  className="pl-12 h-12 text-base"
+                  disabled={isFormLoading}
                 />
               </div>
             )}
@@ -345,38 +371,60 @@ export function AuthFlow({ mode }: AuthFlowProps) {
               className="w-full h-12 text-base"
               disabled={isFormLoading}
             >
-              {isFormLoading
-                ? "Đang xử lý..."
-                : mode === "signIn"
-                ? "Đăng nhập"
-                : "Tạo tài khoản"}
+              {isFormLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Đang xử lý...
+                </>
+              ) : mode === "signIn" ? (
+                "Đăng nhập"
+              ) : (
+                "Tạo tài khoản"
+              )}
             </Button>
+
+            {mode === "signIn" && (
+              <Link
+                to="/reset-password"
+                className="text-sm text-center text-indigo-600 hover:underline"
+              >
+                Quên mật khẩu?
+              </Link>
+            )}
           </div>
         </form>
 
-        {/* ----- Bước 4: Thông báo (Giữ nguyên) ----- */}
+        {/* Step 4: Verification Sent */}
         {step === "verifySent" && (
-          <div className="text-center text-gray-700">
+          <div className="text-center text-gray-700 space-y-4">
             <p>
               Chúng tôi đã gửi một email xác thực đến{" "}
               <strong className="text-gray-900">{email}</strong>.
             </p>
-            <p className="mt-2">
+            <p className="text-sm">
               Vui lòng kiểm tra hộp thư (cả mục Spam) và nhấn vào link để kích
               hoạt.
             </p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => navigate("/check-email", { state: { email } })}
+            >
+              Tôi đã xác thực
+            </Button>
           </div>
         )}
 
-        {/* (Links và Điều khoản giữ nguyên) */}
+        {/* Links */}
         <div className="flex flex-col items-center gap-2 text-sm text-center">
           {renderLinks()}
         </div>
 
+        {/* Terms */}
         {step === "email" && (
           <p className="text-xs text-center text-muted-foreground mt-4">
             Bằng cách tiếp tục, bạn đồng ý với{" "}
-            <a href="#" className="text-indigo-600 underline">
+            <a href="/policy" className="text-indigo-600 underline">
               Điều khoản và Dịch vụ
             </a>{" "}
             của chúng tôi.

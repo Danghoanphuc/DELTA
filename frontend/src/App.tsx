@@ -1,11 +1,12 @@
-// frontend/src/App.tsx (✅ UPDATED ROUTES)
+// frontend/src/App.tsx
+// ✅ FIXED: Single OAuth handler, improved error handling
+
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import ProtectedRoute from "./features/auth/components/ProtectedRoute";
 import { useEffect } from "react";
 import { useAuthStore } from "./stores/useAuthStore";
 import { useCartStore } from "./stores/useCartStore";
-import { SocialButton } from "./shared/components/ui/SocialButton";
 import { toast } from "sonner";
 
 // ==================== PAGE IMPORTS ====================
@@ -27,9 +28,6 @@ import SignUpPage from "@/features/customer/pages/SignUpPage";
 import VerifyEmailPage from "@/features/auth/components/VerifyEmailPage";
 import ResetPasswordPage from "@/features/auth/components/ResetPasswordPage";
 import CheckEmailPage from "@/features/auth/pages/CheckEmailPage";
-// ❌ XÓA:
-// import PrinterSignUpPage from "@/features/auth/pages/PrinterSignUpPage";
-// import PrinterSignInPage from "@/features/auth/pages/PrinterSignInPage";
 
 // Protected Pages
 import { CheckoutPage } from "@/features/customer/pages/CheckoutPage";
@@ -43,55 +41,75 @@ import { OrderConfirmationPage } from "@/features/customer/pages/OrderConfirmati
 // Printer Pages
 import PrinterApp from "@/features/printer/pages/PrinterApp";
 import { PrinterStudio } from "@/features/printer/printer-studio/PrinterStudio";
-// ✅ THÊM IMPORT TRANG ONBOARDING MỚI
 import { PrinterOnboardingPage } from "@/features/printer/pages/PrinterOnboardingPage";
 
 const API_ORIGIN = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
 function App() {
-  const { setAccessToken } = useAuthStore();
+  const { setAccessToken, fetchMe } = useAuthStore();
   const mergeGuestCart = useCartStore((s) => s.mergeGuestCartToServer);
 
   useEffect(() => {
     const handleOAuthMessage = async (event: MessageEvent) => {
-      // ✅ FIX: OAuth callback gửi từ backend origin
+      // ✅ Security check: Only accept messages from our backend
       if (event.origin !== API_ORIGIN) {
         console.log(`[OAuth] Ignored message from: ${event.origin}`);
         return;
       }
 
-      const { success, accessToken, user, error } = event.data;
+      const { success, accessToken, error } = event.data;
 
-      if (success && accessToken && user) {
-        console.log("[OAuth] ✅ Đã nhận tín hiệu thành công từ popup");
+      // Handle error case
+      if (!success) {
+        if (error) {
+          console.error(`[OAuth] Error from popup: ${error}`);
+          toast.error(error || "Đăng nhập Google thất bại");
+        }
+        return;
+      }
 
-        // Lưu thông tin auth
+      // Validate accessToken
+      if (!accessToken) {
+        console.error("[OAuth] Missing accessToken in response");
+        toast.error("Đăng nhập thất bại: Không nhận được token");
+        return;
+      }
+
+      console.log("[OAuth] ✅ Received accessToken from popup");
+
+      try {
+        // Step 1: Save access token
         setAccessToken(accessToken);
-        useAuthStore.getState().setUser(user);
 
-        // Merge cart
+        // Step 2: Fetch user info from /users/me
+        await fetchMe();
+
+        // Step 3: Merge guest cart (if any)
         try {
           await mergeGuestCart();
         } catch (mergeErr) {
-          console.error("[OAuth] 🛒 Lỗi merge cart:", mergeErr);
-          toast.error("Không thể tự động gộp giỏ hàng cũ.");
+          console.error("[OAuth] Cart merge failed:", mergeErr);
+          toast.warning("Không thể đồng bộ giỏ hàng cũ");
         }
 
-        toast.success(`Chào mừng, ${user.displayName}!`);
+        // Step 4: Success notification
+        const user = useAuthStore.getState().user;
+        toast.success(`Chào mừng, ${user?.displayName || "bạn"}!`);
 
-        // ✅ FIX: Đợi một chút trước khi redirect để đảm bảo state đã lưu
+        // Step 5: Redirect after a short delay
         setTimeout(() => {
           window.location.href = "/";
-        }, 100);
-      } else if (error) {
-        console.error(`[OAuth] ❌ Lỗi từ popup: ${error}`);
-        toast.error(error || "Đăng nhập Google thất bại");
+        }, 300);
+      } catch (err) {
+        console.error("[OAuth] Failed to process login:", err);
+        toast.error("Đăng nhập thất bại, vui lòng thử lại");
+        setAccessToken(null);
       }
     };
 
     window.addEventListener("message", handleOAuthMessage);
     return () => window.removeEventListener("message", handleOAuthMessage);
-  }, [setAccessToken, mergeGuestCart]);
+  }, [setAccessToken, fetchMe, mergeGuestCart]);
 
   return (
     <BrowserRouter>
@@ -113,9 +131,6 @@ function App() {
         {/* ==================== AUTH ROUTES ==================== */}
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/signup" element={<SignUpPage />} />
-        {/* ❌ XÓA 2 ROUTE SAU: */}
-        {/* <Route path="/printer/signup" element={<PrinterSignUpPage />} /> */}
-        {/* <Route path="/printer/signin" element={<PrinterSignInPage />} /> */}
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
@@ -131,16 +146,14 @@ function App() {
           <Route path="/designs" element={<CustomerDesignsPage />} />
           <Route path="/settings" element={<CustomerSettingsPage />} />
 
-          {/* ============= ROUTE CỦA CUSTOMER EDITOR */}
+          {/* Design Editor */}
           <Route path="/design-editor" element={<DesignEditorPage />} />
 
-          {/* ============== PRINTER ROUTES === */}
-          {/* ✅ THÊM ROUTE ONBOARDING MỚI */}
+          {/* Printer Routes */}
           <Route
             path="/printer/onboarding"
             element={<PrinterOnboardingPage />}
           />
-
           <Route path="/printer/dashboard" element={<PrinterApp />} />
           <Route
             path="/printer/orders/:orderId"
