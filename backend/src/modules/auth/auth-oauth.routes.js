@@ -1,5 +1,5 @@
 // src/modules/auth/auth-oauth.routes.js
-// BÀN GIAO: Đã sửa lỗi JSON.stringify (treo popup)
+// BÀN GIAO: Đã SỬA LẠI lỗi JSON.stringify (treo popup)
 
 import express from "express";
 import passport from "passport";
@@ -44,7 +44,7 @@ router.get(
         maxAge: REFRESH_TOKEN_TTL,
       });
 
-      // ✅ GIẢI PHÁP: Chuyển Mongoose object thành POJO (Plain Object)
+      // ✅ BƯỚC 1: Chuyển Mongoose object thành POJO (Plain Old JavaScript Object)
       // Dùng .toObject() để đảm bảo an toàn cho JSON.stringify
       const safeUser =
         result.user && typeof result.user.toObject === "function"
@@ -57,51 +57,17 @@ router.get(
         user: safeUser, // <-- Sử dụng đối tượng đã được làm sạch
       };
 
-      // Chuyển đổi payload thành chuỗi JSON an toàn
-      // Chúng ta sẽ escape nó để ngăn lỗi XSS và lỗi cú pháp
-      const jsonPayload = JSON.stringify(payload)
-        .replace(/\\/g, "\\\\")
-        .replace(/'/g, "\\'")
-        .replace(/"/g, '\\"')
-        .replace(/&/g, "\\&")
-        .replace(/</g, "\\<")
-        .replace(/>/g, "\\>")
-        .replace(/\//g, "\\/");
-
       res.send(`
         <!DOCTYPE html>
         <html>
           <head>
             <title>Đăng nhập thành công</title>
             <style>
-              body {
-                font-family: system-ui, -apple-system, sans-serif;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                margin: 0;
-                background: #f3f4f6;
-              }
-              .container {
-                text-align: center;
-                background: white;
-                padding: 2rem;
-                border-radius: 0.5rem;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-              }
-              .spinner {
-                border: 3px solid #e5e7eb;
-                border-top-color: #3b82f6;
-                border-radius: 50%;
-                width: 40px;
-                height: 40px;
-                animation: spin 1s linear infinite;
-                margin: 0 auto 1rem;
-              }
-              @keyframes spin {
-                to { transform: rotate(360deg); }
-              }
+              /* (Style giữ nguyên) */
+              body { font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f3f4f6; }
+              .container { text-align: center; background: white; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+              .spinner { border: 3px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+              @keyframes spin { to { transform: rotate(360deg); } }
             </style>
           </head>
           <body>
@@ -111,8 +77,10 @@ router.get(
             </div>
             <script>
               (function() {
-                // ✅ GIẢI PHÁP: Parse chuỗi JSON đã được escape an toàn
-                const payload = JSON.parse("${jsonPayload}"); 
+                // ✅ BƯỚC 2: Stringify MỘT LẦN duy nhất.
+                // Payload từ server (object) được biến thành một JavaScript object literal.
+                // KHÔNG DÙNG JSON.parse() nữa.
+                const payload = ${JSON.stringify(payload)};
                 const targetOrigin = "${CLIENT_URL}";
                 let attempts = 0;
                 const maxAttempts = 10;
@@ -135,6 +103,7 @@ router.get(
                   }
                 }
                 
+                // Bắt đầu gửi message
                 sendMessage();
               })();
             </script>
@@ -143,6 +112,12 @@ router.get(
       `);
     } catch (error) {
       Logger.error("❌ Lỗi Google Callback:", error);
+      // Ghi lại lỗi chi tiết hơn nếu có
+      if (error.message && error.message.includes("circular structure")) {
+        Logger.error(
+          "LỖI TUẦN HOÀN (Circular): Không thể stringify 'result.user'."
+        );
+      }
       res.redirect(`${CLIENT_URL}/signin?error=server_error`);
     }
   }
