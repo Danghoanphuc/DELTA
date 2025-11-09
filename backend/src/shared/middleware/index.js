@@ -1,13 +1,27 @@
-// src/shared/middleware/index.js (✅ UPDATED - NEW MIDDLEWARES)
-// Đây là tệp "barrel" để export tất cả các middleware
+// backend/src/shared/middleware/index.js
+// ✅ UPDATED: Added ensureCustomerProfile and isVerified exports
 
-// Export các middleware xác thực (từ auth.middleware.js)
+// ==================== Authentication Middlewares ====================
 export {
   protect, // Required authentication
-  optionalAuth, // ✨ NEW: Optional authentication (guest + auth)
+  optionalAuth, // Optional authentication (guest + auth)
   isPrinter, // Check if user is a printer
-  requireAuth, // ✨ NEW: Require auth with friendly message
+  requireAuth, // Require auth with friendly message
+  isVerified, // Check if user email is verified
 } from "./auth.middleware.js";
 
-// Export các middleware xử lý lỗi (từ error-handler.middleware.js)
-export { errorHandler, handleUploadError } from "./error-handler.middleware.js";
+// ==================== Error Handlers ====================
+export {
+  errorHandler, // Global error handler
+  handleUploadError, // Multer upload error handler
+} from "./error-handler.middleware.js";
+
+// ==================== Profile Management ====================
+export {
+  ensureCustomerProfile, // Auto-create CustomerProfile for legacy users
+} from "./ensure-customer-profile.middleware.js";
+
+// ==================== Form Data Parsing ====================
+export {
+  parseJsonFields, // Parse JSON fields from form-data
+} from "./parse-form-data.middleware.js";

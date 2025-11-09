@@ -1,54 +1,123 @@
+// backend/src/shared/models/user.model.js
+// ✅ FIXED: customerProfileId is optional, added virtual fields
+
 import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema(
   {
-    // --- Thông tin Danh tính (Identity) ---
-    email: { type: String, required: true, unique: true, index: true },
-    displayName: { type: String, required: true },
-    avatarUrl: { type: String, default: "" },
-    phone: { type: String, unique: true, sparse: true },
+    // --- Identity Information ---
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+      lowercase: true,
+      trim: true,
+    },
+    displayName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    avatarUrl: {
+      type: String,
+      default: "",
+    },
+    phone: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+    },
 
-    // --- Phương thức Xác thực ---
-    hashedPassword: { type: String, select: false },
+    // --- Authentication Methods ---
+    hashedPassword: {
+      type: String,
+      select: false,
+    },
     authMethod: {
       type: String,
       enum: ["local", "google"],
       default: "local",
     },
-    googleId: { type: String, unique: true, sparse: true },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
 
-    // --- Trạng thái Xác thực ---
-    isVerified: { type: Boolean, default: false },
-    verificationToken: { type: String, select: false },
-    verificationTokenExpiresAt: { type: Date, select: false },
+    // --- Verification Status ---
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: {
+      type: String,
+      select: false,
+    },
+    verificationTokenExpiresAt: {
+      type: Date,
+      select: false,
+    },
 
-    // --- LIÊN KẾT HỒ SƠ (THAY THẾ CHO 'role') ---
+    // --- Profile Links (REPLACE role field) ---
     customerProfileId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "CustomerProfile", // <-- Sẽ tạo model này
-      required: true,
+      ref: "CustomerProfile",
+      // ✅ CHANGED: Not required for backward compatibility
+      default: null,
+      index: true,
     },
     printerProfileId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "PrinterProfile", // <-- Đã có model này
+      ref: "PrinterProfile",
       default: null,
       index: true,
     },
 
-    // (Trong tương lai có thể thêm designerProfileId,...)
-
     // --- Metadata ---
-    lastLoginAt: Date,
-    isActive: { type: Boolean, default: true },
-
-    // --- XÓA CÁC TRƯỜNG CŨ ---
-    // username: (Đã xóa, dùng email làm định danh)
-    // role: (Đã xóa, thay bằng liên kết hồ sơ)
-    // printerProfile: (Đã xóa, đổi tên thành printerProfileId cho nhất quán)
+    lastLoginAt: {
+      type: Date,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    // Enable virtuals in JSON and objects
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
 
+// ✅ Indexes for efficient search
 UserSchema.index({ displayName: "text", email: "text" });
+UserSchema.index({ googleId: 1 });
+UserSchema.index({ isActive: 1 });
+UserSchema.index({ createdAt: -1 });
+
+// ✅ Virtual field to check if user is a printer
+UserSchema.virtual("isPrinter").get(function () {
+  return !!this.printerProfileId;
+});
+
+// ✅ Virtual field to check if user is a customer
+UserSchema.virtual("isCustomer").get(function () {
+  return !!this.customerProfileId;
+});
+
+// ✅ Method to check if user has complete profile
+UserSchema.methods.hasCompleteProfile = function () {
+  return !!(this.displayName && this.email && this.isVerified);
+};
+
+// ✅ Method to get user role (for backward compatibility)
+UserSchema.methods.getRole = function () {
+  if (this.printerProfileId) return "printer";
+  if (this.customerProfileId) return "customer";
+  return "guest";
+};
 
 export const User = mongoose.model("User", UserSchema);

@@ -11,7 +11,7 @@ import cookieParser from "cookie-parser";
 import { connectToDatabase } from "./infrastructure/database/connection.js";
 import { envConfig } from "./config/env.config.js";
 import { errorHandler } from "./shared/middleware/error-handler.middleware.js";
-
+import "./infrastructure/auth/passport.config.js";
 // Import các modules routes
 import authRoutes from "./modules/auth/auth.routes.js";
 import oauthRoutes from "./modules/auth/auth-oauth.routes.js";
