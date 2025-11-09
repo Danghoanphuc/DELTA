@@ -1,5 +1,5 @@
 // src/modules/auth/auth-oauth.routes.js
-// BÀN GIAO: Đã SỬA LẠI lỗi JSON.stringify (treo popup)
+// BÀN GIAO: FIX LỖI "ĐẠN BẮN KHÔNG THỦNG" - CHỈ GỬI ACCESSTOKEN
 
 import express from "express";
 import passport from "passport";
@@ -35,6 +35,7 @@ router.get(
   }),
   async (req, res) => {
     try {
+      // result bao gồm { accessToken, refreshToken, user }
       const result = await authService.createOAuthSession(req.user);
 
       res.cookie("refreshToken", result.refreshToken, {
@@ -44,18 +45,16 @@ router.get(
         maxAge: REFRESH_TOKEN_TTL,
       });
 
-      // ✅ BƯỚC 1: Chuyển Mongoose object thành POJO (Plain Old JavaScript Object)
-      // Dùng .toObject() để đảm bảo an toàn cho JSON.stringify
-      const safeUser =
-        result.user && typeof result.user.toObject === "function"
-          ? result.user.toObject()
-          : result.user;
-
+      // ✅ GIẢI PHÁP: CHỈ GỬI ACCESSTOKEN.
+      // KHÔNG gửi object 'user' qua popup.
+      // Object Mongoose quá phức tạp để JSON.stringify một cách an toàn.
       const payload = {
         success: true,
         accessToken: result.accessToken,
-        user: safeUser, // <-- Sử dụng đối tượng đã được làm sạch
+        // ❌ ĐÃ XÓA HOÀN TOÀN: user: result.user
       };
+
+      // 'payload' bây giờ CỰC KỲ đơn giản và 100% an toàn để stringify.
 
       res.send(`
         <!DOCTYPE html>
@@ -63,7 +62,6 @@ router.get(
           <head>
             <title>Đăng nhập thành công</title>
             <style>
-              /* (Style giữ nguyên) */
               body { font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f3f4f6; }
               .container { text-align: center; background: white; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
               .spinner { border: 3px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
@@ -77,9 +75,7 @@ router.get(
             </div>
             <script>
               (function() {
-                // ✅ BƯỚC 2: Stringify MỘT LẦN duy nhất.
-                // Payload từ server (object) được biến thành một JavaScript object literal.
-                // KHÔNG DÙNG JSON.parse() nữa.
+                // ✅ 'payload' này giờ an toàn 100%
                 const payload = ${JSON.stringify(payload)};
                 const targetOrigin = "${CLIENT_URL}";
                 let attempts = 0;
@@ -90,6 +86,7 @@ router.get(
                   
                   if (window.opener && !window.opener.closed) {
                     console.log("Attempt", attempts, "- Sending to:", targetOrigin);
+                    // Payload gửi đi sẽ là: { success: true, accessToken: "..." }
                     window.opener.postMessage(payload, targetOrigin);
                     
                     setTimeout(() => {
@@ -103,7 +100,6 @@ router.get(
                   }
                 }
                 
-                // Bắt đầu gửi message
                 sendMessage();
               })();
             </script>
@@ -112,12 +108,6 @@ router.get(
       `);
     } catch (error) {
       Logger.error("❌ Lỗi Google Callback:", error);
-      // Ghi lại lỗi chi tiết hơn nếu có
-      if (error.message && error.message.includes("circular structure")) {
-        Logger.error(
-          "LỖI TUẦN HOÀN (Circular): Không thể stringify 'result.user'."
-        );
-      }
       res.redirect(`${CLIENT_URL}/signin?error=server_error`);
     }
   }
