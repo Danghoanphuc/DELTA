@@ -1,5 +1,5 @@
 // backend/src/server.js
-// BÀN GIAO: Đã xóa ký tự 'T' thừa ở dòng pdf-render (lỗi deploy)
+// BÀN GIAO: Đã sửa lỗi 'connectToDatabase' import (bỏ dấu {})
 
 import "dotenv/config";
 import express from "express";
@@ -7,8 +7,8 @@ import cors from "cors";
 import passport from "passport";
 import cookieParser from "cookie-parser";
 
-import { connectToDatabase } from "./infrastructure/database/connection.js";
-// Đã xóa 'validateEnv'
+// ✅ SỬA LỖI: Bỏ dấu {} vì 'connection.js' dùng export default
+import connectToDatabase from "./infrastructure/database/connection.js";
 import { envConfig } from "./config/env.config.js";
 import { errorHandler } from "./shared/middleware/error-handler.middleware.js";
 
@@ -69,7 +69,6 @@ app.use("/api/designs", designRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/studio", studioRoutes);
-// ✅ SỬA LỖI: Đã xóa chữ 'T' ở đầu dòng này
 app.use("/api/pdf-render", pdfRenderRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/uploads", uploadRoutes);
