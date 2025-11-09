@@ -138,7 +138,7 @@ export const CustomerOrdersPage = () => {
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
       <MobileNav />
-      <div className="lg:ml-20 pt-16 lg:pt-0 p-4 md:p-8">
+      <div className="lg:ml-20 pt-6 lg:pt-0 p-4 md:p-8">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">

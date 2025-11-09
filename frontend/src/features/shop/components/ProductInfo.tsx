@@ -1,8 +1,11 @@
-// features/shop/components/ProductInfo.tsx
+// src/features/shop/components/ProductInfo.tsx
+// ✅ ĐÃ NÂNG CẤP (Layout giống Tiki)
+
 import React from "react";
 import { Badge } from "@/shared/components/ui/badge";
-import { Product, PrinterProduct } from "@/types/product";
+import { Product } from "@/types/product";
 import { Star } from "lucide-react";
+import { cn } from "@/shared/lib/utils"; // ✅ Thêm cn
 
 interface ProductInfoProps {
   product: Product;
@@ -15,56 +18,71 @@ export const ProductInfo = ({
   currentPricePerUnit,
   formatPrice,
 }: ProductInfoProps) => {
-  // --- Dữ liệu giả cho Social Proof (Anh sẽ thay bằng dữ liệu thật) ---
-  const rating = product.rating ?? 4.9;
-  const totalReviews = 610;
-  const totalSold = product.totalSold ?? 6000;
+  // --- Dữ liệu giả cho Social Proof & Tags (Giống ảnh) ---
+  const rating = product.rating ?? 5.0;
+  const totalReviews = product.totalReviews ?? 5;
+  const totalSold = product.totalSold ?? 159;
+  const originalPrice = currentPricePerUnit * 1.33; // Giả lập giá gốc cao hơn 33%
+  const discountPercent = 33;
   // --- Kết thúc dữ liệu giả ---
+
+  const hasDiscount = discountPercent > 0;
 
   return (
     <div className="space-y-3">
-      <Badge variant="outline" className="mb-1">
-        {product.category}
-      </Badge>
-      <h1 className="text-2xl md:text-3xl font-bold">{product.name}</h1>
+      {/* === NÂNG CẤP: TAGS (Giống ảnh) === */}
+      <div className="flex items-center gap-2">
+        <Badge className="bg-red-500 text-white hover:bg-red-500">
+          TOP DEAL
+        </Badge>
+        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">
+          CHÍNH HÃNG
+        </Badge>
+        {/* (Badge category cũ của Phúc) */}
+        {/* <Badge variant="outline">{product.category}</Badge> */}
+      </div>
 
-      {/* === NÂNG CẤP: SOCIAL PROOF (Giống Shopee) === */}
-      <div className="flex items-center gap-4 text-sm text-gray-600">
+      {/* Tên sản phẩm */}
+      <h1 className="text-2xl md:text-3xl font-bold pt-1">{product.name}</h1>
+
+      {/* === NÂNG CẤP: SOCIAL PROOF (Giống ảnh) === */}
+      <div className="flex items-center gap-2 text-sm text-gray-600">
         <div className="flex items-center gap-1">
-          <span className="font-bold text-base text-orange-500">{rating}</span>
+          <span className="font-bold text-base text-orange-500">
+            {rating.toFixed(1)}
+          </span>
           <Star size={16} className="fill-orange-500 text-orange-500" />
+          <span className="ml-1">({totalReviews})</span>
         </div>
-        <div className="border-l pl-4">
-          <span className="font-bold text-base text-gray-800">
-            {totalReviews}
-          </span>
-          <span className="ml-1">Đánh giá</span>
-        </div>
-        <div className="border-l pl-4">
-          <span className="font-bold text-base text-gray-800">
-            {totalSold > 1000
-              ? `${(totalSold / 1000).toFixed(1)}k+`
-              : `${totalSold}+`}
-          </span>
-          <span className="ml-1">Đã bán</span>
+        <div className="border-l h-4" />
+        <div className="">
+          <span className="ml-1">Đã bán {totalSold}</span>
         </div>
       </div>
-      {/* === KẾT THÚC NÂNG CẤP === */}
 
-      {/* Price */}
-      <div className="!mt-4">
-        <span className="text-3xl font-bold text-blue-600 mr-2">
+      {/* === NÂNG CẤP: GIÁ (Giống ảnh) === */}
+      <div className="!mt-4 flex items-end gap-2">
+        <span className="text-3xl font-bold text-gray-900 mr-1">
           {formatPrice(currentPricePerUnit)}
         </span>
-        <span className="text-gray-500">/ sản phẩm</span>
-        {product.pricing.length > 1 && (
-          <p className="text-sm text-green-600">
-            (Áp dụng cho số lượng từ {product.pricing[0].minQuantity}+)
-          </p>
+        {hasDiscount && (
+          <>
+            <span className="text-lg text-gray-400 line-through">
+              {formatPrice(originalPrice)}
+            </span>
+            <Badge variant="destructive" className="text-base font-bold">
+              -{discountPercent}%
+            </Badge>
+          </>
         )}
       </div>
+      {product.pricing.length > 1 && (
+        <p className="text-sm text-green-600 !mt-1">
+          (Áp dụng cho số lượng từ {product.pricing[0].minQuantity}+)
+        </p>
+      )}
 
-      {/* Description */}
+      {/* Description (Giữ nguyên) */}
       {product.description && (
         <p className="text-gray-600 pt-2">{product.description}</p>
       )}

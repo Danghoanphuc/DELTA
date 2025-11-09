@@ -1,16 +1,14 @@
 // features/shop/components/ShopFilterBar.tsx
+// ✅ ĐỘT PHÁ: Tái thiết kế toàn bộ theo phong cách Pinterest/Canva
+
 import {
-  Search,
-  CreditCard,
-  Shirt,
-  Package,
-  Megaphone,
+  SlidersHorizontal,
+  ChevronDown,
   Palette,
   Gem,
-  LucideIcon, // Import LucideIcon
+  Check,
 } from "lucide-react";
-import { Product } from "@/types/product"; // Import Product type for categories
-import { Input } from "@/shared/components/ui/input";
+import { Product } from "@/types/product";
 import {
   Select,
   SelectTrigger,
@@ -20,114 +18,126 @@ import {
 } from "@/shared/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { Button } from "@/shared/components/ui/button";
+import { cn } from "@/shared/lib/utils";
+import { categoryIcons } from "../utils/categoryIcons"; // Import icons
 
-// Define ShopFilterBarProps interface
 interface ShopFilterBarProps {
-  searchTerm: string;
-  onSearchChange: (term: string) => void;
+  // ✅ Props đã được cập nhật
   selectedCategory: string;
   onCategoryChange: (category: string) => void;
   sortBy: string;
   onSortChange: (sortBy: string) => void;
-  categories: { label: string; value: Product["category"] }[]; // Use Product["category"] for type safety
+  categories: { label: string; value: string }[];
+  onFilterOpen: () => void; // ✅ Thêm
 }
 
-const categoryIcons: { [key: string]: LucideIcon } = {
-  "business-card": CreditCard,
-  "t-shirt": Shirt,
-  packaging: Package,
-  banner: Megaphone,
-  default: Palette,
-};
+// Các nút sắp xếp (tách biệt với logic giá)
+const sortTabs = [
+  { label: "Liên quan", value: "popular" },
+  { label: "Mới nhất", value: "newest" },
+];
 
 export const ShopFilterBar = ({
-  searchTerm,
-  onSearchChange,
   selectedCategory,
   onCategoryChange,
   sortBy,
   onSortChange,
   categories,
-}: ShopFilterBarProps) => (
-  // THAY ĐỔI CẤU TRÚC
-  <div className="flex flex-col gap-4">
-    {/* 1. Hàng trên: Search và Sort (Giữ nguyên) */}
-    <div className="flex flex-col sm:flex-row gap-3">
-      <div className="relative flex-1">
-        <Search
-          size={18}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-        />
-        <Input
-          placeholder="Tìm cảm hứng, dự án, chất liệu..."
-          className="pl-10"
-          value={searchTerm}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSearchChange(e.target.value)}
-        />
-      </div>
-      <Select value={sortBy} onValueChange={onSortChange}>
-        <SelectTrigger className="w-full sm:w-48">
-          <SelectValue placeholder="Sắp xếp" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="newest">Mới nhất</SelectItem>
-          <SelectItem value="price-asc">Giá: Thấp → Cao</SelectItem>
-          <SelectItem value="price-desc">Giá: Cao → Thấp</SelectItem>
-          <SelectItem value="popular">Phổ biến nhất</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
+  onFilterOpen,
+}: ShopFilterBarProps) => {
+  const isPriceSort = sortBy === "price-asc" || sortBy === "price-desc";
 
-    {/* 2. Hàng hai: Filter Danh mục (Thay đổi lớn) */}
-    <div>
-      <Tabs value={selectedCategory} onValueChange={onCategoryChange}>
-        {/* Cho phép cuộn ngang trên mobile */}
-        <TabsList className="h-auto p-2 bg-gray-100 rounded-lg overflow-x-auto whitespace-nowrap justify-start hide-scrollbar">
-          {categories.map((cat) => {
-            const Icon = categoryIcons[cat.value] || categoryIcons.default;
-            return (
+  return (
+    <div className="flex flex-col gap-4">
+      {/* === HÀNG 1: SẮP XẾP (Giống Canva) === */}
+      <div className="flex items-center gap-2">
+        {/* Tabs Sắp xếp */}
+        <Tabs
+          value={isPriceSort ? "price" : sortBy}
+          onValueChange={(value) => {
+            if (value !== "price") {
+              onSortChange(value);
+            }
+          }}
+        >
+          <TabsList className="h-10 p-1 bg-gray-100 rounded-lg">
+            {sortTabs.map((tab) => (
               <TabsTrigger
-                key={cat.value}
-                value={cat.value}
-                className="flex-col h-16 w-24 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-600"
+                key={tab.value}
+                value={tab.value}
+                className="px-4 data-[state=active]:bg-white data-[state=active]:shadow-md data-[state=active]:text-blue-600"
               >
-                <Icon size={20} />
-                <span className="text-xs mt-1 whitespace-normal text-center">
-                  {cat.label}
-                </span>
+                {tab.label}
               </TabsTrigger>
-            );
-          })}
-        </TabsList>
-      </Tabs>
-    </div>
+            ))}
+          </TabsList>
+        </Tabs>
 
-    {/* 3. ĐỘT PHÁ: Thêm bộ lọc chất liệu (Gợi ý) */}
-    <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
-      <Button
-        variant="outline"
-        size="sm"
-        className="rounded-full bg-white whitespace-nowrap"
-      >
-        <Gem size={14} className="mr-1.5" />
-        Chất liệu: Giấy Kraft
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        className="rounded-full bg-white whitespace-nowrap"
-      >
-        <Gem size={14} className="mr-1.5" />
-        Hoàn thiện: Cán mờ
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        className="rounded-full bg-white whitespace-nowrap"
-      >
-        <Gem size={14} className="mr-1.5" />
-        Hoàn thiện: Dập nổi
-      </Button>
+        {/* Nút Giá (Dropdown) */}
+        <Select
+          value={isPriceSort ? sortBy : "default"}
+          onValueChange={(value) => {
+            if (value !== "default") onSortChange(value);
+          }}
+        >
+          <SelectTrigger
+            className={cn(
+              "w-40 h-10 bg-gray-100 border-none",
+              isPriceSort &&
+                "bg-white shadow-md text-blue-600 ring-1 ring-inset ring-gray-200"
+            )}
+          >
+            <SelectValue placeholder="Giá" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="price-asc">Giá: Thấp → Cao</SelectItem>
+            <SelectItem value="price-desc">Giá: Cao → Thấp</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Nút Bộ lọc (Mở Modal) */}
+        <Button
+          variant="outline"
+          className="h-10 bg-gray-100 border-none"
+          onClick={onFilterOpen}
+        >
+          <SlidersHorizontal size={16} className="mr-2" />
+          Tất cả bộ lọc
+        </Button>
+      </div>
+
+      {/* === HÀNG 2: DANH MỤC (Cuộn ngang - Giống Canva) === */}
+      <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
+        {categories.map((cat) => {
+          const Icon = categoryIcons[cat.value] || Palette;
+          const isActive = selectedCategory === cat.value;
+          return (
+            <Button
+              key={cat.value}
+              variant="ghost"
+              className={cn(
+                "flex flex-col h-20 w-24 p-2 rounded-lg bg-gray-100 hover:bg-gray-200",
+                isActive &&
+                  "bg-blue-50 border-2 border-blue-500 text-blue-600 hover:bg-blue-50"
+              )}
+              onClick={() => onCategoryChange(cat.value)}
+            >
+              <Icon
+                size={24}
+                className={cn("text-gray-600", isActive && "text-blue-600")}
+              />
+              <span
+                className={cn(
+                  "text-xs mt-1.5 whitespace-normal text-center font-normal text-gray-700",
+                  isActive && "font-semibold text-blue-600"
+                )}
+              >
+                {cat.label}
+              </span>
+            </Button>
+          );
+        })}
+      </div>
     </div>
-  </div>
-);
+  );
+};

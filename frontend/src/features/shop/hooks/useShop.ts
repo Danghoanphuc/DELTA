@@ -1,10 +1,10 @@
-// features/shop/hooks/useShop.ts (ĐÃ CẬP NHẬT - Thêm Shuffle)
+// features/shop/hooks/useShop.ts
 import { useState, useEffect, useMemo } from "react";
 import { Product, PrinterProduct } from "@/types/product";
 import api from "@/shared/lib/axios";
 import { toast } from "sonner";
 
-// Các danh mục (giữ nguyên)
+// Các danh mục (giữ nguyên)
 const categories = [
   { value: "all", label: "Tất cả" },
   { value: "business-card", label: "Danh thiếp" },
@@ -14,28 +14,21 @@ const categories = [
 ];
 
 /**
- * Thêm hàm xáo trộn mảng (Fisher-Yates Shuffle)
- * @param array Mảng đầu vào
- * @returns Một mảng mới đã được xáo trộn
+ * Thêm hàm xáo trộn mảng (Fisher-Yates Shuffle)
+ * (Giữ nguyên)
  */
 function shuffleArray<T>(array: T[]): T[] {
   let currentIndex = array.length,
     randomIndex;
-  const newArray = [...array]; // Tạo bản copy để tránh mutate state gốc
-
-  // Khi vẫn còn phần tử để xáo trộn
+  const newArray = [...array];
   while (currentIndex != 0) {
-    // Chọn một phần tử còn lại
     randomIndex = Math.floor(Math.random() * currentIndex);
     currentIndex--;
-
-    // Và hoán đổi nó với phần tử hiện tại
     [newArray[currentIndex], newArray[randomIndex]] = [
       newArray[randomIndex],
       newArray[currentIndex],
     ];
   }
-
   return newArray;
 }
 
@@ -45,7 +38,9 @@ export const useShop = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("newest"); // 'newest' là mặc định
+
+  // ✅ SỬA: Đổi default sort thành "popular" (tương ứng "Liên quan")
+  const [sortBy, setSortBy] = useState<string>("popular");
 
   // Tải sản phẩm (giữ nguyên)
   useEffect(() => {
@@ -54,10 +49,9 @@ export const useShop = () => {
       try {
         const res = await api.get("/products");
         const products: PrinterProduct[] = res.data?.data?.products || [];
-        // Map PrinterProduct to Product by adding a default assets object
         const productsWithAssets: Product[] = products.map((p) => ({
           ...p,
-          assets: { surfaces: [] }, // Initialize assets with a default empty object
+          assets: (p as any).assets || { surfaces: [] }, // Đảm bảo assets luôn tồn tại
         }));
         setAllProducts(productsWithAssets);
       } catch (err: any) {
@@ -94,7 +88,6 @@ export const useShop = () => {
     // 2. Sắp xếp (Sort) hoặc Xáo trộn (Shuffle)
     switch (sortBy) {
       case "price-asc":
-        // Sắp xếp giá tăng dần (NGHIÊM TÚC)
         products.sort((a, b) => {
           const priceA =
             a.pricing.reduce(
@@ -110,7 +103,6 @@ export const useShop = () => {
         });
         break;
       case "price-desc":
-        // Sắp xếp giá giảm dần (NGHIÊM TÚC)
         products.sort((a, b) => {
           const priceA =
             a.pricing.reduce(
@@ -125,17 +117,27 @@ export const useShop = () => {
           return priceB - priceA;
         });
         break;
+
+      // ✅ SỬA: "newest" và "popular" sẽ dùng logic riêng
       case "newest":
-      case "popular":
+        products.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        break;
+
+      case "popular": // "Liên quan" / "Bán chạy"
+        products.sort((a, b) => (b.totalSold || 0) - (a.totalSold || 0));
+        break;
+
       default:
-        // MẶC ĐỊNH (newest/popular): XÁO TRỘN (NGẪU NHIÊN)
-        // Đây là giải pháp cho yêu cầu của anh
-        products = shuffleArray(products);
+        // Fallback về "popular"
+        products.sort((a, b) => (b.totalSold || 0) - (a.totalSold || 0));
         break;
     }
 
     return products;
-  }, [allProducts, selectedCategory, searchTerm, sortBy]); // Thêm sortBy vào dependency
+  }, [allProducts, selectedCategory, searchTerm, sortBy]);
 
   return {
     products: filteredProducts,
@@ -145,6 +147,6 @@ export const useShop = () => {
     selectedCategory,
     onCategoryChange: setSelectedCategory,
     sortBy,
-    setSortBy, // Trả ra setSortBy (lần trước tôi quên)
+    setSortBy,
   };
 };

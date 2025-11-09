@@ -1,4 +1,6 @@
 // frontend/src/components/MobileNav.tsx (CODE ĐÚNG)
+// ✅ SỬA LỖI: Gỡ bỏ thẻ <div className="lg:hidden h-16" /> (spacer)
+// ✅ Gỡ bỏ Fragment <> không cần thiết
 import {
   Home,
   Lightbulb,
@@ -20,45 +22,42 @@ export function MobileNav() {
   ];
 
   return (
-    <>
-      {/* Mobile Bottom Navigation - Chỉ hiển thị trên mobile */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-lg border-t border-gray-200 z-50 shadow-lg">
-        <nav className="h-full flex items-center justify-around px-2">
-          {/* Menu Items */}
-          {menuItems.map((item) => {
-            const isActive = item.path === location.pathname;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 ${
-                  isActive
-                    ? "text-blue-600"
-                    : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-                }`}
+    /* Mobile Bottom Navigation - Chỉ hiển thị trên mobile */
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-lg border-t border-gray-200 z-50 shadow-lg">
+      <nav className="h-full flex items-center justify-around px-2">
+        {/* Menu Items */}
+        {menuItems.map((item) => {
+          const isActive = item.path === location.pathname;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 ${
+                isActive
+                  ? "text-blue-600"
+                  : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+              }`}
+            >
+              <div className="relative">
+                <item.icon
+                  size={20}
+                  className={isActive ? "stroke-[2.5]" : "stroke-[2]"}
+                />
+                {isActive && (
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-600 rounded-full" />
+                )}
+              </div>
+              <span
+                className={`text-[10px] ${isActive ? "font-semibold" : ""}`}
               >
-                <div className="relative">
-                  <item.icon
-                    size={20}
-                    className={isActive ? "stroke-[2.5]" : "stroke-[2]"}
-                  />
-                  {isActive && (
-                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-600 rounded-full" />
-                  )}
-                </div>
-                <span
-                  className={`text-[10px] ${isActive ? "font-semibold" : ""}`}
-                >
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
 
-      {/* Spacer để tránh content bị che bởi bottom nav */}
-      <div className="lg:hidden h-16" />
-    </>
+    /* ❌ ĐÃ GỠ BỎ SPACER GÂY LỖI TẠI ĐÂY ❌ */
   );
 }

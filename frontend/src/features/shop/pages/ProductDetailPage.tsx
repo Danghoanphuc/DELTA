@@ -1,13 +1,10 @@
 // src/features/shop/pages/ProductDetailPage.tsx
-// ✅ PHIÊN BẢN TÁI CẤU TRÚC: Đã loại bỏ logic 'isEditing' và trình editor "hybrid".
-// Giờ đây trang này chỉ làm nhiệm vụ "Mua sắm".
+// (Phiên bản "AND" logic + Carousel + Header Nổi)
 
-import React, { useMemo } from "react"; // ❌ Gỡ bỏ useState
+import React, { useMemo, lazy, Suspense, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
-import { MobileNav } from "@/components/MobileNav";
 import { Button } from "@/shared/components/ui/button";
-import { ArrowLeft, Loader2, Image as ImageIcon, Box } from "lucide-react"; // ❌ Gỡ bỏ X
-import { Skeleton } from "@/shared/components/ui/skeleton";
+import { ArrowLeft, Loader2, Image as ImageIcon, Box } from "lucide-react";
 import { toast } from "sonner";
 import {
   Tabs,
@@ -16,102 +13,50 @@ import {
   TabsTrigger,
 } from "@/shared/components/ui/tabs";
 import { cn } from "@/shared/lib/utils";
+// ✅ BƯỚC 1: Import thêm store để lấy count
+import { useCartStore } from "@/stores/useCartStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 
-// Logic (❌ Gỡ bỏ useDesignEditor)
+// Hooks
 import { useProductDetail } from "../hooks/useProductDetail";
-import { DesignSurface } from "@/types/product";
-import { Product } from "@/types/product";
+import { SurfaceDefinition } from "@/features/editor/hooks/use3DInteraction";
 
-// Components
+// Components (Cụm 1 - Tải ngay)
 import { ProductInfo } from "../components/ProductInfo";
 import { ProductCustomization } from "../components/ProductCustomization";
 import { ProductPurchase } from "../components/ProductPurchase";
 import { PrinterInfoCard } from "../components/PrinterInfoCard";
-// ❌ Gỡ bỏ EditingPanel
-
-// Editor Components (❌ Gỡ bỏ EditorToolbar)
 import ProductViewer3D from "@/features/editor/components/ProductViewer3D";
 import { ProductImageGallery } from "../components/ProductImageGallery";
-import { SurfaceDefinition } from "@/features/editor/hooks/use3DInteraction";
 
-// (Skeleton giữ nguyên)
-const DetailPageSkeleton = () => (
-  // ... (Không thay đổi)
-  <div className="min-h-screen bg-gray-50">
-    <Sidebar /> <MobileNav />
-    <div className="lg:ml-20 pt-16 lg:pt-0">
-      <div className="max-w-7xl mx-auto p-4 md:p-6">
-        <Skeleton className="h-8 w-32 mb-4" />
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-10">
-          <div className="lg:col-span-3 space-y-4">
-            <Skeleton className="aspect-square w-full rounded-lg" />
-          </div>
-          <div className="lg:col-span-2 space-y-4">
-            <Skeleton className="h-10 w-1/2" />{" "}
-            <Skeleton className="h-6 w-1/3" />
-            <Skeleton className="h-24 w-full rounded-lg" />
-            <Skeleton className="h-12 w-full rounded-lg" />
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+// Footer và Sheet
+import { ProductDetailFooter } from "../components/ProductDetailFooter";
+import { ProductPurchaseSheet } from "../components/details/ProductPurchaseSheet";
+
+// ✅ BƯỚC 2: Import Header di động MỚI và CartSidebar
+import { ProductDetailMobileHeader } from "../components/details/ProductDetailMobileHeader";
+import { CartSidebar } from "@/features/shop/pages/CartSidebar";
+
+// Components (Cụm 2 - Tải động)
+import { LazyLoadSection } from "@/shared/components/ui/LazyLoadSection";
+import { SectionSkeleton } from "../components/details/SectionSkeleton";
+
+// (Các import động giữ nguyên)
+const ProductSpecsSection = lazy(
+  () => import("../components/details/ProductSpecsSection")
+);
+const PrinterProfileSection = lazy(
+  () => import("../components/details/PrinterProfileSection")
 );
 
-// (ShopPanel giữ nguyên)
-const ShopPanel = ({
-  product,
-  currentPricePerUnit,
-  formatPrice,
-  customization,
-  setCustomization,
-  isCustomizable,
-  onStartEditing,
-  minQuantity,
-  selectedQuantity,
-  setSelectedQuantity,
-  onAddToCart,
-  isAddingToCart,
-  inCart,
-}: any) => (
-  <div className="lg:sticky lg:top-24 space-y-4">
-    <ProductInfo
-      product={product}
-      currentPricePerUnit={currentPricePerUnit}
-      formatPrice={formatPrice}
-    />
-    {product.printerInfo && (
-      <PrinterInfoCard printerInfo={product.printerInfo} />
-    )}
-
-    {isCustomizable ? (
-      <ProductCustomization
-        product={product}
-        customization={customization}
-        onCustomizationChange={(field: string, value: string) =>
-          setCustomization((prev: any) => ({ ...prev, [field]: value }))
-        }
-        isCustomizable={isCustomizable}
-        onStartEditing={onStartEditing} // Prop này vẫn được giữ
-      />
-    ) : (
-      <ProductPurchase
-        minQuantity={minQuantity}
-        selectedQuantity={selectedQuantity}
-        onQuantityChange={setSelectedQuantity}
-        onAddToCart={onAddToCart}
-        isAddingToCart={isAddingToCart}
-        inCart={inCart}
-      />
-    )}
+// (Skeleton...)
+const LoadingScreen = () => (
+  <div className="flex h-screen items-center justify-center">
+    <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
   </div>
 );
 
 export function ProductDetailPage() {
-  // ❌ Gỡ bỏ state 'isEditing'
-  // ❌ Gỡ bỏ hook 'useDesignEditor'
-
-  // (Gọi hook 'useProductDetail' giữ nguyên)
   const {
     product,
     loading: shopLoading,
@@ -129,138 +74,174 @@ export function ProductDetailPage() {
     isCustomizable,
   } = useProductDetail();
 
-  // (Logic isLoading giữ nguyên)
+  // ✅ BƯỚC 3: Thêm state quản lý Cart
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const { getCartItemCount } = useCartStore();
+  const { accessToken } = useAuthStore();
+  const cartItemCount = getCartItemCount(!!accessToken);
+
+  // (State cho Bottom Sheet - giữ nguyên)
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [sheetMode, setSheetMode] = useState<"cart" | "buy">("cart");
+
   const isLoading = shopLoading;
 
-  // ✅ SỬA: 'surfaceMapping' vẫn cần cho ProductViewer3D (chế độ chỉ xem)
+  // (surfaceMapping, handleStartEditing, handleBuyNow, handleOpenSheet... giữ nguyên)
   const surfaceMapping = useMemo((): SurfaceDefinition[] => {
     if (!product?.assets?.surfaces) return [];
-    return product.assets.surfaces.map((s: DesignSurface) => ({
+    return product.assets.surfaces.map((s: any) => ({
       materialName: s.materialName,
       surfaceKey: s.surfaceKey,
-      artboardSize: { width: 1024, height: 1024 }, // Tạm thời
+      artboardSize: { width: 1024, height: 1024 },
     }));
   }, [product]);
 
-  // ✅ SỬA: 'handleStartEditing' giờ sẽ điều hướng (navigate)
   const handleStartEditing = () => {
     if (!product?.assets?.modelUrl) {
-      toast.error("Lỗi: Sản phẩm này không hỗ trợ 3D.");
+      toast.error("Lỗi: Sản phẩm này không hỗ trợ 3D.");
       return;
     }
-    // Điều hướng đến trang Editor chuyên dụng
     navigate(`/design-editor?productId=${product._id}`);
   };
 
-  // ❌ Gỡ bỏ 'handleExitEditing'
+  const handleBuyNow = async () => {
+    if (!inCart) {
+      await handleAddToCart();
+    }
+    if (!useCartStore.getState().isLoading) {
+      navigate("/checkout");
+    }
+  };
 
-  // === RENDER ===
-  if (isLoading) {
-    return <DetailPageSkeleton />;
-  }
-  if (!product) {
-    // ... (fallback giữ nguyên)
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p>Không tìm thấy sản phẩm.</p>
-      </div>
-    );
+  const handleOpenSheet = (mode: "cart" | "buy") => {
+    setSheetMode(mode);
+    setIsSheetOpen(true);
+  };
+
+  if (isLoading || !product) {
+    return <LoadingScreen />;
   }
 
-  // === RENDER TRANG SHOP (Đã đơn giản hóa) ===
+  // *** PANEL BÊN PHẢI (DESKTOP) - LOGIC "AND" ***
+  const ShopPanel = (
+    <div className="lg:sticky lg:top-24 space-y-4">
+      <ProductInfo
+        product={product}
+        currentPricePerUnit={currentPricePerUnit}
+        formatPrice={formatPrice}
+      />
+      {product.printerInfo && (
+        <PrinterInfoCard printerInfo={product.printerInfo} />
+      )}
+
+      {/* 1. Luồng Mua (Luôn hiển thị) */}
+      <ProductPurchase
+        minQuantity={minQuantity}
+        selectedQuantity={selectedQuantity}
+        onQuantityChange={setSelectedQuantity}
+        onAddToCart={handleAddToCart}
+        isAddingToCart={isAddingToCart}
+        inCart={inCart}
+      />
+
+      {/* 2. Luồng Thiết kế (Chỉ hiển thị NẾU là Phôi) */}
+      {isCustomizable && (
+        <ProductCustomization
+          product={product}
+          customization={customization}
+          onCustomizationChange={(field: any, value: any) =>
+            setCustomization((prev: any) => ({ ...prev, [field]: value }))
+          }
+          onStartEditing={handleStartEditing}
+        />
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* === SIDDEBAR / HEADER === */}
       <Sidebar />
-      <MobileNav />
+      {/* ✅ BƯỚC 4: Thêm Header Mobile MỚI */}
+      <ProductDetailMobileHeader
+        cartItemCount={cartItemCount}
+        onBackClick={() => navigate(-1)}
+        onCartClick={() => setIsCartOpen(true)}
+      />
 
-      {/* ✅ SỬA: Đã giảm padding-bottom (pb-24 -> pb-8) như đã bàn */}
-      <div className="lg:ml-20 pt-4 lg:pt-6 pb-8 lg:pb-6">
+      {/* === NỘI DUNG CHÍNH === */}
+      {/* ✅ SỬA: Đổi pt-4 (desktop) và pt-16 (mobile) */}
+      <div className="lg:ml-20 pt-16 lg:pt-6 pb-24 lg:pb-6">
         <div className="max-w-7xl mx-auto px-4 md:px-6">
+          {/* ✅ BƯỚC 5: Ẩn nút "Quay lại" cũ trên di động (chỉ giữ cho desktop) */}
           <Button
             variant="ghost"
-            onClick={() => navigate(-1)} // ✅ SỬA: Luôn là navigate(-1)
-            className="mb-4"
+            onClick={() => navigate(-1)}
+            className="mb-4 hidden lg:inline-flex"
           >
             <ArrowLeft size={18} className="mr-2" />
-            Quay lại
+            Quay lại
           </Button>
 
-          {/* === BỐ CỤC CỐ ĐỊNH (Không còn 'isEditing') === */}
+          {/* === CỤM 1: ABOVE THE FOLD (Tải ngay) === */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-10">
-            {/* ❌ Gỡ bỏ: Vùng Toolbar bên trái */}
-
-            {/* --- VÙNG TRUNG TÂM: Tabs (3D vs 2D) --- */}
-            {/* ✅ SỬA: Layout cố định, không còn 'isEditing' */}
+            {/* (Cột Trái (Visual)) */}
             <div className="lg:col-span-3 relative z-10">
-              <Tabs defaultValue="3d-mockup" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="3d-mockup">
-                    <Box size={16} className="mr-2" />
-                    Mockup 3D
-                  </TabsTrigger>
-                  <TabsTrigger value="gallery">
-                    <ImageIcon size={16} className="mr-2" />
-                    Thư viện Ảnh
-                  </TabsTrigger>
-                </TabsList>
-
-                {/* Tab 1: 3D Viewer (Chế độ chỉ xem) */}
-                <TabsContent value="3d-mockup" className="mt-4">
-                  <div className="aspect-square w-full rounded-lg overflow-hidden bg-gray-100 border shadow-inner sticky top-24">
-                    {product.assets.modelUrl ? (
-                      <ProductViewer3D
-                        modelUrl={product.assets.modelUrl}
-                        onModelLoaded={() => {}} // ❌ Gỡ bỏ setIsModelLoaded
-                        decals={[]} // ❌ Luôn rỗng (chỉ xem)
-                        surfaceMapping={surfaceMapping}
-                        onDrop={() => {}} // ❌ Không làm gì cả
-                        onDecalSelect={() => {}} // ❌ Không làm gì cả
-                        onDecalUpdate={() => {}} // ❌ Không làm gì cả
-                        selectedDecalId={null}
-                        gizmoMode={"translate"}
-                        isSnapping={false}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-500">
-                        (Sản phẩm không hỗ trợ 3D)
-                      </div>
-                    )}
-                    {/* ❌ Gỡ bỏ logic 'isModelLoaded' phức tạp */}
-                  </div>
-                </TabsContent>
-
-                {/* Tab 2: 2D Gallery */}
-                <TabsContent value="gallery" className="mt-4">
-                  <ProductImageGallery
-                    images={product.images}
-                    name={product.name}
-                  />
-                </TabsContent>
-              </Tabs>
-            </div>
-
-            {/* --- VÙNG BÊN PHẢI: Shop Panel --- */}
-            {/* ✅ SỬA: Layout cố định, luôn render ShopPanel */}
-            <div className="lg:col-span-2 relative z-20">
-              <ShopPanel
-                product={product}
-                currentPricePerUnit={currentPricePerUnit}
-                formatPrice={formatPrice}
-                customization={customization}
-                setCustomization={setCustomization}
-                isCustomizable={isCustomizable}
-                onStartEditing={handleStartEditing} // ✅ Truyền hàm navigate mới
-                minQuantity={minQuantity}
-                selectedQuantity={selectedQuantity}
-                setSelectedQuantity={setSelectedQuantity}
-                onAddToCart={handleAddToCart}
-                isAddingToCart={isAddingToCart}
-                inCart={inCart}
+              <ProductImageGallery
+                images={product.images}
+                name={product.name}
               />
             </div>
+
+            {/* Cột Phải (Action) */}
+            <div className="lg:col-span-2 relative z-20">
+              {ShopPanel} {/* Panel Desktop */}
+            </div>
           </div>
+          {/* === KẾT THÚC CỤM 1 === */}
+
+          {/* === CỤM 2: LANDING PAGE SECTIONS (Lazy Load) === */}
+          <div className="mt-12 lg:mt-20">
+            <Suspense fallback={<SectionSkeleton height="250px" />}>
+              <ProductSpecsSection product={product} />
+            </Suspense>
+
+            {product.printerInfo && (
+              <Suspense fallback={<SectionSkeleton height="400px" />}>
+                <PrinterProfileSection printerInfo={product.printerInfo} />
+              </Suspense>
+            )}
+          </div>
+          {/* === KẾT THÚC CỤM 2 === */}
         </div>
       </div>
+
+      {/* === FOOTER DI ĐỘNG (THÔNG MINH) === */}
+      <ProductDetailFooter
+        isCustomizable={isCustomizable}
+        onOpenSheet={handleOpenSheet}
+        onStartEditing={handleStartEditing}
+      />
+
+      {/* === BOTTOM SHEET (ẨN) === */}
+      <ProductPurchaseSheet
+        isOpen={isSheetOpen}
+        onClose={() => setIsSheetOpen(false)}
+        mode={sheetMode}
+        product={product}
+        onAddToCart={handleAddToCart}
+        onBuyNow={handleBuyNow}
+        isAddingToCart={isAddingToCart}
+        inCart={inCart}
+        minQuantity={minQuantity}
+        selectedQuantity={selectedQuantity}
+        onQuantityChange={setSelectedQuantity}
+        formatPrice={formatPrice}
+        currentPricePerUnit={currentPricePerUnit}
+      />
+
+      {/* ✅ BƯỚC 6: Thêm CartSidebar (để nút header hoạt động) */}
+      <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>
   );
 }

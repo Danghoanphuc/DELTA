@@ -1,9 +1,7 @@
 // src/features/printer/pages/PrinterApp.tsx
-// Bàn giao: Đã thêm "UI Blocker" (Verification Gate)
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { toast } from "sonner";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { PrinterSidebar } from "@/features/printer/components/PrinterSidebar";
 import { PrinterDashboard } from "@/features/printer/pages/PrinterDashboard";
@@ -12,7 +10,7 @@ import { OrderManagement } from "@/features/printer/pages/OrderManagement";
 import { SettingsPage } from "@/features/printer/pages/SettingsPage";
 import { SupportPage } from "@/features/printer/pages/SupportPage";
 import { AccountPage } from "@/features/printer/pages/AccountPage";
-import { AssetManagementPage } from "@/features/printer/pages/AssetManagementPage";
+import  AssetManagementPage  from "@/features/printer/pages/AssetManagementPage";
 
 // ✅ GIAI ĐOẠN 2: Thêm UI cho "Chốt kiểm soát"
 import { Button } from "@/shared/components/ui/button";
@@ -26,8 +24,6 @@ import { ShieldAlert, Loader2 } from "lucide-react";
 
 /**
  * ✅ GIAI ĐOẠN 2: Component "Chốt kiểm soát" (UI Blocker)
- * Component này sẽ render toàn trang, thay thế cho Dashboard/Products/Orders
- * nếu nhà in chưa được xác thực (isVerified: false).
  */
 const VerificationPendingScreen = ({
   profile,
@@ -83,12 +79,10 @@ export default function PrinterApp() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "dashboard";
 
-  // ✅ GIAI ĐOẠN 2: Lấy 'activePrinterProfile' (đã đổi tên từ printerProfile)
-  // và 'isContextLoading' (để biết profile đã tải xong chưa)
-  const { activePrinterProfile, isContextLoading } = useAuthStore((s) => ({
-    activePrinterProfile: s.activePrinterProfile,
-    isContextLoading: s.isContextLoading,
-  }));
+  // ✅ FIX QUAN TRỌNG: Lấy state riêng lẻ (primitive/memoized) để tránh crash
+  // Lấy các giá trị riêng lẻ, không bọc trong object.
+  const activePrinterProfile = useAuthStore((s) => s.activePrinterProfile);
+  const isContextLoading = useAuthStore((s) => s.isContextLoading);
 
   const handleTabChange = useCallback(
     (tab: string) => {
@@ -104,12 +98,7 @@ export default function PrinterApp() {
     [setSearchParams]
   );
 
-  // (useEffect cũ để check hồ sơ thiếu đã được GĐ 2 thay thế)
-  // ...
-
   const renderContent = () => {
-    // ✅ GIAI ĐOẠN 2: KIỂM SOÁT TRUY CẬP
-
     // 1. Nếu đang tải hồ sơ, hiển thị loading
     if (isContextLoading || !activePrinterProfile) {
       return (

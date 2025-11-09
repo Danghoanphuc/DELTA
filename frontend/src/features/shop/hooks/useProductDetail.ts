@@ -89,7 +89,7 @@ export const useProductDetail = () => {
 
   // === LOGIC MỤC TIÊU 2 ===
   const isCustomizable = useMemo(() => {
-    return (
+    return !!(
       product &&
       product.assets &&
       product.assets.surfaces &&

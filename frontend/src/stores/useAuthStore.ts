@@ -1,4 +1,4 @@
-// frontend/src/stores/useAuthStore.ts (✅ REFACTORED & FIXED)
+// src/stores/useAuthStore.ts
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
@@ -128,7 +128,7 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      // --- FETCH ME (ĐÃ SỬA) ---
+      // --- FETCH ME (ĐÃ SỬA VÀ NÂNG CẤP) ---
       fetchMe: async (silent = false) => {
         if (!silent) set({ loading: true });
         try {
@@ -136,31 +136,63 @@ export const useAuthStore = create<AuthState>()(
           set({ user }); // Cập nhật user ngay
 
           const currentContext = get().activeContext;
+          const isUserInStore = get().user;
+
+          if (!isUserInStore) return;
 
           // 1. Tự động KIỂM TRA và SỬA LỖI bối cảnh
-          if (currentContext === "printer" && !user.printerProfileId) {
-            // Nếu bối cảnh là 'printer' nhưng user không (hoặc không còn) profile
-            set({ activeContext: "customer", activePrinterProfile: null });
-            if (!silent)
-              toast.info(
-                "Không tìm thấy hồ sơ nhà in, chuyển về chế độ mua hàng."
-              );
-          }
-          // 2. FIX LỖI "CRASH": Nếu bối cảnh là 'printer' và CÓ profile ID, TẢI NGAY profile
-          else if (currentContext === "printer" && user.printerProfileId) {
-            try {
-              if (!silent) set({ isContextLoading: true });
-              const profile = await printerService.getMyProfile();
-              set({ activePrinterProfile: profile }); // <-- BƯỚC QUAN TRỌNG
-            } catch (profileError) {
-              console.error(
-                "❌ [FetchMe] Failed to fetch printer profile:",
-                profileError
-              );
-              toast.error(
-                "Không thể tải hồ sơ nhà in. Chuyển về chế độ mua hàng."
-              );
-              set({ activeContext: "customer", activePrinterProfile: null }); // Giáng cấp về customer
+          if (currentContext === "printer") {
+            const printerProfileId = isUserInStore.printerProfileId;
+
+            if (!printerProfileId) {
+              set({ activeContext: "customer", activePrinterProfile: null });
+              return;
+            }
+
+            // 2. Tải profile nếu đang ở context 'printer' và CÓ profile ID
+
+            // 2.1. Sử dụng Lightweight API để kiểm tra tính hợp lệ của ID
+            set({ isContextLoading: true });
+            const isValid = await printerService.validateProfileExistence();
+
+            if (!isValid) {
+              // ✅ FIX LỖI STALE ID: Nếu ID cũ không còn tồn tại trên DB
+              console.error("❌ [FetchMe] Printer Profile is STALE/DELETED.");
+              set((state) => {
+                const userWithClearedId = state.user
+                  ? { ...state.user, printerProfileId: null } // <--- BƯỚC QUAN TRỌNG: Xóa ID lỗi
+                  : null;
+                if (!silent) {
+                  toast.error(
+                    "Hồ sơ nhà in không tồn tại. Đang chuyển về chế độ mua hàng."
+                  );
+                }
+                return {
+                  user: userWithClearedId,
+                  activeContext: "customer",
+                  activePrinterProfile: null,
+                };
+              });
+              return; // Dừng lại ở đây
+            }
+
+            // 2.2. Nếu ID HỢP LỆ -> Chỉ tải full profile nếu chưa có sẵn
+            if (!get().activePrinterProfile) {
+              try {
+                const profile = await printerService.getMyProfile();
+                set({
+                  activePrinterProfile: profile,
+                  activeContext: "printer",
+                });
+              } catch (profileError) {
+                // Nếu lỗi tải full profile (500 internal server error)
+                console.error(
+                  "❌ [FetchMe] Failed to load full profile:",
+                  profileError
+                );
+                toast.error("Lỗi khi tải hồ sơ nhà in. Vui lòng thử lại.");
+                // Vẫn giữ ID và context 'printer' để người dùng thử lại
+              }
             }
           }
           // Nếu context là 'customer' thì không cần làm gì thêm.
@@ -168,9 +200,7 @@ export const useAuthStore = create<AuthState>()(
           console.error("❌ [FetchMe Error]", err);
           get().clearState(); // Xóa state hỏng
           if (!silent)
-            toast.error(
-              "Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!"
-            );
+            toast.error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!");
         } finally {
           set({ loading: false, isContextLoading: false }); // Tắt tất cả loading
         }
@@ -197,7 +227,6 @@ export const useAuthStore = create<AuthState>()(
       },
 
       // --- HÀNH ĐỘNG CHUYỂN BỐI CẢNH ---
-      // (Logic này vốn đã ổn, nhưng giờ sẽ hoạt động mượt hơn)
       setActiveContext: async (context, navigate) => {
         const { user, activePrinterProfile } = get();
         if (!user) return; // Chưa đăng nhập
@@ -238,7 +267,9 @@ export const useAuthStore = create<AuthState>()(
             });
             navigate("/printer/dashboard");
           } catch (err) {
-            toast.error("Không thể tải hồ sơ nhà in của bạn. Vui lòng thử lại.");
+            toast.error(
+              "Không thể tải hồ sơ nhà in của bạn. Vui lòng thử lại."
+            );
             set({ isContextLoading: false }); // Vẫn ở 'customer'
           }
         }

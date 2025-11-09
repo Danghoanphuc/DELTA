@@ -35,6 +35,7 @@ export interface PrinterProfile {
   totalReviews: number;
   isVerified: boolean;
   isActive: boolean;
+  verificationStatus: "not_submitted" | "pending" | "rejected" | "verified";
 
   createdAt: string;
   updatedAt: string;

@@ -1,9 +1,9 @@
 // features/shop/components/ProductPurchase.tsx
 import React from "react";
 import { Button } from "@/shared/components/ui/button";
-import { Label } from "@/shared/components/ui/label";
-import { Input } from "@/shared/components/ui/input";
 import { ShoppingCart } from "lucide-react";
+import { cn } from "@/shared/lib/utils";
+import { QuantitySelector } from "./details/QuantitySelector"; // ✅ Dùng component mới
 
 interface ProductPurchaseProps {
   minQuantity: number;
@@ -22,38 +22,26 @@ export const ProductPurchase = ({
   isAddingToCart,
   inCart,
 }: ProductPurchaseProps) => {
-  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onQuantityChange(Math.max(1, parseInt(e.target.value) || 1));
-  };
-
   const isQuantityInvalid = selectedQuantity < minQuantity;
 
   return (
     <>
-      {/* Quantity Selector */}
+      {/* ✅ SỬA: Thay thế Input/Label bằng component mới */}
       <div className="mb-5">
-        <Label htmlFor="quantity" className="mb-2 block font-medium">
-          Số lượng
-        </Label>
-        <Input
-          id="quantity"
-          type="number"
-          min={minQuantity}
-          value={selectedQuantity}
-          onChange={handleQuantityChange}
-          className="w-28"
+        <QuantitySelector
+          minQuantity={minQuantity}
+          selectedQuantity={selectedQuantity}
+          onQuantityChange={onQuantityChange}
         />
-        {isQuantityInvalid && (
-          <p className="text-xs text-red-500 mt-1">
-            Số lượng tối thiểu: {minQuantity}
-          </p>
-        )}
       </div>
 
-      {/* Add to Cart Button */}
+      {/* ✅ SỬA: Ẩn nút này trên mobile (lg:flex) */}
       <Button
         size="lg"
-        className="w-full mb-6"
+        className={cn(
+          "w-full mb-6",
+          "hidden lg:flex" // Ẩn trên mobile
+        )}
         onClick={onAddToCart}
         disabled={isAddingToCart || inCart || isQuantityInvalid}
       >

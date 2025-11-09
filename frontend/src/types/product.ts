@@ -111,8 +111,9 @@ export interface PrinterProduct {
   totalSold?: number;
   views?: number;
   rating?: number;
+  totalReviews?: number;
   createdAt: string;
-  updatedAt: string;
+  updatedAt:string;
 }
 
 // Cập nhật Product để sử dụng ProductAssets mới

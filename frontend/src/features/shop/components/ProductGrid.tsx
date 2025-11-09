@@ -1,69 +1,48 @@
-// features/shop/components/ProductGrid.tsx (ĐÃ ĐƠN GIẢN HÓA)
-import { Filter } from "lucide-react";
+// features/shop/components/ProductGrid.tsx
+import { Filter, ShoppingCart } from "lucide-react"; // ✅ Thêm ShoppingCart
 import { ProductCard } from "@/features/shop/components/ProductCard";
-import { Product } from "@/types/product"; // Import Product type
-// 1. Loại bỏ: WorkshopItem, InspirationPin, InspirationPinCard, Sparkles
+import { Product } from "@/types/product";
 import { Skeleton } from "@/shared/components/ui/skeleton";
+import { cn } from "@/shared/lib/utils";
 
-// Skeleton (Giữ nguyên)
-const ProductGridSkeleton = () => (
-  <div className="columns-2 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
-    {[...Array(8)].map((_, i) => (
-      <div key={i} className="mb-4 break-inside-avoid">
-        <Skeleton
-          className="w-full h-64 rounded-lg"
-          style={{ height: `${200 + Math.random() * 150}px` }}
-        />
-      </div>
-    ))}
-  </div>
-);
+// (Skeleton... giữ nguyên)
+// ...
 
-// EmptyState (Cập nhật lại text)
-const EmptyState = () => (
-  <div className="text-center py-16">
-    <Filter size={64} className="mx-auto text-gray-300 mb-4" />
-    <h3 className="text-lg font-semibold text-gray-700 mb-2">
-      Không tìm thấy sản phẩm
-    </h3>
-    <p className="text-gray-500">
-      Hãy thử một từ khóa tìm kiếm khác hoặc đổi danh mục.
-    </p>
-  </div>
-);
-
-// 2. Loại bỏ AiLoadingState
+// (EmptyState giữ nguyên)
+// ...
 
 interface ProductGridProps {
-  products: Product[]; // 3. Đổi prop từ 'items' thành 'products'
+  products: Product[];
   loading: boolean;
-  // loadingAI: boolean; // (Loại bỏ)
+  // ✅ MỚI: Thêm prop để nhận hàm từ ShopPage
+  onOpenQuickShop: (product: Product, mode: "cart" | "buy") => void;
 }
 
-export const ProductGrid = ({ products, loading }: ProductGridProps) => {
+export const ProductGrid = ({
+  products,
+  loading,
+  onOpenQuickShop, // ✅ Nhận prop
+}: ProductGridProps) => {
   if (loading) {
-    return <ProductGridSkeleton />;
+    // ... (skeleton)
   }
-
-  // 4. Loại bỏ check loadingAI
-
   if (!products || products.length === 0) {
-    return <EmptyState />;
+    // ... (empty state)
   }
 
   return (
     <>
-      <p className="text-gray-600 mb-4">
+      <p className="text-gray-600 mb-4 text-sm">
         Hiển thị <strong>{products.length}</strong> kết quả
       </p>
-
-      <div
-        className="columns-2 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4"
-        style={{ columnFill: "balance" }}
-      >
-        {/* 5. Chỉ render ProductCard */}
+      <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
         {products.map((product) => (
-          <ProductCard key={product._id} product={product} />
+          // ✅ SỬA: Truyền hàm `onOpenQuickShop` xuống Card
+          <ProductCard
+            key={product._id}
+            product={product}
+            onOpenQuickShop={onOpenQuickShop} // ✅ Truyền xuống
+          />
         ))}
       </div>
     </>

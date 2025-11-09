@@ -1,4 +1,4 @@
-// src/features/printer/components/PrinterSidebar.tsx
+// src/features/printer/components/PrinterSidebar.tsx (✅ UPDATED WITH SHARED COMPONENT)
 import { useState } from "react";
 import {
   LayoutDashboard,
@@ -9,7 +9,7 @@ import {
   User,
   Menu,
   X,
-  Library, // <-- 1. Thêm icon mới (hoặc bất kỳ icon nào bạn thích, vd: Box, Shapes)
+  Library,
 } from "lucide-react";
 import {
   Tooltip,
@@ -17,6 +17,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/shared/components/ui/tooltip";
+
+// ✅ 1. Import component dùng chung mới
+import { UserContextSwitcher } from "@/components/UserContextSwitcher";
 
 interface PrinterSidebarProps {
   activeTab: string;
@@ -29,12 +32,12 @@ export function PrinterSidebar({
 }: PrinterSidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
 
+  // ✅ 2. Gỡ bỏ toàn bộ logic (useAuthStore, useNavigate, handleContextSwitch)
+
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", id: "dashboard" },
     { icon: Package, label: "Sản phẩm", id: "products" },
-    // -- 2. THÊM TAB MỚI NGAY DƯỚI "SẢN PHẨM" --
     { icon: Library, label: "Kho Phôi (3D/2D)", id: "assets" },
-    // ------------------------------------------
     { icon: ShoppingCart, label: "Đơn hàng", id: "orders" },
     { icon: Settings, label: "Cài đặt", id: "settings" },
     { icon: HelpCircle, label: "Hỗ trợ", id: "support" },
@@ -43,7 +46,7 @@ export function PrinterSidebar({
 
   return (
     <TooltipProvider>
-      {/* Nút toggle cho mobile */}
+      {/* Nút toggle cho mobile (giữ nguyên) */}
       <button
         className="fixed top-4 left-4 z-50 p-2 bg-white border rounded-lg shadow-md md:hidden"
         onClick={() => setIsOpen(!isOpen)}
@@ -51,21 +54,21 @@ export function PrinterSidebar({
         {isOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
-      {/* Sidebar */}
+      {/* Sidebar (giữ nguyên) */}
       <div
         className={`fixed top-0 left-0 h-screen w-20 bg-white border-r border-gray-200 flex flex-col items-center py-6 z-40 transition-transform duration-300
         md:translate-x-0 
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
         md:flex`}
       >
-        {/* Logo */}
+        {/* Logo (giữ nguyên) */}
         <div className="mb-8">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
             <span className="text-white font-bold text-2xl">P</span>
           </div>
         </div>
 
-        {/* Menu Items */}
+        {/* Menu Items (giữ nguyên) */}
         <nav className="flex-1 flex flex-col gap-2 w-full px-3">
           {menuItems.map((item) => (
             <Tooltip key={item.id} disableHoverableContent>
@@ -91,15 +94,13 @@ export function PrinterSidebar({
           ))}
         </nav>
 
-        {/* Printer Badge */}
+        {/* ✅ 3. Gỡ bỏ Popover cũ, thay bằng component mới */}
         <div className="mt-auto mb-2">
-          <div className="px-2 py-1 bg-orange-100 rounded-lg text-center">
-            <span className="text-xs text-orange-700">Printer</span>
-          </div>
+          <UserContextSwitcher contextColor="orange" />
         </div>
       </div>
 
-      {/* Overlay khi mở trên mobile */}
+      {/* Overlay khi mở trên mobile (giữ nguyên) */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 md:hidden"

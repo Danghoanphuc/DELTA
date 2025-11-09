@@ -1,32 +1,29 @@
-// features/shop/components/ProductCard.tsx (SỬA LỖI MASONRY LẦN 2)
+// features/shop/components/ProductCard.tsx
+
 import { useState } from "react";
-// ... (imports giữ nguyên) ...
-import { ShoppingCart, Heart, Brush } from "lucide-react";
+import { Heart, Star, MapPin, Eye } from "lucide-react"; // Gỡ bỏ 'Brush'
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
-import { Product, PrinterProduct } from "@/types/product";
-import { useCartStore } from "@/stores/useCartStore";
+import { Product } from "@/types/product";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { LoginPopup } from "@/features/auth/components/LoginPopup";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { cn } from "@/shared/lib/utils";
-import { Card, CardContent, CardFooter } from "@/shared/components/ui/card";
+import { Card } from "@/shared/components/ui/card";
 import { ImageWithFallback } from "@/features/figma/ImageWithFallback";
+import UserAvatarFallback from "@/components/UserAvatarFallback";
 
-// ... (Interface, state, functions giữ nguyên) ...
 interface ProductCardProps {
   product: Product;
+  onOpenQuickShop: (product: Product, mode: "cart" | "buy") => void;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
-  const [isLoading, setIsLoading] = useState(false);
+export function ProductCard({ product, onOpenQuickShop }: ProductCardProps) {
+  // (State và các hàm format/handle giữ nguyên)
   const [showLoginPopup, setShowLoginPopup] = useState(false);
-
-  const { addToCart, isInCart } = useCartStore();
   const { accessToken } = useAuthStore();
   const isAuthenticated = !!accessToken;
-
   const primaryImage =
     product.images?.find((img) => img.isPrimary)?.url ||
     product.images?.[0]?.url;
@@ -37,7 +34,6 @@ export function ProductCard({ product }: ProductCardProps) {
   );
 
   const formatPrice = (price: number) => {
-    // ... (logic formatPrice giữ nguyên) ...
     if (!Number.isFinite(price) || price === 0) {
       return "Liên hệ";
     }
@@ -47,119 +43,116 @@ export function ProductCard({ product }: ProductCardProps) {
     }).format(price);
   };
 
-  const handleAddToCart = async (e: React.MouseEvent) => {
-    // ... (logic handleAddToCart giữ nguyên) ...
+  const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
     if (!isAuthenticated) {
       setShowLoginPopup(true);
       return;
     }
-    if (inCart) {
-      toast.info("Sản phẩm đã có trong giỏ hàng");
-      return;
-    }
-    if (!product.isActive) {
-      toast.error("Sản phẩm này đã ngừng bán.");
-      return;
-    }
-
-    const defaultPriceTierIndex = 0;
-    const defaultQuantity =
-      product.pricing[defaultPriceTierIndex]?.minQuantity || 1;
-
-    setIsLoading(true);
-    try {
-      await addToCart({
-        productId: product._id,
-        quantity: defaultQuantity,
-        selectedPriceIndex: defaultPriceTierIndex,
-      });
-      toast.success("Đã thêm vào giỏ");
-    } catch (err) {
-      console.error("Lỗi khi thêm vào giỏ từ ProductCard:", err);
-    } finally {
-      setIsLoading(false);
-    }
+    toast.info("Tính năng Yêu thích đang phát triển");
   };
 
-  const inCart = isInCart(product._id, isAuthenticated);
-
-  const isCustomizable =
-    product.assets &&
-    product.assets.surfaces &&
-    product.assets.surfaces.length > 0;
+  const printer = product.printerInfo;
 
   return (
     <>
       <LoginPopup
         isOpen={showLoginPopup}
         onClose={() => setShowLoginPopup(false)}
-        message="Đăng nhập để thêm sản phẩm vào giỏ hàng và đặt hàng"
+        message="Đăng nhập để lưu sản phẩm yêu thích"
       />
 
-      <Card
-        className="group relative overflow-hidden rounded-lg shadow-sm hover:shadow-xl transition-shadow duration-300 flex flex-col"
-        style={{ breakInside: "avoid" }} // Quan trọng cho Masonry
-      >
-        {/* --- PHẦN HÌNH ẢNH (Clickable) --- */}
-        {/*
-          SỬA LỖI TẠI ĐÂY:
-          1. Gỡ bỏ 'relative' và 'max-h-[600px]' khỏi <Link>.
-          2. Gỡ bỏ spacer <div style={{ paddingBottom: "75%" }} />.
-          3. Gỡ bỏ 'absolute', 'inset-0' khỏi <ImageWithFallback>.
-          4. Thêm 'max-h-[600px]' (clamp) vào thẳng <ImageWithFallback>.
-        */}
-        <Link
-          to={`/products/${product._id}`}
-          className="block overflow-hidden" // Container đơn giản
-        >
+      <Card className="group relative overflow-hidden rounded-lg shadow-sm hover:shadow-xl transition-shadow duration-300 break-inside-avoid mb-3">
+        {/* --- ẢNH SẢN PHẨM (Main Link) --- */}
+        <Link to={`/products/${product._id}`} className="block overflow-hidden">
           <ImageWithFallback
             src={
               primaryImage ||
               "https://placehold.co/400x300/f1f5f9/94a3b8?text=Image"
             }
             alt={product.name}
-            className="w-full h-auto object-cover max-h-[600px] group-hover:scale-105 transition-transform duration-300" // Chiều cao tự nhiên + clamp
+            className="w-full h-auto object-cover transition-transform duration-300"
             loading="lazy"
           />
         </Link>
 
-        {/* --- BADGES (Giữ nguyên) --- */}
+        {/* --- BADGES (Giữ nguyên) --- */}
         <div className="absolute top-2 left-2 z-10 flex flex-col gap-1.5">
-          {/* ... (badges) ... */}
           {!product.isActive && (
             <Badge variant="destructive" className="text-xs">
               Ngừng bán
             </Badge>
           )}
-          {product.totalSold && product.totalSold > 50 && (
-            <Badge className="bg-orange-500 hover:bg-orange-600 text-white text-xs">
-              Bán chạy
-            </Badge>
-          )}
         </div>
 
-        {/* --- NỘI DUNG (Giữ nguyên) --- */}
-        <CardContent className="p-3 flex-1">
+        {/* --- Nút Yêu thích (Giữ nguyên) --- */}
+        <Button
+          size="icon"
+          variant="ghost"
+          className="absolute top-2 right-2 z-10 rounded-full w-8 h-8 bg-white/70 text-gray-600 hover:text-red-500 hover:bg-red-50
+                       opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Yêu thích"
+          onClick={handleFavoriteClick}
+        >
+          <Heart size={16} />
+        </Button>
+
+        {/* ======================================================= */}
+        {/* ✅ (A) DESKTOP: Hover Overlay (Giống Pinterest) */}
+        {/* ======================================================= */}
+        <Link
+          to={`/products/${product._id}`}
+          className={cn(
+            "absolute inset-0 flex flex-col justify-end",
+            "bg-gradient-to-t from-black/80 via-black/40 to-transparent",
+            "opacity-0 group-hover:opacity-100 transition-opacity duration-300",
+            "pointer-events-none",
+            "hidden md:flex" // <-- Ẩn trên mobile
+          )}
+        >
+          <div className="p-3 text-white pointer-events-auto">
+            {/* Tên sản phẩm */}
+            <p
+              className="font-medium text-sm leading-snug line-clamp-2 mb-2"
+              title={product.name}
+            >
+              {product.name}
+            </p>
+            {/* Nút CTA chính */}
+            <div className="flex items-center justify-between">
+              <span className="text-base font-bold text-white">
+                {formatPrice(lowestPrice)}
+              </span>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="bg-white/90 text-black hover:bg-white"
+                asChild
+              >
+                <span className="pointer-events-auto">
+                  <Eye size={16} className="mr-1.5" />
+                  Xem
+                </span>
+              </Button>
+            </div>
+          </div>
+        </Link>
+
+        {/* ======================================================= */}
+        {/* ✅ (B) MOBILE: Visible Footer (Giống Card Shopee) */}
+        {/* ======================================================= */}
+        <div className="md:hidden p-2.5 flex flex-col gap-1 bg-white">
+          {/* Tên sản phẩm */}
           <Link
             to={`/products/${product._id}`}
-            className="font-semibold text-sm line-clamp-2 mb-1 hover:text-blue-600"
+            className="font-medium text-sm leading-snug line-clamp-2 hover:text-blue-600 h-[40px]"
             title={product.name}
           >
             {product.name}
           </Link>
-          <p
-            className="text-xs text-gray-500 line-clamp-1"
-            title={product.printerInfo?.businessName}
-          >
-            bởi {product.printerInfo?.businessName || "Nhà in uy tín"}
-          </p>
-        </CardContent>
 
-        {/* --- CHÂN CARD (Giữ nguyên) --- */}
-        <CardFooter className="p-3 pt-0 flex items-center justify-between">
+          {/* Giá */}
           <p
             className="text-base font-bold text-blue-600"
             title={formatPrice(lowestPrice)}
@@ -167,58 +160,46 @@ export function ProductCard({ product }: ProductCardProps) {
             {formatPrice(lowestPrice)}
           </p>
 
-          <div className="flex items-center gap-1">
-            {/* Nút Yêu thích */}
-            <Button
-              size="icon"
-              variant="ghost"
-              className="rounded-full w-9 h-9 text-gray-400 hover:text-red-500 hover:bg-red-50"
-              title="Yêu thích"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toast.info("Tính năng Yêu thích đang phát triển");
-              }}
+          {/* Thông tin nhà in (chỉ cho mobile) */}
+          {printer && (
+            <Link
+              to={`/shop/printer/${printer._id}`} // (Giả định URL nhà in)
+              className="flex items-center gap-2 pt-2 mt-1 border-t border-gray-100"
             >
-              <Heart size={16} />
-            </Button>
+              <UserAvatarFallback
+                name={printer.businessName || ''}
+                size={24}
+                bgColor="bg-gray-100"
+                textColor="text-gray-600"
+                src={printer.logoUrl}
+              />
+              <span className="text-xs text-gray-600 truncate hover:underline">
+                {printer.businessName}
+              </span>
+            </Link>
+          )}
+        </div>
 
-            {/* Nút Tùy chỉnh (Nếu có) */}
-            {isCustomizable && (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="rounded-full w-9 h-9 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-                title="Tùy chỉnh"
-                asChild
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Link to={`/design-editor?productId=${product._id}`}>
-                  <Brush size={16} />
-                </Link>
-              </Button>
-            )}
-
-            {/* Nút Thêm vào giỏ (Nếu không cần tùy chỉnh) */}
-            {!isCustomizable && (
-              <Button
-                size="icon"
-                variant={inCart ? "default" : "ghost"}
-                className={cn(
-                  "rounded-full w-9 h-9",
-                  inCart
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-                )}
-                title={inCart ? "Đã có trong giỏ" : "Thêm vào giỏ"}
-                onClick={handleAddToCart}
-                disabled={isLoading || !product.isActive}
-              >
-                <ShoppingCart size={16} />
-              </Button>
-            )}
-          </div>
-        </CardFooter>
+        {/* ======================================================= */}
+        {/* ✅ (C) DESKTOP: Visible Printer Footer */}
+        {/* ======================================================= */}
+        {printer && (
+          <Link
+            to={`/shop/printer/${printer._id}`} // (Giả định URL nhà in)
+            className="hidden md:flex items-center gap-2 p-2.5 bg-white"
+          >
+            <UserAvatarFallback
+              name={printer.businessName || ''}
+              size={24}
+              bgColor="bg-gray-100"
+              textColor="text-gray-600"
+              src={printer.logoUrl}
+            />
+            <span className="text-xs text-gray-600 truncate hover:underline">
+              {printer.businessName}
+            </span>
+          </Link>
+        )}
       </Card>
     </>
   );

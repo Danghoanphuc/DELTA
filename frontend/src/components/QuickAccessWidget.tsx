@@ -1,4 +1,4 @@
-// src/components/QuickAccessWidget.tsx (ĐÃ CẬP NHẬT LOGIC)
+// src/components/QuickAccessWidget.tsx (FIXED)
 
 import {
   HoverCard,
@@ -20,7 +20,6 @@ import {
   Cog,
 } from "lucide-react";
 import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
-// ✅ SỬA: Import thêm ChatConversation và cn (utility)
 import { ChatMessage, ChatConversation } from "@/types/chat";
 import { cn } from "@/shared/lib/utils";
 import { Separator } from "@/shared/components/ui/separator";
@@ -28,16 +27,14 @@ import { Badge } from "@/shared/components/ui/badge";
 import { useCartStore } from "@/stores/useCartStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 
-// =================================================================
-// ✅ BƯỚC 1: THAY THẾ HOÀN TOÀN 'ChatHoverContent'
-// =================================================================
+// (Các component con ChatHoverContent, CartHoverContent... giữ nguyên)
+// ... (Component con giữ nguyên) ...
 interface ChatHoverContentProps {
   conversations: ChatConversation[];
   currentConversationId: string | null;
   onSelectConversation: (id: string) => void;
   onNewChat: () => void;
 }
-
 const ChatHoverContent = ({
   conversations,
   currentConversationId,
@@ -72,7 +69,6 @@ const ChatHoverContent = ({
           Lịch sử chat gần đây
         </h5>
         {conversations.length > 0 ? (
-          // Đặt chiều cao tối đa cho scroll
           <ScrollArea className="h-40 pr-2">
             <div className="space-y-1.5 text-xs">
               {conversations.map((convo) => (
@@ -108,10 +104,6 @@ const ChatHoverContent = ({
     </div>
   );
 };
-
-// =================================================================
-// (Component con: CartHoverContent giữ nguyên)
-// =================================================================
 const CartHoverContent = () => (
   <div className="flex flex-col space-y-2">
     <h4 className="font-semibold text-sm text-gray-800 px-1 mb-1">Đơn hàng</h4>
@@ -137,14 +129,9 @@ const CartHoverContent = () => (
     </Button>
   </div>
 );
-
-// =================================================================
-// (Component con: NotificationsHoverContent giữ nguyên)
-// =================================================================
 const NotificationsHoverContent = () => (
   <div className="flex flex-col space-y-2">
     <h4 className="font-semibold text-sm text-gray-800 px-1 mb-1">Thông báo</h4>
-    {/* TODO: Triển khai logic thông báo thật */}
     <div className="text-sm text-gray-700 p-2 hover:bg-gray-50 rounded-md">
       <p className="font-medium">Chào mừng đến với PrintZ!</p>
       <p className="text-xs text-gray-500">Hãy bắt đầu trò chuyện với AI...</p>
@@ -155,10 +142,6 @@ const NotificationsHoverContent = () => (
     </div>
   </div>
 );
-
-// =================================================================
-// (Component con: SupportHoverContent giữ nguyên)
-// =================================================================
 const SupportHoverContent = ({ onNewChat }: { onNewChat: () => void }) => (
   <div className="flex flex-col">
     <h4 className="font-semibold text-base text-gray-800 px-1 mb-2">
@@ -226,14 +209,10 @@ const SupportHoverContent = ({ onNewChat }: { onNewChat: () => void }) => (
   </div>
 );
 
-// =================================================================
-// ✅ BƯỚC 2: CẬP NHẬT PROPS CHO COMPONENT CHÍNH
-// =================================================================
+// (Props và component chính)
 interface QuickAccessWidgetProps {
-  recentMessages: ChatMessage[]; // Vẫn giữ prop cũ, phòng khi 'SupportHoverContent' dùng
+  recentMessages: ChatMessage[];
   onNewChat: () => void;
-
-  // Props mới cho ChatHoverContent
   conversations: ChatConversation[];
   currentConversationId: string | null;
   onSelectConversation: (id: string) => void;
@@ -245,12 +224,11 @@ export function QuickAccessWidget({
   currentConversationId,
   onSelectConversation,
 }: QuickAccessWidgetProps) {
-  // 4. Lấy state từ store
   const { accessToken } = useAuthStore();
   const { getCartItemCount } = useCartStore();
   const isAuthenticated = !!accessToken;
   const cartItemCount = getCartItemCount(isAuthenticated);
-  const notificationCount = 3; // TODO: Đây là placeholder, thay bằng logic thật
+  const notificationCount = 3; // (Placeholder)
 
   const commonHoverProps = {
     openDelay: 100,
@@ -263,7 +241,7 @@ export function QuickAccessWidget({
     sideOffset: 12,
   };
   const commonTriggerProps =
-    "w-12 h-12 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors relative"; // 5. Thêm 'relative'
+    "w-12 h-12 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors relative";
 
   return (
     <div className="fixed top-1/2 -translate-y-1/2 right-4 z-40 flex flex-col gap-1 p-2 bg-white/80 backdrop-blur-sm rounded-l-2xl shadow-lg border border-r-0 border-gray-200">
@@ -275,7 +253,6 @@ export function QuickAccessWidget({
           </Button>
         </HoverCardTrigger>
         <HoverCardContent {...commonContentProps}>
-          {/* ✅ BƯỚC 3: TRUYỀN PROPS MỚI XUỐNG */}
           <ChatHoverContent
             conversations={conversations}
             currentConversationId={currentConversationId}
@@ -285,15 +262,19 @@ export function QuickAccessWidget({
         </HoverCardContent>
       </HoverCard>
 
-      {/* 3. Icon Giỏ hàng (ĐÃ THÊM BADGE) */}
+      {/* 3. Icon Giỏ hàng (ĐÃ FIX BADGE) */}
       <HoverCard {...commonHoverProps}>
         <HoverCardTrigger asChild>
           <Button variant="ghost" size="icon" className={commonTriggerProps}>
             <ShoppingBag size={22} />
             {cartItemCount > 0 && (
-              <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 bg-blue-600 text-white">
+              /* ✅ SỬA LỖI: Gỡ bỏ w-5, dùng min-w-5 và padding */
+              <span
+                className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1.5 flex items-center justify-center p-0 rounded-full
+                           bg-blue-600 text-white text-[10px] font-bold leading-none"
+              >
                 {cartItemCount}
-              </Badge>
+              </span>
             )}
           </Button>
         </HoverCardTrigger>
@@ -302,15 +283,19 @@ export function QuickAccessWidget({
         </HoverCardContent>
       </HoverCard>
 
-      {/* 4. Icon Thông báo (ĐÃ THÊM BADGE) */}
+      {/* 4. Icon Thông báo (ĐÃ FIX BADGE) */}
       <HoverCard {...commonHoverProps}>
         <HoverCardTrigger asChild>
           <Button variant="ghost" size="icon" className={commonTriggerProps}>
             <Bell size={22} />
             {notificationCount > 0 && (
-              <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 bg-red-600 text-white">
+              /* ✅ SỬA LỖI: Gỡ bỏ w-5, dùng min-w-5 và padding */
+              <span
+                className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1.5 flex items-center justify-center p-0 rounded-full
+                           bg-red-600 text-white text-[10px] font-bold leading-none"
+              >
                 {notificationCount}
-              </Badge>
+              </span>
             )}
           </Button>
         </HoverCardTrigger>

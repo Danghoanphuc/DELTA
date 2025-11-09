@@ -1,5 +1,4 @@
 // src/features/printer/pages/PrinterOnboardingPage.tsx
-// BÀN GIAO: Đã cập nhật logic try...catch trong handleSubmit
 
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -20,13 +19,12 @@ import { uploadFileToCloudinary } from "@/services/cloudinaryService";
 
 export function PrinterOnboardingPage() {
   const navigate = useNavigate();
-  // ✅ BƯỚC 1: LẤY THÊM 'fetchMe' TỪ STORE
   const {
     user,
     onPrinterProfileCreated,
     setActiveContext,
     isContextLoading,
-    fetchMe, // <-- Lấy hàm này
+    fetchMe,
   } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -43,13 +41,16 @@ export function PrinterOnboardingPage() {
     coordinates: [0, 0], // [long, lat]
   });
 
-  // (useEffect điều hướng giữ nguyên)
+  // ✅ FIX QUAN TRỌNG: SỬ DỤNG setTimeout(0) để chạy navigation sau render
   useEffect(() => {
     if (user?.printerProfileId) {
-      toast.info("Bạn đã là nhà in. Đang chuyển hướng...");
-      setActiveContext("printer", navigate);
+      // Đặt timeout 0ms để tách việc gọi setActiveContext ra khỏi luồng render chính
+      const timer = setTimeout(() => {
+        setActiveContext("printer", navigate);
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [user, navigate, setActiveContext]);
+  }, [user?.printerProfileId, navigate, setActiveContext]);
 
   // (handleFileUpload giữ nguyên)
   const handleFileUpload = async (
@@ -87,7 +88,6 @@ export function PrinterOnboardingPage() {
     setIsLoading(true);
 
     try {
-      // (Phần 'try' giữ nguyên)
       const payload = {
         businessName,
         contactPhone,
@@ -111,38 +111,25 @@ export function PrinterOnboardingPage() {
         throw new Error("Không nhận được hồ sơ sau khi tạo.");
       }
 
+      // FIX: CHỈ GỌI HÀM CẬP NHẬT TRẠNG THÁI. useEffect sẽ lo navigate.
       onPrinterProfileCreated(newProfile);
+
       toast.success(
         "Chào mừng nhà in mới! Đang chuyển đến Dashboard của bạn..."
       );
-      navigate("/printer/dashboard");
+
+      // ✅ LOẠI BỎ explicit navigate("/printer/dashboard");
+      // ✅ LOẠI BỎ logic Healing 409 không cần thiết ở đây.
     } catch (err: any) {
-      // ✅✅✅ SỬA LỖI TẠI ĐÂY ✅✅✅
       console.error("❌ Lỗi Onboarding:", err);
-
+      // Giữ lại logic healing 409 nếu cần thiết, nhưng tôi sẽ đơn giản hóa nó theo hướng dẫn trước.
       if (err.response?.status === 409) {
-        // Đây là lỗi "Chữa lành" (Healing) 409
-        const serverMessage =
-          err.response?.data?.message || "Hồ sơ đã tồn tại. Đang đồng bộ...";
-
-        toast.info(serverMessage, {
-          description: "Đang tự động đồng bộ tài khoản của bạn...",
-        });
-
-        // 1. Cập nhật lại user state (silent)
-        await fetchMe(true);
-
-        // 2. Chuyển bối cảnh
-        // (setActiveContext sẽ tự động điều hướng đến dashboard
-        // vì fetchMe đã cập nhật user.printerProfileId)
-        await setActiveContext("printer", navigate);
-
-        // Không cần setIsLoading(false) vì đang điều hướng
+        toast.info("Hồ sơ đã tồn tại. Đang đồng bộ...");
+        fetchMe(true).then(() => setActiveContext("printer", navigate));
       } else {
-        // Các lỗi 400, 500 khác
         toast.error(err.response?.data?.message || "Tạo hồ sơ thất bại.");
-        setIsLoading(false); // Chỉ set false cho các lỗi thực sự
       }
+      setIsLoading(false);
     }
   };
 
