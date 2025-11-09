@@ -1,5 +1,5 @@
 // backend/src/server.js
-// BÀN GIAO: Đã sửa lỗi 'connectToDatabase' import (bỏ dấu {})
+// BÀN GIAO: Đã sửa lại import (thêm dấu {}) để khớp với connection.js
 
 import "dotenv/config";
 import express from "express";
@@ -7,8 +7,8 @@ import cors from "cors";
 import passport from "passport";
 import cookieParser from "cookie-parser";
 
-// ✅ SỬA LỖI: Bỏ dấu {} vì 'connection.js' dùng export default
-import connectToDatabase from "./infrastructure/database/connection.js";
+// ✅ SỬA LỖI: Thêm dấu {} vì 'connection.js' đã đổi sang named export
+import { connectToDatabase } from "./infrastructure/database/connection.js";
 import { envConfig } from "./config/env.config.js";
 import { errorHandler } from "./shared/middleware/error-handler.middleware.js";
 
