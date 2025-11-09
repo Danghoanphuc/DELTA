@@ -1,4 +1,4 @@
-// src/modules/products/product.service.js
+// src/modules/products/product.service.js (✅ ĐÃ DỌN DẸP "SPAGHETTI")
 import { ProductRepository } from "./product.repository.js";
 import {
   ValidationException,
@@ -18,68 +18,42 @@ export class ProductService {
       throw new ValidationException("Phải có ít nhất 1 ảnh sản phẩm");
     }
 
-    // ✅ LẤY taxonomyId TỪ productData
-    const { name, category, pricing, taxonomyId } = productData;
+    // ✅ ĐÍCH 1: Các trường này (pricing, specs, assets)
+    // giờ đã LÀ object/array, không cần parse.
+    const { name, category, pricing, taxonomyId, specifications, assets } =
+      productData;
     const errors = [];
 
     if (!name || name.trim().length < 5) {
       errors.push("Tên sản phẩm phải có ít nhất 5 ký tự");
     }
-
     if (!category) {
       errors.push("Danh mục sản phẩm là bắt buộc");
     }
 
+    // Validation logic cho pricing (giữ nguyên)
     if (!Array.isArray(pricing) || pricing.length === 0) {
       errors.push("Phải có ít nhất một mức giá");
     } else {
-      // Chuyển đổi pricing từ string (nếu là form-data)
-      try {
-        const parsedPricing =
-          typeof pricing === "string" ? JSON.parse(pricing) : pricing;
-
-        if (!Array.isArray(parsedPricing) || parsedPricing.length === 0) {
-          errors.push("Định dạng pricing không hợp lệ.");
-        } else {
-          parsedPricing.forEach((tier, index) => {
-            if (tier.minQuantity < 1) {
-              errors.push(
-                `Mức giá ${index + 1}: Số lượng tối thiểu phải lớn hơn 0`
-              );
-            }
-            if (tier.pricePerUnit < 100) {
-              errors.push(`Mức giá ${index + 1}: Giá phải ít nhất 100đ`);
-            }
-          });
-          // Gán lại pricing đã parse
-          productData.pricing = parsedPricing;
+      pricing.forEach((tier, index) => {
+        if (tier.minQuantity < 1) {
+          errors.push(
+            `Mức giá ${index + 1}: Số lượng tối thiểu phải lớn hơn 0`
+          );
         }
-      } catch (e) {
-        errors.push("Định dạng pricing JSON không hợp lệ.");
-      }
+        if (tier.pricePerUnit < 100) {
+          errors.push(`Mức giá ${index + 1}: Giá phải ít nhất 100đ`);
+        }
+      });
     }
 
-    // Xử lý các trường JSON khác nếu cần (ví dụ: specifications)
-    if (
-      productData.specifications &&
-      typeof productData.specifications === "string"
-    ) {
-      try {
-        productData.specifications = JSON.parse(productData.specifications);
-      } catch (e) {
-        errors.push("Định dạng specifications JSON không hợp lệ.");
-      }
-    }
-
-    if (productData.assets && typeof productData.assets === "string") {
-      try {
-        productData.assets = JSON.parse(productData.assets);
-      } catch (e) {
-        errors.push("Định dạng assets JSON không hợp lệ.");
-      }
-    }
+    // ❌ ĐÍCH 1: GỠ BỎ TOÀN BỘ LOGIC JSON.PARSE
+    // (Đã gỡ bỏ try...catch cho pricing)
+    // (Đã gỡ bỏ try...catch cho specifications)
+    // (Đã gỡ bỏ try...catch cho assets)
 
     if (errors.length > 0) {
+      // Rollback Cloudinary (giữ nguyên)
       const publicIds = files.map((f) => f.filename);
       await cloudinary.api
         .delete_resources(publicIds)
@@ -96,13 +70,15 @@ export class ProductService {
       isPrimary: index === 0,
     }));
 
-    // ✅ THÊM taxonomyId VÀO ĐÂY KHI TẠO
     const product = await this.productRepository.create({
       ...productData,
-      taxonomyId: taxonomyId, // <--- THÊM DÒNG NÀY
+      taxonomyId: taxonomyId,
       printerId,
       images,
       isActive: true,
+      // specifications và assets đã là object
+      specifications: specifications || {},
+      assets: assets || [],
     });
 
     Logger.success("Product created", { productId: product._id, printerId });
@@ -110,6 +86,8 @@ export class ProductService {
     return await product.populate("printerId", "displayName avatarUrl");
   }
 
+  // ... (Hàm updateProduct giữ nguyên, vì nó thường nhận JSON,
+  // nhưng nếu nó cũng nhận form-data, ta cũng áp dụng middleware tương tự) ...
   async updateProduct(productId, updateData, printerId) {
     const product = await this.productRepository.findById(productId);
 
@@ -162,6 +140,7 @@ export class ProductService {
     return updatedProduct;
   }
 
+  // ... (Các hàm deleteProduct, getAllProducts, v.v... giữ nguyên) ...
   async deleteProduct(productId, printerId) {
     const product = await this.productRepository.findById(productId);
 
@@ -239,12 +218,6 @@ export class ProductService {
     Logger.info(`[Service] Uploading 3D assets for printer: ${printerId}`);
     Logger.info("Model file:", modelFile[0]);
     Logger.info("Dieline file:", dielineFile ? dielineFile[0] : "N/A");
-
-    // In a real scenario, you would process these files:
-    // 1. Validate file types, sizes.
-    // 2. Upload to a cloud storage (like the 'files' in createProduct).
-    // 3. Create a new 'Asset' or similar entity in the database.
-    // 4. Associate the asset with the printer and category.
 
     const createdAsset = {
       id: "asset_temp_id_" + Date.now(), // Placeholder

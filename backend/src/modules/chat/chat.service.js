@@ -1,4 +1,4 @@
-// src/modules/chat/chat.service.js (✅ REFACTORED - MULTI-CONVERSATION)
+// src/modules/chat/chat.service.js (✅ REFACTORED - "LẮP RUỘT" AI HOÀN CHỈNH)
 import { ChatRepository } from "./chat.repository.js";
 import { ValidationException } from "../../shared/exceptions/index.js";
 import { Logger } from "../../shared/utils/index.js";
@@ -104,27 +104,61 @@ export class ChatService {
     }
   }
 
-  // (handleFileMessage giữ nguyên logic, chỉ nhận context)
+  /**
+   * ✅ ĐÍCH 1: ĐÃ LẮP RUỘT (LOGIC TỪ BÁO CÁO STRATEGIC_OPTIMIZATION_REPORT.MD)
+   * Đây là logic "Aggressive" Mục Tiêu 1: Tăng Conversion Rate.
+   */
   async handleFileMessage(context, fileInfo, history) {
-    // ... (Giữ nguyên logic từ file trước) ...
-    // (Đã bao gồm trong file Phúc vừa dán)
     Logger.debug(
       `[ChatSvc] Processing file with Vision AI: ${fileInfo.fileName}`
     );
     let visionAnalysis = null;
+
+    // BƯỚC 1: Phân tích file bằng Vision AI (nếu là ảnh/pdf)
     const isImage = fileInfo.fileType.startsWith("image/");
     const isPdf = fileInfo.fileType === "application/pdf";
+
     if (isImage || isPdf) {
-      const analysisPrompt = `...`; // (như cũ)
-      visionAnalysis = await this.aiService.getVisionCompletion(
-        fileInfo.fileUrl,
-        analysisPrompt,
-        context
-      );
+      try {
+        const analysisPrompt = `Phân tích thiết kế này dưới góc độ in ấn:
+        1.  Đây là gì? (ví dụ: logo, ảnh, poster)
+        2.  Mô tả ngắn (màu sắc, phong cách)
+        3.  Chất lượng file? (cao/trung bình/thấp)
+        4.  Gợi ý sản phẩm phù hợp để in? (ví dụ: áo thun, card visit, nón)`;
+        visionAnalysis = await this.aiService.getVisionCompletion(
+          fileInfo.fileUrl,
+          analysisPrompt,
+          context
+        );
+      } catch (visionError) {
+        Logger.warn(
+          "[ChatSvc] Vision AI analysis failed:",
+          visionError.message
+        );
+        visionAnalysis = "Không thể phân tích file (Vision Error)";
+      }
     } else {
       visionAnalysis = `File loại ${fileInfo.fileType} (${fileInfo.fileName})`;
     }
-    const syntheticMessage = `...`; // (như cũ)
+
+    // BƯỚC 2: Tạo "Synthetic Message" để kích hoạt AI Orchestrator
+    // Đây chính là "mồi" để AI tự động dùng tool
+    const syntheticMessage = `
+      [NGỮ CẢNH NỘI BỘ TỪ HỆ THỐNG]
+      User vừa tải lên một file.
+      - Tên file: ${fileInfo.fileName}
+      - Phân tích Vision AI: "${visionAnalysis || "Không có"}"
+
+      NHIỆM VỤ CỦA BẠN (AI):
+      1.  **Xác nhận:** Chào và xác nhận đã nhận được file ("Tôi thấy file logo của anh...").
+      2.  **Hành động (Quan trọng):** Dựa vào phân tích Vision, hãy ngay lập tức gọi tool 'find_products' để tìm 3-5 sản phẩm phù hợp nhất để in ấn.
+      3.  **Chào hàng:** Nếu tìm thấy sản phẩm, hãy CHÀO HÀNG NGAY LẬP TỨC.
+          - Ví dụ: "Tôi thấy đây là logo đẹp! Anh có muốn in lên 100 áo thun cotton không? Giá chỉ từ 80k/cái, tôi có ưu đãi hôm nay..."
+          - Nếu không tìm thấy, hãy hỏi user muốn làm gì.
+      [HẾT NGỮ CẢNH NỘI BỘ]
+    `;
+
+    // BƯỚC 3: Gọi Orchestrator (AI tự động dùng tools)
     return await this.handleOrchestratedMessage(
       syntheticMessage,
       history,
@@ -132,38 +166,66 @@ export class ChatService {
     );
   }
 
-  // (handleOrchestratedMessage giữ nguyên logic, chỉ nhận context)
+  /**
+   * ✅ ĐÍCH 1: ĐÃ LẮP RUỘT (LOGIC ORCHESTRATOR)
+   * Đây là luồng xử lý AI-Tool-AI chuẩn.
+   */
   async handleOrchestratedMessage(messageText, history, context) {
-    // ... (Giữ nguyên logic từ file trước) ...
-    // (Đã bao gồm trong file Phúc vừa dán)
+    Logger.debug(`[ChatOrchestrator] Starting...`);
+
+    // BƯỚC 1: Chuẩn bị tin nhắn và gọi AI
     const messages = ChatResponseUtil.prepareHistoryForOpenAI(history);
     messages.push({ role: "user", content: messageText });
     const toolDefinitions = this.toolService.getToolDefinitions();
+
     const aiResponse = await this.aiService.getCompletion(
       messages,
       toolDefinitions,
       context
     );
+
     const responseMessage = aiResponse.choices[0].message;
+
+    // BƯỚC 2: Kiểm tra xem AI có muốn dùng TOOL không
     if (responseMessage.tool_calls) {
-      messages.push(responseMessage);
+      Logger.debug(
+        `[ChatOrchestrator] AI requested tool: ${responseMessage.tool_calls[0].function.name}`
+      );
+      messages.push(responseMessage); // Thêm lời gọi tool vào lịch sử
+
+      // (Hiện chỉ hỗ trợ 1 tool call mỗi lượt, sẽ nâng cấp multi-turn sau)
       const toolCall = responseMessage.tool_calls[0];
+
+      // BƯỚC 3: Thực thi Tool
       const { response, isTerminal } = await this.toolService.executeTool(
         toolCall,
         context
       );
-      if (isTerminal) return response;
-      messages.push(response.response);
+
+      // Nếu tool là "terminal" (ví dụ: reorder_from_template), nó sẽ trả về payload cuối cùng
+      if (isTerminal) {
+        Logger.debug(`[ChatOrchestrator] Tool is terminal. Ending flow.`);
+        return response;
+      }
+
+      // BƯỚC 4: Gọi AI lần 2 (với kết quả từ Tool)
+      // Tool không terminal (như find_products), AI cần tóm tắt kết quả
+      messages.push(response.response); // Thêm kết quả tool (dạng 'function' role)
+
       const finalAiResponse = await this.aiService.getCompletion(
         messages,
         toolDefinitions,
         context
       );
+
+      Logger.debug(`[ChatOrchestrator] AI summarized tool results.`);
       return ChatResponseUtil.createTextResponse(
         finalAiResponse.choices[0].message.content,
         true
       );
     } else {
+      // BƯỚC 2 (Fallback): AI trả lời thẳng (không dùng tool)
+      Logger.debug(`[ChatOrchestrator] AI responded directly.`);
       return ChatResponseUtil.createTextResponse(responseMessage.content, true);
     }
   }
@@ -237,9 +299,4 @@ export class ChatService {
     );
     return conversation ? conversation.messages : [];
   }
-
-  /**
-   * HÀM CŨ (Không còn dùng):
-   * async getHistory(userId) { ... }
-   */
 }

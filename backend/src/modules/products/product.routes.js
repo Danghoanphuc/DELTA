@@ -1,21 +1,19 @@
-// backend/src/modules/products/product.routes.js (✅ ĐÃ SỬA LỖI IMPORT)
+// backend/src/modules/products/product.routes.js (✅ ĐÃ CẬP NHẬT)
 import { Router } from "express";
 import { ProductController } from "./product.controller.js";
 import { protect, isPrinter } from "../../shared/middleware/index.js";
 import {
-  // ✅ SỬA 1: Thêm 'uploadImage' vào import
   uploadImage,
   uploadModel,
   uploadDieline,
 } from "../../infrastructure/storage/multer.config.js";
+// ✅ ĐÍCH 1: Import middleware mới
+import { parseJsonFields } from "../../shared/middleware/parse-form-data.middleware.js";
 
 const router = Router();
 const productController = new ProductController();
 
-// ============================================
-// ✅ MỚI: UPLOAD 3D ASSETS (GLB + Dieline SVG)
-// ============================================
-// (Phần này đã đúng, giữ nguyên)
+// ... (Các route /upload-3d-assets, GET /, GET /:id, GET /my-products giữ nguyên) ...
 router.post(
   "/upload-3d-assets",
   protect,
@@ -26,18 +24,8 @@ router.post(
   ]),
   productController.upload3DAssets
 );
-
-// ============================================
-// PUBLIC ROUTES
-// ============================================
-// (Phần này đã đúng, giữ nguyên)
 router.get("/", productController.getAllProducts);
 router.get("/:id", productController.getProductById);
-
-// ============================================
-// PRIVATE ROUTES (Printer only)
-// ============================================
-// (Phần này đã đúng, giữ nguyên)
 router.get("/my-products", protect, isPrinter, productController.getMyProducts);
 
 /**
@@ -49,25 +37,14 @@ router.post(
   "/",
   protect,
   isPrinter,
-  // ✅ SỬA 2: Đổi 'upload.array' thành 'uploadImage.array'
-  uploadImage.array("images", 5),
-  productController.createProduct
+  uploadImage.array("images", 5), // Step 1: Multer xử lý file
+  // ✅ ĐÍCH 1: Middleware mới parse JSON
+  parseJsonFields(["pricing", "specifications", "assets"]), // Step 2: Parse JSON
+  productController.createProduct // Step 3: Controller nhận data sạch
 );
 
-/**
- * @route   PUT /api/products/:id
- * @desc    Update an existing product
- * @access  Private (Printer only - owner)
- */
-// (Phần này đã đúng, giữ nguyên)
+// ... (Các route PUT /:id và DELETE /:id giữ nguyên) ...
 router.put("/:id", protect, isPrinter, productController.updateProduct);
-
-/**
- * @route   DELETE /api/products/:id
- * @desc    Delete a product
- * @access  Private (Printer only - owner)
- */
-// (Phần này đã đúng, giữ nguyên)
 router.delete("/:id", protect, isPrinter, productController.deleteProduct);
 
 export default router;
