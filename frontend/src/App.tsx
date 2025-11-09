@@ -5,7 +5,7 @@ import ProtectedRoute from "./features/auth/components/ProtectedRoute";
 import { useEffect } from "react";
 import { useAuthStore } from "./stores/useAuthStore";
 import { useCartStore } from "./stores/useCartStore";
-import { closeOAuthPopup } from "./shared/components/ui/SocialButton";
+import { SocialButton } from "./shared/components/ui/SocialButton";
 import { toast } from "sonner";
 
 // ==================== PAGE IMPORTS ====================
