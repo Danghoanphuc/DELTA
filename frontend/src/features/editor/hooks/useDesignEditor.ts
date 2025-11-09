@@ -1,5 +1,5 @@
 // features/editor/hooks/useDesignEditor.ts
-// ✅ BẢN VÁ: Bổ sung 2 useEffects cho logic giá (sửa lỗi 'nextCreate is not a function')
+// Hook quản lý toàn bộ state và logic nghiệp vụ của 3D Editor
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -16,10 +16,7 @@ import {
   UploadedImageVM,
 } from "@/services/mediaAssetService";
 import { arrayMove } from "@dnd-kit/sortable";
-// ✅ SỬA: Bỏ import không dùng
-// import { Interaction } from "three";
 
-// (Helper createId giữ nguyên)
 const createId = (prefix: "decal" | "group") =>
   `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
@@ -243,7 +240,7 @@ export function useDesignEditor() {
         handleSelectItem(newDecal.id, false);
       }
     },
-    [firstSelectedItem, handleSelectItem] // ✅ SỬA: Thêm handleSelectItem
+    [firstSelectedItem, handleSelectItem]
   );
 
   // (Handler: deleteSelectedItems)
@@ -408,7 +405,6 @@ export function useDesignEditor() {
 
   // === (Logic Giá & Lưu vào giỏ hàng) ===
 
-  // ✅ SỬA: Đã copy lại đầy đủ logic giá (useMemo + useEffects)
   const minQuantity = useMemo(
     () => product?.pricing[0]?.minQuantity || 1,
     [product]
@@ -419,14 +415,15 @@ export function useDesignEditor() {
     [product, selectedPriceIndex]
   );
 
-  // ✅ ĐÂY LÀ 2 HOOK BỊ THIẾU TRONG LẦN TRƯỚC:
+  // Logic giá: Tự động set số lượng tối thiểu
   useEffect(() => {
     // Chỉ set khi quantity < minQuantity (lần đầu load)
     if (minQuantity > 0 && selectedQuantity < minQuantity) {
       setSelectedQuantity(minQuantity);
     }
-  }, [minQuantity, selectedQuantity]); // Thêm selectedQuantity
+  }, [minQuantity, selectedQuantity]);
 
+  // Logic giá: Tự động chọn bậc giá
   useEffect(() => {
     if (!product?.pricing) return;
     let bestTierIndex = 0;
@@ -452,10 +449,12 @@ export function useDesignEditor() {
     setIsSaving(true);
     try {
       // (Tính toán giá)
-      const basePrice = currentPricePerUnit;
       const quantity = selectedQuantity;
-      const decalCost = flatDecalItems.length * 5000; // Tạm thời
-      const finalPricePerUnit = basePrice + decalCost;
+
+      // GỠ BỎ LOGIC TÍNH GIÁ FRONTEND (Đã làm ở Task 1)
+      // const basePrice = currentPricePerUnit;
+      // const decalCost = flatDecalItems.length * 5000;
+      // const finalPricePerUnit = basePrice + decalCost;
 
       const newDesignId = await editorService.saveCustomDesign(product._id, {
         items: items, // Gửi cấu trúc tree

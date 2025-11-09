@@ -1,7 +1,7 @@
 // frontend/src/features/editor/components/ViewerModel.tsx
-// ✅ SỬA LỖI LOGIC: Loại bỏ onDrop và onDragOver (đã được <Canvas> ở cha xử lý)
+// Component render 3D Model và các Decals
 
-import React, { useMemo, useEffect, useRef } from "react";
+import React, { useMemo, useEffect } from "react";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { useCameraAutoFit } from "../hooks/useCameraAutoFit";
@@ -22,10 +22,6 @@ interface ViewerModelProps {
   onDecalUpdate: (id: string, updates: Partial<DecalItem>) => void;
   gizmoMode: GizmoMode;
   isSnapping: boolean;
-
-  // ❌ XÓA: Loại bỏ 2 props đã được component cha (Canvas) xử lý
-  // onDrop: (event: React.DragEvent) => void;
-  // onDragOver: (event: React.DragEvent) => void;
 }
 
 export function ViewerModel({
@@ -40,11 +36,8 @@ export function ViewerModel({
   onDecalUpdate,
   gizmoMode,
   isSnapping,
-}: // ❌ XÓA:
-// onDrop,
-// onDragOver,
-ViewerModelProps) {
-  // ... (logic clone scene, auto-fit, rotation giữ nguyên) ...
+}: ViewerModelProps) {
+  // Logic clone scene, auto-fit, rotation
   const { scene: originalScene } = useGLTF(modelUrl);
   const scene = useMemo(() => {
     if (originalScene) {
@@ -79,12 +72,10 @@ ViewerModelProps) {
         ref={modelRef}
         object={scene}
         rotation={[0, rotationYInRadians, 0]}
-        // ❌ XÓA: Loại bỏ 2 handler
-        // onDrop={onDrop}
-        // onDragOver={onDragOver}
+        // onDrop và onDragOver đã được xử lý bởi <Canvas> ở component cha
       />
 
-      {/* Render Decals (Đã cập nhật) */}
+      {/* Render Decals */}
       {decals
         .filter((d) => d.isVisible)
         .map((decal) => (
