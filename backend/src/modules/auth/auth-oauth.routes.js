@@ -1,5 +1,5 @@
 // src/modules/auth/auth-oauth.routes.js
-// BÀN GIAO: Đã sửa lỗi postMessage an toàn hơn
+// BÀN GIAO: Đã sửa lỗi JSON.stringify (treo popup)
 
 import express from "express";
 import passport from "passport";
@@ -9,7 +9,6 @@ import { Logger } from "../../shared/utils/index.js"; // Import Logger
 const router = express.Router();
 const authService = new AuthService();
 
-// ✅ Đọc CLIENT_URL từ .env (phải là http://localhost:5173 khi dev)
 const CLIENT_URL = process.env.CLIENT_URL;
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 days
 
@@ -45,12 +44,29 @@ router.get(
         maxAge: REFRESH_TOKEN_TTL,
       });
 
-      // ✅ CẢI TIẾN: Tạo payload an toàn
+      // ✅ GIẢI PHÁP: Chuyển Mongoose object thành POJO (Plain Object)
+      // Dùng .toObject() để đảm bảo an toàn cho JSON.stringify
+      const safeUser =
+        result.user && typeof result.user.toObject === "function"
+          ? result.user.toObject()
+          : result.user;
+
       const payload = {
         success: true,
         accessToken: result.accessToken,
-        user: result.user,
+        user: safeUser, // <-- Sử dụng đối tượng đã được làm sạch
       };
+
+      // Chuyển đổi payload thành chuỗi JSON an toàn
+      // Chúng ta sẽ escape nó để ngăn lỗi XSS và lỗi cú pháp
+      const jsonPayload = JSON.stringify(payload)
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/&/g, "\\&")
+        .replace(/</g, "\\<")
+        .replace(/>/g, "\\>")
+        .replace(/\//g, "\\/");
 
       res.send(`
         <!DOCTYPE html>
@@ -95,7 +111,8 @@ router.get(
             </div>
             <script>
               (function() {
-                const payload = ${JSON.stringify(payload)};
+                // ✅ GIẢI PHÁP: Parse chuỗi JSON đã được escape an toàn
+                const payload = JSON.parse("${jsonPayload}"); 
                 const targetOrigin = "${CLIENT_URL}";
                 let attempts = 0;
                 const maxAttempts = 10;
@@ -107,21 +124,17 @@ router.get(
                     console.log("Attempt", attempts, "- Sending to:", targetOrigin);
                     window.opener.postMessage(payload, targetOrigin);
                     
-                    // Đợi một chút để message được xử lý
                     setTimeout(() => {
                       window.close();
                     }, 500);
                   } else if (attempts < maxAttempts) {
-                    // Thử lại sau 100ms
                     setTimeout(sendMessage, 100);
                   } else {
-                    // Fallback: redirect trực tiếp
                     console.error("Cannot find opener window, redirecting...");
                     window.location.href = targetOrigin + "/?oauth=success";
                   }
                 }
                 
-                // Bắt đầu gửi message
                 sendMessage();
               })();
             </script>
