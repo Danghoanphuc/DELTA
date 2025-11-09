@@ -1,14 +1,14 @@
 // backend/src/server.js
-// BÀN GIAO: Đã xóa import 'validateEnv' (gây lỗi deploy)
+// BÀN GIAO: Đã xóa ký tự 'T' thừa ở dòng pdf-render (lỗi deploy)
 
-import "dotenv/config"; // <-- Tốt nhất nên giữ lại để dự phòng
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import passport from "passport";
 import cookieParser from "cookie-parser";
 
 import { connectToDatabase } from "./infrastructure/database/connection.js";
-// ✅ SỬA: Xóa 'validateEnv' vì file config đã tự chạy
+// Đã xóa 'validateEnv'
 import { envConfig } from "./config/env.config.js";
 import { errorHandler } from "./shared/middleware/error-handler.middleware.js";
 
@@ -30,12 +30,9 @@ import chatRoutes from "./modules/chat/chat.routes.js";
 import uploadRoutes from "./modules/uploads/upload.routes.js";
 
 // == Cấu hình Server ==
-// ✅ SỬA: XÓA DÒNG 'validateEnv();' GÂY LỖI.
-// File env.config.js mới đã tự chạy hàm check này rồi.
 const app = express();
 
 // == Cấu hình CORS ==
-// (Đoạn này đã đúng, lấy từ file gốc của anh)
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -72,7 +69,8 @@ app.use("/api/designs", designRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/studio", studioRoutes);
-T app.use("/api/pdf-render", pdfRenderRoutes);
+// ✅ SỬA LỖI: Đã xóa chữ 'T' ở đầu dòng này
+app.use("/api/pdf-render", pdfRenderRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/uploads", uploadRoutes);
 
@@ -89,7 +87,9 @@ app.use(errorHandler);
 // == Khởi động Server ==
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
-  console.log(`🚀 Server đang chạy trên cổng ${PORT} (Môi trường: ${envConfig.NODE_ENV})`);
+  console.log(
+    `🚀 Server đang chạy trên cổng ${PORT} (Môi trường: ${envConfig.NODE_ENV})`
+  );
 });
 
 export default app;
