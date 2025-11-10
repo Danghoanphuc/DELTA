@@ -1,7 +1,4 @@
-// frontend/src/pages/customer/CheckoutPage.tsx - ✅ FIXED VERSION
-// ============================================
-// THAY THẾ FILE CŨ BẰNG FILE NÀY
-// ============================================
+// frontend/src/pages/customer/CheckoutPage.tsx - ✅ HOÀN NGUYÊN VỀ LOGIC GỐC
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -12,7 +9,12 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Textarea } from "@/shared/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group";
 import { useCartStore } from "@/stores/useCartStore";
 import { toast } from "sonner";
@@ -26,7 +28,7 @@ export function CheckoutPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form state
+  // (Form state, useEffect, formatPrice, totals... giữ nguyên)
   const [shippingAddress, setShippingAddress] = useState({
     recipientName: user?.displayName || "",
     phone: user?.phone || "",
@@ -36,43 +38,35 @@ export function CheckoutPage() {
     city: "",
     notes: "",
   });
-
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "bank-transfer">(
     "cod"
   );
   const [customerNotes, setCustomerNotes] = useState("");
-
-  // Redirect if cart is empty
   useEffect(() => {
     if (!cart || cart.items.length === 0) {
       toast.error("Giỏ hàng trống!");
       navigate("/shop");
     }
   }, [cart, navigate]);
-
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
       currency: "VND",
     }).format(price);
   };
-
   const subtotal = getCartTotal();
   const shippingFee = 30000;
   const total = subtotal + shippingFee;
 
   // ============================================
-  // ✅ FIXED SUBMIT HANDLER
+  // ✅ HOÀN NGUYÊN HANDLESUBMIT VỀ LOGIC GỐC
   // ============================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Validate
     if (!shippingAddress.recipientName || !shippingAddress.phone) {
       toast.error("Vui lòng điền đầy đủ thông tin người nhận");
       return;
     }
-
     if (
       !shippingAddress.street ||
       !shippingAddress.district ||
@@ -81,23 +75,14 @@ export function CheckoutPage() {
       toast.error("Vui lòng điền đầy đủ địa chỉ giao hàng");
       return;
     }
-
     setIsSubmitting(true);
-
     try {
       const orderData = {
         items: cart!.items.map((item) => {
-          // Logic cũ (dòng 93-96) đã bị xóa vì nó gây ra lỗi 'never'.
-          // 'item.productId' đã là một string ID,
-          // 'item.product' mới là object.
-
-          console.log("🔍 Processing cart item:", {
-            originalProductId: item.productId, // Đây đã là string
-            type: typeof item.productId,
-          });
-
+          // ✅ HOÀN NGUYÊN: Gửi `item.productId` (giờ đã là string)
+          // Bỏ logic "bùa chống lỗi"
           return {
-            productId: item.productId, // ✅ GỬI ĐÚNG STRING ID
+            productId: item.productId, // <-- Đã là string
             quantity: item.quantity,
             pricePerUnit: item.selectedPrice?.pricePerUnit || 0,
             customization: item.customization || {},
@@ -108,45 +93,26 @@ export function CheckoutPage() {
         customerNotes,
       };
 
-      console.log("📦 Sending order data:", orderData);
+      console.log("📦 Sending order data (Cleaned):", orderData);
 
-      // ✅ GỬI REQUEST TỚI BACKEND
       const res = await api.post("/orders", orderData);
-
-      console.log("✅ Order response:", res.data);
-
-      // ✅ KIỂM TRA RESPONSE
       const newOrder = res.data?.data?.order || res.data?.order;
-
       if (newOrder && newOrder._id) {
         toast.success("🎉 Đặt hàng thành công!");
-
-        // ✅ XÓA GIỎ HÀNG CHỈ KHI THÀNH CÔNG
         await clearCart();
-
-        // ✅ ĐIỀU HƯỚNG ĐẾN TRANG CHI TIẾT ĐƠN HÀNG
         setTimeout(() => {
           navigate(`/order-confirmation/${newOrder._id}`);
         }, 500);
       } else {
-        console.error("❌ Backend response missing order data:", res.data);
         throw new Error("Không nhận được thông tin đơn hàng sau khi tạo.");
       }
     } catch (err: any) {
       console.error("❌ Checkout Error:", err);
-
       const errorMsg =
         err.response?.data?.message ||
         err.response?.data?.error ||
         "Không thể đặt hàng, vui lòng thử lại";
-
       toast.error(errorMsg);
-
-      // ✅ LOG CHI TIẾT LỖI ĐỂ DEBUG
-      if (err.response) {
-        console.error("Response status:", err.response.status);
-        console.error("Response data:", err.response.data);
-      }
     } finally {
       setIsSubmitting(false);
     }
@@ -181,9 +147,9 @@ export function CheckoutPage() {
 
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left Column - Forms */}
+              {/* Left Column - Forms (Giữ nguyên) */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Shipping Address */}
+                {/* ... (Toàn bộ Card Address, Payment, Notes giữ nguyên) ... */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -223,7 +189,6 @@ export function CheckoutPage() {
                         />
                       </div>
                     </div>
-
                     <div>
                       <Label htmlFor="street">Địa chỉ *</Label>
                       <Input
@@ -239,7 +204,6 @@ export function CheckoutPage() {
                         required
                       />
                     </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="ward">Phường/Xã</Label>
@@ -283,7 +247,6 @@ export function CheckoutPage() {
                         />
                       </div>
                     </div>
-
                     <div>
                       <Label htmlFor="notes">Ghi chú địa chỉ</Label>
                       <Textarea
@@ -300,8 +263,6 @@ export function CheckoutPage() {
                     </div>
                   </CardContent>
                 </Card>
-
-                {/* Payment Method */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -332,8 +293,6 @@ export function CheckoutPage() {
                     </RadioGroup>
                   </CardContent>
                 </Card>
-
-                {/* Customer Notes */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -358,37 +317,46 @@ export function CheckoutPage() {
                   <CardHeader>
                     <CardTitle>Đơn hàng của bạn</CardTitle>
                   </CardHeader>
+                  {/* ======================================================= */}
+                  {/* ✅ HOÀN NGUYÊN LOGIC HIỂN THỊ TẠI ĐÂY */}
+                  {/* ======================================================= */}
                   <CardContent className="space-y-4">
                     {/* Items */}
                     <div className="space-y-3 max-h-64 overflow-y-auto">
-                      {cart.items.map((item) => (
-                        <div key={item._id} className="flex gap-3 text-sm">
-                          <img
-                            src={
-                              item.product?.images?.[0]?.url ||
-                              "/placeholder-product.jpg"
-                            }
-                            alt={item.product?.name}
-                            className="w-16 h-16 object-cover rounded"
-                          />
-                          <div className="flex-1">
-                            <p className="font-medium line-clamp-2">
-                              {item.product?.name}
-                            </p>
-                            <p className="text-gray-500">
-                              {item.quantity} x{" "}
-                              {formatPrice(
-                                item.selectedPrice?.pricePerUnit || 0
-                              )}
+                      {cart.items.map((item) => {
+                        // ✅ HOÀN NGUYÊN: Đọc từ `item.product`
+                        const product = item.product;
+
+                        return (
+                          <div key={item._id} className="flex gap-3 text-sm">
+                            <img
+                              src={
+                                product?.images?.[0]?.url || // ✅ HOÀN NGUYÊN
+                                "/placeholder-product.jpg"
+                              }
+                              alt={product?.name} // ✅ HOÀN NGUYÊN
+                              className="w-16 h-16 object-cover rounded"
+                            />
+                            <div className="flex-1">
+                              <p className="font-medium line-clamp-2">
+                                {product?.name} {/* ✅ HOÀN NGUYÊN */}
+                              </p>
+                              <p className="text-gray-500">
+                                {item.quantity} x{" "}
+                                {formatPrice(
+                                  item.selectedPrice?.pricePerUnit || 0
+                                )}
+                              </p>
+                            </div>
+                            <p className="font-semibold">
+                              {formatPrice(item.subtotal)}
                             </p>
                           </div>
-                          <p className="font-semibold">
-                            {formatPrice(item.subtotal)}
-                          </p>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
+                    {/* (Price summary và Button giữ nguyên) */}
                     <div className="border-t pt-4 space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Tạm tính:</span>
@@ -405,7 +373,6 @@ export function CheckoutPage() {
                         </span>
                       </div>
                     </div>
-
                     <Button
                       type="submit"
                       className="w-full bg-blue-600 hover:bg-blue-700"
@@ -414,7 +381,6 @@ export function CheckoutPage() {
                     >
                       {isSubmitting ? "Đang xử lý..." : "Đặt hàng"}
                     </Button>
-
                     <p className="text-xs text-gray-500 text-center">
                       Bằng cách đặt hàng, bạn đồng ý với Điều khoản dịch vụ của
                       PrintZ

@@ -1,5 +1,5 @@
 // src/services/productService.ts
-// ✅ BẢN VÁ FULL: Sửa 404 endpoint và chuyển sang FormData
+// ✅ BÀN GIAO: Sửa lỗi 404 endpoint và chuyển sang FormData
 
 import api from "@/shared/lib/axios";
 import { PrinterProduct, Product } from "@/types/product";
@@ -39,8 +39,8 @@ export const getProductById = async (productId: string): Promise<Product> => {
  * Lấy danh sách sản phẩm của nhà in
  */
 export const getMyProducts = async (): Promise<PrinterProduct[]> => {
-  // ✅ SỬA LỖI 404: Endpoint đúng là /products
-  const res = await api.get<MyProductsResponse>("/products");
+  // ✅ SỬA LỖI 404: Endpoint đúng là /products/my-products
+  const res = await api.get<MyProductsResponse>("/products/my-products");
   return res.data?.data?.products || [];
 };
 
@@ -53,27 +53,27 @@ export const deleteProduct = async (productId: string): Promise<void> => {
 
 /**
  * Cập nhật một sản phẩm
- * ✅ SỬA LỖI 400: Nhận FormData
+ * (Giữ nguyên logic FormData)
  */
 export const updateProduct = async (
   productId: string,
-  data: FormData // ✅ Đổi từ Partial<Product> sang FormData
+  data: FormData
 ): Promise<PrinterProduct> => {
   const res = await api.put<ProductResponse>(`/products/${productId}`, data, {
-    headers: { "Content-Type": "multipart/form-data" }, // ✅ Thêm header
+    headers: { "Content-Type": "multipart/form-data" },
   });
   return res.data?.data?.product;
 };
 
 /**
  * Tạo một sản phẩm (phôi) mới
- * ✅ SỬA LỖI 400: Nhận FormData
+ * (Giữ nguyên logic FormData)
  */
 export const createNewProduct = async (
-  productData: FormData // ✅ Đổi từ Partial<Product> sang FormData
+  productData: FormData
 ): Promise<PrinterProduct> => {
   const res = await api.post<ProductResponse>("/products", productData, {
-    headers: { "Content-Type": "multipart/form-data" }, // ✅ Thêm header
+    headers: { "Content-Type": "multipart/form-data" },
   });
   return res.data?.data?.product;
 };

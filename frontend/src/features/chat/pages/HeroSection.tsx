@@ -27,15 +27,12 @@ export function HeroSection({
   onFileUpload, // ✅ MỚI
 }: HeroSectionProps) {
   return (
-    <div className="text-center px-4 md:px-0 lg:px-0 pt-0 pb-6 md:pt-8 md:pb-8 lg:pt-6 lg:pb-6">
+    <div className="text-center px-4 md:px-0 lg:px-0 pt-4 pb-3 md:pt-8 md:pb-8 lg:pt-6 lg:pb-6">
       {/* (Heading giữ nguyên) */}
-      <div className="mb-4 md:mb-6">
+      <div className="mb-1 md:mb-3">
         <ResponsiveH1 className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent inline-flex items-center gap-2 md:gap-3 flex-wrap justify-center mb-2 md:mb-3">
           Bạn muốn in gì hôm nay?
         </ResponsiveH1>
-        <p className="text-gray-600 text-sm md:text-base lg:text-lg px-2 md:px-4">
-          Printz AI sẵn sàng giúp bạn tạo ra những ấn phẩm tuyệt vời
-        </p>
       </div>
 
       {/* ✅ TRUYỀN PROPS MỚI XUỐNG CHATBAR */}

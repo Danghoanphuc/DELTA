@@ -1,5 +1,8 @@
 // features/shop/hooks/useShop.ts
-import { useState, useEffect, useMemo } from "react";
+// ✅ BÀN GIAO: Refactor sang React Query (Bước 2)
+
+import { useState, useMemo } from "react"; // ✅ Bỏ useEffect
+import { useQuery } from "@tanstack/react-query"; // ✅ Thêm useQuery
 import { Product, PrinterProduct } from "@/types/product";
 import api from "@/shared/lib/axios";
 import { toast } from "sonner";
@@ -32,43 +35,51 @@ function shuffleArray<T>(array: T[]): T[] {
   return newArray;
 }
 
-export const useShop = () => {
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+// ✅ Tách hàm gọi API ra riêng
+const fetchAllProducts = async (): Promise<Product[]> => {
+  try {
+    const res = await api.get("/products");
+    const products: PrinterProduct[] = res.data?.data?.products || [];
+    // Đảm bảo 'assets' luôn tồn tại (như logic cũ)
+    const productsWithAssets: Product[] = products.map((p) => ({
+      ...p,
+      assets: (p as any).assets || { surfaces: [] },
+    }));
+    return productsWithAssets;
+  } catch (err: any) {
+    console.error("❌ Error fetching products:", err);
+    toast.error("Không thể tải sản phẩm");
+    // Ném lỗi để React Query xử lý (retry)
+    throw new Error("Không thể tải sản phẩm");
+  }
+};
 
+export const useShop = () => {
+  // ❌ Bỏ useState cho allProducts và loading
+  // const [allProducts, setAllProducts] = useState<Product[]>([]);
+  // const [loading, setLoading] = useState(true);
+
+  // (Filter/sort states giữ nguyên)
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-
-  // ✅ SỬA: Đổi default sort thành "popular" (tương ứng "Liên quan")
   const [sortBy, setSortBy] = useState<string>("popular");
 
-  // Tải sản phẩm (giữ nguyên)
-  useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
-      try {
-        const res = await api.get("/products");
-        const products: PrinterProduct[] = res.data?.data?.products || [];
-        const productsWithAssets: Product[] = products.map((p) => ({
-          ...p,
-          assets: (p as any).assets || { surfaces: [] }, // Đảm bảo assets luôn tồn tại
-        }));
-        setAllProducts(productsWithAssets);
-      } catch (err: any) {
-        console.error("❌ Error fetching products:", err);
-        toast.error("Không thể tải sản phẩm");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProducts();
-  }, []);
+  // ✅ DÙNG useQuery thay thế cho useEffect
+  const { data: allProducts = [], isLoading: loading } = useQuery({
+    queryKey: ["products", "all"], // "Chìa khóa" cho cache này
+    queryFn: fetchAllProducts,
+    // staleTime: 5 phút (đã được set ở default trong main.tsx)
+  });
+
+  // ❌ Bỏ useEffect fetch data
+  // useEffect(() => { ... }, []);
 
   const handleSearchSubmit = (prompt: string) => {
     setSearchTerm(prompt.toLowerCase());
   };
 
-  // LOGIC LỌC VÀ SẮP XẾP (ĐÃ NÂNG CẤP)
+  // ✅ Logic filter/sort giữ nguyên
+  // Nó sẽ tự động chạy lại khi 'allProducts' (là data từ useQuery) thay đổi
   const filteredProducts = useMemo(() => {
     let products = [...allProducts];
 
@@ -141,7 +152,7 @@ export const useShop = () => {
 
   return {
     products: filteredProducts,
-    loading,
+    loading, // ✅ Trả về isLoading từ useQuery
     handleSearchSubmit,
     categories,
     selectedCategory,

@@ -91,7 +91,6 @@ export const ShopHeader = ({
         >
           <ShoppingCart size={22} />
           {cartItemCount > 0 && (
-            /* ✅ SỬA LỖI: Gỡ bỏ w-5, dùng min-w-5 và padding */
             <span
               className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1.5 flex items-center justify-center p-0 rounded-full
                            bg-red-500 text-white text-[10px] font-bold leading-none"
@@ -110,7 +109,7 @@ export const ShopHeader = ({
           <Filter size={22} />
         </Button>
       </div>
-      {/* Hàng 2: Sorting Tabs (Giữ nguyên) */}
+      {/* Hàng 2: Sorting Tabs */}
       <div className="w-full bg-white border-b border-gray-200">
         <Tabs
           value={isPriceSort ? "price" : sortBy}
@@ -124,7 +123,8 @@ export const ShopHeader = ({
           <TabsList className="h-11 w-full justify-around p-0 bg-transparent rounded-none">
             {sortTabs.map((tab) => (
               <TabsTrigger
-                key={tab.value}
+                // ✅ SỬA LỖI: Dùng tab.label (duy nhất) làm key
+                key={tab.label}
                 value={tab.value}
                 className="flex-1 text-gray-600 rounded-none data-[state=active]:text-blue-600 data-[state=active]:shadow-[inset_0_-2px_0_0_currentColor] data-[state=active]:bg-transparent"
               >
@@ -209,7 +209,6 @@ export const ShopHeader = ({
         >
           <ShoppingCart size={20} />
           {cartItemCount > 0 && (
-            /* ✅ SỬA LỖI: Gỡ bỏ w-5, dùng min-w-5 và padding */
             <span
               className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1.5 flex items-center justify-center p-0 rounded-full
                            bg-blue-600 text-white text-[10px] font-bold leading-none"

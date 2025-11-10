@@ -1,13 +1,13 @@
-// frontend/src/components/shop/CartSidebar.tsx (UPDATED FOR GUEST CART)
+// frontend/src/components/shop/CartSidebar.tsx (✅ HOÀN NGUYÊN VỀ LOGIC GỐC)
 
 import { useEffect, useState } from "react";
 import { X, ShoppingBag, Trash2, Plus, Minus } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
 import { useCartStore } from "@/stores/useCartStore";
-import { useAuthStore } from "@/stores/useAuthStore"; // ✅ THÊM
-import { LoginPopup } from "@/features/auth/components/LoginPopup"; // ✅ THÊM
-import { getGuestCart } from "@/shared/lib/guestCart"; // ✅ THÊM
+import { useAuthStore } from "@/stores/useAuthStore";
+import { LoginPopup } from "@/features/auth/components/LoginPopup";
+import { getGuestCart } from "@/shared/lib/guestCart";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -27,24 +27,24 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
     getCartTotal,
   } = useCartStore();
 
-  const { accessToken } = useAuthStore(); // ✅ THÊM
-  const [showLoginPopup, setShowLoginPopup] = useState(false); // ✅ THÊM
+  const { accessToken } = useAuthStore();
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
 
+  // (useEffect vá lỗi Race Condition từ lần trước - giữ nguyên)
   useEffect(() => {
-    if (isOpen && accessToken && !cart) {
+    if (isOpen && accessToken) {
       fetchCart();
     }
-  }, [isOpen, cart, fetchCart, accessToken]);
+  }, [isOpen, accessToken, fetchCart]);
 
+  // (Các handler: formatPrice, handleCheckoutClick, handleQuantityChange, handleRemove... giữ nguyên)
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
       currency: "VND",
     }).format(price);
   };
-
-  // ✅ THÊM - Handle checkout click cho guest
   const handleCheckoutClick = (e: React.MouseEvent) => {
     if (!accessToken) {
       e.preventDefault();
@@ -53,20 +53,15 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
       onClose();
     }
   };
-
   const handleQuantityChange = async (cartItemId: string, delta: number) => {
     if (!accessToken) {
-      // Guest user - chưa implement UI cho guest cart update
       toast.info("Vui lòng đăng nhập để quản lý giỏ hàng");
       return;
     }
-
     const item = cart?.items.find((i) => i._id === cartItemId);
     if (!item || updatingItemId === cartItemId) return;
-
     const newQuantity = item.quantity + delta;
     if (newQuantity < 1) return;
-
     setUpdatingItemId(cartItemId);
     try {
       await updateCartItem(cartItemId, newQuantity);
@@ -76,15 +71,12 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
       setUpdatingItemId(null);
     }
   };
-
   const handleRemove = async (cartItemId: string) => {
     if (!accessToken) {
       toast.info("Vui lòng đăng nhập để quản lý giỏ hàng");
       return;
     }
-
     if (updatingItemId === cartItemId) return;
-
     setUpdatingItemId(cartItemId);
     try {
       await removeFromCart(cartItemId);
@@ -96,35 +88,29 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   };
 
   const showInitialLoading = isLoading && (!cart || cart.items.length === 0);
-
-  // ✅ THÊM - Guest cart display
   const guestCart = !accessToken ? getGuestCart() : null;
   const displayItemCount = getCartItemCount(!!accessToken);
 
   return (
     <>
-      {/* ✅ THÊM LoginPopup */}
       <LoginPopup
         isOpen={showLoginPopup}
         onClose={() => setShowLoginPopup(false)}
         message="Vui lòng đăng nhập để tiến hành thanh toán"
       />
 
-      {/* Backdrop */}
+      {/* (Backdrop, Sidebar, Header, Loading, Empty, Guest Cart... giữ nguyên) */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 transition-opacity"
           onClick={onClose}
         />
       )}
-
-      {/* Sidebar */}
       <div
         className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-white shadow-2xl z-50 transform transition-transform duration-300 flex flex-col ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <ShoppingBag size={20} className="text-blue-600" />
@@ -136,15 +122,11 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             <X size={20} />
           </Button>
         </div>
-
-        {/* Loading */}
         {showInitialLoading && (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-gray-500">Đang tải giỏ hàng...</div>
           </div>
         )}
-
-        {/* Empty Cart */}
         {!isLoading &&
           !guestCart?.items.length &&
           (!cart || cart.items.length === 0) && (
@@ -161,10 +143,9 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               </Button>
             </div>
           )}
-
-        {/* ✅ GUEST CART DISPLAY */}
         {!accessToken && guestCart && guestCart.items.length > 0 && (
           <>
+            {/* ... (logic guest cart giữ nguyên) ... */}
             <ScrollArea className="flex-1 p-4">
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
                 <p className="text-sm text-yellow-800">
@@ -172,7 +153,6 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   và thanh toán.
                 </p>
               </div>
-
               <div className="space-y-4">
                 {guestCart.items.map((item, index) => (
                   <div
@@ -184,7 +164,6 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                         📦
                       </div>
                     </div>
-
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm mb-1">
                         Product ID: {item.productId.substring(0, 8)}...
@@ -200,12 +179,10 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 ))}
               </div>
             </ScrollArea>
-
             <div className="border-t p-4 space-y-3">
               <p className="text-sm text-gray-600 text-center mb-3">
                 Đăng nhập để xem tổng giá và thanh toán
               </p>
-
               <Button
                 className="w-full bg-blue-600 hover:bg-blue-700"
                 size="lg"
@@ -213,7 +190,6 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               >
                 Đăng nhập để thanh toán
               </Button>
-
               <Button
                 variant="outline"
                 className="w-full"
@@ -226,13 +202,19 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           </>
         )}
 
-        {/* AUTHENTICATED USER CART */}
+        {/* ======================================================= */}
+        {/* ✅ HOÀN NGUYÊN LOGIC HIỂN THỊ TẠI ĐÂY */}
+        {/* ======================================================= */}
         {accessToken && cart && cart.items.length > 0 && (
           <>
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-4">
                 {cart.items.map((item) => {
                   const isUpdatingThisItem = updatingItemId === item._id;
+
+                  // ✅ HOÀN NGUYÊN: Đọc từ `item.product`
+                  const product = item.product;
+
                   return (
                     <div
                       key={item._id}
@@ -243,23 +225,24 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                       <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
                         <img
                           src={
-                            item.product?.images?.[0]?.url ||
+                            product?.images?.[0]?.url || // ✅ HOÀN NGUYÊN
                             "/placeholder-product.jpg"
                           }
-                          alt={item.product?.name}
+                          alt={product?.name} // ✅ HOÀN NGUYÊN
                           className="w-full h-full object-cover"
                         />
                       </div>
 
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium text-sm line-clamp-2 mb-1">
-                          {item.product?.name}
+                          {product?.name} {/* ✅ HOÀN NGUYÊN */}
                         </h4>
                         <p className="text-xs text-gray-500 mb-2">
                           {formatPrice(item.selectedPrice?.pricePerUnit || 0)} x{" "}
                           {item.quantity}
                         </p>
 
+                        {/* (Các nút +, -, Xóa giữ nguyên) */}
                         <div className="flex items-center gap-2">
                           <Button
                             size="icon"
@@ -282,7 +265,6 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                           >
                             <Plus size={14} />
                           </Button>
-
                           <Button
                             size="icon"
                             variant="ghost"
@@ -306,6 +288,7 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               </div>
             </ScrollArea>
 
+            {/* (Footer giữ nguyên) */}
             <div className="border-t p-4 space-y-3">
               <div className="flex items-center justify-between text-lg font-bold">
                 <span>Tổng cộng:</span>
@@ -313,7 +296,6 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                   {formatPrice(getCartTotal())}
                 </span>
               </div>
-
               <Button
                 className="w-full bg-blue-600 hover:bg-blue-700"
                 size="lg"
@@ -323,7 +305,6 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               >
                 <Link to="/checkout">Thanh toán</Link>
               </Button>
-
               <Button
                 variant="outline"
                 className="w-full"

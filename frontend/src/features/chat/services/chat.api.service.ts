@@ -8,8 +8,9 @@ import { Order } from "@/types/order"; // <-- Import Order type
  */
 export const fetchChatConversations = async (): Promise<ChatConversation[]> => {
   try {
-    // ✅ FIX: Đổi endpoint để khớp với convention API
-    const res = await api.get("/chat/conversations/my-conversations");
+    // ✅ FIX: Đổi endpoint từ '/chat/conversations/my-conversations'
+    // thành '/chat/conversations' cho khớp với backend (chat.routes.js)
+    const res = await api.get("/chat/conversations");
     return Array.isArray(res.data?.data?.conversations)
       ? res.data.data.conversations
       : [];

@@ -24,13 +24,13 @@ const WELCOME_MESSAGE: ChatMessage = {
   type: "text",
   conversationId: "welcome", // ID giả
   content: {
-    text: "Xin chào! Tôi là PrintZ, trợ lý in ấn của bạn. Hôm nay tôi có thể giúp gì cho bạn?",
+    text: "Tìm nhà in gần, in ấn nhanh chóng, xem đơn hàng,... Printz AI lo hết!",
   },
 };
 const WELCOME_REPLIES: QuickReply[] = [
-  { text: "Tìm card visit", payload: "/tim card visit" },
+  { text: "In background", payload: "/in background" },
   { text: "Xem đơn hàng cũ", payload: "/datlai" },
-  { text: "Tìm nhà in gần đây", payload: "/tim nha in gan day" },
+  { text: "Tìm nhà in gần", payload: "/tim nha in gan day" },
 ];
 
 export const useChat = () => {

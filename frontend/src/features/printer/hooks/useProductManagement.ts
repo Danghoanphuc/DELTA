@@ -1,59 +1,68 @@
 // src/features/printer/hooks/useProductManagement.ts
-// ✅ BẢN CHÍNH XÁC (Sử dụng Functional Update + Sửa lỗi trùng lặp)
+// ✅ BÀN GIAO: Refactor sang React Query (useQuery + useMutation)
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { PrinterProduct } from "@/types/product";
 import * as productService from "@/services/productService";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; // ✅ Import
+
+// ✅ Định nghĩa Query Key cho danh sách sản phẩm CỦA NHÀ IN
+const PRINTER_PRODUCTS_QUERY_KEY = ["printer-products", "my-products"];
 
 export function useProductManagement() {
-  const [products, setProducts] = useState<PrinterProduct[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient(); // ✅ Lấy client
+
   const action = searchParams.get("action");
   const editingProductId = action === "edit" ? searchParams.get("id") : null;
 
-  // State của Delete Dialog
+  // State của Delete Dialog (giữ nguyên)
   const [deletingProduct, setDeletingProduct] = useState<PrinterProduct | null>(
     null
   );
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Fetch Data (Chỉ fetch 1 lần)
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await productService.getMyProducts();
-      setProducts(data);
-    } catch (err: any) {
-      toast.error("Không thể tải danh sách sản phẩm");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // ==================== FETCH DATA (Dùng useQuery) ====================
+  // ❌ Bỏ: useState<PrinterProduct[]>
+  // ❌ Bỏ: useState(true) cho loading
+  // ❌ Bỏ: useCallback(fetchProducts)
+  // ❌ Bỏ: useEffect(fetchProducts)
 
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+  // ✅ Thay thế tất cả bằng useQuery
+  const { data: products = [], isLoading: loading } = useQuery({
+    queryKey: PRINTER_PRODUCTS_QUERY_KEY,
+    queryFn: productService.getMyProducts, // ✅ Gọi service đã sửa (Bước vá lỗi)
+  });
 
-  // Logic Xóa
+  // ==================== DELETE LOGIC (Dùng useMutation) ====================
+  const deleteMutation = useMutation({
+    mutationFn: productService.deleteProduct, // Hàm API (chỉ cần ID)
+    onSuccess: (_, deletedProductId) => {
+      toast.success("✅ Đã xóa sản phẩm");
+      // Tắt dialog
+      closeDeleteDialog();
+
+      // ✅✅✅ TỰ ĐỘNG XÓA CACHE (INVALIDATION) ✅✅✅
+      // 1. Xóa cache list của nhà in (để hook này tự fetch lại)
+      queryClient.invalidateQueries({ queryKey: PRINTER_PRODUCTS_QUERY_KEY });
+      // 2. Xóa cache list public (của useShop)
+      queryClient.invalidateQueries({ queryKey: ["products", "all"] });
+      // 3. Xóa cache chi tiết (của useProductDetail)
+      queryClient.removeQueries({ queryKey: ["product", deletedProductId] });
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || "Không thể xóa sản phẩm");
+    },
+  });
+
   const handleDeleteProduct = async () => {
     if (!deletingProduct) return;
-    try {
-      await productService.deleteProduct(deletingProduct._id);
-      toast.success("✅ Đã xóa sản phẩm");
-      // Tối ưu: Xóa khỏi state (thay vì fetch lại)
-      setProducts((prev) => prev.filter((p) => p._id !== deletingProduct._id));
-      setShowDeleteDialog(false);
-      setDeletingProduct(null);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Không thể xóa sản phẩm");
-    }
+    deleteMutation.mutate(deletingProduct._id);
   };
 
-  // ==================== HANDLERS (LOGIC ĐÚNG) ====================
+  // ==================== HANDLERS (Giữ nguyên) ====================
   const navigateTo = (newAction?: "new" | "edit", id?: string) => {
     setSearchParams(
       (prevParams) => {
@@ -96,23 +105,21 @@ export function useProductManagement() {
   };
 
   /**
-   * ✅ SỬA LỖI TRÙNG LẶP:
-   * Chỉ gọi 'fetchProducts()' 1 LẦN DUY NHẤT.
-   * Không 'setProducts' thủ công.
+   * ✅ Đã sửa: Hàm này giờ chỉ cần đóng form.
+   * Cache invalidation từ useSubmitProduct sẽ tự động trigger useQuery
+   * của hook này để fetch lại data.
    */
   const onProductAdded = () => {
-    fetchProducts(); // Tải lại danh sách MỚI NHẤT từ DB
     closeForm();
   };
 
   const onProductEdited = () => {
-    fetchProducts(); // Tải lại danh sách MỚI NHẤT từ DB
     closeForm();
   };
 
   return {
-    products,
-    loading,
+    products, // Từ useQuery
+    loading, // Từ useQuery
     action,
     editingProductId,
     deletingProduct,
@@ -125,5 +132,7 @@ export function useProductManagement() {
     closeDeleteDialog,
     onProductAdded,
     onProductEdited,
+    // (Bổ sung isDeleting nếu cần hiển thị loading trên nút Xóa)
+    isDeleting: deleteMutation.isPending,
   };
 }

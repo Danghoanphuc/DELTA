@@ -1,3 +1,6 @@
+// src/features/figma/ImageWithFallback.tsx
+// ✅ BÀN GIAO: Bổ sung loading="lazy" và decoding="async"
+
 import React, { useState } from "react";
 
 const ERROR_IMG_SRC =
@@ -14,23 +17,29 @@ export function ImageWithFallback(
 
   const { src, alt, style, className, ...rest } = props;
 
-  return didError ? (
-    <div
-      className={`inline-block bg-gray-100 text-center align-middle ${
-        className ?? ""
-      }`}
-      style={style}
-    >
-      <div className="flex items-center justify-center w-full h-full">
-        <img
-          src={ERROR_IMG_SRC}
-          alt="Error loading image"
-          {...rest}
-          data-original-url={src}
-        />
+  // ✅ SỬA LỖI 404 (Placeholder)
+  if (didError || !src) {
+    return (
+      <div
+        className={`inline-block bg-gray-100 text-center align-middle ${
+          className ?? ""
+        }`}
+        style={style}
+      >
+        <div className="flex items-center justify-center w-full h-full">
+          <img
+            src={ERROR_IMG_SRC}
+            alt="Error loading image"
+            {...rest}
+            data-original-url={src} // Giữ lại URL lỗi để debug
+          />
+        </div>
       </div>
-    </div>
-  ) : (
+    );
+  }
+
+  // ✅ TỐI ƯU HÓA: Thêm loading="lazy" và decoding="async"
+  return (
     <img
       src={src}
       alt={alt}
@@ -38,6 +47,8 @@ export function ImageWithFallback(
       style={style}
       {...rest}
       onError={handleError}
+      loading="lazy"
+      decoding="async"
     />
   );
 }

@@ -1,4 +1,4 @@
-// src/components/Chatbar.tsx (✅ SỬA LỖI CRASH `IS_EXPANDED`)
+// src/components/Chatbar.tsx (ĐÃ CẬP NHẬT 3 LỖI)
 
 import { cn } from "@/shared/lib/utils";
 import { Paperclip, Send, X } from "lucide-react";
@@ -75,7 +75,10 @@ export function ChatBar({
     document.addEventListener("touchstart", handleOutside as EventListener);
     return () => {
       document.removeEventListener("mousedown", handleOutside as EventListener);
-      document.removeEventListener("touchstart", handleOutside as EventListener);
+      document.removeEventListener(
+        "touchstart",
+        handleOutside as EventListener
+      );
     };
   }, [setIsExpanded]);
 
@@ -104,7 +107,7 @@ export function ChatBar({
     }
     setMessage("");
     if (textareaRef.current) {
-      textareaRef.current.style.height = "40px";
+      textareaRef.current.style.height = "24px";
     }
     textareaRef.current?.focus();
   };
@@ -130,12 +133,11 @@ export function ChatBar({
           return;
         }
         setFileToUpload(file);
-        setMessage(file.name);
         setIsExpanded(true);
         textareaRef.current?.focus();
       }
     },
-    [accessToken, onFileUpload]
+    [accessToken]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -197,8 +199,9 @@ export function ChatBar({
         animate={{ maxWidth: isExpanded ? "900px" : "700px" }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
+        {/* ✅ FIX 1: DND FLICKERING - Thêm pointer-events-none */}
         {isDragActive && (
-          <div className="absolute inset-0 bg-blue-500/30 backdrop-blur-sm z-50 rounded-2xl md:rounded-3xl flex items-center justify-center">
+          <div className="absolute inset-0 bg-blue-500/30 backdrop-blur-sm z-50 rounded-2xl md:rounded-3xl flex items-center justify-center pointer-events-none">
             <p className="text-white font-bold text-lg">Thả file để tải lên</p>
           </div>
         )}
@@ -209,11 +212,13 @@ export function ChatBar({
               initial={false}
               animate={{ height: isExpanded ? "340px" : "110px" }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              // ✅ SỬA LỖI TẠI ĐÂY:
-              // Sửa `!IS_EXPANDED` (viết hoa) thành `!isExpanded` (viết thường)
-              className={`overflow-y-auto px-3 md:px-6 pt-3 md:pt-6 ${
-                !isExpanded ? "cursor-pointer" : ""
-              }`}
+              // ✅ FIX 2: SPACING - Thêm mb-2
+              // ✅ FIX 1 (Phụ): Thêm pointer-events-none khi drag
+              className={cn(
+                `overflow-y-auto px-3 md:px-6 pt-3 md:pt-6 mb-2`,
+                !isExpanded ? "cursor-pointer" : "",
+                isDragActive && "pointer-events-none"
+              )}
               onClick={() => {
                 if (!isExpanded) {
                   setIsExpanded(true);
@@ -228,8 +233,9 @@ export function ChatBar({
               )}
             </motion.div>
 
+            {/* ✅ FIX 2: SPACING - Thêm mb-2 */}
             {quickReplies.length > 0 && !isLoadingAI && (
-              <div className="px-3 md:px-6 pt-2 pb-2 flex gap-2 flex-wrap">
+              <div className="px-3 md:px-6 pt-2 pb-2 flex gap-2 flex-wrap mb-2">
                 {quickReplies.map((reply, index) => (
                   <motion.div
                     key={index}
@@ -252,14 +258,57 @@ export function ChatBar({
               </div>
             )}
 
-            {/* Input Area */}
-            <div className="px-3 md:px-6 pb-3 md:pb-6 pt-3">
+            {/* ======================================== */}
+            {/* ✅ FIX 3: ALIGNMENT - CẤU TRÚC LẠI HOÀN TOÀN */}
+            {/* ======================================== */}
+            <div className="px-3 md:px-6 pb-3 md:pb-6 pt-3 flex items-end gap-2 md:gap-3">
+              {/* --- 1. Nút ghim file (đã tách riêng) --- */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelected}
+                className="hidden"
+                accept="image/png, image/jpeg, image/webp, application/pdf"
+              />
+              <button
+                onClick={handleAttachClick}
+                className="w-10 h-10 rounded-xl border border-slate-200/80 bg-slate-50/80 backdrop-blur-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed touch-manipulation flex-shrink-0"
+                title="Đính kèm file (ảnh, PDF)"
+                style={{ minWidth: "40px" }} // Đảm bảo không bị co lại
+              >
+                <Paperclip className="w-5 h-5" />
+              </button>
+
+              {/* --- 2. Khung nhập liệu (flex-1) --- */}
               <div
                 className={cn(
                   "bg-slate-50/80 backdrop-blur-sm rounded-xl md:rounded-2xl border border-slate-200/80 overflow-hidden hover:border-indigo-300 transition-colors focus-within:border-indigo-500 focus-within:ring-2 md:focus-within:ring-4 focus-within:ring-indigo-100",
-                  fileToUpload && "border-blue-500 ring-2 ring-blue-100"
+                  "flex-1 flex flex-col justify-center", // <-- flex-col và justify-center
+                  "min-h-10", // <-- Căn chiều cao tối thiểu 40px
+                  "p-2.5 md:p-3" // <-- Padding bên trong
                 )}
+                // Kích hoạt focus cho textarea khi click vào vùng container
+                onClick={() => textareaRef.current?.focus()}
               >
+                {/* 2.1. Badge xem trước file (nếu có) */}
+                {fileToUpload && !isLoadingAI && (
+                  <div className="flex mb-1.5">
+                    <button
+                      onClick={() => {
+                        setFileToUpload(null);
+                        setMessage("");
+                      }}
+                      className="bg-gray-200 text-gray-600 px-2 py-1 rounded-md flex items-center gap-1.5 text-xs"
+                    >
+                      <X size={14} />
+                      <span className="truncate max-w-[150px] md:max-w-xs">
+                        {fileToUpload.name}
+                      </span>
+                    </button>
+                  </div>
+                )}
+
+                {/* 2.2. Vùng chứa Textarea */}
                 <textarea
                   ref={textareaRef}
                   value={message}
@@ -267,12 +316,12 @@ export function ChatBar({
                   onFocus={handleTextAreaFocus}
                   placeholder={
                     fileToUpload
-                      ? "Bạn có muốn thêm ghi chú cho file này?"
-                      : "Gõ yêu cầu của bạn, hoặc kéo thả file vào đây..."
+                      ? "Thêm ghi chú cho file..."
+                      : "Gõ yêu cầu của bạn..."
                   }
-                  className="w-full bg-transparent px-3 md:px-4 pt-2.5 md:pt-4 pb-1.5 md:pb-2 outline-none resize-none text-sm md:text-base text-slate-700 placeholder:text-slate-400 disabled:opacity-50"
-                  style={{ minHeight: "36px", maxHeight: "120px" }}
-                  rows={isExpanded ? 2 : 1}
+                  className="w-full bg-transparent p-0 outline-none resize-none text-sm md:text-base text-slate-700 placeholder:text-slate-400 disabled:opacity-50"
+                  style={{ minHeight: "24px", maxHeight: "120px" }} // minHeight chỉ là của textarea
+                  rows={1}
                   disabled={isLoadingAI}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
@@ -281,57 +330,27 @@ export function ChatBar({
                     }
                   }}
                 />
-                <div className="flex items-center justify-between px-2.5 md:px-4 pb-2.5 md:pb-3">
-                  <div className="flex gap-1.5 md:gap-2">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileSelected}
-                      className="hidden"
-                      accept="image/png, image/jpeg, image/webp, application/pdf"
-                    />
-                    <button
-                      onClick={handleAttachClick}
-                      className="w-9 h-9 md:w-8 md:h-8 rounded-lg hover:bg-slate-200/50 active:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed touch-manipulation"
-                      title="Đính kèm file (ảnh, PDF)"
-                    >
-                      <Paperclip className="w-[18px] h-[18px] md:w-4 md:h-4" />
-                    </button>
-                  </div>
-
-                  {fileToUpload && !isLoadingAI && (
-                    <button
-                      onClick={() => {
-                        setFileToUpload(null);
-                        setMessage("");
-                      }}
-                      className="bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-sm"
-                    >
-                      <X size={14} /> Xóa file
-                    </button>
-                  )}
-
-                  <button
-                    onClick={handleSend}
-                    disabled={isLoadingAI || (!message.trim() && !fileToUpload)}
-                    className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 md:px-5 py-2.5 md:py-2 rounded-xl hover:shadow-lg hover:shadow-indigo-200 transition-all active:scale-95 hover:scale-105 flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 touch-manipulation min-h-[44px] md:min-h-0"
-                  >
-                    {isLoadingAI ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span className="hidden sm:inline">Đang nghĩ...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4" />
-                        <span className="hidden sm:inline">
-                          {fileToUpload ? "Gửi file" : "Gửi"}
-                        </span>
-                      </>
-                    )}
-                  </button>
-                </div>
               </div>
+
+              {/* --- 3. Nút Gửi (đã tách riêng) --- */}
+              <button
+                onClick={handleSend}
+                disabled={isLoadingAI || (!message.trim() && !fileToUpload)}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-indigo-200 transition-all active:scale-95 hover:scale-105 flex items-center justify-center text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 touch-manipulation flex-shrink-0"
+                style={{ height: "40px", width: "40px", padding: 0 }}
+              >
+                {isLoadingAI ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                <span className="sr-only">
+                  {fileToUpload ? "Gửi file" : "Gửi"}
+                </span>
+              </button>
+              {/* ======================================== */}
+              {/* ✅ KẾT THÚC CẬP NHẬT INPUT AREA */}
+              {/* ======================================== */}
             </div>
           </div>
         </div>

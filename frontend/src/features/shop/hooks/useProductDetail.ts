@@ -1,5 +1,6 @@
 // features/shop/hooks/useProductDetail.ts
-// File này đã hoàn chỉnh, cung cấp biến logic 'isCustomizable'
+// ✅ BÀN GIAO: Gỡ bỏ toast.success trùng lặp
+
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Product, PrinterProduct } from "../../../types/product";
@@ -8,6 +9,8 @@ import api from "../../../shared/lib/axios";
 import { toast } from "sonner";
 import { useCartStore } from "../../../stores/useCartStore";
 import { useAuthStore } from "../../../stores/useAuthStore";
+// (Import Logger - nếu Phúc đã tạo file logger.util.ts)
+// import { Logger } from "@/shared/utils/logger.util";
 
 interface ProductWithPrinter extends Product {
   printerInfo?: PrinterProfile;
@@ -30,7 +33,7 @@ export const useProductDetail = () => {
     fileUrl: "",
   });
 
-  // Fetch product
+  // Fetch product (giữ nguyên)
   useEffect(() => {
     const fetchProduct = async () => {
       if (!productId) return;
@@ -56,7 +59,7 @@ export const useProductDetail = () => {
     fetchProduct();
   }, [productId, navigate]);
 
-  // Update price tier based on quantity
+  // Update price tier based on quantity (giữ nguyên)
   useEffect(() => {
     if (!product?.pricing) return;
     let bestTierIndex = 0;
@@ -73,7 +76,7 @@ export const useProductDetail = () => {
     setSelectedPriceIndex(bestTierIndex);
   }, [selectedQuantity, product?.pricing]);
 
-  // Memos
+  // (Memos giữ nguyên)
   const currentPricePerUnit = useMemo(
     () => product?.pricing[selectedPriceIndex]?.pricePerUnit ?? 0,
     [product, selectedPriceIndex]
@@ -86,8 +89,6 @@ export const useProductDetail = () => {
     () => (product ? isInCart(product._id, isAuthenticated) : false),
     [product, isInCart, isAuthenticated]
   );
-
-  // === LOGIC MỤC TIÊU 2 ===
   const isCustomizable = useMemo(() => {
     return !!(
       product &&
@@ -96,7 +97,6 @@ export const useProductDetail = () => {
       product.assets.surfaces.length > 0
     );
   }, [product]);
-  // === KẾT THÚC ===
 
   // Handlers
   const handleAddToCart = async () => {
@@ -109,7 +109,8 @@ export const useProductDetail = () => {
         selectedPriceIndex: selectedPriceIndex,
         customization: customization,
       });
-      toast.success("Đã thêm vào giỏ hàng!");
+      // ✅ GỠ BỎ TOAST TẠI ĐÂY
+      // toast.success("Đã thêm vào giỏ hàng!");
     } catch (err) {
       toast.error("Thêm vào giỏ hàng thất bại");
     } finally {
@@ -138,6 +139,6 @@ export const useProductDetail = () => {
     handleAddToCart,
     formatPrice,
     navigate,
-    isCustomizable, // <-- Trả ra biến logic
+    isCustomizable,
   };
 };
