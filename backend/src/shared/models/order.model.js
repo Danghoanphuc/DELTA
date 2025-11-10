@@ -1,4 +1,6 @@
 // backend/src/shared/models/order.model.js
+// ✅ CLEANUP: Removed duplicate index
+
 import mongoose from "mongoose";
 
 const OrderSchema = new mongoose.Schema(
@@ -10,7 +12,7 @@ const OrderSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      index: true, // Tối ưu truy vấn
+      index: true, // <- Đã giữ index ở đây
     },
 
     // ============================================
@@ -179,7 +181,7 @@ const OrderSchema = new mongoose.Schema(
 // ============================================
 OrderSchema.index({ customerId: 1, status: 1 });
 OrderSchema.index({ printerId: 1, status: 1 });
-OrderSchema.index({ orderNumber: 1 });
+// OrderSchema.index({ orderNumber: 1 }); // <- ❌ ĐÃ XÓA DÒNG NÀY (BỊ TRÙNG)
 OrderSchema.index({ createdAt: -1 }); // ✅ THÊM MỚI - Sort by date
 OrderSchema.index({ "payment.status": 1 }); // ✅ THÊM MỚI
 

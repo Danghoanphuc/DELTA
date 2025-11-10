@@ -1,4 +1,6 @@
 // src/shared/models/customer-profile.model.js
+// ✅ CLEANUP: Removed duplicate index
+
 import mongoose from "mongoose";
 
 // ✅ ĐỊNH NGHĨA SCHEMA CHO BRAND KIT
@@ -35,6 +37,7 @@ const CustomerProfileSchema = new mongoose.Schema(
       ref: "User",
       required: true,
       unique: true,
+      index: true, // <- Đã giữ index ở đây
     },
     savedAddresses: [
       {
@@ -57,7 +60,7 @@ const CustomerProfileSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-CustomerProfileSchema.index({ userId: 1 });
+// CustomerProfileSchema.index({ userId: 1 }); // <- ❌ ĐÃ XÓA DÒNG NÀY (BỊ TRÙNG)
 
 export const CustomerProfile = mongoose.model(
   "CustomerProfile",

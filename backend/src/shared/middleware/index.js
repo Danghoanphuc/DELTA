@@ -1,11 +1,12 @@
 // backend/src/shared/middleware/index.js
-// ✅ UPDATED: Added ensureCustomerProfile and isVerified exports
+// ✅ UPDATED: Added 'isAdmin' to the export list
 
 // ==================== Authentication Middlewares ====================
 export {
   protect, // Required authentication
   optionalAuth, // Optional authentication (guest + auth)
   isPrinter, // Check if user is a printer
+  isAdmin, // ✅ THÊM 'isAdmin' VÀO ĐÂY
   requireAuth, // Require auth with friendly message
   isVerified, // Check if user email is verified
 } from "./auth.middleware.js";

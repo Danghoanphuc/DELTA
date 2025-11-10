@@ -1,5 +1,7 @@
 // backend/src/shared/models/user.model.js
 // ✅ FIXED: customerProfileId is optional, added virtual fields
+// ✅ ADDED: isAdmin field
+// ✅ CLEANUP: Removed duplicate index
 
 import mongoose from "mongoose";
 
@@ -44,6 +46,7 @@ const UserSchema = new mongoose.Schema(
       type: String,
       unique: true,
       sparse: true,
+      index: true, // <- Đã giữ index ở đây
     },
 
     // --- Verification Status ---
@@ -83,6 +86,12 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // ✅ BỔ SUNG TRƯỜNG ADMIN
+    isAdmin: {
+      type: Boolean,
+      default: false,
+      index: true, // Thêm index để truy vấn admin nhanh (nếu cần)
+    },
   },
   {
     timestamps: true,
@@ -94,7 +103,7 @@ const UserSchema = new mongoose.Schema(
 
 // ✅ Indexes for efficient search
 UserSchema.index({ displayName: "text", email: "text" });
-UserSchema.index({ googleId: 1 });
+// UserSchema.index({ googleId: 1 }); // <- ❌ ĐÃ XÓA DÒNG NÀY (BỊ TRÙNG)
 UserSchema.index({ isActive: 1 });
 UserSchema.index({ createdAt: -1 });
 
@@ -115,6 +124,7 @@ UserSchema.methods.hasCompleteProfile = function () {
 
 // ✅ Method to get user role (for backward compatibility)
 UserSchema.methods.getRole = function () {
+  if (this.isAdmin) return "admin"; // <- Thêm logic admin
   if (this.printerProfileId) return "printer";
   if (this.customerProfileId) return "customer";
   return "guest";

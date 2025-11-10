@@ -1,5 +1,6 @@
 // src/server.js
 // ✅ BÀN GIAO: Gắn Bull-Board UI vào Server
+// ✅ UPDATE: Bảo vệ Bull-Board UI bằng middleware 'protect' và 'isAdmin'
 
 import "dotenv/config";
 import express from "express";
@@ -8,13 +9,16 @@ import passport from "passport";
 import cookieParser from "cookie-parser";
 
 import { connectToDatabase } from "./infrastructure/database/connection.js";
-import { connectToRedis } from "./infrastructure/cache/redis.js"; // (Import từ lần trước)
+import { connectToRedis } from "./infrastructure/cache/redis.js";
 import { envConfig } from "./config/env.config.js";
 import { errorHandler } from "./shared/middleware/error-handler.middleware.js";
 import "./infrastructure/auth/passport.config.js";
 
 // ✅ BƯỚC 1: Import router của Bull-Board (từ queue.config.js)
 import { bullBoardRouter } from "./config/queue.config.js";
+
+// ✅ BƯỚC 1 (UPDATE): Import middleware bảo vệ
+import { protect, isAdmin } from "./shared/middleware/index.js";
 
 // Import các modules routes
 import authRoutes from "./modules/auth/auth.routes.js";
@@ -61,14 +65,11 @@ connectToDatabase();
 connectToRedis();
 
 // ==========================================================
-// ✅ BƯỚC 2: ĐĂNG KÝ ADMIN UI ROUTE
+// ✅ BƯỚC 2: ĐĂNG KÝ ADMIN UI ROUTE (ĐÃ ĐƯỢC BẢO VỆ)
 // ==========================================================
 // Gắn UI của Bull-Board vào đường dẫn /admin/queues
-// (Nên đặt TRƯỚC các API route)
-app.use("/admin/queues", bullBoardRouter);
-// !!! GHI CHÚ AN NINH: Route này hiện đang public.
-// Sau này Phúc nên thêm một middleware admin (ví dụ: isAdmin) vào đây:
-// app.use("/admin/queues", protect, isAdmin, bullBoardRouter);
+// Yêu cầu: 1. Đăng nhập (protect), 2. Là Admin (isAdmin)
+app.use("/admin/queues", protect, isAdmin, bullBoardRouter);
 // ==========================================================
 
 // == Đăng ký API Routes ==

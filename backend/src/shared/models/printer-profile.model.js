@@ -85,7 +85,6 @@ const PrinterProfileSchema = new mongoose.Schema(
 // (Indexes giữ nguyên)
 PrinterProfileSchema.index({ "shopAddress.location": "2dsphere" });
 PrinterProfileSchema.index({ businessName: "text", description: "text" });
-PrinterProfileSchema.index({ userId: 1 });
 
 export const PrinterProfile = mongoose.model(
   "PrinterProfile",

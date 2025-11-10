@@ -1,19 +1,15 @@
 // backend/src/shared/middleware/auth.middleware.js
-// ✅ UPDATED: Added ensureCustomerProfile call, updated isPrinter logic
+// ✅ FIXED: Sửa lỗi logic 'optionalAuth' không 'await' đúng 'ensureCustomerProfile'
 
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
 import { ensureCustomerProfile } from "./ensure-customer-profile.middleware.js";
 
 /**
- * Middleware to authenticate requests using JWT
- * Verifies access token from Authorization header
- * Attaches user to req.user if valid
- * REQUIRED authentication - returns 401 if no/invalid token
+ * (Hàm 'protect' giữ nguyên)
  */
 const protect = async (req, res, next) => {
   try {
-    // Extract token from Authorization header
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
 
@@ -26,10 +22,7 @@ const protect = async (req, res, next) => {
     }
 
     try {
-      // Verify JWT token
       const decodedUser = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-
-      // Fetch full user (excluding sensitive fields)
       const user = await User.findById(decodedUser.userId).select(
         "-hashedPassword -verificationToken -verificationTokenExpiresAt"
       );
@@ -48,10 +41,9 @@ const protect = async (req, res, next) => {
         });
       }
 
-      // Attach user to request
       req.user = user;
 
-      // ✅ NEW: Ensure user has CustomerProfile (for legacy users)
+      // Logic đúng: truyền 'next' và return
       await ensureCustomerProfile(req, res, next);
     } catch (err) {
       console.error("JWT verification error:", err.message);
@@ -77,23 +69,21 @@ const protect = async (req, res, next) => {
 };
 
 /**
- * Middleware for OPTIONAL authentication
- * Allows both authenticated and guest users
- * Sets req.user to null if not authenticated
+ * ✅ SỬA LỖI TẠI ĐÂY
  */
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
 
-    // No token provided - continue as guest
+    // 1. Không có token - tiếp tục với req.user = null
     if (!token) {
       req.user = null;
-      return next();
+      return next(); // Dừng và đi tiếp
     }
 
     try {
-      // Verify token
+      // 2. Có token, xác thực
       const decodedUser = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
       const user = await User.findById(decodedUser.userId).select(
         "-hashedPassword -verificationToken -verificationTokenExpiresAt"
@@ -101,28 +91,29 @@ const optionalAuth = async (req, res, next) => {
 
       if (user && user.isActive) {
         req.user = user;
-        // ✅ NEW: Ensure CustomerProfile for authenticated users
-        await ensureCustomerProfile(req, res, () => {});
+        // ✅ SỬA LỖI: Truyền 'next' thật sự vào đây và 'return'
+        // Giống hệt như logic của 'protect'
+        return await ensureCustomerProfile(req, res, next);
       } else {
+        // Token hợp lệ, user không active
         req.user = null;
       }
     } catch (err) {
-      // Token invalid or expired - continue as guest
+      // Token không hợp lệ hoặc hết hạn
       req.user = null;
     }
 
+    // 3. Chỉ gọi next() ở đây nếu token không hợp lệ / user không active
     next();
   } catch (error) {
-    // Any error - continue as guest
+    // Lỗi bất ngờ
     req.user = null;
-    next();
+    next(error); // Chuyển lỗi cho error handler
   }
 };
 
 /**
- * Middleware to check if the authenticated user is a printer
- * Uses printerProfileId instead of role field
- * Must be used after protect() middleware
+ * (Hàm 'isPrinter' giữ nguyên)
  */
 const isPrinter = (req, res, next) => {
   if (!req.user) {
@@ -145,9 +136,30 @@ const isPrinter = (req, res, next) => {
 };
 
 /**
- * Middleware to require authentication with friendly message
- * Similar to protect() but with more user-friendly response
- * Useful for features that require login but should guide users
+ * (Hàm 'isAdmin' giữ nguyên)
+ */
+const isAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: "Unauthorized: Yêu cầu đăng nhập",
+      requiresAuth: true,
+    });
+  }
+
+  if (req.user.isAdmin) {
+    next();
+  } else {
+    res.status(403).json({
+      success: false,
+      message: "Forbidden: Yêu cầu quyền Admin",
+      requiresAdmin: true,
+    });
+  }
+};
+
+/**
+ * (Hàm 'requireAuth' giữ nguyên)
  */
 const requireAuth = (req, res, next) => {
   if (!req.user) {
@@ -162,8 +174,7 @@ const requireAuth = (req, res, next) => {
 };
 
 /**
- * Middleware to check if user is verified
- * Must be used after protect() middleware
+ * (Hàm 'isVerified' giữ nguyên)
  */
 const isVerified = (req, res, next) => {
   if (!req.user) {
@@ -185,4 +196,4 @@ const isVerified = (req, res, next) => {
   next();
 };
 
-export { protect, optionalAuth, isPrinter, requireAuth, isVerified };
+export { protect, optionalAuth, isPrinter, isAdmin, requireAuth, isVerified };
