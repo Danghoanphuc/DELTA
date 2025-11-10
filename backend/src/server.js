@@ -1,4 +1,5 @@
 // src/server.js
+// ✅ BÀN GIAO: Gắn Bull-Board UI vào Server
 
 import "dotenv/config";
 import express from "express";
@@ -6,17 +7,20 @@ import cors from "cors";
 import passport from "passport";
 import cookieParser from "cookie-parser";
 
-// ✅ SỬA LỖI: Thêm dấu {} vì 'connection.js' đã đổi sang named export
 import { connectToDatabase } from "./infrastructure/database/connection.js";
+import { connectToRedis } from "./infrastructure/cache/redis.js"; // (Import từ lần trước)
 import { envConfig } from "./config/env.config.js";
 import { errorHandler } from "./shared/middleware/error-handler.middleware.js";
 import "./infrastructure/auth/passport.config.js";
+
+// ✅ BƯỚC 1: Import router của Bull-Board (từ queue.config.js)
+import { bullBoardRouter } from "./config/queue.config.js";
+
 // Import các modules routes
 import authRoutes from "./modules/auth/auth.routes.js";
 import oauthRoutes from "./modules/auth/auth-oauth.routes.js";
 import userRoutes from "./modules/users/user.routes.js";
 import printerRoutes from "./modules/printers/printer.routes.js";
-// import printerProfileRoutes from "./modules/printers/printer.profile.routes.js"; // <-- ĐÃ XÓA: Gây xung đột
 import productRoutes from "./modules/products/product.routes.js";
 import assetRoutes from "./modules/assets/asset.routes.js";
 import mediaAssetRoutes from "./modules/media-assets/media-asset.routes.js";
@@ -28,6 +32,7 @@ import pdfRenderRoutes from "./modules/printer-studio/pdf-render/pdf-render.rout
 import chatRoutes from "./modules/chat/chat.routes.js";
 import uploadRoutes from "./modules/uploads/upload.routes.js";
 import customerRoutes from "./modules/customer/customer.routes.js";
+
 // == Cấu hình Server ==
 const app = express();
 
@@ -35,7 +40,6 @@ const app = express();
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Cho phép dev (origin là undefined) và CLIENT_URL
       if (!origin || origin === envConfig.CLIENT_URL) {
         callback(null, true);
       } else {
@@ -52,14 +56,26 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
 app.use(passport.initialize());
 
-// == Kết nối Database ==
+// == Kết nối Database & Cache ==
 connectToDatabase();
+connectToRedis();
 
-// == Đăng ký Routes ==
+// ==========================================================
+// ✅ BƯỚC 2: ĐĂNG KÝ ADMIN UI ROUTE
+// ==========================================================
+// Gắn UI của Bull-Board vào đường dẫn /admin/queues
+// (Nên đặt TRƯỚC các API route)
+app.use("/admin/queues", bullBoardRouter);
+// !!! GHI CHÚ AN NINH: Route này hiện đang public.
+// Sau này Phúc nên thêm một middleware admin (ví dụ: isAdmin) vào đây:
+// app.use("/admin/queues", protect, isAdmin, bullBoardRouter);
+// ==========================================================
+
+// == Đăng ký API Routes ==
 app.use("/api/auth", authRoutes);
-app.use("/api/auth", oauthRoutes); // /google, /google/callback
+app.use("/api/auth", oauthRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/printers", printerRoutes); // ✅ UNIFIED PATH
+app.use("/api/printers", printerRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/assets", assetRoutes);
 app.use("/api/media-assets", mediaAssetRoutes);

@@ -1,102 +1,109 @@
-// backend/src/api/routes/pdf-render.routes.js
-// ✅ NHIỆM VỤ 1: API ENDPOINT CHO PDF RENDERING (ASYNC)
+// backend/src/modules/printer-studio/pdf-render/pdf-render.routes.js
+// ✅ BÀN GIAO: Sửa lỗi Event-Loop Blocking bằng cách dùng Bull Queue
 
 import express from "express";
+import { protect } from "../../../shared/middleware/auth.middleware.js";
+// ❌ Worker không còn được gọi trực tiếp ở đây
+// import { pdfRenderer } from "../../../infrastructure/workers/pdf-renderer.worker.js";
+
+// ✅ BƯỚC 1: Import Bull Queue đã được cấu hình
+import { pdfQueue } from "../../../config/queue.config.js";
 import {
-  protect,
-  isPrinter,
-} from "../../../shared/middleware/auth.middleware.js";
-import { pdfRenderer } from "../../../infrastructure/workers/pdf-renderer.worker.js";
+  ValidationException,
+  NotFoundException, // ✅ Import NotFoundException
+} from "../../../shared/exceptions/index.js";
+import { Logger } from "../../../shared/utils/index.js";
 
 const router = express.Router();
 
 /**
  * POST /api/pdf-render/queue
- * Queue một job render PDF print-ready
+ * Queue một job render PDF print-ready (KHÔNG CHẶN LUỒNG)
  * Body: { baseProductId, editorData, dielineSvgUrl, specifications }
  */
-router.post("/queue", protect, async (req, res) => {
+router.post("/queue", protect, async (req, res, next) => {
   try {
     const { baseProductId, editorData, dielineSvgUrl, specifications } =
       req.body;
 
     // Validation
     if (!baseProductId || !editorData) {
-      return res.status(400).json({
-        success: false,
-        message: "Thiếu baseProductId hoặc editorData",
-      });
+      throw new ValidationException("Thiếu baseProductId hoặc editorData");
     }
 
-    // ✅ QUAN TRỌNG: Đẩy vào queue (không render ngay)
-    // Trong production thực tế, dùng Bull Queue, RabbitMQ, hoặc AWS SQS
-    // Ở đây tôi sẽ mock một job ID
-
-    const jobId = `pdf_${Date.now()}_${Math.random()
-      .toString(36)
-      .substring(7)}`;
-
-    // Mock: Lưu job info vào "queue" (trong thực tế là database hoặc Redis)
-    // jobQueue.add({ jobId, baseProductId, editorData, dielineSvgUrl, specifications });
-
-    console.log(`✅ [PDF Queue] Job queued: ${jobId}`);
-
-    // ✅ Trả về ngay lập tức (không chờ render xong)
-    res.status(202).json({
-      success: true,
-      message: "PDF render job đã được xếp hàng",
-      data: {
-        jobId,
-        status: "queued",
-        estimatedTime: "3-5 phút",
-      },
-    });
-
-    // ✅ Xử lý async trong background (không await)
-    processJobAsync({
-      jobId,
+    // ✅ BƯỚC 2: Chuẩn bị data cho job
+    const jobData = {
       baseProductId,
       editorData,
       dielineSvgUrl,
       specifications,
+      userId: req.user._id, // (Thêm userId để có thể thông báo sau)
+    };
+
+    // ✅ BƯỚC 3: Đẩy job vào Bull Queue (Redis)
+    // Đây là một lệnh I/O (gọi Redis), nó Bất đồng bộ nhưng RẤT NHANH.
+    // Server sẽ không bị block.
+    const job = await pdfQueue.add(jobData);
+
+    Logger.info(
+      `[PDF Queue] Đã xếp hàng Job ${job.id} cho User ${req.user._id}`
+    );
+
+    // ✅ BƯỚC 4: Trả về 202 (Accepted) ngay lập tức
+    // Báo cho client biết "Tôi đã nhận, tôi sẽ làm sau"
+    res.status(202).json({
+      success: true,
+      message: "Yêu cầu render PDF đã được xếp hàng.",
+      data: {
+        jobId: job.id, // Trả về Job ID thật
+        status: "queued",
+      },
     });
+
+    // ❌ BƯỚC 5: Xóa bỏ hoàn toàn hàm processJobAsync()
+    // Worker process trong 'src/config/queue.config.js' sẽ tự động
+    // nhận job này từ Redis và xử lý nó trên một process riêng.
   } catch (error) {
-    console.error("❌ [PDF Queue] Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Lỗi khi xếp hàng PDF job",
-      error: error.message,
-    });
+    Logger.error("❌ [PDF Queue] Lỗi khi xếp hàng job:", error);
+    next(error); // Chuyển cho global error handler
   }
 });
 
 /**
  * GET /api/pdf-render/status/:jobId
- * Kiểm tra trạng thái job
+ * (Giữ nguyên - Cần phát triển thêm logic để query Bull/Redis)
  */
-router.get("/status/:jobId", protect, async (req, res) => {
+router.get("/status/:jobId", protect, async (req, res, next) => {
   try {
     const { jobId } = req.params;
 
-    // Mock: Query từ database hoặc Redis
-    // const job = await jobQueue.getJob(jobId);
+    // (Logic thật: await pdfQueue.getJob(jobId))
+    const job = await pdfQueue.getJob(jobId);
 
-    // Giả lập response
+    if (!job) {
+      throw new NotFoundException("Không tìm thấy job", jobId);
+    }
+
+    const statusMap = {
+      waiting: "queued",
+      active: "processing",
+      completed: "completed",
+      failed: "failed",
+      delayed: "delayed",
+    };
+
     res.json({
       success: true,
       data: {
-        jobId,
-        status: "processing", // queued | processing | completed | failed
-        progress: 45,
-        result: null, // URL của file PDF khi hoàn thành
+        jobId: job.id,
+        status: statusMap[await job.getState()],
+        progress: job.progress,
+        result: job.returnvalue || null, // Kết quả khi hoàn thành
+        error: job.failedReason || null, // Lỗi nếu có
       },
     });
   } catch (error) {
-    console.error("❌ [PDF Status] Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Lỗi khi kiểm tra trạng thái job",
-    });
+    next(error);
   }
 });
 
@@ -104,7 +111,7 @@ router.get("/status/:jobId", protect, async (req, res) => {
  * GET /api/pdf-render/download/:jobId
  * Tải file PDF đã render xong
  */
-router.get("/download/:jobId", protect, async (req, res) => {
+router.get("/download/:jobId", protect, async (req, res, next) => {
   try {
     const { jobId } = req.params;
 
@@ -112,60 +119,29 @@ router.get("/download/:jobId", protect, async (req, res) => {
     // const job = await jobQueue.getJob(jobId);
     // const filePath = job.result.path;
 
-    const filePath = `/tmp/print-${jobId}.pdf`;
+    const filePath = `/tmp/print-${jobId}.pdf`; // (Đây là ví dụ, cần logic thật)
 
     // Stream file về client
     res.download(filePath, `design-${jobId}.pdf`, (err) => {
       if (err) {
-        console.error("❌ [PDF Download] Error:", err);
-        res.status(404).json({
-          success: false,
-          message: "File PDF không tồn tại",
-        });
+        Logger.error("❌ [PDF Download] Error:", err.message);
+        // Dùng next(err) thay vì res.status()
+        next(
+          new NotFoundException("File PDF không tồn tại hoặc chưa sẵn sàng")
+        );
       }
     });
   } catch (error) {
-    console.error("❌ [PDF Download] Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Lỗi khi tải file PDF",
-    });
+    Logger.error("❌ [PDF Download] Error:", error);
+    next(error);
   }
 });
 
 // ==================== BACKGROUND PROCESSOR ====================
 /**
  * Xử lý job trong background (async)
- * Trong production, đây sẽ là một worker process riêng biệt
+ * (ĐÃ DI CHUYỂN QUA 'src/config/queue.config.js')
  */
-async function processJobAsync(jobData) {
-  const { jobId, baseProductId, editorData, dielineSvgUrl, specifications } =
-    jobData;
-
-  try {
-    console.log(`⏳ [PDF Worker] Processing job: ${jobId}`);
-
-    // ✅ Gọi worker để render PDF
-    const result = await pdfRenderer.renderPDF({
-      baseProductId,
-      editorData,
-      dielineSvgUrl,
-      specifications,
-    });
-
-    console.log(`✅ [PDF Worker] Job completed: ${jobId}`);
-
-    // Cập nhật trạng thái job trong database
-    // await jobQueue.updateJob(jobId, { status: 'completed', result });
-
-    // Có thể gửi email/notification cho user
-    // await notificationService.send(userId, 'PDF của bạn đã sẵn sàng!');
-  } catch (error) {
-    console.error(`❌ [PDF Worker] Job failed: ${jobId}`, error);
-
-    // Cập nhật trạng thái thất bại
-    // await jobQueue.updateJob(jobId, { status: 'failed', error: error.message });
-  }
-}
+// async function processJobAsync(jobData) { ... } // (ĐÃ BỊ XÓA)
 
 export default router;

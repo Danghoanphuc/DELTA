@@ -1,4 +1,6 @@
 // src/modules/printers/printer.service.js
+// ✅ BÀN GIAO: Tích hợp CacheService (P1)
+
 import { PrinterRepository } from "./printer.repository.js";
 import {
   NotFoundException,
@@ -8,13 +10,26 @@ import {
 } from "../../shared/exceptions/index.js";
 import { Logger } from "../../shared/utils/index.js";
 
+// ✅ BƯỚC 1: Import CacheService
+import { CacheService } from "../../shared/services/cache.service.js";
+
+// ✅ BƯỚC 2: Định nghĩa TTL (Time-to-Live)
+const CACHE_TTL = {
+  PRINTER_PROFILE: 7200, // 2 giờ
+};
+
 export class PrinterService {
   constructor() {
     this.printerRepository = new PrinterRepository();
+    // ✅ BƯỚC 3: Khởi tạo CacheService
+    this.cacheService = new CacheService();
   }
 
-  // (Các hàm cũ: createProfile, getProfile, updateProfile, submitVerificationDocs... giữ nguyên)
-  // ...
+  // ✅ BƯỚC 4: Helper tạo cache key
+  _getProfileCacheKey(profileId) {
+    return `printer:profile:${profileId}`;
+  }
+
   async createProfile(userId, profileData) {
     // ... (logic onboarding)
     Logger.debug(`[PrinterSvc] Bắt đầu onboarding cho User: ${userId}`);
@@ -71,41 +86,81 @@ export class PrinterService {
     Logger.success(
       `[PrinterSvc] Onboarding thành công cho User: ${userId}, Profile: ${newProfile._id}`
     );
+
+    // Không cần xóa cache ở đây vì đây là profile mới
     return newProfile;
   }
 
+  /**
+   * ✅ ĐÃ TÍCH HỢP CACHE (P1)
+   */
   async getProfile(userId) {
     const user = await this.printerRepository.findUserById(userId);
     if (!user) throw new NotFoundException("User", userId);
+
     const profileId = user.printerProfileId;
     if (!profileId) {
       throw new NotFoundException(
         "Không tìm thấy hồ sơ nhà in cho người dùng này."
       );
     }
-    const profile = await this.printerRepository.findProfileById(profileId);
+
+    // ✅ BƯỚC 5: Dùng CacheService
+    const cacheKey = this._getProfileCacheKey(profileId);
+    const profile = await this.cacheService.getOrSet(
+      cacheKey,
+      CACHE_TTL.PRINTER_PROFILE,
+      () => {
+        // Hàm này chỉ chạy khi cache miss
+        Logger.debug(`[Cache Miss] Đang gọi DB cho profile: ${profileId}`);
+        return this.printerRepository.findProfileById(profileId);
+      }
+    );
+
     if (!profile) {
+      // Nếu không tìm thấy, cũng xóa cache (để tránh cache 404)
+      await this.cacheService.clear(cacheKey);
       throw new NotFoundException("Hồ sơ nhà in", profileId);
     }
+
     return profile;
   }
 
+  /**
+   * ✅ ĐÃ TÍCH HỢP CACHE (INVALIDATION)
+   */
   async updateProfile(userId, updateData) {
     const { displayName, phone, ...profileFields } = updateData;
+
     const userFieldsToUpdate = {};
     if (displayName) userFieldsToUpdate.displayName = displayName;
     if (phone) userFieldsToUpdate.phone = phone;
+
+    // Cập nhật User (không cần cache)
     const updatedUser = await this.printerRepository.updateUser(
       userId,
       userFieldsToUpdate
     );
+
+    // Cập nhật Profile
     const updatedProfile = await this.printerRepository.updateProfileByUserId(
       userId,
       profileFields
     );
+
+    // ✅ BƯỚC 6: Xóa cache của profile này
+    if (updatedProfile) {
+      const cacheKey = this._getProfileCacheKey(updatedProfile._id);
+      await this.cacheService.clear(cacheKey);
+      Logger.info(`[Cache Invalidate] Đã xóa cache cho profile: ${cacheKey}`);
+    }
+
     return { user: updatedUser, profile: updatedProfile };
   }
 
+  /**
+   * ✅ ĐÃ TÍCH HỢP CACHE (INVALIDATION)
+   */
   async submitVerificationDocs(userId, docUrls) {
     Logger.debug(
       `[PrinterSvc] User ${userId} đang nộp hồ sơ xác thực...`,
@@ -115,20 +170,30 @@ export class PrinterService {
     if (!gpkdUrl && !cccdUrl) {
       throw new ValidationException("Phải tải lên ít nhất 1 loại tài liệu.");
     }
-    const profile = await this.getProfile(userId);
+    const profile = await this.getProfile(userId); // Dùng hàm getProfile đã có cache
+
     profile.verificationDocs = { gpkdUrl, cccdUrl };
     profile.verificationStatus = "pending_review";
-    profile.isVerified = false;
+    profile.isVerified = false; // Đặt lại thành false khi nộp lại
+
     const updatedProfile = await profile.save();
+
+    // ✅ BƯỚC 6: Xóa cache của profile này
+    const cacheKey = this._getProfileCacheKey(updatedProfile._id);
+    await this.cacheService.clear(cacheKey);
+    Logger.info(
+      `[Cache Invalidate] Đã xóa cache cho profile (do submit docs): ${cacheKey}`
+    );
+
     Logger.success(
       `[PrinterSvc] User ${userId} đã nộp hồ sơ. Chuyển sang 'pending_review'.`
     );
     return updatedProfile;
   }
-  // ...
 
   /**
-   * HÀM MỚI: Lấy dữ liệu "nặng" công khai
+   * HÀM MỚI: Lấy gallery (công khai)
+   * (Hàm này lấy dữ liệu "nặng", không cache chung với profile)
    */
   async getPublicGallery(profileId) {
     const gallery = await this.printerRepository.findGalleryById(profileId);

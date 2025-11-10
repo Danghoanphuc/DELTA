@@ -1,4 +1,6 @@
-// src/modules/chat/chat.controller.js (✅ REFACTORED - MULTI-CONVERSATION)
+// src/modules/chat/chat.controller.js
+// ✅ BÀN GIAO: Truyền req.query vào service
+
 import { ChatService } from "./chat.service.js";
 import { ApiResponse } from "../../shared/utils/index.js";
 import { API_CODES } from "../../shared/constants/index.js";
@@ -94,16 +96,21 @@ export class ChatController {
     }
   };
 
+  // ============================================
+  // ✅ THAY ĐỔI CONTROLLER LẤY TIN NHẮN
+  // ============================================
   /**
-   * Lấy tin nhắn của một cuộc trò chuyện cụ thể
+   * Lấy tin nhắn của một cuộc trò chuyện cụ thể (có phân trang)
+   * Sẽ nhận query params: /api/chat/history/:id?page=1&limit=30
    */
   getMessagesForConversation = async (req, res, next) => {
     try {
-      const messages = await this.chatService.getMessages(
+      const messagesData = await this.chatService.getMessages(
         req.params.conversationId,
-        req.user._id
+        req.user._id,
+        req.query // ✅ Truyền query (chứa page, limit) vào service
       );
-      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ messages }));
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success(messagesData));
     } catch (error) {
       next(error);
     }

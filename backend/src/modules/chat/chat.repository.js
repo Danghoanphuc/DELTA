@@ -1,6 +1,8 @@
-// src/modules/chat/chat.repository.js (✅ REFACTORED - FIX PRINTERS + MULTI-CONVO)
+// src/modules/chat/chat.repository.js
+// ✅ BÀN GIAO: Triển khai Pagination, bỏ populate
+
 import { Conversation } from "../../shared/models/conversation.model.js";
-import { Message } from "../../shared/models/message.model.js";
+import { Message } from "../../shared/models/message.model.js"; // ✅ Import Message
 // ❌ KHÔNG DÙNG USER NỮA
 // import { User } from "../../shared/models/user.model.js";
 // ✅ DÙNG PRINTERPROFILE
@@ -50,20 +52,48 @@ export class ChatRepository {
     return await conversation.save();
   }
 
+  // ============================================
+  // ✅ THAY ĐỔI LOGIC LẤY TIN NHẮN
+  // ============================================
+
   /**
-   * Lấy tin nhắn của 1 cuộc trò chuyện (và xác thực)
+   * ✅ MỚI: Chỉ lấy thông tin (metadata) của Conversation
+   * Xác thực user có quyền xem convo này không
    */
-  async getMessagesByConversationId(conversationId, userId) {
+  async getConversationMetadata(conversationId, userId) {
     return await Conversation.findOne({
       _id: conversationId,
-      "participants.userId": userId, // Xác thực
-    })
-      .sort({ createdAt: -1 })
-      .populate({
-        path: "messages",
-        options: { sort: { createdAt: 1 } },
-      });
+      "participants.userId": userId,
+    }).select("-messages"); // QUAN TRỌNG: Loại bỏ mảng 'messages'
   }
+
+  /**
+   * ✅ MỚI: Lấy tin nhắn phân trang (Sắp xếp MỚI NHẤT lên đầu)
+   * Client sẽ nhận (page 1) là các tin nhắn mới nhất
+   */
+  async getPaginatedMessages(conversationId, page = 1, limit = 30) {
+    const skip = (page - 1) * limit;
+
+    // Lấy tổng số tin nhắn (để client biết tổng số trang)
+    const totalMessages = await Message.countDocuments({ conversationId });
+
+    const messages = await Message.find({ conversationId })
+      .sort({ createdAt: -1 }) // Sắp xếp MỚI NHẤT lên đầu
+      .skip(skip)
+      .limit(limit);
+
+    return {
+      messages: messages.reverse(), // Đảo ngược lại để client hiển thị (Cũ -> Mới)
+      totalMessages,
+      currentPage: page,
+      totalPages: Math.ceil(totalMessages / limit),
+    };
+  }
+
+  /**
+   * ❌ BỎ HÀM CŨ: getMessagesByConversationId (hàm gây lỗi populate)
+   */
+  // async getMessagesByConversationId(conversationId, userId) { ... }
 
   /**
    * (Hàm getHistory(userId) cũ đã bị thay thế)

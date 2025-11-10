@@ -1,170 +1,137 @@
-// src/modules/cart/cart.repository.js (✅ FIXED - ROBUST VERSION)
+// src/modules/cart/cart.repository.js
+// ✅ BÀN GIAO: Đã vá lỗi populate (Giải pháp toàn diện)
 
 import { Cart } from "../../shared/models/cart.model.js";
 import { Logger } from "../../shared/utils/index.js";
 
 export class CartRepository {
   /**
-   * Find cart by user ID
+   * Tìm giỏ hàng bằng UserId
    */
   async findByUserId(userId) {
-    Logger.debug("=== FIND CART BY USER ID ===");
-    Logger.debug("User ID:", userId);
-
-    const cart = await Cart.findOne({ userId });
-
-    Logger.debug(
-      "Cart found:",
-      cart ? { id: cart._id, items: cart.items.length } : null
-    );
-    return cart;
+    Logger.debug(`[CartRepo] Finding cart for user: ${userId}`);
+    return await Cart.findOne({ userId });
   }
 
   /**
-   * Find or create cart for user
+   * Tìm hoặc tạo mới giỏ hàng (logic đã chuyển từ controller cũ)
    */
   async findOrCreate(userId) {
-    Logger.debug("=== FIND OR CREATE CART ===");
-    Logger.debug("User ID:", userId);
-
+    Logger.debug(`[CartRepo] Finding or creating cart for user: ${userId}`);
     let cart = await this.findByUserId(userId);
 
     if (!cart) {
-      Logger.debug("Cart not found, creating new cart...");
+      Logger.debug(`[CartRepo] Cart not found, creating new cart...`);
       cart = await Cart.create({
         userId,
         items: [],
         totalItems: 0,
         totalAmount: 0,
       });
-      Logger.success("New cart created:", { id: cart._id });
+      Logger.success(`[CartRepo] New cart created: ${cart._id}`);
     }
 
     return cart;
   }
 
   /**
-   * ✅ FIXED: Populate cart with ROBUST error handling
-   * - Handles deleted products gracefully
-   * - Auto-cleans invalid items
-   * - Never returns null
-   * - Logs all issues for debugging
+   * Lấy giỏ hàng đã populate (logic đã chuyển từ controller cũ)
+   * - Xử lý lỗi sản phẩm đã bị xóa
+   * - Tự động dọn dẹp các item không hợp lệ
+   * - ✅ VÁ LỖI: Trả về cấu trúc { product: {...}, productId: "..." }
    */
   async getPopulated(cartId) {
-    Logger.debug("=== POPULATE CART START (ROBUST VERSION) ===");
-    Logger.debug("Cart ID:", cartId);
+    Logger.debug(`[CartRepo] Populating cart: ${cartId}`);
 
     try {
-      // 1. Fetch cart with basic data first
       const cart = await Cart.findById(cartId);
-
       if (!cart) {
-        Logger.error(`CRITICAL: Cart ${cartId} not found in database`);
+        Logger.error(`[CartRepo] CRITICAL: Cart ${cartId} not found`);
         throw new Error(`Cart ${cartId} does not exist`);
       }
 
-      Logger.debug("Cart found, items count:", cart.items.length);
+      // 1. Populate như cũ (vẫn ghi đè productId)
+      const populatedCart = await cart.populate({
+        path: "items.productId",
+        select: "name images category specifications printerId isActive",
+        populate: {
+          path: "printerId",
+          select: "displayName avatarUrl",
+        },
+      });
 
-      // 2. Attempt to populate products
-      let populatedCart;
-      try {
-        populatedCart = await cart.populate({
-          path: "items.productId",
-          select: "name images category specifications printerId isActive",
-          populate: {
-            path: "printerId",
-            select: "displayName avatarUrl",
-          },
-        });
-
-        Logger.debug("Populate completed");
-      } catch (populateError) {
-        Logger.error("Populate failed:", populateError);
-        // Return unpopulated cart if populate fails
-        Logger.warn("Returning unpopulated cart due to populate error");
-        return cart;
-      }
-
-      // 3. Filter out invalid items (deleted products, inactive products)
       const originalItemCount = populatedCart.items.length;
       const validItems = [];
       const invalidItemIds = [];
 
+      // 2. Logic dọn dẹp (vẫn chạy trên Mongoose doc)
       for (const item of populatedCart.items) {
-        // Check if product exists and is active
+        // item.productId lúc này là 1 object (hoặc null)
         if (!item.productId) {
-          Logger.warn(`Item ${item._id} has null productId (product deleted)`);
-          invalidItemIds.push(item._id);
-          continue;
-        }
-
-        if (item.productId.isActive === false) {
           Logger.warn(
-            `Item ${item._id} has inactive product: ${item.productId.name}`
+            `[CartRepo] Item ${item._id} has null productId (product deleted)`
           );
           invalidItemIds.push(item._id);
           continue;
         }
-
-        // Item is valid
+        // Lọc luôn sản phẩm không còn active
+        if (item.productId.isActive === false) {
+          Logger.warn(
+            `[CartRepo] Item ${item._id} has inactive product: ${item.productId.name}`
+          );
+          invalidItemIds.push(item._id);
+          continue;
+        }
         validItems.push(item);
       }
 
-      // 4. Auto-clean invalid items from cart
+      // 3. Tự động dọn dẹp (vẫn chạy trên Mongoose doc)
       if (invalidItemIds.length > 0) {
         Logger.warn(
-          `Removing ${invalidItemIds.length} invalid items from cart ${cartId}`
+          `[CartRepo] Removing ${invalidItemIds.length} invalid items from cart ${cartId}`
         );
-
         populatedCart.items = validItems;
         populatedCart.calculateTotals();
-
-        try {
-          await populatedCart.save();
-          Logger.success(
-            `Cart ${cartId} cleaned: removed ${invalidItemIds.length} items`
-          );
-        } catch (saveError) {
-          Logger.error("Failed to save cleaned cart:", saveError);
-          // Continue anyway - user will see cleaned cart
-        }
+        await populatedCart.save();
+        Logger.success(`[CartRepo] Cart ${cartId} cleaned and saved.`);
       }
 
-      Logger.debug("Final cart:", {
-        cartId: populatedCart._id,
-        itemsCount: populatedCart.items.length,
-        totalAmount: populatedCart.totalAmount,
-        removedItems: invalidItemIds.length,
-      });
+      // =======================================================
+      // ✅ 4. BƯỚC BIẾN ĐỔI (TRANSFORM) - Fix lỗi Data Mismatch
+      // =======================================================
+      // Chuyển Mongoose Document thành Plain Old Javascript Object (POJO)
+      const cartObject = populatedCart.toObject();
 
-      Logger.debug("=== POPULATE CART END ===");
-      return populatedCart;
+      // "Nắn" lại cấu trúc mảng items
+      cartObject.items = cartObject.items
+        .filter((item) => item.productId) // Lọc lại những item hợp lệ (phòng trường hợp dọn dẹp)
+        .map((item) => {
+          return {
+            ...item,
+            product: item.productId, // <-- Đẩy object product vào trường 'product'
+            productId: item.productId._id, // <-- Phục hồi 'productId' về dạng string ID
+          };
+        });
+
+      return cartObject; // Trả về POJO đã được "nắn"
     } catch (error) {
-      Logger.error(`FATAL: Error in getPopulated for cart ${cartId}:`, error);
-      throw error; // Re-throw to be handled by service layer
+      Logger.error(`[CartRepo] FATAL error in getPopulated:`, error);
+      throw error;
     }
   }
 
   /**
-   * Save cart to database
+   * Lưu giỏ hàng
    */
   async save(cart) {
-    Logger.debug("=== SAVE CART ===");
-    Logger.debug("Cart ID:", cart._id);
-    Logger.debug("Items count:", cart.items.length);
-
+    Logger.debug(`[CartRepo] Saving cart: ${cart._id}`);
     try {
+      cart.calculateTotals(); // Luôn tính toán lại trước khi save
       const savedCart = await cart.save();
-
-      if (!savedCart || !savedCart._id) {
-        Logger.error("Cart save returned invalid result");
-        throw new Error("Cart save operation failed");
-      }
-
-      Logger.success("Cart saved successfully:", { cartId: savedCart._id });
+      Logger.success(`[CartRepo] Cart saved successfully: ${savedCart._id}`);
       return savedCart;
     } catch (error) {
-      Logger.error(`Error saving cart ${cart._id}:`, error);
+      Logger.error(`[CartRepo] Error saving cart ${cart._id}:`, error);
       throw error;
     }
   }

@@ -1,6 +1,11 @@
-// src/modules/chat/chat.service.js (✅ REFACTORED - "LẮP RUỘT" AI HOÀN CHỈNH)
+// src/modules/chat/chat.service.js
+// ✅ BÀN GIAO: Cập nhật Service để dùng hàm Phân trang
+
 import { ChatRepository } from "./chat.repository.js";
-import { ValidationException } from "../../shared/exceptions/index.js";
+import {
+  ValidationException,
+  NotFoundException, // ✅ Import NotFoundException
+} from "../../shared/exceptions/index.js";
 import { Logger } from "../../shared/utils/index.js";
 import { ChatAiService } from "./chat.ai.service.js";
 import { ChatToolService } from "./chat.tools.service.js";
@@ -46,6 +51,10 @@ export class ChatService {
     }
 
     // --- 2. Tải lịch sử (nếu có) ---
+    // ✅ LƯU Ý: Đây là một bước TRUNG GIAN.
+    // Logic handleMessage VẪN TẢI LỊCH SỬ CŨ (nếu có).
+    // Chỉ có API 'getMessages' (lấy lịch sử) là được phân trang.
+    // Bước tối ưu tiếp theo là cache lịch sử này (ví dụ: Redis)
     let history =
       conversation && conversation.messages ? conversation.messages : [];
 
@@ -288,15 +297,40 @@ export class ChatService {
     return await this.chatRepository.findConversationsByUserId(userId);
   }
 
+  // ============================================
+  // ✅ THAY ĐỔI LOGIC LẤY TIN NHẮN
+  // ============================================
   /**
-   * MỚI: Lấy tin nhắn của 1 cuộc trò chuyện
+   * MỚI: Lấy tin nhắn của 1 cuộc trò chuyện (có phân trang)
+   * @param {string} conversationId
+   * @param {string} userId
+   * @param {object} query - Chứa { page, limit }
    */
-  async getMessages(conversationId, userId) {
-    if (!userId || !conversationId) return [];
-    const conversation = await this.chatRepository.getMessagesByConversationId(
+  async getMessages(conversationId, userId, query) {
+    if (!userId || !conversationId) {
+      return { messages: [], totalPages: 0 };
+    }
+
+    // 1. Kiểm tra quyền sở hữu conversation (dùng hàm metadata mới)
+    const conversation = await this.chatRepository.getConversationMetadata(
       conversationId,
       userId
     );
-    return conversation ? conversation.messages : [];
+
+    if (!conversation) {
+      throw new NotFoundException("Không tìm thấy cuộc trò chuyện");
+    }
+
+    // 2. Lấy tin nhắn phân trang
+    const page = parseInt(query.page || "1", 10);
+    const limit = parseInt(query.limit || "30", 10);
+
+    const messagesData = await this.chatRepository.getPaginatedMessages(
+      conversationId,
+      page,
+      limit
+    );
+
+    return messagesData;
   }
 }
