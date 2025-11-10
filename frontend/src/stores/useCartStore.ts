@@ -1,4 +1,6 @@
-// frontend/src/stores/useCartStore.ts (✅ REFACTORED VERSION)
+// frontend/src/stores/useCartStore.ts
+// ✅ BÀN GIAO: Đã fix lỗi không cập nhật state sau addToCart
+
 import { create } from "zustand";
 import api from "@/shared/lib/axios";
 import { toast } from "sonner";
@@ -8,212 +10,246 @@ import {
   updateGuestCartItem,
   removeFromGuestCart,
   clearGuestCart,
-  getGuestCartItemCount,
-  isProductInGuestCart,
-  GuestCartItem,
 } from "@/shared/lib/guestCart";
-import { Cart, AddToCartPayload } from "@/types/cart";
 
-// ==================== TYPES ====================
+// Types
+export interface CartItem {
+  _id: string;
+  productId: string;
+  product?: {
+    _id: string;
+    name: string;
+    images: Array<{ url: string }>;
+    [key: string]: any;
+  };
+  quantity: number;
+  selectedPrice?: {
+    pricePerUnit: number;
+    minQuantity: number;
+  };
+  customization?: any;
+  subtotal: number;
+}
+
+export interface Cart {
+  _id: string;
+  userId: string;
+  items: CartItem[];
+  totalItems: number;
+  totalAmount: number;
+}
+
 interface CartStore {
   cart: Cart | null;
   isLoading: boolean;
+  error: string | null;
 
-  // Server Cart Actions
+  // Actions
   fetchCart: () => Promise<void>;
-  addToCart: (payload: AddToCartPayload) => Promise<void>;
-  updateCartItem: (cartItemId: string, newQuantity: number) => Promise<void>;
+  addToCart: (item: {
+    productId: string;
+    quantity: number;
+    selectedPriceIndex: number;
+    customization?: any;
+  }) => Promise<void>;
+  updateCartItem: (cartItemId: string, quantity: number) => Promise<void>;
   removeFromCart: (cartItemId: string) => Promise<void>;
   clearCart: () => Promise<void>;
-
-  // Guest Cart Actions (không cần async)
-  addToGuestCartLocal: (item: GuestCartItem) => void;
-  updateGuestCartLocal: (
-    productId: string,
-    selectedPriceIndex: number,
-    newQuantity: number
-  ) => void;
-  removeFromGuestCartLocal: (
-    productId: string,
-    selectedPriceIndex: number
-  ) => void;
-
-  // Merge Logic
-  mergeGuestCartToServer: () => Promise<void>;
+  mergeGuestCart: () => Promise<void>;
 
   // Helpers
+  isInCart: (productId: string, isAuthenticated: boolean) => boolean;
   getCartItemCount: (isAuthenticated: boolean) => number;
   getCartTotal: () => number;
-  isInCart: (productId: string, isAuthenticated: boolean) => boolean;
 }
 
-// ==================== STORE ====================
 export const useCartStore = create<CartStore>((set, get) => ({
   cart: null,
   isLoading: false,
+  error: null,
 
-  // ==================== SERVER CART (Authenticated) ====================
+  // ========================================
+  // ✅ FIX: fetchCart
+  // ========================================
   fetchCart: async () => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       const res = await api.get("/cart");
-      set({ cart: res.data.cart });
+      // ✅ Parse response đúng
+      const cart = res.data?.data?.cart || res.data?.cart;
+
+      console.log("✅ [CartStore] fetchCart thành công:", cart);
+      set({ cart, isLoading: false });
     } catch (err: any) {
-      console.error("Fetch cart error:", err);
-      // Không toast error ở đây vì có thể là 401 bình thường
-    } finally {
-      set({ isLoading: false });
+      console.error("❌ [CartStore] fetchCart lỗi:", err);
+      set({ error: err.message, isLoading: false });
     }
   },
 
-  addToCart: async (payload: AddToCartPayload) => {
-    set({ isLoading: true });
+  // ========================================
+  // ✅ FIX: addToCart - QUAN TRỌNG NHẤT
+  // ========================================
+  addToCart: async (item) => {
+    set({ isLoading: true, error: null });
     try {
-      const res = await api.post("/cart/add", payload);
-      set({ cart: res.data.cart });
-      toast.success("✅ Đã thêm vào giỏ hàng");
-    } catch (err: any) {
-      console.error("Add to cart error:", err);
-      toast.error(err.response?.data?.message || "Không thể thêm vào giỏ hàng");
-      throw err;
-    } finally {
-      set({ isLoading: false });
-    }
-  },
+      const res = await api.post("/cart/add", item);
 
-  updateCartItem: async (cartItemId: string, newQuantity: number) => {
-    set({ isLoading: true });
-    try {
-      const res = await api.put(`/cart/update/${cartItemId}`, {
-        quantity: newQuantity,
+      // ✅ CRITICAL FIX: Parse response đúng
+      const updatedCart = res.data?.data?.cart || res.data?.cart;
+
+      if (!updatedCart) {
+        throw new Error("Backend không trả về cart sau khi add");
+      }
+
+      console.log("✅ [CartStore] addToCart thành công:", updatedCart);
+
+      // ✅ CRITICAL FIX: CẬP NHẬT STATE
+      set({
+        cart: updatedCart,
+        isLoading: false,
       });
-      set({ cart: res.data.cart });
+
+      // ✅ Toast (chỉ 1 lần)
+      toast.success("Đã thêm vào giỏ hàng!");
     } catch (err: any) {
-      console.error("Update cart error:", err);
-      toast.error(err.response?.data?.message || "Không thể cập nhật giỏ hàng");
-      throw err;
-    } finally {
-      set({ isLoading: false });
+      console.error("❌ [CartStore] addToCart lỗi:", err);
+      set({ error: err.message, isLoading: false });
+      toast.error(err.response?.data?.message || "Thêm vào giỏ thất bại");
+      throw err; // Ném lỗi để caller bắt được
     }
   },
 
-  removeFromCart: async (cartItemId: string) => {
-    set({ isLoading: true });
+  // ========================================
+  // ✅ FIX: updateCartItem
+  // ========================================
+  updateCartItem: async (cartItemId, quantity) => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await api.put("/cart/update", { cartItemId, quantity });
+
+      // ✅ Parse và update
+      const updatedCart = res.data?.data?.cart || res.data?.cart;
+
+      console.log("✅ [CartStore] updateCartItem thành công:", updatedCart);
+
+      set({
+        cart: updatedCart,
+        isLoading: false,
+      });
+    } catch (err: any) {
+      console.error("❌ [CartStore] updateCartItem lỗi:", err);
+      set({ error: err.message, isLoading: false });
+      toast.error("Cập nhật thất bại");
+      throw err;
+    }
+  },
+
+  // ========================================
+  // ✅ FIX: removeFromCart
+  // ========================================
+  removeFromCart: async (cartItemId) => {
+    set({ isLoading: true, error: null });
     try {
       const res = await api.delete(`/cart/remove/${cartItemId}`);
-      set({ cart: res.data.cart });
-      toast.success("Đã xóa khỏi giỏ hàng");
-    } catch (err: any) {
-      console.error("Remove from cart error:", err);
-      toast.error(err.response?.data?.message || "Không thể xóa khỏi giỏ hàng");
-      throw err;
-    } finally {
-      set({ isLoading: false });
-    }
-  },
 
-  clearCart: async () => {
-    try {
-      await api.delete("/cart/clear");
-      set({ cart: null });
-      toast.success("Đã xóa giỏ hàng");
-    } catch (err: any) {
-      console.error("Clear cart error:", err);
-      toast.error(err.response?.data?.message || "Không thể xóa giỏ hàng");
-    }
-  },
+      // ✅ Parse và update
+      const updatedCart = res.data?.data?.cart || res.data?.cart;
 
-  // ==================== GUEST CART (Local) ====================
-  addToGuestCartLocal: (item: GuestCartItem) => {
-    addToGuestCart(item);
-  },
+      console.log("✅ [CartStore] removeFromCart thành công:", updatedCart);
 
-  updateGuestCartLocal: (
-    productId: string,
-    selectedPriceIndex: number,
-    newQuantity: number
-  ) => {
-    updateGuestCartItem(productId, selectedPriceIndex, newQuantity);
-  },
-
-  removeFromGuestCartLocal: (productId: string, selectedPriceIndex: number) => {
-    removeFromGuestCart(productId, selectedPriceIndex);
-  },
-
-  // ==================== MERGE LOGIC ====================
-  mergeGuestCartToServer: async () => {
-    const guestCart = getGuestCart();
-    if (guestCart.items.length === 0) return;
-
-    try {
-      const res = await api.post("/cart/merge", {
-        items: guestCart.items,
+      set({
+        cart: updatedCart,
+        isLoading: false,
       });
 
-      set({ cart: res.data.cart });
-      clearGuestCart();
-      toast.success(
-        `✅ Đã hợp nhất ${guestCart.items.length} sản phẩm vào giỏ hàng`
-      );
+      toast.success("Đã xóa khỏi giỏ hàng");
     } catch (err: any) {
-      console.error("Merge cart error:", err);
-      toast.error(err.response?.data?.message || "Không thể hợp nhất giỏ hàng");
+      console.error("❌ [CartStore] removeFromCart lỗi:", err);
+      set({ error: err.message, isLoading: false });
+      toast.error("Xóa thất bại");
+      throw err;
     }
   },
 
-  // ==================== HELPERS ====================
-  // ✅ FIX: Pass isAuthenticated as parameter instead of reading from authStore
-  getCartItemCount: (isAuthenticated: boolean) => {
-    const { cart } = get();
+  // ========================================
+  // ✅ clearCart
+  // ========================================
+  clearCart: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await api.delete("/cart/clear");
+      const clearedCart = res.data?.data?.cart || res.data?.cart;
 
-    if (!isAuthenticated) {
-      return getGuestCartItemCount();
+      set({
+        cart: clearedCart,
+        isLoading: false,
+      });
+
+      toast.success("Đã xóa sạch giỏ hàng");
+    } catch (err: any) {
+      console.error("❌ [CartStore] clearCart lỗi:", err);
+      set({ error: err.message, isLoading: false });
+      toast.error("Xóa giỏ hàng thất bại");
+      throw err;
+    }
+  },
+
+  // ========================================
+  // ✅ mergeGuestCart
+  // ========================================
+  mergeGuestCart: async () => {
+    const guestCart = getGuestCart();
+    if (!guestCart || guestCart.items.length === 0) {
+      console.log("⚠️ [CartStore] Không có guest cart để merge");
+      return;
     }
 
-    return cart?.items.reduce((sum, item) => sum + item.quantity, 0) || 0;
+    set({ isLoading: true, error: null });
+    try {
+      const res = await api.post("/cart/merge", { items: guestCart.items });
+      const mergedCart = res.data?.data?.cart || res.data?.cart;
+
+      set({
+        cart: mergedCart,
+        isLoading: false,
+      });
+
+      // Xóa guest cart sau khi merge
+      clearGuestCart();
+      toast.success("Đã gộp giỏ hàng!");
+    } catch (err: any) {
+      console.error("❌ [CartStore] mergeGuestCart lỗi:", err);
+      set({ error: err.message, isLoading: false });
+      toast.error("Gộp giỏ hàng thất bại");
+      throw err;
+    }
+  },
+
+  // ========================================
+  // Helpers
+  // ========================================
+  isInCart: (productId, isAuthenticated) => {
+    if (isAuthenticated) {
+      const { cart } = get();
+      return cart?.items.some((item) => item.productId === productId) || false;
+    } else {
+      const guestCart = getGuestCart();
+      return guestCart.items.some((item) => item.productId === productId);
+    }
+  },
+
+  getCartItemCount: (isAuthenticated) => {
+    if (isAuthenticated) {
+      const { cart } = get();
+      return cart?.totalItems || 0;
+    } else {
+      const guestCart = getGuestCart();
+      return guestCart.items.reduce((sum, item) => sum + item.quantity, 0);
+    }
   },
 
   getCartTotal: () => {
     const { cart } = get();
     return cart?.totalAmount || 0;
   },
-
-  isInCart: (productId: string, isAuthenticated: boolean) => {
-    const { cart } = get();
-
-    if (!isAuthenticated) {
-      return isProductInGuestCart(productId);
-    }
-
-    return cart?.items.some((item) => item.productId === productId) || false;
-  },
 }));
-
-// ==================== HELPER HOOK ====================
-// ✅ Custom hook để tự động route giữa guest và server cart
-import { useAuthStore } from "./useAuthStore";
-
-export const useCartActions = () => {
-  const { accessToken } = useAuthStore();
-  const store = useCartStore();
-  const isAuthenticated = !!accessToken;
-
-  return {
-    ...store,
-    // ✅ Wrapper methods tự động chọn guest hoặc server
-    addToCart: async (payload: AddToCartPayload) => {
-      if (!isAuthenticated) {
-        const guestItem: GuestCartItem = {
-          ...payload,
-          selectedPriceIndex: payload.selectedPriceIndex ?? 0,
-        };
-        store.addToGuestCartLocal(guestItem);
-        toast.success("✅ Đã thêm vào giỏ hàng");
-      } else {
-        await store.addToCart(payload);
-      }
-    },
-    getCartItemCount: () => store.getCartItemCount(isAuthenticated),
-    isInCart: (productId: string) => store.isInCart(productId, isAuthenticated),
-  };
-};
