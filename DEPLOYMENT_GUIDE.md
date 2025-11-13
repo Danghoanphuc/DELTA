@@ -44,9 +44,9 @@
 ## Render - Admin Backend
 
 ### Settings → Build & Deploy
-- **Root Directory**: `apps/admin-backend`
+- **Root Directory**: (ĐỂ TRỐNG - chạy từ root của repo)
 - **Build Command**: `corepack enable pnpm && pnpm install --frozen-lockfile && pnpm --filter @printz/types build && pnpm --filter admin-backend build`
-- **Start Command**: `pnpm --filter admin-backend start`
+- **Start Command**: `cd apps/admin-backend && node dist/server.js`
 
 **Lưu ý QUAN TRỌNG**: 
 - Nếu build thất bại, kiểm tra logs để xem có lỗi TypeScript không. Đảm bảo `@printz/types` được build thành công trước khi build admin-backend.
