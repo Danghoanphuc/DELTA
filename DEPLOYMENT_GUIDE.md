@@ -49,9 +49,10 @@
 - **Start Command**: `cd apps/admin-backend && node dist/server.js`
 
 **Lưu ý QUAN TRỌNG**: 
+- **Root Directory PHẢI ĐỂ TRỐNG** để build command chạy từ root của monorepo (cần thiết cho `pnpm --filter`)
 - Nếu build thất bại, kiểm tra logs để xem có lỗi TypeScript không. Đảm bảo `@printz/types` được build thành công trước khi build admin-backend.
 - Nếu thấy lỗi "Cannot find module 'dist/server.js'", có nghĩa là build command không chạy hoặc build thất bại. Kiểm tra Build Logs trên Render để xem output của build command.
-- Đảm bảo build command chạy từ Root Directory (`apps/admin-backend`), không phải từ root của repo.
+- Start Command dùng `cd apps/admin-backend && node dist/server.js` vì build output nằm trong `apps/admin-backend/dist`
 
 ### Settings → Environment
 - **Node Version**: 22 (hoặc để Render tự detect)
