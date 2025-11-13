@@ -48,7 +48,10 @@
 - **Build Command**: `corepack enable pnpm && pnpm install --frozen-lockfile && pnpm --filter @printz/types build && pnpm --filter admin-backend build`
 - **Start Command**: `pnpm --filter admin-backend start`
 
-**Lưu ý**: Nếu build thất bại, kiểm tra logs để xem có lỗi TypeScript không. Đảm bảo `@printz/types` được build thành công trước khi build admin-backend.
+**Lưu ý QUAN TRỌNG**: 
+- Nếu build thất bại, kiểm tra logs để xem có lỗi TypeScript không. Đảm bảo `@printz/types` được build thành công trước khi build admin-backend.
+- Nếu thấy lỗi "Cannot find module 'dist/server.js'", có nghĩa là build command không chạy hoặc build thất bại. Kiểm tra Build Logs trên Render để xem output của build command.
+- Đảm bảo build command chạy từ Root Directory (`apps/admin-backend`), không phải từ root của repo.
 
 ### Settings → Environment
 - **Node Version**: 22 (hoặc để Render tự detect)
@@ -105,7 +108,7 @@ STRIPE_SECRET_KEY=<your-stripe-secret-key>
 STRIPE_WEBHOOK_SECRET=<your-stripe-webhook-secret>
 PORT= (để trống, Render sẽ tự động gán)
 
-# --- VNPAY (Bắt buộc) ---
+# --- VNPAY (Bắt buộc - TẤT CẢ 5 biến) ---
 VNP_TMN_CODE=<your-vnpay-tmn-code>
 VNP_HASH_SECRET=<your-vnpay-hash-secret>
 VNP_URL=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
@@ -115,7 +118,12 @@ VNP_IPN_URL=https://delta-j7qn.onrender.com/api/webhooks/vnpay
 
 **Lưu ý**: 
 - Thay thế các giá trị `<...>` bằng giá trị thực tế từ file `customer.env` của bạn. KHÔNG commit file `.env` lên GitHub!
-- **VNPAY**: Các biến `VNP_*` là BẮT BUỘC. Nếu chưa có, bạn có thể dùng giá trị test/sandbox tạm thời.
+- **VNPAY**: Các biến `VNP_*` là BẮT BUỘC (TẤT CẢ 5 biến). Nếu thiếu bất kỳ biến nào, server sẽ không khởi động được.
+  - `VNP_TMN_CODE`: Mã merchant của bạn
+  - `VNP_HASH_SECRET`: Secret key để tạo chữ ký
+  - `VNP_URL`: URL API của VNPay (sandbox: `https://sandbox.vnpayment.vn/paymentv2/vpcpay.html`)
+  - `VNP_RETURN_URL`: URL trả về sau khi thanh toán (frontend)
+  - `VNP_IPN_URL`: URL webhook để VNPay gọi lại (backend)
 
 ---
 

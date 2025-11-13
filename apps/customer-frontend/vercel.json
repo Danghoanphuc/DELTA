@@ -1,7 +1,7 @@
 {
   "buildCommand": "pnpm --filter @printz/types build && pnpm --filter customer-frontend build",
   "outputDirectory": "dist",
-  "installCommand": "pnpm install --frozen-lockfile",
+  "installCommand": "pnpm install --no-frozen-lockfile",
   "rewrites": [
     {
       "source": "/(.*)",
