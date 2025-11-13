@@ -7,9 +7,10 @@
 - **Framework Preset**: Vite
 
 ### Settings → Build & Development Settings
+- **Root Directory**: `apps/admin-frontend` (QUAN TRỌNG: Phải set Root Directory)
 - **Install Command**: `pnpm install --frozen-lockfile`
-- **Build Command**: `pnpm --filter admin-frontend build`
-- **Output Directory**: `apps/admin-frontend/dist`
+- **Build Command**: `pnpm --filter @printz/types build && pnpm --filter admin-frontend build`
+- **Output Directory**: `dist` (Vì Root Directory đã là `apps/admin-frontend`)
 
 ### Settings → Environment Variables
 - `VITE_ADMIN_API_URL` = `https://delta-admin-vch9.onrender.com/api/admin` (KHÔNG có dấu @)
@@ -27,9 +28,10 @@
 - **Framework Preset**: Vite
 
 ### Settings → Build & Development Settings
-- **Install Command**: `pnpm install --frozen-lockfile`
-- **Build Command**: `pnpm --filter customer-frontend build`
-- **Output Directory**: `apps/customer-frontend/dist`
+- **Root Directory**: `apps/customer-frontend` (QUAN TRỌNG: Phải set Root Directory)
+- **Install Command**: `pnpm install --frozen-lockfile` (hoặc `pnpm install` nếu lockfile vẫn lỗi)
+- **Build Command**: `pnpm --filter @printz/types build && pnpm --filter customer-frontend build`
+- **Output Directory**: `dist` (Vì Root Directory đã là `apps/customer-frontend`)
 
 ### Settings → Environment Variables
 - `VITE_API_URL` = `https://delta-j7qn.onrender.com`
@@ -45,6 +47,8 @@
 - **Root Directory**: `apps/admin-backend`
 - **Build Command**: `corepack enable pnpm && pnpm install --frozen-lockfile && pnpm --filter @printz/types build && pnpm --filter admin-backend build`
 - **Start Command**: `pnpm --filter admin-backend start`
+
+**Lưu ý**: Nếu build thất bại, kiểm tra logs để xem có lỗi TypeScript không. Đảm bảo `@printz/types` được build thành công trước khi build admin-backend.
 
 ### Settings → Environment
 - **Node Version**: 22 (hoặc để Render tự detect)
@@ -100,9 +104,18 @@ STRIPE_PUBLISHABLE_KEY=<your-stripe-publishable-key>
 STRIPE_SECRET_KEY=<your-stripe-secret-key>
 STRIPE_WEBHOOK_SECRET=<your-stripe-webhook-secret>
 PORT= (để trống, Render sẽ tự động gán)
+
+# --- VNPAY (Bắt buộc) ---
+VNP_TMN_CODE=<your-vnpay-tmn-code>
+VNP_HASH_SECRET=<your-vnpay-hash-secret>
+VNP_URL=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+VNP_RETURN_URL=https://www.printz.vn/checkout/return
+VNP_IPN_URL=https://delta-j7qn.onrender.com/api/webhooks/vnpay
 ```
 
-**Lưu ý**: Thay thế các giá trị `<...>` bằng giá trị thực tế từ file `customer.env` của bạn. KHÔNG commit file `.env` lên GitHub!
+**Lưu ý**: 
+- Thay thế các giá trị `<...>` bằng giá trị thực tế từ file `customer.env` của bạn. KHÔNG commit file `.env` lên GitHub!
+- **VNPAY**: Các biến `VNP_*` là BẮT BUỘC. Nếu chưa có, bạn có thể dùng giá trị test/sandbox tạm thời.
 
 ---
 
