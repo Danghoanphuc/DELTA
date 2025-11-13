@@ -1,0 +1,26 @@
+# docker-compose.yml
+# Cấu hình để chạy các dịch vụ nền (database, cache) cho môi trường dev
+
+services:
+  # Dịch vụ 1: REDIS (Cho Cache và Queues)
+  redis-dev:
+    image: redis:6-alpine
+    container_name: printz_redis_dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_dev:/data
+    restart: unless-stopped
+
+    # --- GIẢI PHÁP TOÀN DIỆN (Race Condition) ---
+    # Thêm healthcheck để biết khi nào Redis thực sự sẵn sàng
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"] # Lệnh kiểm tra
+      interval: 3s # Kiểm tra mỗi 3s
+      timeout: 2s # Chờ tối đa 2s
+      retries: 5 # Thử lại 5 lần
+    # --- KẾT THÚC GIẢI PHÁP ---
+
+# Định nghĩa volumes (nơi lưu trữ data)
+volumes:
+  redis_data_dev:

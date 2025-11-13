@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    /* --- Cơ bản --- */
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* --- Strictness & Type Checking --- */
+    "strict": true,
+    "skipLibCheck": true,
+
+    // =========================================================
+    // === ✅ GIẢI PHÁP TỔNG THỂ (Lượt 43) ===
+    // (Hoàn tác [revert] bản vá lỗi ở lượt 47)
+    // 1. Cho phép TS import file .js (Sửa 30+ lỗi TS7016)
+    "allowJs": true,
+
+    // 2. Ép TS tải 'types' (Sửa lỗi TS2688)
+    // (Bao gồm 'connect-mongo' mà chúng ta đã cài @types ở lượt 39)
+    "types": ["node", "bull", "connect-mongo"]
+    // =========================================================
+  },
+  "include": ["src/**/*"], // Chỉ biên dịch các file trong thư mục src
+  "exclude": ["node_modules", "dist"] // Bỏ qua các thư mục này
+}

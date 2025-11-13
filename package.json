@@ -1,0 +1,38 @@
+{
+  "name": "delta-monorepo",
+  "version": "1.0.0",
+  "description": "PrintZ - Print on Demand Platform",
+  "private": true,
+  "author": "Phuc Dang (CEO)",
+  "license": "ISC",
+  "scripts": {
+    "install:all": "pnpm install",
+    "build": "pnpm --stream -r build",
+    "lint": "pnpm --stream -r lint",
+    "dev:fe": "pnpm --filter ./apps/customer-frontend dev",
+    "dev:be": "pnpm --filter ./apps/customer-backend dev",
+    "//--- GIẢI PHÁP DEV WORKFLOW TỰ ĐỘNG ---": "",
+    "dev:services:up": "docker-compose -f apps/customer-backend/docker-compose.yml up -d --wait",
+    "dev:services:down": "docker-compose -f apps/customer-backend/docker-compose.yml down",
+    "dev": "pnpm dev:services:down && pnpm dev:services:up && concurrently \"pnpm dev:be\" \"pnpm dev:fe\"",
+    "//--- KẾT THÚC GIẢI PHÁP ---": "",
+    "dev:admin:fe": "pnpm --filter ./apps/admin-frontend dev",
+    "dev:admin:be": "pnpm --filter ./apps/admin-backend dev",
+    "dev:admin": "concurrently \"pnpm dev:admin:be\" \"pnpm dev:admin:fe\"",
+    "script:create-superadmin": "pnpm --filter admin-backend build && node apps/admin-backend/dist/scripts/createSuperAdmin.js"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "19.2.3",
+      "@types/react-dom": "19.2.3"
+    }
+  }
+}

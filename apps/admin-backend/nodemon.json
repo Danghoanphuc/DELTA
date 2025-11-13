@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json.schemastore.org/nodemon.json",
+  "watch": ["src"],
+  "ext": "ts,json",
+  "ignore": ["dist", "src/tests/"],
+  "delay": 1000,
+  "exec": "node --loader ts-node/esm src/server.ts"
+}
