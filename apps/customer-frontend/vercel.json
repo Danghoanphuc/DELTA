@@ -1,7 +1,7 @@
 {
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
-  "installCommand": "chmod +x apps/customer-frontend/prepare-vercel.sh && bash apps/customer-frontend/prepare-vercel.sh",
+  "installCommand": "chmod +x ./prepare-vercel.sh && ./prepare-vercel.sh",
   "framework": null,
   "rewrites": [
     {
