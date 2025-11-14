@@ -1,8 +1,12 @@
 // src/server.ts
-import express from "express";
+import express, {
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
 import session from "express-session";
 import passport from "passport";
-import cors from "cors";
+import cors, { type CorsOptions } from "cors";
 import MongoStore from "connect-mongo";
 import http from "http";
 import helmet from "helmet";
@@ -93,27 +97,30 @@ async function startServer() {
     const server = http.createServer(app);
 
     app.set("trust proxy", 1);
-    app.use(
-      cors({
-        origin(origin, callback) {
-          if (!origin) {
-            return callback(null, true);
-          }
+    const corsOptions: CorsOptions = {
+      origin(
+        origin: string | undefined,
+        callback: (err: Error | null, allow?: boolean) => void
+      ) {
+        if (!origin) {
+          return callback(null, true);
+        }
 
-          if (allowedOrigins.includes(origin)) {
-            return callback(null, true);
-          }
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
 
-          Logger.warn(`[CORS] Blocked origin: ${origin}`);
-          return callback(
-            new Error(
-              `Origin ${origin} is not allowed. Check CLIENT_URL(S) configuration.`
-            )
-          );
-        },
-        credentials: true,
-      })
-    );
+        Logger.warn(`[CORS] Blocked origin: ${origin}`);
+        return callback(
+          new Error(
+            `Origin ${origin} is not allowed. Check CLIENT_URL(S) configuration.`
+          )
+        );
+      },
+      credentials: true,
+    };
+
+    app.use(cors(corsOptions));
     app.use(helmet());
     app.use(morgan("dev"));
     app.use(express.urlencoded({ extended: true }));
@@ -176,7 +183,7 @@ async function startServer() {
     app.use("/api", apiRouter);
 
     // === Health Check ===
-    app.get("/", (req, res) => {
+    app.get("/", (req: Request, res: Response) => {
       res.status(200).json({
         status: "success",
         message: "Welcome to PrintZ API (Customer Backend)",
@@ -185,7 +192,7 @@ async function startServer() {
 
     // --- 6. XỬ LÝ LỖI (CUỐI CÙNG) ---
     // (Giữ nguyên)
-    app.all(/.*/, (req, res, next) => {
+    app.all(/.*/, (req: Request, res: Response, next: NextFunction) => {
       next(
         new NotFoundException(`Không tìm thấy đường dẫn: ${req.originalUrl}`)
       );

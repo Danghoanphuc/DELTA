@@ -1,12 +1,21 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose, { Schema, Types } from "mongoose";
 import {
   IBalanceLedger,
   BalanceLedgerStatus,
   BalanceTransactionType,
 } from "@printz/types"; // Import "Hợp đồng"
 
+type BalanceLedgerDocument = Omit<
+  IBalanceLedger,
+  "printer" | "masterOrder" | "subOrder"
+> & {
+  printer: Types.ObjectId;
+  masterOrder: Types.ObjectId;
+  subOrder: Types.ObjectId;
+};
+
 // Định nghĩa Schema
-const BalanceLedgerSchema = new Schema<IBalanceLedger>(
+const BalanceLedgerSchema = new Schema<BalanceLedgerDocument>(
   {
     printer: {
       type: Schema.Types.ObjectId,
@@ -90,7 +99,7 @@ BalanceLedgerSchema.index(
 // Điều này cho phép chúng ta thêm các bút toán REFUND hoặc ADJUSTMENT sau này
 // mà không vi phạm unique index.
 
-const BalanceLedgerModel = mongoose.model<IBalanceLedger>(
+const BalanceLedgerModel = mongoose.model<BalanceLedgerDocument>(
   "BalanceLedger",
   BalanceLedgerSchema
 );
