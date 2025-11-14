@@ -29,34 +29,35 @@ corepack prepare pnpm@9.0.0 --activate
 pnpm install --filter @printz/types... --prod=false --prefer-offline
 pnpm --filter @printz/types build
 
-# Prepare node_modules structure in customer-frontend
-mkdir -p apps/customer-frontend/node_modules/@printz
+# Prepare local dependency store for frontend
+LOCAL_DEPS_DIR="apps/customer-frontend/.local-deps"
+rm -rf "${LOCAL_DEPS_DIR}"
+mkdir -p "${LOCAL_DEPS_DIR}/@printz"
 
-# Copy @printz/types built files (reset destination each time)
-rm -rf apps/customer-frontend/node_modules/@printz/types
-mkdir -p apps/customer-frontend/node_modules/@printz/types
-cp -r packages/types/dist apps/customer-frontend/node_modules/@printz/types/
-cp packages/types/package.json apps/customer-frontend/node_modules/@printz/types/
+# Copy @printz/types built files
+mkdir -p "${LOCAL_DEPS_DIR}/@printz/types"
+cp -r packages/types/dist "${LOCAL_DEPS_DIR}/@printz/types/"
+cp packages/types/package.json "${LOCAL_DEPS_DIR}/@printz/types/"
 
 # Create @printz/ui package.json (pointing to source)
-mkdir -p apps/customer-frontend/node_modules/@printz/ui
-cat > apps/customer-frontend/node_modules/@printz/ui/package.json <<'EOF'
+mkdir -p "${LOCAL_DEPS_DIR}/@printz/ui"
+cat > "${LOCAL_DEPS_DIR}/@printz/ui/package.json" <<'EOF'
 {
   "name": "@printz/ui",
   "version": "1.0.0",
-  "main": "../../../packages/ui/src/index.ts",
-  "types": "../../../packages/ui/src/index.ts"
+  "main": "../../packages/ui/src/index.ts",
+  "types": "../../packages/ui/src/index.ts"
 }
 EOF
 
 # Create @printz/utils package.json (pointing to source)
-mkdir -p apps/customer-frontend/node_modules/@printz/utils
-cat > apps/customer-frontend/node_modules/@printz/utils/package.json <<'EOF'
+mkdir -p "${LOCAL_DEPS_DIR}/@printz/utils"
+cat > "${LOCAL_DEPS_DIR}/@printz/utils/package.json" <<'EOF'
 {
   "name": "@printz/utils",
   "version": "1.0.0",
-  "main": "../../../packages/utils/src/index.ts",
-  "types": "../../../packages/utils/src/index.ts"
+  "main": "../../packages/utils/src/index.ts",
+  "types": "../../packages/utils/src/index.ts"
 }
 EOF
 
@@ -70,9 +71,9 @@ const fs = require('fs');
 const pkgPath = 'package.json';
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 const overrides = {
-  "@printz/types": "file:node_modules/@printz/types",
-  "@printz/ui": "file:node_modules/@printz/ui",
-  "@printz/utils": "file:node_modules/@printz/utils"
+  "@printz/types": "file:.local-deps/@printz/types",
+  "@printz/ui": "file:.local-deps/@printz/ui",
+  "@printz/utils": "file:.local-deps/@printz/utils"
 };
 if (!pkg.dependencies) pkg.dependencies = {};
 for (const [dep, value] of Object.entries(overrides)) {
@@ -87,4 +88,5 @@ pnpm install --ignore-workspace --frozen-lockfile=false
 
 # Restore original package.json (workspace specs) for build steps
 mv package.json.__workspace_backup package.json
+rm -rf .local-deps
 
