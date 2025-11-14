@@ -5,7 +5,7 @@ services:
     region: oregon
     plan: free
     buildCommand: NODE_ENV=development pnpm install --frozen-lockfile && pnpm --filter @printz/types build && pnpm --filter admin-backend build
-    startCommand: find . -path "*/admin-backend/dist/server.js" -type f 2>/dev/null | head -1 | xargs -I {} sh -c 'echo "Found: {}" && node {}' || (cd apps/admin-backend && pwd && ls -la dist/ && node dist/server.js)
+    startCommand: cd apps/admin-backend && pwd && echo "=== Checking dist folder ===" && ls -la dist/ && echo "=== Checking if dist/server.js exists ===" && if [ -f "dist/server.js" ]; then echo "Found dist/server.js" && node dist/server.js; else echo "dist/server.js not found, searching..." && find . -name "server.js" -type f 2>/dev/null && find ../.. -name "server.js" -type f 2>/dev/null | head -5; fi
     envVars:
       - key: NODE_ENV
         value: production
