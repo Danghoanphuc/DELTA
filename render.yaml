@@ -5,7 +5,7 @@ services:
     region: oregon
     plan: free
     buildCommand: NODE_ENV=development pnpm install --frozen-lockfile && pnpm --filter @printz/types build && pnpm --filter admin-backend build
-    startCommand: cd apps/admin-backend && node dist/server.js
+    startCommand: find . -path "*/admin-backend/dist/server.js" -type f 2>/dev/null | head -1 | xargs -I {} sh -c 'echo "Found: {}" && node {}' || (cd apps/admin-backend && pwd && ls -la dist/ && node dist/server.js)
     envVars:
       - key: NODE_ENV
         value: production
