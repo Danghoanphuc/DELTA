@@ -1,7 +1,7 @@
 {
   "buildCommand": "pnpm --filter @printz/types build && pnpm --filter customer-frontend build",
   "outputDirectory": "dist",
-  "installCommand": "corepack enable pnpm && corepack prepare pnpm@9.12.3 --activate && pnpm install",
+  "installCommand": "corepack enable pnpm && corepack prepare pnpm@9.11.0 --activate && pnpm install",
   "framework": null,
   "rewrites": [
     {
