@@ -251,6 +251,9 @@ importers:
       twilio:
         specifier: ^5.10.3
         version: 5.10.5
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
       zod:
         specifier: ^4.1.12
         version: 4.1.12
@@ -300,9 +303,6 @@ importers:
       tsx:
         specifier: ^4.16.2
         version: 4.20.6
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
 
   apps/customer-frontend:
     dependencies:
