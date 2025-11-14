@@ -7,11 +7,11 @@ import { type IAdmin } from "../models/admin.model.js";
 
 // --- KỸ THUẬT QUAN TRỌNG: IMPORT JS MODEL VÀO TS ---
 // (Giữ nguyên các import model .js của anh)
-// @ts-expect-error - Customer backend .js files, no type declarations
+// @ts-ignore - Customer backend .js files, no type declarations
 import { User as CustomerUserModelJS } from "../../../customer-backend/src/shared/models/user.model.js";
-// @ts-expect-error - Customer backend .js files, no type declarations
+// @ts-ignore - Customer backend .js files, no type declarations
 import "../../../customer-backend/src/shared/models/customer-profile.model.js";
-// @ts-expect-error - Customer backend .js files, no type declarations
+// @ts-ignore - Customer backend .js files, no type declarations
 import "../../../customer-backend/src/shared/models/printer-profile.model.js";
 
 type ICustomerUserModel = Model<
