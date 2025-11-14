@@ -1,5 +1,5 @@
 // packages/types/src/printer.types.ts
-import { Types } from "mongoose";
+import { Types } from "./mongoose.types.js";
 import { IAddress } from "./user.types.js";
 
 /**

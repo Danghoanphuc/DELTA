@@ -1,5 +1,5 @@
 // packages/types/src/user.types.ts
-import { Types } from "mongoose";
+import { Types } from "./mongoose.types.js";
 
 /**
  * @description "Hợp đồng" cho Địa chỉ (Chân lý)

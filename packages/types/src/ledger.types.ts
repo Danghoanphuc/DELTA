@@ -1,4 +1,4 @@
-import { Types } from "mongoose";
+import { Types } from "./mongoose.types.js";
 
 /**
  * @description Trạng thái của một bút toán trong sổ cái công nợ.

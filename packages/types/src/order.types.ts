@@ -1,7 +1,7 @@
 // packages/types/src/order.types.ts
 // ✅ BẢN VÁ (Lượt 46): Sửa lỗi TS2305 (Đồng nhất IShippingAddress -> IAddress)
 
-import { Types } from "mongoose";
+import { Types } from "./mongoose.types.js";
 // ✅ SỬA LỖI (TS2305): Đổi IShippingAddress -> IAddress (theo File 2)
 // (Và thêm đuôi .js - theo File 1)
 import { IAddress } from "./user.types.js";

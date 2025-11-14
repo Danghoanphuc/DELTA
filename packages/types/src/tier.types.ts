@@ -1,7 +1,7 @@
 // packages/types/src/tier.types.ts
 // ✅ BẢN VÁ (Lượt 46): Thêm .js
 
-import { Types } from "mongoose";
+import { Types } from "./mongoose.types.js";
 // ✅ SỬA LỖI (TS2305): Thêm đuôi .js (NodeNext requirement)
 import { PrinterTier } from "./printer.types.js"; // (Import từ File 4)
 
