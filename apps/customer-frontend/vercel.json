@@ -1,7 +1,7 @@
 {
-  "buildCommand": "pnpm --filter @printz/types build && pnpm --filter customer-frontend build",
+  "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
-  "installCommand": "corepack enable pnpm && corepack prepare pnpm@9.0.0 --activate && pnpm install --filter customer-frontend...",
+  "installCommand": "bash apps/customer-frontend/prepare-vercel.sh",
   "framework": null,
   "rewrites": [
     {
