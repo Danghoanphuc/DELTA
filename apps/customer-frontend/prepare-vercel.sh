@@ -25,6 +25,10 @@ echo "Using Node $(node -v)"
 corepack enable pnpm
 corepack prepare pnpm@9.0.0 --activate
 
+# Install deps for @printz/types and build
+pnpm install --filter @printz/types... --prod=false --prefer-offline
+pnpm --filter @printz/types build
+
 # Create node_modules structure in customer-frontend
 mkdir -p apps/customer-frontend/node_modules/@printz
 
