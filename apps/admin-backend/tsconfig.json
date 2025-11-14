@@ -4,7 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "baseUrl": ".",
-    "rootDir": "src",
+    "rootDir": "./src",
     "paths": {
       "@/*": ["src/*"]
     },
@@ -14,21 +14,14 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "allowJs": true,
-    "noEmitOnError": false,
-    "noEmit": false
+    "allowJs": false,
+    "noEmitOnError": false
   },
-  "include": ["src/**/*.ts", "!src/**/*.js"],
+  "include": ["src/**/*.ts"],
   "exclude": [
     "node_modules",
     "dist",
-    "../**/*",
-    "../../apps/customer-backend",
-    "../../apps/admin-frontend",
-    "../../apps/customer-frontend",
-    "../../packages"
-  ],
-  "ts-node": {
-    "skipIgnore": true
-  }
+    "../customer-backend",
+    "../../apps/customer-backend"
+  ]
 }

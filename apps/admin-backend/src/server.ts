@@ -22,7 +22,7 @@ import adminProductRoutes from "./routes/admin.product.routes.js";
 import adminManagementRoutes from "./routes/admin.management.routes.js";
 import adminAuditLogRoutes from "./routes/admin.audit-log.routes.js";
 const app = express();
-const PORT = process.env.ADMIN_API_PORT || 5002;
+const PORT = process.env.PORT || process.env.ADMIN_API_PORT || 5002;
 
 // --- Cấu hình Middleware cơ bản ---
 app.use(helmet());
