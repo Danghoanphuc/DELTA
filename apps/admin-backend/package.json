@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc --project tsconfig.json --rootDir src",
+    "build": "tsc --project tsconfig.json --rootDir src --skipLibCheck",
     "build:watch": "tsc --watch",
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
