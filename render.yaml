@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: admin-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @printz/types build && pnpm --filter admin-backend build
+    startCommand: node apps/admin-backend/dist/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PNPM_HOME
+        value: /opt/render/project/.pnpm

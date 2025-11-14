@@ -5,7 +5,7 @@
   "private": true,
   "author": "Phuc Dang (CEO)",
   "license": "ISC",
-  "packageManager": "pnpm@10.22.0",
+  "packageManager": "pnpm@9.12.3",
   "scripts": {
     "install:all": "pnpm install",
     "build": "pnpm --stream -r build",
