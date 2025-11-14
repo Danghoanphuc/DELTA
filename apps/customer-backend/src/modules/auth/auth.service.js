@@ -8,6 +8,7 @@ import { AuthRepository } from "./auth.repository.js";
 import { User } from "../../shared/models/user.model.js"; // <-- Model này giờ đã "chuẩn"
 import { CustomerProfile } from "../../shared/models/customer-profile.model.js";
 import { sendVerificationEmail } from "../../infrastructure/email/email.service.js";
+import { generateUniqueUsername } from "../../shared/utils/username.util.js";
 import {
   ValidationException,
   ConflictException,
@@ -60,12 +61,15 @@ export class AuthService {
     const verificationToken = crypto.randomBytes(32).toString("hex");
 
     try {
+      const username = await generateUniqueUsername(email);
+
       // Step 1: Create User
       const newUser = new User({
         // --- THAY ĐỔI TẠI ĐÂY ---
         hashedPassword: password, // <-- Đưa mật khẩu GỐC vào
         // --- KẾT THÚC THAY ĐỔI ---
         email,
+        username,
         displayName,
         verificationToken,
         verificationTokenExpiresAt: new Date(Date.now() + 3600000), // 1 hour

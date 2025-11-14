@@ -6,6 +6,7 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import dotenv from "dotenv";
 import { User } from "../../shared/models/user.model.js";
 import { CustomerProfile } from "../../shared/models/customer-profile.model.js";
+import { generateUniqueUsername } from "../../shared/utils/username.util.js";
 
 dotenv.config();
 
@@ -28,6 +29,13 @@ const findOrCreateUser = async (profile) => {
       console.log(`✅ [Passport] User found: ${user.email}`);
 
       let updated = false;
+
+      // Ensure username exists (legacy data may miss this)
+      if (!user.username) {
+        user.username = await generateUniqueUsername(email);
+        updated = true;
+        console.log(`🆕 [Passport] Generated username for ${user.email}`);
+      }
 
       // Update googleId if missing
       if (!user.googleId) {
@@ -90,9 +98,12 @@ const findOrCreateUser = async (profile) => {
     console.log(`➕ [Passport] Creating new user: ${email}`);
 
     try {
+      const username = await generateUniqueUsername(email);
+
       const newUser = new User({
         googleId: profile.id,
         email: email,
+        username,
         displayName: profile.displayName || email.split("@")[0],
         avatarUrl: profile.photos?.[0]?.value || "",
         isVerified: true, // Google email is verified
