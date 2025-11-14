@@ -29,11 +29,13 @@ corepack prepare pnpm@9.0.0 --activate
 pnpm install --filter @printz/types... --prod=false --prefer-offline
 pnpm --filter @printz/types build
 
-# Create node_modules structure in customer-frontend
+# Prepare node_modules structure in customer-frontend
 mkdir -p apps/customer-frontend/node_modules/@printz
 
-# Copy @printz/types built files
-cp -r packages/types/dist apps/customer-frontend/node_modules/@printz/types
+# Copy @printz/types built files (reset destination each time)
+rm -rf apps/customer-frontend/node_modules/@printz/types
+mkdir -p apps/customer-frontend/node_modules/@printz/types
+cp -r packages/types/dist apps/customer-frontend/node_modules/@printz/types/
 cp packages/types/package.json apps/customer-frontend/node_modules/@printz/types/
 
 # Create @printz/ui package.json (pointing to source)
