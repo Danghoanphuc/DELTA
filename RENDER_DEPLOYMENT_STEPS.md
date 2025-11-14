@@ -62,8 +62,15 @@ cd apps/admin-backend && node dist/server.js
 
 #### **3.4. Kiểm tra Root Directory**
 
-- **Root Directory**: Để **TRỐNG** (empty) hoặc `/` (mặc định)
-- Render sẽ clone toàn bộ repo, nên không cần set root directory
+⚠️ **QUAN TRỌNG**: 
+- **Root Directory**: Phải để **TRỐNG** (empty) - không set gì cả, không phải `/`
+- Render cần chạy từ root của repo để:
+  - `pnpm --filter` hoạt động đúng
+  - Build command có thể build `@printz/types` và `admin-backend`
+  - Start command có thể tìm thấy `apps/admin-backend/dist/server.js`
+- **NẾU** Root Directory đang set thành `apps/admin-backend` hoặc bất kỳ giá trị nào khác:
+  - **XÓA** nó đi (để trống hoàn toàn)
+  - Save và deploy lại
 
 ### **BƯỚC 4: Cấu hình Environment Variables**
 
@@ -134,12 +141,31 @@ Sau khi build xong, check:
 
 ### **Lỗi: "Cannot find module dist/server.js"**
 
-**Nguyên nhân**: Build chưa chạy hoặc start command sai
+**Nguyên nhân**: 
+- Build chưa chạy hoặc build thất bại
+- Render không preserve build artifacts giữa build phase và runtime phase
+- Start command sai đường dẫn
 
 **Giải pháp**:
-1. Kiểm tra build logs có thành công không
-2. Kiểm tra start command có đúng là `node apps/admin-backend/dist/server.js`
-3. Kiểm tra file `apps/admin-backend/dist/server.js` có tồn tại sau build không
+1. **Kiểm tra build logs**:
+   - Vào Render Dashboard → admin-backend service → Logs tab
+   - Tìm dòng `==> Build successful 🎉`
+   - Nếu build thành công nhưng vẫn lỗi này, có thể là vấn đề preserve artifacts
+
+2. **Kiểm tra start command**:
+   - Phải là: `cd apps/admin-backend && node dist/server.js`
+   - Hoặc: `node apps/admin-backend/dist/server.js` (từ root)
+   - Đảm bảo trong Render Dashboard → Settings → Build & Deploy → Start Command đúng
+
+3. **Kiểm tra Root Directory**:
+   - Render Dashboard → Settings → Build & Deploy → Root Directory
+   - Phải để **TRỐNG** (empty) - không set gì cả
+   - Render cần chạy từ root của repo để `pnpm --filter` hoạt động
+
+4. **Nếu vẫn lỗi - Debug**:
+   - Có thể Render không preserve `dist/` folder
+   - Thử thêm debug command trong start: `cd apps/admin-backend && ls -la && node dist/server.js`
+   - Hoặc thử build trong start command (không khuyến khích): `cd apps/admin-backend && pnpm build && node dist/server.js`
 
 ### **Lỗi: "Could not find a declaration file for module 'express'" (TypeScript errors)**
 
