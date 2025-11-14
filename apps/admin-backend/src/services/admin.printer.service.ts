@@ -2,8 +2,10 @@
 import { Model, Document } from "mongoose";
 
 // 1. Import model từ customer-backend
+// @ts-expect-error - Customer backend .js files, no type declarations
 import { PrinterProfile as PrinterProfileModelJS } from "../../../customer-backend/src/shared/models/printer-profile.model.js";
 // --- THÊM IMPORT USER MODEL ---
+// @ts-expect-error - Customer backend .js files, no type declarations
 import { User as CustomerUserModelJS } from "../../../customer-backend/src/shared/models/user.model.js";
 // --- THÊM CÁC IMPORT KHÁC ---
 import {

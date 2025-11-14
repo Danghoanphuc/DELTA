@@ -4,6 +4,7 @@ import { type IPrinterProduct } from "@printz/types";
 import { NotFoundException } from "../shared/exceptions.js";
 
 // --- Kỹ thuật import model JS từ project khác ---
+// @ts-expect-error - Customer backend .js files, no type declarations
 import { Product as ProductModelJS } from "../../../customer-backend/src/shared/models/product.model.js";
 type IProductModel = Model<IPrinterProduct & Document>;
 const ProductModel = ProductModelJS as unknown as IProductModel;

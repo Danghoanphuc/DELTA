@@ -14,13 +14,21 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "allowJs": true
+    "allowJs": true,
+    "noEmitOnError": false,
+    "noEmit": false
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "!src/**/*.js"],
   "exclude": [
     "node_modules",
     "dist",
-    "../customer-backend/src/**/*.js",
-    "../../apps/customer-backend/src/**/*.js"
-  ]
+    "../**/*",
+    "../../apps/customer-backend",
+    "../../apps/admin-frontend",
+    "../../apps/customer-frontend",
+    "../../packages"
+  ],
+  "ts-node": {
+    "skipIgnore": true
+  }
 }
