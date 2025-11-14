@@ -36,7 +36,9 @@ export const getPendingPrinters = async (
   page: number = 1
 ): Promise<IPaginatedPrinters> => {
   try {
-    const res = await api.get("/vetting", { params: { page } });
+    const res = await api.get("/admin/printers/vetting", {
+      params: { page },
+    });
     return res.data.data;
   } catch (error: any) {
     const message =
@@ -60,7 +62,7 @@ export const verifyPrinter = async ({
 }): Promise<IPrinterProfile> => {
   try {
     // --- GỬI 'reason' TRONG BODY ---
-    const res = await api.patch(`/${printerId}/verify`, {
+    const res = await api.patch(`/admin/printers/${printerId}/verify`, {
       action,
       reason,
     });

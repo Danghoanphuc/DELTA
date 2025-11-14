@@ -9,13 +9,9 @@ export default defineConfig({
     port: 3000,
     proxy: {
       "/api": {
-        // Trỏ về GỐC của server local
-        target: "http://localhost:5002",
+        target: "http://localhost:5002", // Trỏ về GỐC local
         changeOrigin: true,
         secure: false,
-        // "Bí thuật" viết lại đường dẫn
-        // Biến /api/v1... thành /api/admin/v1...
-        rewrite: (path) => path.replace(/^\/api/, "/api/admin"),
       },
     },
   },
