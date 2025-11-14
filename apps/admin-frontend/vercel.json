@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://delta-admin-vch9.onrender.com/:path*"
+      "destination": "https://delta-admin-vch9.onrender.com/api/admin/:path*"
     },
     {
       "source": "/(.*)",

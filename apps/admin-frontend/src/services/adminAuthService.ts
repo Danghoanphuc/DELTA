@@ -15,7 +15,7 @@ export const signIn = async (
 
   try {
     // === SỬA LỖI Ở ĐÂY: TRẢ LẠI "/auth/signin" ===
-    const res = await api.post("/auth/signin", { email, password });
+    const res = await api.post("/signin", { email, password });
     const { token, data } = res.data;
     const admin: IAdmin = data.admin;
 
@@ -44,7 +44,7 @@ export const fetchMe = async (): Promise<IAdmin> => {
 
   try {
     // === SỬA LỖI Ở ĐÂY: TRẢ LẠI "/auth/me" ===
-    const res = await api.get("/auth/me");
+    const res = await api.get("/me");
     const admin: IAdmin = res.data.data.admin;
 
     setAdmin(admin);

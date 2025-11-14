@@ -3,11 +3,13 @@ import axios from "axios";
 import { useAdminAuthStore } from "@/store/useAdminAuthStore";
 
 const api = axios.create({
+  // ✅ "TỚI BẾN": Code đã "sạch", không còn phụ thuộc vào .env
   baseURL: "/api",
   withCredentials: true,
 });
 
 // (Toàn bộ logic Interceptors của Phúc được giữ nguyên)
+// ...
 api.interceptors.request.use(
   (config) => {
     const token = useAdminAuthStore.getState().token;
