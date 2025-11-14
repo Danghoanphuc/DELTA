@@ -62,5 +62,29 @@ EOF
 
 # Install customer-frontend dependencies (standalone, no workspace)
 cd apps/customer-frontend
+
+# Temporarily rewrite workspace deps to local file references
+cp package.json package.json.__workspace_backup
+node <<'EOF'
+const fs = require('fs');
+const pkgPath = 'package.json';
+const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+const overrides = {
+  "@printz/types": "file:node_modules/@printz/types",
+  "@printz/ui": "file:node_modules/@printz/ui",
+  "@printz/utils": "file:node_modules/@printz/utils"
+};
+if (!pkg.dependencies) pkg.dependencies = {};
+for (const [dep, value] of Object.entries(overrides)) {
+  if (pkg.dependencies[dep]) {
+    pkg.dependencies[dep] = value;
+  }
+}
+fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+EOF
+
 pnpm install --ignore-workspace --frozen-lockfile=false
+
+# Restore original package.json (workspace specs) for build steps
+mv package.json.__workspace_backup package.json
 
