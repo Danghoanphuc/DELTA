@@ -18,7 +18,10 @@ export function SocialButton({ provider }: SocialButtonProps) {
   const navigate = useNavigate();
 
   const openGooglePopup = () => {
-    const url = `${API_URL}/api/auth/google`;
+    const searchParams = new URLSearchParams({
+      origin: window.location.origin,
+    });
+    const url = `${API_URL}/api/auth/google?${searchParams.toString()}`;
     const name = "Google Login";
     const width = 500;
     const height = 600;
@@ -39,15 +42,20 @@ export function SocialButton({ provider }: SocialButtonProps) {
 
     // ✅ THÊM: Lắng nghe postMessage từ popup
     const messageListener = async (event: MessageEvent) => {
-      // Kiểm tra origin để bảo mật
-      // Backend gửi từ CLIENT_URL (có thể là localhost:5173 hoặc domain khác)
-      const allowedOrigins = [
+      const allowedOrigins = new Set([
         "http://localhost:5173",
         "http://localhost:3000",
         window.location.origin,
-      ];
-      
-      if (!allowedOrigins.some(origin => event.origin === origin || event.origin.includes("localhost"))) {
+      ]);
+
+      try {
+        const backendOrigin = new URL(API_URL).origin;
+        allowedOrigins.add(backendOrigin);
+      } catch (error) {
+        console.warn("[OAuth] Cannot parse API_URL origin:", error);
+      }
+
+      if (!allowedOrigins.has(event.origin)) {
         console.log("[OAuth] Ignoring message from unauthorized origin:", event.origin);
         return;
       }
