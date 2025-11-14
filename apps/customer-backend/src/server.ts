@@ -39,6 +39,8 @@ async function startServer() {
     // await initQueues();
     Logger.info("✅ Đã kết nối Database & Redis thành công.");
 
+    const allowedOrigins = config.clientUrls;
+
     // --- 2. IMPORT ROUTES (DYNAMIC IMPORT) ---
     // (Import động vẫn giữ nguyên)
     const authRoutes = (await import("./modules/auth/auth.routes.js")).default;
@@ -90,9 +92,25 @@ async function startServer() {
     const app = express();
     const server = http.createServer(app);
 
+    app.set("trust proxy", 1);
     app.use(
       cors({
-        origin: [config.clientUrl],
+        origin(origin, callback) {
+          if (!origin) {
+            return callback(null, true);
+          }
+
+          if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+          }
+
+          Logger.warn(`[CORS] Blocked origin: ${origin}`);
+          return callback(
+            new Error(
+              `Origin ${origin} is not allowed. Check CLIENT_URL(S) configuration.`
+            )
+          );
+        },
         credentials: true,
       })
     );

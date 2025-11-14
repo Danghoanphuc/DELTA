@@ -28,6 +28,7 @@ const envVarsSchema = Joi.object()
       .default("development"),
     SERVER_URL: Joi.string().uri().required(),
     CLIENT_URL: Joi.string().uri().required(),
+    CLIENT_URLS: Joi.string(),
 
     // Database
     MONGODB_CONNECTIONSTRING: Joi.string().required(),
@@ -78,12 +79,35 @@ if (error) {
   );
 }
 
+const normalizeClientUrls = () => {
+  const urls = new Set();
+  if (envVars.CLIENT_URL) {
+    urls.add(envVars.CLIENT_URL.trim());
+  }
+  if (envVars.CLIENT_URLS) {
+    envVars.CLIENT_URLS.split(",")
+      .map((url) => url.trim())
+      .filter(Boolean)
+      .forEach((url) => urls.add(url));
+  }
+
+  // Thêm các origin dev mặc định để tránh quên cấu hình
+  ["http://localhost:5173", "http://localhost:3000"].forEach((url) => {
+    if (envVars.NODE_ENV !== "production") {
+      urls.add(url);
+    }
+  });
+
+  return Array.from(urls);
+};
+
 // Object config đã được dọn dẹp và nhóm lại
 export const config = {
   // Core
   env: envVars.NODE_ENV,
   serverUrl: envVars.SERVER_URL,
   clientUrl: envVars.CLIENT_URL,
+  clientUrls: normalizeClientUrls(),
 
   // Database
   db: {

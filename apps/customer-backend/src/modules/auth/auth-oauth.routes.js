@@ -5,14 +5,16 @@ import express from "express";
 import passport from "passport";
 import { AuthService } from "./auth.service.js";
 import { Logger } from "../../shared/utils/index.js";
+import { config } from "../../config/env.config.js";
 
 const router = express.Router();
 const authService = new AuthService();
 
-const CLIENT_URL = process.env.CLIENT_URL;
+const CLIENT_URL = config.clientUrl;
+const CLIENT_ORIGINS = config.clientUrls;
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 days
 
-if (!CLIENT_URL) {
+if (!CLIENT_URL || CLIENT_ORIGINS.length === 0) {
   Logger.error(
     "FATAL: Biến .env 'CLIENT_URL' bị thiếu. OAuth sẽ không hoạt động."
   );
@@ -138,7 +140,7 @@ router.get(
             <script>
               (function() {
                 const payload = ${JSON.stringify(payload)};
-                const targetOrigin = "${CLIENT_URL}";
+                const targetOrigins = ${JSON.stringify(CLIENT_ORIGINS)};
                 let attempts = 0;
                 const maxAttempts = 10;
                 
@@ -146,12 +148,14 @@ router.get(
                   attempts++;
                   
                   if (window.opener && !window.opener.closed) {
-                    console.log("[OAuth] Attempt", attempts, "- Sending to:", targetOrigin);
+                    console.log("[OAuth] Attempt", attempts, "- Sending to:", targetOrigins);
                     console.log("[OAuth] Payload:", payload);
                     
                     // Send message to parent window
-                    window.opener.postMessage(payload, targetOrigin);
-                    
+                    targetOrigins.forEach((origin) => {
+                      window.opener.postMessage(payload, origin);
+                    });
+
                     // Show success checkmark
                     document.getElementById('spinner').style.display = 'none';
                     document.getElementById('checkmark').classList.add('show');
@@ -166,7 +170,7 @@ router.get(
                   } else {
                     // Fallback: redirect to homepage
                     console.error("[OAuth] Cannot find opener window, redirecting...");
-                    window.location.href = targetOrigin + "/?oauth=success";
+                    window.location.href = targetOrigins[0] + "/?oauth=success";
                   }
                 }
                 
