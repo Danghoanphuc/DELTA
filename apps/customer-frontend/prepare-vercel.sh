@@ -10,7 +10,8 @@ cd "$REPO_ROOT"
 corepack enable pnpm
 corepack prepare pnpm@9.0.0 --activate
 
-# Build @printz/types
+# Install deps for @printz/types and build
+pnpm install --filter @printz/types... --prod=false
 pnpm --filter @printz/types build
 
 # Create node_modules structure in customer-frontend
