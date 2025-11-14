@@ -26,7 +26,7 @@ export const getListUsers = async (
   params: IGetUserParams
 ): Promise<IPaginatedUsers> => {
   try {
-    const res = await api.get("/users", { params });
+    const res = await api.get("/", { params });
     return res.data.data;
   } catch (error: any) {
     const message =
@@ -43,7 +43,7 @@ export const updateUserStatus = async (
   status: "active" | "banned"
 ): Promise<IUser> => {
   try {
-    const res = await api.patch(`/users/${userId}/status`, { status });
+    const res = await api.patch(`/${userId}/status`, { status });
     return res.data.data;
   } catch (error: any) {
     const message =
@@ -59,7 +59,7 @@ export const impersonateUser = async (
   userId: string
 ): Promise<{ accessToken: string }> => {
   try {
-    const res = await api.post(`/users/${userId}/impersonate`);
+    const res = await api.post(`/${userId}/impersonate`);
     return res.data.data;
   } catch (error: any) {
     const message =

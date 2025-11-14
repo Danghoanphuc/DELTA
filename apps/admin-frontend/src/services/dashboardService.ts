@@ -19,7 +19,7 @@ export interface IDashboardStats {
  */
 export const fetchDashboardStats = async (): Promise<IDashboardStats> => {
   try {
-    const res = await api.get("/dashboard/stats");
+    const res = await api.get("/stats");
     return res.data.data;
   } catch (error: any) {
     // Ném lỗi ra để React Query bắt
