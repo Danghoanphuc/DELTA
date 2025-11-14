@@ -37,13 +37,14 @@ Tìm section **Build & Deploy Settings**
 **XÓA HOÀN TOÀN** build command cũ (có `corepack enable pnpm`), thay bằng:
 
 ```bash
-pnpm install --frozen-lockfile --include=dev && pnpm --filter @printz/types build && pnpm --filter admin-backend build
+NODE_ENV=development pnpm install --frozen-lockfile && pnpm --filter @printz/types build && pnpm --filter admin-backend build
 ```
 
 ⚠️ **QUAN TRỌNG**: 
 - ❌ **KHÔNG** dùng: `corepack enable pnpm && ...`
-- ✅ **BẮT BUỘC** phải có `--include=dev` để cài đặt `@types/*` packages (cần cho TypeScript build)
-- ✅ Build command phải là: `pnpm install --frozen-lockfile --include=dev && ...`
+- ✅ **BẮT BUỘC** phải có `NODE_ENV=development` trước `pnpm install` để cài đặt `@types/*` packages (cần cho TypeScript build)
+- ✅ Build command phải là: `NODE_ENV=development pnpm install --frozen-lockfile && ...`
+- ℹ️ **Lưu ý**: `NODE_ENV=development` chỉ cho build time, runtime vẫn dùng `NODE_ENV=production` từ env vars
 
 #### **3.3. Cập nhật Start Command**
 
@@ -97,7 +98,7 @@ ACCESS_TOKEN_SECRET=b09de1e3da75aa3db477cb150c471d3897679841ba4cefbed4933a4185e3
 
 1. Sau khi deploy, vào tab **Logs**
 2. Theo dõi quá trình build:
-   - ✅ Sẽ thấy: `pnpm install --frozen-lockfile --include=dev` chạy thành công và cài đặt cả devDependencies
+   - ✅ Sẽ thấy: `NODE_ENV=development pnpm install --frozen-lockfile` chạy thành công và cài đặt cả devDependencies
    - ✅ Sẽ thấy: `pnpm --filter @printz/types build` chạy thành công
    - ✅ Sẽ thấy: `pnpm --filter admin-backend build` chạy thành công
    - ❌ **KHÔNG** còn thấy lỗi `Cannot find matching keyid` nữa
@@ -121,7 +122,7 @@ Sau khi build xong, check:
 **Giải pháp**:
 1. Vào **Settings → Build & Deploy**
 2. Xóa toàn bộ Build Command
-3. Paste lại: `pnpm install --frozen-lockfile --include=dev && pnpm --filter @printz/types build && pnpm --filter admin-backend build`
+3. Paste lại: `NODE_ENV=development pnpm install --frozen-lockfile && pnpm --filter @printz/types build && pnpm --filter admin-backend build`
 4. Save và deploy lại
 
 ### **Lỗi: "Cannot find module '@printz/types'"**
@@ -143,18 +144,32 @@ Sau khi build xong, check:
 ### **Lỗi: "Could not find a declaration file for module 'express'" (TypeScript errors)**
 
 **Nguyên nhân**: 
-- Build command không có `--include=dev` flag
+- Build command không có `NODE_ENV=development` trước `pnpm install`
 - pnpm bỏ qua `devDependencies` khi `NODE_ENV=production`
 - TypeScript cần `@types/*` packages để build
 
 **Giải pháp**:
 1. Vào **Settings → Build & Deploy**
-2. Kiểm tra Build Command phải có `--include=dev`:
+2. Kiểm tra Build Command phải có `NODE_ENV=development`:
    ```bash
-   pnpm install --frozen-lockfile --include=dev && pnpm --filter @printz/types build && pnpm --filter admin-backend build
+   NODE_ENV=development pnpm install --frozen-lockfile && pnpm --filter @printz/types build && pnpm --filter admin-backend build
    ```
-3. Nếu không có, thêm `--include=dev` vào sau `--frozen-lockfile`
+3. Nếu không có, thêm `NODE_ENV=development` vào trước `pnpm install`
 4. Save và deploy lại
+
+### **Lỗi: "Unknown option: 'frozen-lockfile'" hoặc "Unknown option: 'include=dev'"**
+
+**Nguyên nhân**: 
+- pnpm 9.12.3 không hỗ trợ `--include=dev` cùng với `--frozen-lockfile`
+- Cần dùng cách khác để install devDependencies
+
+**Giải pháp**:
+1. Thay vì dùng `--include=dev`, dùng `NODE_ENV=development`:
+   ```bash
+   NODE_ENV=development pnpm install --frozen-lockfile && ...
+   ```
+2. Điều này sẽ force pnpm cài đặt cả devDependencies trong build time
+3. Runtime vẫn dùng `NODE_ENV=production` từ environment variables
 
 ### **Lỗi: "Port already in use" hoặc "EADDRINUSE"**
 
@@ -171,7 +186,7 @@ Sau khi build xong, check:
 
 - [ ] Đã commit và push `render.yaml` lên GitHub
 - [ ] Build Command **KHÔNG** có `corepack enable pnpm`
-- [ ] Build Command **CÓ** `--include=dev` flag (cần cho TypeScript build)
+- [ ] Build Command **CÓ** `NODE_ENV=development` trước `pnpm install` (cần cho TypeScript build)
 - [ ] Start Command là `node apps/admin-backend/dist/server.js`
 - [ ] Root Directory để trống (hoặc `/`)
 - [ ] Tất cả Environment Variables đã được set

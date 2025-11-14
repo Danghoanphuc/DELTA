@@ -4,7 +4,7 @@ services:
     env: node
     region: oregon
     plan: free
-    buildCommand: pnpm install --frozen-lockfile --include=dev && pnpm --filter @printz/types build && pnpm --filter admin-backend build
+    buildCommand: NODE_ENV=development pnpm install --frozen-lockfile && pnpm --filter @printz/types build && pnpm --filter admin-backend build
     startCommand: node apps/admin-backend/dist/server.js
     envVars:
       - key: NODE_ENV
