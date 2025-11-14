@@ -1,7 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
-# Script runs from repo root (before rootDirectory is applied)
+# Ensure we're in repo root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$REPO_ROOT"
+
 # Setup pnpm
 corepack enable pnpm
 corepack prepare pnpm@9.0.0 --activate
@@ -18,7 +22,7 @@ cp packages/types/package.json apps/customer-frontend/node_modules/@printz/types
 
 # Create @printz/ui package.json (pointing to source)
 mkdir -p apps/customer-frontend/node_modules/@printz/ui
-cat > apps/customer-frontend/node_modules/@printz/ui/package.json <<EOF
+cat > apps/customer-frontend/node_modules/@printz/ui/package.json <<'EOF'
 {
   "name": "@printz/ui",
   "version": "1.0.0",
@@ -29,7 +33,7 @@ EOF
 
 # Create @printz/utils package.json (pointing to source)
 mkdir -p apps/customer-frontend/node_modules/@printz/utils
-cat > apps/customer-frontend/node_modules/@printz/utils/package.json <<EOF
+cat > apps/customer-frontend/node_modules/@printz/utils/package.json <<'EOF'
 {
   "name": "@printz/utils",
   "version": "1.0.0",
