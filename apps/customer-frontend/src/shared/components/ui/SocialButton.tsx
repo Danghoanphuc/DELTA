@@ -42,33 +42,50 @@ export function SocialButton({ provider }: SocialButtonProps) {
 
     // ✅ THÊM: Lắng nghe postMessage từ popup
     const messageListener = async (event: MessageEvent) => {
+      // Build allowed origins list
       const allowedOrigins = new Set([
         "http://localhost:5173",
         "http://localhost:3000",
         window.location.origin,
       ]);
 
+      // ✅ FIX: Thêm backend origin vào allowed origins
       try {
         const backendOrigin = new URL(API_URL).origin;
         allowedOrigins.add(backendOrigin);
+        console.log("[OAuth] Allowed origins:", Array.from(allowedOrigins));
+        console.log("[OAuth] Received message from origin:", event.origin);
+        console.log("[OAuth] Message data:", event.data);
       } catch (error) {
         console.warn("[OAuth] Cannot parse API_URL origin:", error);
       }
 
+      // ✅ FIX: Kiểm tra origin - chấp nhận từ backend origin hoặc frontend origin
       if (!allowedOrigins.has(event.origin)) {
-        console.log("[OAuth] Ignoring message from unauthorized origin:", event.origin);
+        console.warn("[OAuth] Ignoring message from unauthorized origin:", event.origin, "Allowed:", Array.from(allowedOrigins));
         return;
       }
 
       if (event.data?.success && event.data?.accessToken) {
-        console.log("[OAuth] Received access token from popup");
+        console.log("[OAuth] ✅ Received access token from popup");
         
         // Xóa listener
         window.removeEventListener("message", messageListener);
         
-        // Đóng popup
-        if (popup && !popup.closed) {
-          popup.close();
+        // ✅ FIX: Đóng popup ngay lập tức và có fallback
+        try {
+          if (popup && !popup.closed) {
+            popup.close();
+            // Fallback: Nếu popup không đóng được, thử lại sau 500ms
+            setTimeout(() => {
+              if (popup && !popup.closed) {
+                console.warn("[OAuth] Popup still open, trying to close again");
+                popup.close();
+              }
+            }, 500);
+          }
+        } catch (err) {
+          console.warn("[OAuth] Error closing popup:", err);
         }
 
         try {
@@ -88,9 +105,14 @@ export function SocialButton({ provider }: SocialButtonProps) {
           }
         }
       } else if (event.data?.error) {
+        console.error("[OAuth] Received error from popup:", event.data.error);
         window.removeEventListener("message", messageListener);
-        if (popup && !popup.closed) {
-          popup.close();
+        try {
+          if (popup && !popup.closed) {
+            popup.close();
+          }
+        } catch (err) {
+          console.warn("[OAuth] Error closing popup on error:", err);
         }
         toast.error("Đăng nhập thất bại", { description: event.data.error });
       }
@@ -99,10 +121,25 @@ export function SocialButton({ provider }: SocialButtonProps) {
     // Lắng nghe message từ popup
     window.addEventListener("message", messageListener);
 
+    // ✅ FIX: Thêm timeout để đóng popup nếu không nhận được message sau 30 giây
+    const timeoutId = setTimeout(() => {
+      if (popup && !popup.closed) {
+        console.warn("[OAuth] Timeout: No message received, closing popup");
+        try {
+          popup.close();
+        } catch (err) {
+          console.warn("[OAuth] Error closing popup on timeout:", err);
+        }
+        window.removeEventListener("message", messageListener);
+        toast.error("Đăng nhập timeout. Vui lòng thử lại.");
+      }
+    }, 30000); // 30 seconds timeout
+
     // Cleanup: Xóa listener nếu popup đóng thủ công
     const checkPopupClosed = setInterval(() => {
       if (popup.closed) {
         clearInterval(checkPopupClosed);
+        clearTimeout(timeoutId);
         window.removeEventListener("message", messageListener);
       }
     }, 1000);

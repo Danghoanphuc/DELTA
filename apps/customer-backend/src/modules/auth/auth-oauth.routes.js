@@ -142,40 +142,98 @@ router.get(
                 const payload = ${JSON.stringify(payload)};
                 const targetOrigins = ${JSON.stringify(CLIENT_ORIGINS)};
                 let attempts = 0;
-                const maxAttempts = 10;
+                const maxAttempts = 30; // ✅ FIX: Tăng số lần retry lên 30 (3 giây)
+                let messageSent = false;
+                
+                console.log("[OAuth] Callback page loaded");
+                console.log("[OAuth] Target origins:", targetOrigins);
+                console.log("[OAuth] Payload:", payload);
+                console.log("[OAuth] Window opener:", window.opener ? "exists" : "null");
                 
                 function sendMessage() {
                   attempts++;
                   
                   if (window.opener && !window.opener.closed) {
-                    console.log("[OAuth] Attempt", attempts, "- Sending to:", targetOrigins);
-                    console.log("[OAuth] Payload:", payload);
+                    console.log("[OAuth] ✅ Attempt", attempts, "- Sending message to:", targetOrigins);
                     
-                    // Send message to parent window
+                    // ✅ FIX: Gửi message đến tất cả target origins
                     targetOrigins.forEach((origin) => {
-                      window.opener.postMessage(payload, origin);
+                      try {
+                        window.opener.postMessage(payload, origin);
+                        console.log("[OAuth] Message sent to origin:", origin);
+                      } catch (err) {
+                        console.error("[OAuth] Error sending message to", origin, ":", err);
+                      }
                     });
 
-                    // Show success checkmark
-                    document.getElementById('spinner').style.display = 'none';
-                    document.getElementById('checkmark').classList.add('show');
-                    
-                    // Close popup after short delay
-                    setTimeout(() => {
-                      window.close();
-                    }, 1000);
+                    // Đánh dấu đã gửi message
+                    if (!messageSent) {
+                      messageSent = true;
+                      
+                      // Show success checkmark
+                      const spinner = document.getElementById('spinner');
+                      const checkmark = document.getElementById('checkmark');
+                      if (spinner) spinner.style.display = 'none';
+                      if (checkmark) checkmark.classList.add('show');
+                      
+                      // ✅ FIX: Đóng popup sau khi gửi message thành công
+                      setTimeout(() => {
+                        try {
+                          console.log("[OAuth] Attempting to close popup");
+                          window.close();
+                          // Fallback: Nếu không đóng được, thử lại sau 500ms
+                          setTimeout(() => {
+                            if (!window.closed) {
+                              console.warn("[OAuth] Popup still open, trying to close again");
+                              window.close();
+                            }
+                          }, 500);
+                        } catch (err) {
+                          console.error("[OAuth] Error closing popup:", err);
+                          // Fallback: Redirect nếu không đóng được
+                          if (targetOrigins.length > 0) {
+                            window.location.href = targetOrigins[0] + "/?oauth=success";
+                          }
+                        }
+                      }, 500); // ✅ FIX: Giảm delay xuống 500ms để đóng nhanh hơn
+                    }
                   } else if (attempts < maxAttempts) {
                     // Retry if opener not ready yet
+                    console.log("[OAuth] Opener not ready, retrying... (attempt", attempts, "/", maxAttempts, ")");
                     setTimeout(sendMessage, 100);
                   } else {
                     // Fallback: redirect to homepage
-                    console.error("[OAuth] Cannot find opener window, redirecting...");
-                    window.location.href = targetOrigins[0] + "/?oauth=success";
+                    console.error("[OAuth] ❌ Cannot find opener window after", maxAttempts, "attempts, redirecting...");
+                    if (targetOrigins.length > 0) {
+                      window.location.href = targetOrigins[0] + "/?oauth=success";
+                    } else {
+                      console.error("[OAuth] No target origins available!");
+                    }
                   }
                 }
                 
-                // Start sending message
-                sendMessage();
+                // ✅ FIX: Bắt đầu gửi message ngay khi DOM ready
+                if (document.readyState === 'loading') {
+                  document.addEventListener('DOMContentLoaded', sendMessage);
+                } else {
+                  // DOM đã sẵn sàng, gửi ngay
+                  sendMessage();
+                }
+                
+                // ✅ FIX: Thêm fallback timeout để đảm bảo popup đóng sau 5 giây
+                setTimeout(() => {
+                  if (!messageSent && !window.closed) {
+                    console.warn("[OAuth] Timeout: Force closing popup");
+                    try {
+                      window.close();
+                    } catch (err) {
+                      console.error("[OAuth] Error in timeout close:", err);
+                      if (targetOrigins.length > 0) {
+                        window.location.href = targetOrigins[0] + "/?oauth=success";
+                      }
+                    }
+                  }
+                }, 5000);
               })();
             </script>
           </body>
