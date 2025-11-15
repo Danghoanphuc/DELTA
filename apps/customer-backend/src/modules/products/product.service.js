@@ -22,14 +22,41 @@ class ProductService {
    * @returns {Promise<Document<Product>>} - Trả về Mongoose Doc (để .save())
    */
   async getProductAndVerifyOwnership(printerProfileId, productId) {
+    if (!printerProfileId) {
+      throw new ForbiddenException(
+        "Không tìm thấy thông tin nhà in. Vui lòng đăng nhập lại."
+      );
+    }
+
     const product = await productRepository.findById(productId);
 
     if (!product) {
       throw new NotFoundException("Sản phẩm", productId);
     }
 
+    // ✅ Kiểm tra product có printerProfileId không
+    if (!product.printerProfileId) {
+      throw new ForbiddenException(
+        "Sản phẩm này không thuộc về nhà in nào."
+      );
+    }
+
     // BẢO MẬT: Kiểm tra quyền sở hữu
-    if (product.printerProfileId.toString() !== printerProfileId) {
+    // ✅ SỬA: Đảm bảo cả hai đều được convert sang string để so sánh
+    const productPrinterId = product.printerProfileId.toString();
+    const userPrinterId = printerProfileId?.toString() || String(printerProfileId);
+    
+    if (productPrinterId !== userPrinterId) {
+      // Log để debug (chỉ trong development)
+      if (process.env.NODE_ENV === "development") {
+        console.error("❌ Ownership verification failed:", {
+          productId,
+          productPrinterId,
+          userPrinterId,
+          productPrinterIdType: typeof productPrinterId,
+          userPrinterIdType: typeof userPrinterId,
+        });
+      }
       throw new ForbiddenException(
         "Bạn không có quyền thao tác với sản phẩm này."
       );
@@ -80,6 +107,43 @@ class ProductService {
   }
 
   /**
+   * Tạo slug từ tên sản phẩm
+   * @param {string} name - Tên sản phẩm
+   * @returns {string} - Slug đã được chuẩn hóa
+   */
+  generateSlug(name) {
+    if (!name) return "";
+    return name
+      .toLowerCase()
+      .trim()
+      .normalize("NFD") // Chuyển đổi ký tự có dấu thành không dấu
+      .replace(/[\u0300-\u036f]/g, "") // Loại bỏ dấu
+      .replace(/[^a-z0-9\s-]/g, "") // Loại bỏ ký tự đặc biệt
+      .replace(/\s+/g, "-") // Thay khoảng trắng bằng dấu gạch ngang
+      .replace(/-+/g, "-") // Loại bỏ nhiều dấu gạch ngang liên tiếp
+      .replace(/^-|-$/g, ""); // Loại bỏ dấu gạch ngang ở đầu và cuối
+  }
+
+  /**
+   * Tạo slug unique bằng cách thêm số nếu slug đã tồn tại
+   * @param {string} baseSlug - Slug gốc
+   * @returns {Promise<string>} - Slug unique
+   */
+  async generateUniqueSlug(baseSlug) {
+    let slug = baseSlug;
+    let counter = 1;
+    
+    while (true) {
+      const existing = await productRepository.findOne({ slug });
+      if (!existing) {
+        return slug;
+      }
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+  }
+
+  /**
    * Tạo sản phẩm mới
    * @param {string} printerProfileId - ID của nhà in (từ auth)
    * @param {import('@printz/types').ICreateProductDto} dto - Dữ liệu từ "Hợp đồng"
@@ -93,12 +157,20 @@ class ProductService {
       );
     }
 
-    // 2. Check Slug (giữ logic cũ của anh)
-    await this.checkSlugAvailability(dto.slug);
+    // 2. Tạo slug nếu chưa có
+    let slug = dto.slug;
+    if (!slug || slug.trim() === "") {
+      const baseSlug = this.generateSlug(dto.name);
+      slug = await this.generateUniqueSlug(baseSlug);
+    } else {
+      // Nếu có slug, kiểm tra tính khả dụng
+      await this.checkSlugAvailability(slug);
+    }
 
     // 3. Gán chủ sở hữu và tạo
     const productData = {
       ...dto,
+      slug: slug,
       printerProfileId: printerProfileId,
     };
 
@@ -245,23 +317,31 @@ class ProductService {
   /**
    * Lấy chi tiết 1 sản phẩm CÔNG KHAI (Public API)
    * @param {string} productId - ID sản phẩm
+   * @param {string|null} printerProfileId - ID của nhà in (nếu đã authenticated) - cho phép owner truy cập dù chưa active
    */
-  async getProductById(productId) {
+  async getProductById(productId, printerProfileId = null) {
     const product = await productRepository.findById(productId);
 
     if (!product) {
       throw new NotFoundException("Sản phẩm", productId);
     }
 
-    // ✅ SỬA: Kiểm tra linh hoạt hơn để tương thích với dữ liệu cũ
-    // Chỉ kiểm tra isActive nếu có, các field khác có thể null/undefined
-    if (product.isActive === false) {
-      throw new NotFoundException("Sản phẩm", productId);
-    }
+    // ✅ SỬA: Nếu user đã authenticated và là owner của sản phẩm, cho phép truy cập dù chưa active
+    const isOwner = printerProfileId && 
+                     product.printerProfileId && 
+                     product.printerProfileId.toString() === printerProfileId.toString();
     
-    // Nếu có isPublished và healthStatus, kiểm tra chúng
-    if (product.isPublished === false || product.healthStatus === "Inactive") {
-      throw new NotFoundException("Sản phẩm", productId);
+    if (!isOwner) {
+      // ✅ Kiểm tra linh hoạt hơn để tương thích với dữ liệu cũ
+      // Chỉ kiểm tra isActive nếu có, các field khác có thể null/undefined
+      if (product.isActive === false) {
+        throw new NotFoundException("Sản phẩm", productId);
+      }
+      
+      // Nếu có isPublished và healthStatus, kiểm tra chúng
+      if (product.isPublished === false || product.healthStatus === "Inactive") {
+        throw new NotFoundException("Sản phẩm", productId);
+      }
     }
 
     // Populate printerProfileId

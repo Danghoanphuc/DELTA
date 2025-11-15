@@ -14,6 +14,7 @@ import {
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { UserContextSwitcher } from "./UserContextSwitcher";
+import { SearchAutocomplete } from "./SearchAutocomplete";
 import printzLogo from "@/assets/img/logo-printz.png";
 import { cn } from "@/shared/lib/utils";
 
@@ -90,18 +91,7 @@ export function GlobalHeader({
         {/* --- 2. Search Bar (Desktop) --- */}
         {onSearchSubmit && (
           <div className="hidden lg:block w-full max-w-md">
-            <form onSubmit={handleSearch} className="relative">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <Input
-                placeholder="Tìm kiếm mẫu thiết kế, sản phẩm..."
-                className="pl-10 h-10 bg-gray-100 border-none rounded-lg focus-visible:ring-blue-500"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </form>
+            <SearchAutocomplete onSearchSubmit={onSearchSubmit} />
           </div>
         )}
 
@@ -110,13 +100,17 @@ export function GlobalHeader({
           <Button
             variant="ghost"
             size="icon"
-            className="hidden md:flex relative"
+            className="hidden md:flex relative micro-bounce"
             onClick={onCartClick}
+            aria-label={`Giỏ hàng có ${cartItemCount} sản phẩm`}
           >
             <ShoppingCart size={22} />
             {cartItemCount > 0 && (
-              <span className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1.5 flex items-center justify-center p-0 rounded-full bg-blue-600 text-white text-[10px] font-bold leading-none">
-                {cartItemCount}
+              <span
+                className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1.5 flex items-center justify-center p-0 rounded-full bg-blue-600 text-white text-[10px] font-bold leading-none animate-pulse"
+                aria-live="polite"
+              >
+                {cartItemCount > 99 ? "99+" : cartItemCount}
               </span>
             )}
           </Button>
@@ -137,18 +131,7 @@ export function GlobalHeader({
         <div className="md:hidden absolute top-16 left-0 right-0 bg-white shadow-lg p-4 border-t">
           <nav className="flex flex-col gap-4">
             {onSearchSubmit && (
-              <form onSubmit={handleSearch} className="relative">
-                <Search
-                  size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-                <Input
-                  placeholder="Tìm kiếm mẫu thiết kế..."
-                  className="pl-10 h-10 bg-gray-100 border-none rounded-lg"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </form>
+              <SearchAutocomplete onSearchSubmit={onSearchSubmit} />
             )}
             {navItems.map((item) => (
               <Link

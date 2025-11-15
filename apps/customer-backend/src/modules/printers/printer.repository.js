@@ -14,7 +14,8 @@ export class PrinterRepository {
     return await PrinterProfile.findById(profileId);
   }
   async findProfileByUserId(userId) {
-    return await PrinterProfile.findOne({ userId });
+    // ✅ FIX: Tìm bằng 'user' field (ref)
+    return await PrinterProfile.findOne({ user: userId });
   }
   async updateUser(userId, userFields) {
     if (Object.keys(userFields).length === 0) {
@@ -30,10 +31,11 @@ export class PrinterRepository {
     if (Object.keys(profileFields).length === 0) {
       return await this.findProfileByUserId(userId);
     }
+    // ✅ FIX: Tìm bằng 'user' field (ref)
     return await PrinterProfile.findOneAndUpdate(
-      { userId: userId },
+      { user: userId },
       { $set: profileFields },
-      { new: true, runValidators: true, upsert: true }
+      { new: true, runValidators: true }
     );
   }
 

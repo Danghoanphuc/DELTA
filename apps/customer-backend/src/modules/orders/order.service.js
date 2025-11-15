@@ -5,6 +5,7 @@ import { OrderRepository } from "./order.repository.js";
 import { productRepository } from "../products/product.repository.js";
 import { PrinterProfile } from "../../shared/models/printer-profile.model.js";
 import { MasterOrder } from "../../shared/models/master-order.model.js";
+import { User } from "../../shared/models/user.model.js";
 // import { sendNewOrderNotification } from "../../infrastructure/email/email.service.js";
 import {
   ValidationException,
@@ -405,9 +406,18 @@ export class OrderService {
   };
   getPrinterOrders = async (printerUserId, queryParams) => {
     Logger.debug(`[OrderSvc] Lấy đơn hàng cho Printer: ${printerUserId}`);
-    const printerProfileId = "TODO";
+    
+    // Lấy printerProfileId từ User
+    const user = await User.findById(printerUserId).select("printerProfileId");
+    
+    if (!user || !user.printerProfileId) {
+      throw new NotFoundException(
+        "Không tìm thấy hồ sơ nhà in cho người dùng này."
+      );
+    }
+    
     return await this.orderRepository.findOrdersForPrinter(
-      printerProfileId,
+      user.printerProfileId,
       queryParams
     );
   };
@@ -415,10 +425,19 @@ export class OrderService {
     Logger.debug(
       `[OrderSvc] Lấy chi tiết đơn hàng ${orderId} cho Printer: ${printerUserId}`
     );
-    const printerProfileId = "TODO";
+    
+    // Lấy printerProfileId từ User
+    const user = await User.findById(printerUserId).select("printerProfileId");
+    
+    if (!user || !user.printerProfileId) {
+      throw new NotFoundException(
+        "Không tìm thấy hồ sơ nhà in cho người dùng này."
+      );
+    }
+    
     const order = await this.orderRepository.findOrderByIdForPrinter(
       orderId,
-      printerProfileId
+      user.printerProfileId
     );
     if (!order) {
       throw new NotFoundException("Không tìm thấy đơn hàng.");

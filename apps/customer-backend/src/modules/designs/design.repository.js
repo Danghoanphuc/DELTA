@@ -46,4 +46,20 @@ export class DesignRepository {
     // Sắp xếp để mẫu mới nhất lên đầu
     return await CustomizedDesign.find({ userId }).sort({ createdAt: -1 });
   }
+
+  // ✅ THÊM: Tìm draft design cho user và product
+  async findDraftByUserAndProduct(userId, baseProductId) {
+    return await CustomizedDesign.findOne({
+      userId,
+      baseProductId,
+      status: "draft",
+    });
+  }
+
+  // ✅ THÊM: Update draft design
+  async updateCustomizedDesign(designId, updateData) {
+    return await CustomizedDesign.findByIdAndUpdate(designId, updateData, {
+      new: true,
+    });
+  }
 }

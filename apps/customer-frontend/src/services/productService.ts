@@ -4,10 +4,15 @@
 import api from "@/shared/lib/axios";
 import { PrinterProduct, Product } from "@/types/product";
 
-// Kiểu dữ liệu trả về từ API (giả định)
+// Kiểu dữ liệu trả về từ API
 type MyProductsResponse = {
+  success: boolean;
   data: {
-    products: PrinterProduct[];
+    data: PrinterProduct[]; // Backend trả về { data: { data: products[], page, limit, ... } }
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
   };
 };
 
@@ -39,9 +44,10 @@ export const getProductById = async (productId: string): Promise<Product> => {
  * Lấy danh sách sản phẩm của nhà in
  */
 export const getMyProducts = async (): Promise<PrinterProduct[]> => {
-  // ✅ SỬA LỖI 404: Endpoint đúng là /products/my-products
+  // ✅ SỬA: Endpoint đúng là /products/my-products
+  // Backend trả về: { success: true, data: { data: products[], page, limit, ... } }
   const res = await api.get<MyProductsResponse>("/products/my-products");
-  return res.data?.data?.products || [];
+  return res.data?.data?.data || [];
 };
 
 /**

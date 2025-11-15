@@ -21,6 +21,8 @@ import {
   EyeOff,
   Group, // Icon Group
   Ungroup, // Icon Ungroup
+  Undo2, // ✅ THÊM: Undo icon
+  Redo2, // ✅ THÊM: Redo icon
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Slider } from "@/shared/components/ui/slider";
@@ -47,6 +49,11 @@ interface ContextualPropertyBarProps {
   gizmoMode: GizmoMode;
   onGizmoModeChange: (mode: GizmoMode) => void;
   isSnapping: boolean;
+  // ✅ THÊM: Undo/Redo props
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 // (Component con TextProperties, ImageProperties, ShapeProperties giữ nguyên)
@@ -63,6 +70,10 @@ export function ContextualPropertyBar({
   gizmoMode,
   onGizmoModeChange,
   isSnapping,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
 }: ContextualPropertyBarProps) {
   const selectedItems = items.filter((item) =>
     selectedItemIds.includes(item.id)
@@ -196,6 +207,32 @@ export function ContextualPropertyBar({
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
       <Card className="flex items-center gap-4 p-2 rounded-lg shadow-xl border border-gray-100 bg-white/95 backdrop-blur-md">
+        {/* ✅ THÊM: Phần 0 - Undo/Redo (luôn hiển thị) */}
+        {onUndo && onRedo && (
+          <div className="flex items-center gap-1 border-r border-gray-200 pr-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onUndo}
+              disabled={!canUndo}
+              title="Hoàn tác (Ctrl+Z)"
+              className="h-8 w-8 p-0"
+            >
+              <Undo2 size={16} className={cn(!canUndo && "opacity-40")} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRedo}
+              disabled={!canRedo}
+              title="Làm lại (Ctrl+Y)"
+              className="h-8 w-8 p-0"
+            >
+              <Redo2 size={16} className={cn(!canRedo && "opacity-40")} />
+            </Button>
+          </div>
+        )}
+
         {/* Phần 1: Công cụ theo ngữ cảnh (Group/Decal) */}
         {renderToolbarContent()}
 

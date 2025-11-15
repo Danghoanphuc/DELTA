@@ -169,12 +169,17 @@ export class CheckoutService {
       throw new ValidationException("Thiếu thông tin địa chỉ giao hàng.");
     }
 
+    // ✅ Log để debug
+    Logger.debug("[CheckoutSvc] ShippingAddress nhận được:", JSON.stringify(shippingAddress));
+
     const requiredFields = ["recipientName", "phone", "street", "district", "city"];
     const missing = requiredFields.filter(
       (field) => !shippingAddress[field] || shippingAddress[field].toString().trim() === ""
     );
 
     if (missing.length) {
+      Logger.warn(`[CheckoutSvc] Thiếu fields: ${missing.join(", ")}`);
+      Logger.warn(`[CheckoutSvc] Dữ liệu nhận được:`, shippingAddress);
       throw new ValidationException(
         `Thiếu thông tin giao hàng: ${missing.join(", ")}.`
       );

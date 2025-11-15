@@ -62,29 +62,31 @@ export const ProductPurchase = ({
         )}
       </div>
 
-      {/* Nút Thêm vào giỏ */}
+      {/* Nút Thêm vào giỏ - Nổi bật hơn */}
       <Button
         size="lg"
-        variant="outline" // ✅ Đổi sang outline (giống giỏ hàng)
+        variant="outline"
         className={cn(
-          "w-full mb-3 text-base" // ✅ Bỏ mb-6
-          // "hidden lg:flex" // ✅ Gỡ bỏ, để hiện trên cả mobile
+          "w-full mb-3 text-base font-semibold border-2",
+          inCart
+            ? "border-green-500 text-green-600 hover:bg-green-50"
+            : "border-blue-600 text-blue-600 hover:bg-blue-50"
         )}
         onClick={onAddToCart}
-        disabled={isAddingToCart || inCart || isQuantityInvalid}
+        disabled={isAddingToCart || isQuantityInvalid}
       >
         <ShoppingCart size={20} className="mr-2" />
         {isAddingToCart
           ? "Đang thêm..."
           : inCart
-          ? "Đã có trong giỏ"
+          ? "✓ Đã có trong giỏ"
           : "Thêm vào giỏ hàng"}
       </Button>
 
-      {/* ✅ THÊM: Nút Mua ngay (cho SP không cần tùy biến) */}
+      {/* Nút Mua ngay - Nổi bật (màu đỏ như Taobao) */}
       <Button
         size="lg"
-        className="w-full text-base"
+        className="w-full text-base font-semibold bg-red-600 hover:bg-red-700 text-white"
         onClick={onBuyNow}
         disabled={isAddingToCart || isQuantityInvalid}
       >

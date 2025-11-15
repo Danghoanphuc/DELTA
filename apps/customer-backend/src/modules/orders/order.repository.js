@@ -50,8 +50,129 @@ export class OrderRepository {
     });
   }
 
-  // (Các hàm findByPrinterId, findByIdForPrinter... cũ sẽ cần
-  // được viết lại để query vào mảng lồng ghép, sẽ làm ở GĐ sau)
+  /**
+   * Lấy danh sách đơn hàng cho Printer từ mảng printerOrders trong MasterOrder
+   * @param {string} printerProfileId - ID của nhà in
+   * @param {object} queryParams - Các tham số lọc và sắp xếp
+   */
+  async findOrdersForPrinter(printerProfileId, queryParams) {
+    const { status, search, sort = "newest" } = queryParams || {};
+
+    // Tạo query filter
+    const filter = {
+      "printerOrders.printerProfileId": printerProfileId,
+    };
+
+    // Thêm filter theo status nếu có
+    if (status && status !== "all") {
+      filter["printerOrders.printerStatus"] = status;
+    }
+
+    // Thêm filter theo search nếu có
+    if (search) {
+      filter.$or = [
+        { orderNumber: new RegExp(search, "i") },
+        { customerName: new RegExp(search, "i") },
+        { "printerOrders.items.productName": new RegExp(search, "i") },
+      ];
+    }
+
+    // Sắp xếp
+    let sortOption = { createdAt: -1 }; // default: newest
+    if (sort === "oldest") {
+      sortOption = { createdAt: 1 };
+    } else if (sort === "highest") {
+      sortOption = { "printerOrders.printerTotalPrice": -1 };
+    } else if (sort === "lowest") {
+      sortOption = { "printerOrders.printerTotalPrice": 1 };
+    }
+
+    // Tìm các MasterOrder có printerOrder với printerProfileId này
+    const orders = await MasterOrder.find(filter)
+      .sort(sortOption)
+      .lean();
+
+    // Transform: Lọc và map chỉ lấy printerOrder tương ứng với printerProfileId
+    const printerOrders = [];
+    for (const masterOrder of orders) {
+      const printerOrder = masterOrder.printerOrders.find(
+        (po) => po.printerProfileId.toString() === printerProfileId.toString()
+      );
+      if (printerOrder) {
+        // Tạo đối tượng order đơn giản hóa cho frontend
+        printerOrders.push({
+          _id: printerOrder._id.toString(),
+          masterOrderId: masterOrder._id.toString(),
+          orderNumber: masterOrder.orderNumber,
+          customerName: masterOrder.customerName,
+          customerEmail: masterOrder.customerEmail,
+          items: printerOrder.items,
+          printerTotalPrice: printerOrder.printerTotalPrice,
+          printerStatus: printerOrder.printerStatus,
+          shippingCode: printerOrder.shippingCode,
+          shippedAt: printerOrder.shippedAt,
+          completedAt: printerOrder.completedAt,
+          createdAt: masterOrder.createdAt,
+          updatedAt: masterOrder.updatedAt,
+          // Status của master order
+          masterStatus: masterOrder.masterStatus,
+          paymentStatus: masterOrder.paymentStatus,
+          // Shipping address
+          shippingAddress: masterOrder.shippingAddress,
+        });
+      }
+    }
+
+    return printerOrders;
+  }
+
+  /**
+   * Lấy chi tiết 1 đơn hàng cho Printer
+   * @param {string} orderId - ID của printerOrder (hoặc masterOrderId)
+   * @param {string} printerProfileId - ID của nhà in
+   */
+  async findOrderByIdForPrinter(orderId, printerProfileId) {
+    // Tìm MasterOrder có printerOrder với ID này
+    const masterOrder = await MasterOrder.findOne({
+      "printerOrders._id": orderId,
+      "printerOrders.printerProfileId": printerProfileId,
+    });
+
+    if (!masterOrder) {
+      return null;
+    }
+
+    const printerOrder = masterOrder.printerOrders.find(
+      (po) =>
+        po._id.toString() === orderId &&
+        po.printerProfileId.toString() === printerProfileId.toString()
+    );
+
+    if (!printerOrder) {
+      return null;
+    }
+
+    // Trả về đối tượng tương tự như findOrdersForPrinter
+    return {
+      _id: printerOrder._id.toString(),
+      masterOrderId: masterOrder._id.toString(),
+      orderNumber: masterOrder.orderNumber,
+      customerName: masterOrder.customerName,
+      customerEmail: masterOrder.customerEmail,
+      items: printerOrder.items,
+      printerTotalPrice: printerOrder.printerTotalPrice,
+      printerStatus: printerOrder.printerStatus,
+      shippingCode: printerOrder.shippingCode,
+      shippedAt: printerOrder.shippedAt,
+      completedAt: printerOrder.completedAt,
+      createdAt: masterOrder.createdAt,
+      updatedAt: masterOrder.updatedAt,
+      masterStatus: masterOrder.masterStatus,
+      paymentStatus: masterOrder.paymentStatus,
+      shippingAddress: masterOrder.shippingAddress,
+      customerNotes: masterOrder.customerNotes,
+    };
+  }
 
   async save(order) {
     return await order.save();

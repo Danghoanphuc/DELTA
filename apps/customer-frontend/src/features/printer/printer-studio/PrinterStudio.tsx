@@ -1,17 +1,21 @@
 // frontend/src/features/printer/printer-studio/PrinterStudio.tsx
 // ✅ SỬA LỖI: Bổ sung 'activeToolbarTab' và 'setActiveToolbarTab' từ hook
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState, useRef, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import * as THREE from "three";
 import { usePrinterStudio } from "./usePrinterStudio";
-import ProductViewer3D from "@/features/editor/components/ProductViewer3D";
+import ProductViewer3D, { CameraControlsHandle } from "@/features/editor/components/ProductViewer3D";
 import { PrinterStudioHeader } from "./PrinterStudioHeader";
 import { StudioLoadingSkeleton } from "@/features/editor/components/LoadingSkeleton";
 import { InteractionResult } from "@/features/editor/hooks/use3DInteraction";
 import { PrinterStudioToolbar } from "./PrinterStudioToolbar";
 import { DecalList } from "@/features/editor/components/DecalList";
 import { DecalItem, GroupItem } from "@/features/editor/types/decal.types";
+import EditorFooterToolbar from "@/features/editor/components/EditorFooterToolbar";
+import { ExportDialog } from "@/features/editor/components/ExportDialog";
+import { Card } from "@/shared/components/ui/card";
+import { Layers } from "lucide-react";
 
 // (Loading Skeleton giữ nguyên)
 const FullPageLoader = () => (
@@ -24,6 +28,12 @@ const FullPageLoader = () => (
 );
 
 export function PrinterStudio() {
+  // Camera controls ref
+  const cameraControlsRef = useRef<CameraControlsHandle>(null);
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const [toolMode, setToolMode] = useState<"select" | "pan">("select");
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+
   // Lấy TẤT CẢ state/handler từ hook
   const {
     baseProduct,
@@ -38,6 +48,7 @@ export function PrinterStudio() {
     addDecal,
     deleteDecal,
     updateDecal,
+    reorderDecals, // ✅ THÊM: Lấy reorderDecals từ hook
 
     // ✅ SỬA LỖI: Bổ sung 2 state còn thiếu
     activeToolbarTab,
@@ -50,6 +61,10 @@ export function PrinterStudio() {
     gizmoMode,
     setGizmoMode,
     isSnapping,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = usePrinterStudio(); //
 
   // State image drop (Giữ nguyên)
@@ -57,6 +72,52 @@ export function PrinterStudio() {
     file: File;
     interactionResult: InteractionResult;
   } | null>(null);
+
+  // Camera controls handlers
+  const handleZoomIn = useCallback(() => {
+    cameraControlsRef.current?.zoomIn();
+    setTimeout(() => {
+      const level = cameraControlsRef.current?.getZoomLevel() || 100;
+      setZoomLevel(level);
+    }, 100);
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    cameraControlsRef.current?.zoomOut();
+    setTimeout(() => {
+      const level = cameraControlsRef.current?.getZoomLevel() || 100;
+      setZoomLevel(level);
+    }, 100);
+  }, []);
+
+  const handleResetCamera = useCallback(() => {
+    cameraControlsRef.current?.reset();
+    setZoomLevel(100);
+  }, []);
+
+  // Update zoom level periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (cameraControlsRef.current) {
+        const level = cameraControlsRef.current.getZoomLevel();
+        setZoomLevel(level);
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Export handler
+  const handleExport = useCallback(async (format: "png" | "jpg" | "svg") => {
+    if (format === "svg") {
+      // toast.error("SVG export chưa được hỗ trợ cho 3D scene");
+      return;
+    }
+    if (cameraControlsRef.current?.exportCanvas) {
+      await cameraControlsRef.current.exportCanvas(format as "png" | "jpg");
+    } else {
+      // toast.error("Không thể xuất file");
+    }
+  }, []);
 
   /**
    * Xử lý khi có drop 3D (Giữ nguyên)
@@ -100,30 +161,31 @@ export function PrinterStudio() {
     ];
   }, [phoiAssets]); //
 
-  // Render (Loading)
-  if (isLoading || !phoiAssets) {
-    return <FullPageLoader />;
-  }
-
+  // ✅ SỬA: Di chuyển useMemo lên trước early return để tuân thủ Rules of Hooks
   const filteredDecals = useMemo(() => {
     return decals.filter((decal) => decal.type === "decal") as DecalItem[];
   }, [decals]);
+
+  // Render (Loading) - Phải đặt SAU tất cả hooks
+  if (isLoading || !phoiAssets) {
+    return <FullPageLoader />;
+  }
 
   // Render (Main Layout)
   return (
     <div className="flex h-screen w-full bg-gray-100 relative overflow-hidden">
       {/* 1. HEADER (Giữ nguyên) */}
-      <div className="absolute top-0 left-0 right-0 z-20">
+      <div className="absolute top-0 left-0 right-0 z-20 h-16">
         <PrinterStudioHeader
           baseProduct={baseProduct}
           productId={productId}
           onSaveAndExit={handleSaveAndExit}
-          onGoBack={() => navigate("/printer/dashboard/products")}
+          onGoBack={() => navigate("/printer/dashboard?tab=products")}
         />
       </div>
 
-      {/* 2. TOOLBAR BÊN TRÁI (Giữ nguyên) */}
-      <div className="z-10 w-80 h-full pt-16">
+      {/* 2. TOOLBAR BÊN TRÁI (Sửa layout để không bị che bởi footer) */}
+      <div className="absolute left-0 top-16 bottom-24 z-10 w-80">
         <PrinterStudioToolbar
           activeTab={activeToolbarTab} // ✅ Biến 'activeTab' giờ đã tồn tại
           onTabChange={setActiveToolbarTab} // ✅ 'setActiveToolbarTab' giờ đã tồn tại
@@ -140,8 +202,8 @@ export function PrinterStudio() {
         />
       </div>
 
-      {/* 3. VÙNG 3D EDITOR (TRUNG TÂM) (Giữ nguyên) */}
-      <div className="flex-1 h-full pt-16 relative">
+      {/* 3. VÙNG 3D EDITOR (TRUNG TÂM) (Sửa layout để không bị che bởi footer) */}
+      <div className="absolute left-80 right-72 top-16 bottom-24 z-0">
         <ProductViewer3D
           modelUrl={phoiAssets.modelUrl}
           decals={filteredDecals}
@@ -152,22 +214,55 @@ export function PrinterStudio() {
           onDecalUpdate={updateDecal}
           gizmoMode={gizmoMode}
           isSnapping={isSnapping}
+          cameraControlsRef={cameraControlsRef}
+          toolMode={toolMode}
         />
       </div>
 
-      {/* 4. DECAL LIST (BÊN PHẢI) (Giữ nguyên) */}
-      <div className="z-10 w-72 h-full pt-16">
-        <DecalList
-          items={decals}
-          selectedItemIds={selectedDecalId ? [selectedDecalId] : []}
-          onSelect={(id, isMultiSelect) => setSelectedDecalId(id)}
-          onDelete={deleteDecal}
-          onUpdate={updateDecal}
-          onReorder={() => {
-            console.warn("Reorder not implemented in PrinterStudio");
-          }}
-        />
-      </div>
+      {/* 4. DECAL LIST (BÊN PHẢI) - Panel quản lý Layers */}
+      <Card className="absolute right-4 top-20 bottom-24 z-10 w-72 flex flex-col overflow-hidden border-gray-200/50 shadow-2xl bg-white/95 backdrop-blur-md">
+        {/* Header "Lớp" */}
+        <div className="p-3 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between flex-shrink-0">
+          <h3 className="font-semibold text-xs text-gray-500 uppercase flex items-center">
+            <Layers size={14} className="mr-1.5" />
+            Lớp ({decals.length})
+          </h3>
+        </div>
+        
+        {/* DecalList với scroll */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <DecalList
+            items={decals}
+            selectedItemIds={selectedDecalId ? [selectedDecalId] : []}
+            onSelect={(id, isMultiSelect) => setSelectedDecalId(id)}
+            onDelete={deleteDecal}
+            onUpdate={updateDecal}
+            onReorder={reorderDecals} // ✅ SỬA: Sử dụng reorderDecals thực sự
+          />
+        </div>
+      </Card>
+
+      {/* 5. FOOTER TOOLBAR (Thanh công cụ ở dưới) */}
+      <EditorFooterToolbar
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onResetCamera={handleResetCamera}
+        zoomLevel={zoomLevel}
+        toolMode={toolMode}
+        onToolModeChange={setToolMode}
+        onExport={() => setIsExportDialogOpen(true)}
+      />
+
+      {/* 6. EXPORT DIALOG */}
+      <ExportDialog
+        isOpen={isExportDialogOpen}
+        onClose={() => setIsExportDialogOpen(false)}
+        onExport={handleExport}
+      />
     </div>
   );
 }

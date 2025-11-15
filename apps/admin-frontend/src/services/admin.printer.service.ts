@@ -1,11 +1,17 @@
 // apps/admin-frontend/src/services/admin.printer.service.ts
 import api from "@/lib/axios";
 
-// (Interface IPrinterProfile không đổi)
+// ✅ FIX: Interface đầy đủ hơn
 export interface IPrinterProfile {
   _id: string;
   businessName: string;
   contactPhone: string;
+  contactEmail?: string;
+  shopAddress?: {
+    street: string;
+    district: string;
+    city: string;
+  };
   verificationStatus:
     | "not_submitted"
     | "pending_review"
@@ -17,7 +23,19 @@ export interface IPrinterProfile {
     gpkdUrl?: string;
     cccdUrl?: string;
   };
+  user?: {
+    _id: string;
+    email: string;
+    displayName: string;
+    avatarUrl?: string;
+  } | string;
   updatedAt: string | Date;
+  createdAt?: string | Date;
+  shopAddress?: {
+    street: string;
+    district: string;
+    city: string;
+  };
 }
 
 export interface IPaginatedPrinters {

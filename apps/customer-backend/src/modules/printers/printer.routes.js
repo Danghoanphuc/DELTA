@@ -42,4 +42,16 @@ router.put(
   printerController.submitVerificationDocs
 );
 
+/**
+ * @route   GET /api/printers/profile-exists
+ * @desc    Check if printer profile exists for current user
+ * @access  Private (Printer only)
+ */
+router.get(
+  "/profile-exists",
+  protect,
+  isPrinter,
+  printerController.checkProfileExists
+);
+
 export default router;

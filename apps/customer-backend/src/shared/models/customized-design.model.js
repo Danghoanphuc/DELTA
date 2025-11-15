@@ -12,6 +12,17 @@ const customizedDesignSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "DesignTemplate",
     },
+    // ✅ THÊM: ID sản phẩm gốc (để load lại editor)
+    baseProductId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+    },
+    // ✅ THÊM: Trạng thái thiết kế (draft = bản nháp, saved = đã lưu chính thức)
+    status: {
+      type: String,
+      enum: ["draft", "saved"],
+      default: "saved",
+    },
 
     // === 1. DỮ LIỆU NGUỒN (Bạn đã có) ===
     editorData: {

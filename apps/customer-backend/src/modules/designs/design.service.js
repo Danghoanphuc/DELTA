@@ -113,4 +113,52 @@ export class DesignService {
     Logger.debug(`[Service] Fetching all designs for user: ${userId}`);
     return await this.designRepository.findCustomizedDesignsByUserId(userId);
   }
+
+  // ✅ THÊM: Save hoặc update draft design
+  async saveDraftDesign(userId, data) {
+    const { baseProductId, editorData } = data;
+    
+    if (!baseProductId || !editorData) {
+      throw new ValidationException(
+        "baseProductId và editorData là bắt buộc"
+      );
+    }
+
+    // Tìm draft hiện có
+    const existingDraft = await this.designRepository.findDraftByUserAndProduct(
+      userId,
+      baseProductId
+    );
+
+    if (existingDraft) {
+      // Update draft hiện có
+      const updated = await this.designRepository.updateCustomizedDesign(
+        existingDraft._id,
+        {
+          editorData,
+          updatedAt: new Date(),
+        }
+      );
+      Logger.debug(`[Service] Draft updated: ${updated._id}`);
+      return updated;
+    } else {
+      // Tạo draft mới
+      const draft = await this.designRepository.createCustomizedDesign({
+        userId,
+        baseProductId,
+        editorData,
+        status: "draft",
+      });
+      Logger.debug(`[Service] Draft created: ${draft._id}`);
+      return draft;
+    }
+  }
+
+  // ✅ THÊM: Load draft design
+  async getDraftDesign(userId, baseProductId) {
+    return await this.designRepository.findDraftByUserAndProduct(
+      userId,
+      baseProductId
+    );
+  }
 }

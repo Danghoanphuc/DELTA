@@ -2,7 +2,7 @@
 // ✅ NÂNG CẤP: Sử dụng state `items` và `selectedItemIds`
 // ✅ BẢN VÁ: Sửa lỗi `surfaceMapping` (lấp đầy useMemo)
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState, useRef, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Layers, DollarSign, ArrowLeft } from "lucide-react";
 import * as THREE from "three";
@@ -20,10 +20,17 @@ import { LiveQuotePanel } from "@/features/shop/components/LiveQuotePanel";
 import { formatPrice } from "@/features/printer/utils/formatters";
 import EditorFooterToolbar from "./components/EditorFooterToolbar";
 import { ContextualPropertyBar } from "./components/ContextualPropertyBar";
+import { EditorErrorBoundary } from "./components/EditorErrorBoundary";
 import { toast } from "sonner"; // ✅ Thêm toast
+import { CameraControlsHandle } from "./components/ProductViewer3D";
+import { useRef, useEffect, useState } from "react";
+import { ExportDialog } from "./components/ExportDialog";
 
-export function DesignEditorPage() {
+function DesignEditorPageContent() {
   const navigate = useNavigate();
+  const cameraControlsRef = useRef<CameraControlsHandle>(null);
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
   // 1. Hook đã được cập nhật
   const {
@@ -56,11 +63,17 @@ export function DesignEditorPage() {
     gizmoMode,
     setGizmoMode,
     isSnapping,
+    toolMode,
+    setToolMode,
     selectedQuantity,
     setSelectedQuantity,
     minQuantity,
     currentPricePerUnit,
     handleSaveAndAddToCart,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useDesignEditor();
 
   // (imageDropQueue và các handler file/drop giữ nguyên,
@@ -111,6 +124,54 @@ export function DesignEditorPage() {
     }
   };
 
+  // Camera controls handlers
+  const handleZoomIn = useCallback(() => {
+    cameraControlsRef.current?.zoomIn();
+    // Update zoom level after a short delay
+    setTimeout(() => {
+      const level = cameraControlsRef.current?.getZoomLevel() || 100;
+      setZoomLevel(level);
+    }, 100);
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    cameraControlsRef.current?.zoomOut();
+    // Update zoom level after a short delay
+    setTimeout(() => {
+      const level = cameraControlsRef.current?.getZoomLevel() || 100;
+      setZoomLevel(level);
+    }, 100);
+  }, []);
+
+  const handleResetCamera = useCallback(() => {
+    cameraControlsRef.current?.reset();
+    setZoomLevel(100);
+  }, []);
+
+  // Update zoom level periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (cameraControlsRef.current) {
+        const level = cameraControlsRef.current.getZoomLevel();
+        setZoomLevel(level);
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Export handler
+  const handleExport = useCallback(async (format: "png" | "jpg" | "svg") => {
+    if (format === "svg") {
+      toast.error("SVG export chưa được hỗ trợ cho 3D scene");
+      return;
+    }
+    if (cameraControlsRef.current?.exportCanvas) {
+      await cameraControlsRef.current.exportCanvas(format as "png" | "jpg");
+    } else {
+      toast.error("Không thể xuất file");
+    }
+  }, []);
+
   if (isLoading || !product) {
     return <StudioLoadingSkeleton />;
   }
@@ -133,6 +194,8 @@ export function DesignEditorPage() {
           onDecalUpdate={updateItemProperties} // ✅ Prop tên 'onDecalUpdate'
           gizmoMode={gizmoMode}
           isSnapping={isSnapping}
+          cameraControlsRef={cameraControlsRef}
+          toolMode={toolMode}
         />
       </div>
 
@@ -157,6 +220,10 @@ export function DesignEditorPage() {
         gizmoMode={gizmoMode}
         onGizmoModeChange={setGizmoMode}
         isSnapping={isSnapping}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
       />
 
       {/* 4. PANEL TRÁI (Toolbar + Layers) */}
@@ -218,7 +285,49 @@ export function DesignEditorPage() {
       </Card>
 
       {/* 6. FOOTER TOOLBAR */}
-      <EditorFooterToolbar />
+      {(() => {
+        // Debug: Log để kiểm tra handlers
+        console.log('🔍 DesignEditorPage - Passing props to EditorFooterToolbar', {
+          hasUndo: !!undo,
+          hasRedo: !!redo,
+          hasZoomIn: !!handleZoomIn,
+          hasZoomOut: !!handleZoomOut,
+          hasReset: !!handleResetCamera,
+          hasToolModeChange: !!setToolMode,
+          toolMode,
+          zoomLevel
+        });
+        return null;
+      })()}
+      <EditorFooterToolbar
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onResetCamera={handleResetCamera}
+        zoomLevel={zoomLevel}
+        toolMode={toolMode}
+        onToolModeChange={setToolMode}
+        onExport={() => setIsExportDialogOpen(true)}
+      />
+
+      {/* 7. EXPORT DIALOG */}
+      <ExportDialog
+        isOpen={isExportDialogOpen}
+        onClose={() => setIsExportDialogOpen(false)}
+        onExport={handleExport}
+      />
     </div>
+  );
+}
+
+// ✅ Wrap với ErrorBoundary
+export function DesignEditorPage() {
+  return (
+    <EditorErrorBoundary>
+      <DesignEditorPageContent />
+    </EditorErrorBoundary>
   );
 }

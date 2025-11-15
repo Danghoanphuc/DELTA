@@ -114,9 +114,12 @@ export const useCartStore = create<CartStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const res = await api.post("/cart/add", item);
-      const updatedCart = res.data?.data?.cart || res.data?.cart;
+      // Backend trả về: { success: true, data: cart, message: "..." }
+      // Hoặc có thể là: { success: true, data: { cart }, message: "..." }
+      const updatedCart = res.data?.data?.cart || res.data?.data || res.data?.cart;
 
       if (!updatedCart) {
+        console.error("❌ [CartStore] Response structure:", res.data);
         throw new Error("Backend không trả về cart sau khi add");
       }
 

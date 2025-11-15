@@ -53,10 +53,10 @@ export class CartRepository {
       // 1. Populate như cũ (vẫn ghi đè productId)
       const populatedCart = await cart.populate({
         path: "items.productId",
-        select: "name images category specifications printerId isActive",
+        select: "name images category specifications printerProfileId isActive",
         populate: {
-          path: "printerId",
-          select: "displayName avatarUrl",
+          path: "printerProfileId",
+          select: "businessName logoUrl",
         },
       });
 
@@ -106,12 +106,18 @@ export class CartRepository {
       cartObject.items = cartObject.items
         .filter((item) => item.productId) // Lọc lại những item hợp lệ (phòng trường hợp dọn dẹp)
         .map((item) => {
+          // Lấy printerProfileId từ product đã populate hoặc từ item
+          const printerProfileId = 
+            item.productId?.printerProfileId?._id || 
+            item.productId?.printerProfileId || 
+            item.printerProfileId;
+          
           return {
             ...item,
             product: item.productId, // <-- Đẩy object product vào trường 'product'
             productId: item.productId._id, // <-- Phục hồi 'productId' về dạng string ID
-            printerProfileId: item.printerProfileId
-              ? item.printerProfileId.toString()
+            printerProfileId: printerProfileId
+              ? printerProfileId.toString()
               : null,
           };
         });

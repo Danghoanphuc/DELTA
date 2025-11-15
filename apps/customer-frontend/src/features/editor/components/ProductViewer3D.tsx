@@ -8,8 +8,9 @@ import React, {
   useCallback,
   useImperativeHandle,
   forwardRef,
+  useEffect,
 } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import {
   OrbitControls,
   Environment,
@@ -41,6 +42,15 @@ interface SceneContentHandle {
   handleDragOver: (event: React.DragEvent) => void;
 }
 
+// Camera controls handle để expose cho parent
+export interface CameraControlsHandle {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  reset: () => void;
+  getZoomLevel: () => number;
+  exportCanvas?: (format: "png" | "jpg") => Promise<void>;
+}
+
 interface SceneContentProps {
   modelUrl: string;
   onModelLoaded?: () => void;
@@ -55,6 +65,8 @@ interface SceneContentProps {
   isSnapping: boolean;
   modelRef: React.RefObject<THREE.Group | null>;
   isDraggingFlag: React.MutableRefObject<boolean>;
+  cameraControlsRef?: React.RefObject<CameraControlsHandle>;
+  toolMode?: "select" | "pan";
 }
 
 const SceneContent = forwardRef<SceneContentHandle, SceneContentProps>(
@@ -73,10 +85,99 @@ const SceneContent = forwardRef<SceneContentHandle, SceneContentProps>(
       isSnapping,
       modelRef,
       isDraggingFlag,
+      cameraControlsRef,
+      toolMode = "select",
     },
     ref
   ) => {
     const controlsRef = useRef<OrbitControlsImpl>(null);
+    const { camera, gl } = useThree();
+    const initialCameraState = useRef<{
+      position: THREE.Vector3;
+      target: THREE.Vector3;
+      distance: number;
+    } | null>(null);
+
+    // Lưu trạng thái camera ban đầu
+    useEffect(() => {
+      if (controlsRef.current && !initialCameraState.current) {
+        const controls = controlsRef.current;
+        initialCameraState.current = {
+          position: camera.position.clone(),
+          target: controls.target.clone(),
+          distance: camera.position.distanceTo(controls.target),
+        };
+      }
+    }, [camera]);
+
+    // Expose camera controls cho parent
+    useEffect(() => {
+      if (!cameraControlsRef) return;
+
+      const controls = controlsRef.current;
+      if (!controls) return;
+
+      const handle: CameraControlsHandle = {
+        zoomIn: () => {
+          if (!controls) return;
+          const currentDistance = camera.position.distanceTo(controls.target);
+          const newDistance = Math.max(currentDistance * 0.9, 0.1);
+          const direction = camera.position
+            .clone()
+            .sub(controls.target)
+            .normalize();
+          camera.position.copy(
+            controls.target.clone().add(direction.multiplyScalar(newDistance))
+          );
+          controls.update();
+        },
+        zoomOut: () => {
+          if (!controls) return;
+          const currentDistance = camera.position.distanceTo(controls.target);
+          const newDistance = Math.min(currentDistance * 1.1, 50);
+          const direction = camera.position
+            .clone()
+            .sub(controls.target)
+            .normalize();
+          camera.position.copy(
+            controls.target.clone().add(direction.multiplyScalar(newDistance))
+          );
+          controls.update();
+        },
+        reset: () => {
+          if (!controls || !initialCameraState.current) return;
+          const initialState = initialCameraState.current;
+          camera.position.copy(initialState.position);
+          controls.target.copy(initialState.target);
+          controls.update();
+        },
+        getZoomLevel: () => {
+          if (!controls || !initialCameraState.current) return 100;
+          const currentDistance = camera.position.distanceTo(controls.target);
+          const initialDistance = initialCameraState.current.distance;
+          return Math.round((initialDistance / currentDistance) * 100);
+        },
+        exportCanvas: async (format: "png" | "jpg") => {
+          // Export Three.js canvas to image
+          const canvas = gl.domElement;
+          const dataUrl = canvas.toDataURL(
+            format === "jpg" ? "image/jpeg" : "image/png",
+            format === "jpg" ? 0.9 : 1.0
+          );
+          
+          // Create download link
+          const link = document.createElement("a");
+          link.download = `design.${format}`;
+          link.href = dataUrl;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        },
+      };
+
+      (cameraControlsRef as React.MutableRefObject<CameraControlsHandle>).current =
+        handle;
+    }, [camera, gl, cameraControlsRef]);
 
     const { handleClick, handleDrop, handleDragOver } = use3DInteraction({
       modelRef,
@@ -129,10 +230,11 @@ const SceneContent = forwardRef<SceneContentHandle, SceneContentProps>(
         {/* Điều khiển */}
         <OrbitControls
           ref={controlsRef}
-          enablePan={false}
+          enablePan={toolMode === "pan"} // ✅ Enable pan khi ở pan mode
           minDistance={0.1}
           maxDistance={50}
           enableDamping={true}
+          enabled={!selectedDecalId} // ✅ Tắt OrbitControls khi có decal được chọn (GIZMO active)
         />
       </Suspense>
     );
@@ -153,6 +255,8 @@ interface ProductViewer3DProps {
   onDecalUpdate: (id: string, updates: Partial<DecalItem>) => void; // Tên bên ngoài là 'onDecalUpdate'
   gizmoMode: GizmoMode;
   isSnapping: boolean;
+  cameraControlsRef?: React.RefObject<CameraControlsHandle>;
+  toolMode?: "select" | "pan";
 }
 
 export default function ProductViewer3D({
@@ -168,6 +272,8 @@ export default function ProductViewer3D({
   onDecalUpdate, // Nhận 'onDecalUpdate'
   gizmoMode,
   isSnapping,
+  cameraControlsRef,
+  toolMode = "select",
 }: ProductViewer3DProps) {
   const HIGH_QUALITY_DPR = 2;
   const modelRef = useRef<THREE.Group>(null);
@@ -269,6 +375,8 @@ export default function ProductViewer3D({
           isSnapping={isSnapping}
           modelRef={modelRef}
           isDraggingFlag={isDraggingFlag}
+          cameraControlsRef={cameraControlsRef}
+          toolMode={toolMode}
         />
       </Canvas>
       <Loader />

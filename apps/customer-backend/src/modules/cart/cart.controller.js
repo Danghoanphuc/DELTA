@@ -36,16 +36,24 @@ export class CartController {
    */
   addToCart = async (req, res, next) => {
     try {
-      const { productId, variantId, quantity, customization } = req.body;
+      const { productId, selectedPriceIndex, quantity, customization } = req.body;
+      
+      // Validate required fields
+      if (!productId || selectedPriceIndex === undefined || !quantity) {
+        return res.status(API_CODES.BAD_REQUEST).json(
+          ApiResponse.error("Thiếu thông tin: productId, selectedPriceIndex, và quantity là bắt buộc.")
+        );
+      }
+      
       const cart = await this.cartService.addToCart(req.user._id, {
         productId,
-        variantId,
+        selectedPriceIndex,
         quantity,
         customization,
       });
       res
         .status(API_CODES.CREATED)
-        .json(ApiResponse.success(cart, "Đã thêm vào giỏ hàng!"));
+        .json(ApiResponse.success({ cart }, "Đã thêm vào giỏ hàng!"));
     } catch (error) {
       next(error);
     }

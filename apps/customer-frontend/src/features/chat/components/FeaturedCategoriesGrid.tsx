@@ -33,8 +33,8 @@ const featuredCategories = [
 ];
 
 /**
- * Component mới: Hiển thị 4 danh mục nổi bật (ảnh)
- * Dàn đều 4 cột trên LG, 2 cột trên mobile.
+ * Component: Hiển thị danh mục nổi bật (ảnh)
+ * Dữ liệu sẽ được lấy từ API
  */
 export const FeaturedCategoriesGrid = () => {
   return (

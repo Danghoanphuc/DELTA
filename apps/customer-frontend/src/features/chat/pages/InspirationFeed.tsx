@@ -16,30 +16,8 @@ import { useInView } from "react-intersection-observer"; // ✅ Thư viện theo
 
 export type FeedItem = (Product | InspirationPin) & { feedId: string };
 
-// (Dữ liệu mockAiPins giữ nguyên)
-const mockAiPins: InspirationPin[] = [
-  {
-    id: "ai_pin_1",
-    type: "inspiration",
-    imageUrl:
-      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
-    prompt: "thiết kế name card gradient 3D trừu tượng",
-  },
-  {
-    id: "ai_pin_2",
-    type: "inspiration",
-    imageUrl:
-      "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
-    prompt: "poster sự kiện âm nhạc phong cách floral vintage",
-  },
-  {
-    id: "ai_pin_3",
-    type: "inspiration",
-    imageUrl:
-      "https://images.unsplash.com/photo-1606166316829-b3d633c6e262?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
-    prompt: "thiết kế bao bì hộp giấy kraft tối giản",
-  },
-];
+// Dữ liệu sẽ lấy từ API
+const mockAiPins: InspirationPin[] = [];
 
 // (FeedSkeleton giữ nguyên)
 const FeedSkeleton = () => (
@@ -102,7 +80,7 @@ export const InspirationFeed = ({
     }
   };
 
-  // (useMemo trộn AI pins giữ nguyên)
+  // Dữ liệu sẽ lấy từ API
   const items = useMemo((): FeedItem[] => {
     const productItems: FeedItem[] = products.map((p) => ({
       ...p,

@@ -40,7 +40,11 @@ export function OrderManagement() {
       setOrders(res.data?.orders || res.data?.data?.orders || []);
     } catch (err: any) {
       console.error("❌ Error fetching orders:", err);
-      toast.error("Không thể tải đơn hàng");
+      // Chỉ hiển thị toast error nếu không phải là lỗi 404 hoặc empty state
+      // Empty state được xử lý riêng ở UI
+      if (err.response?.status !== 404 && err.response?.status !== 400) {
+        toast.error("Không thể tải đơn hàng");
+      }
     } finally {
       setLoading(false);
     }

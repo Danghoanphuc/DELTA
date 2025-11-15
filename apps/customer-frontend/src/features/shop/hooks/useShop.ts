@@ -67,11 +67,9 @@ const taxonomy: TaxonomyNode[] = [
     ],
   },
 ];
+// Dữ liệu sẽ lấy từ API
 const categories = [
   { value: "all", label: "Tất cả" },
-  { value: "business-card", label: "Danh thiếp" },
-  { value: "t-shirt", label: "Áo thun" },
-  { value: "packaging", label: "Bao bì" },
   { value: "banner", label: "Banner" },
 ];
 

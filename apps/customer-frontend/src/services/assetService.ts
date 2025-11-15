@@ -10,8 +10,10 @@ type AssetResponse = {
 };
 
 type AssetListResponse = {
+  success: boolean;
   data: {
-    assets: Asset[];
+    privateAssets: Asset[];
+    publicAssets: Asset[];
   };
 };
 
@@ -28,11 +30,17 @@ export const getAssetById = async (assetId: string): Promise<Asset> => {
 
 /**
  * Lấy danh sách Phôi của nhà in
- * (Đang được gọi bởi 'useCreateProductWizard' tại /api/assets/my-assets)
+ * Backend trả về: { success: true, data: { privateAssets: [], publicAssets: [] } }
  */
-export const getMyAssets = async (): Promise<Asset[]> => {
+export const getMyAssets = async (): Promise<{
+  privateAssets: Asset[];
+  publicAssets: Asset[];
+}> => {
   const res = await api.get<AssetListResponse>("/assets/my-assets");
-  return res.data?.data?.assets || [];
+  return {
+    privateAssets: res.data?.data?.privateAssets || [],
+    publicAssets: res.data?.data?.publicAssets || [],
+  };
 };
 
 /**

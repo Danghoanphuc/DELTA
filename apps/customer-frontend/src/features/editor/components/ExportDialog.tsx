@@ -23,13 +23,15 @@ type EditorCanvasRef = any;
 interface ExportDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  editorRef: React.RefObject<EditorCanvasRef | null>;
+  onExport?: (format: ExportFormat) => Promise<void>;
+  editorRef?: React.RefObject<EditorCanvasRef | null>;
 }
 type ExportFormat = "png" | "jpg" | "svg";
 
 export const ExportDialog: React.FC<ExportDialogProps> = ({
   isOpen,
   onClose,
+  onExport,
   editorRef,
 }) => {
   const [isExporting, setIsExporting] = useState(false);
@@ -57,15 +59,18 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({
   ];
 
   const handleExport = async () => {
-    // ... (logic export giữ nguyên) ...
-    const editor = editorRef.current;
-    if (!editor) {
-      toast.error("Editor không tìm thấy");
-      return;
-    }
     setIsExporting(true);
     try {
-      await editor.exportCanvas(format);
+      if (onExport) {
+        // Sử dụng callback function nếu có
+        await onExport(format);
+      } else if (editorRef?.current) {
+        // Fallback: Sử dụng editorRef nếu có
+        await editorRef.current.exportCanvas(format);
+      } else {
+        toast.error("Không tìm thấy phương thức export");
+        return;
+      }
       toast.success(`Xuất file ${format.toUpperCase()} thành công!`);
       onClose();
     } catch (error: any) {

@@ -12,7 +12,7 @@ import {
 } from "@/services/admin.printer.service";
 import { Pagination } from "@/components/ui/Pagination";
 // 2. Xóa 'Building' không sử dụng (lỗi TS6133)
-import { CheckCircle, XCircle, Clock, Download } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Download, AlertCircle } from "lucide-react";
 
 export const PrinterVettingPage = () => {
   const queryClient = useQueryClient();
@@ -80,7 +80,7 @@ export const PrinterVettingPage = () => {
         <div className="p-10 text-center text-gray-500">
           <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
           <h3 className="mt-2 text-lg font-medium">Tuyệt vời!</h3>
-          <p>Không có nhà in nào đang chờ duyệt.</p>
+          <p>Không có nhà in nào đang chờ duyệt hoặc mới tạo.</p>
         </div>
       );
     }
@@ -94,10 +94,13 @@ export const PrinterVettingPage = () => {
                 Nhà in
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                Trạng thái
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Tài liệu
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Ngày nộp
+                Ngày tạo
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
                 Hành động
@@ -111,40 +114,77 @@ export const PrinterVettingPage = () => {
                 {/* <-- 4. Sửa lỗi ObjectId */}
                 <td className="whitespace-nowrap px-6 py-4">
                   <div className="text-sm font-medium text-gray-900">
-                    {printer.businessName}
+                    {printer.businessName || "Chưa có tên"}
                   </div>
                   <div className="text-sm text-gray-500">
                     {printer.contactPhone || "Chưa có SĐT"}
                   </div>
+                  {/* ✅ FIX: Hiển thị thông tin user nếu có */}
+                  {printer.user && typeof printer.user === "object" && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      {printer.user.email || printer.user.displayName || ""}
+                    </div>
+                  )}
+                  {/* ✅ Hiển thị địa chỉ nếu có */}
+                  {printer.shopAddress && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      {printer.shopAddress.street}, {printer.shopAddress.district}, {printer.shopAddress.city}
+                    </div>
+                  )}
                 </td>
                 <td className="whitespace-nowrap px-6 py-4">
-                  <div className="flex space-x-2">
-                    {printer.verificationDocs?.gpkdUrl && (
+                  {/* ✅ FIX: Hiển thị trạng thái rõ ràng */}
+                  {printer.verificationStatus === "not_submitted" ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      <AlertCircle className="mr-1 h-3 w-3" />
+                      Chưa nộp hồ sơ
+                    </span>
+                  ) : printer.verificationStatus === "pending_review" ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <Clock className="mr-1 h-3 w-3" />
+                      Đang chờ duyệt
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                      {printer.verificationStatus}
+                    </span>
+                  )}
+                </td>
+                <td className="whitespace-nowrap px-6 py-4">
+                  <div className="flex flex-col space-y-2">
+                    {printer.verificationDocs?.gpkdUrl ? (
                       <a
                         href={printer.verificationDocs.gpkdUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
+                        className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 transition-colors"
                         title="Xem Giấy phép KD"
                       >
                         <Download className="mr-1 h-4 w-4" /> GPKD
                       </a>
+                    ) : (
+                      <span className="text-xs text-gray-400">Chưa có GPKD</span>
                     )}
-                    {printer.verificationDocs?.cccdUrl && (
+                    {printer.verificationDocs?.cccdUrl ? (
                       <a
                         href={printer.verificationDocs.cccdUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
+                        className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 transition-colors"
                         title="Xem CCCD"
                       >
                         <Download className="mr-1 h-4 w-4" /> CCCD
                       </a>
+                    ) : (
+                      <span className="text-xs text-gray-400">Chưa có CCCD</span>
+                    )}
+                    {!printer.verificationDocs?.gpkdUrl && !printer.verificationDocs?.cccdUrl && (
+                      <span className="text-xs text-red-500">Chưa có tài liệu</span>
                     )}
                   </div>
                 </td>
                 <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {new Date(printer.updatedAt).toLocaleDateString("vi-VN")}
+                  {new Date(printer.createdAt || printer.updatedAt).toLocaleDateString("vi-VN")}
                 </td>
                 <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                   <button
@@ -177,7 +217,7 @@ export const PrinterVettingPage = () => {
         <h1 className="text-3xl font-bold text-gray-900">Duyệt Hồ sơ Nhà in</h1>
       </div>
       <p className="text-gray-600">
-        Xem xét và phê duyệt các nhà in mới đã nộp hồ sơ xác thực.
+        Xem xét và phê duyệt các nhà in mới. Bao gồm các profile đã nộp hồ sơ xác thực và các profile mới tạo.
       </p>
 
       <div className="overflow-hidden rounded-lg bg-white shadow">

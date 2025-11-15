@@ -69,13 +69,14 @@ export class PrinterService {
         "Phát hiện hồ sơ nhà in đã tồn tại. Đang đồng bộ lại, vui lòng tải lại trang."
       );
     }
+    // ✅ FIX: Sử dụng 'user' thay vì 'userId' để populate được
     const newProfile = await this.printerRepository.createProfile({
-      userId,
+      user: userId, // Mongoose ref đến User
       businessName,
       contactPhone,
       shopAddress,
-      logoUrl,
-      coverImage,
+      logoUrl: logoUrl || null,
+      coverImage: coverImage || null,
       isVerified: false,
       isActive: true,
       verificationStatus: "not_submitted",

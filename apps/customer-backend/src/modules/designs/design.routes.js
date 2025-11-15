@@ -40,4 +40,8 @@ router.get("/templates/:id", designController.getTemplateById); // User/Printer 
 router.post("/customized", protect, designController.createCustomizedDesign);
 router.get("/customized/:id", protect, designController.getCustomizedDesign);
 
+// ✅ THÊM: Draft design routes
+router.post("/customized/draft", protect, designController.saveDraftDesign);
+router.get("/customized/draft", protect, designController.getDraftDesign);
+
 export default router;

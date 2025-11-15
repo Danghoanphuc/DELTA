@@ -9,14 +9,21 @@ export interface MyCustomDesign {
   _id: string;
   userId: string;
   baseTemplateId?: string;
+  baseProductId?: string; // ✅ THÊM: ID sản phẩm gốc
   editorData: any; // JSON từ Fabric.js
-  finalPreviewImageUrl?: string; // URL ảnh xem trước
+  status?: "draft" | "saved"; // ✅ THÊM: Trạng thái
+  finalPreviewImageUrl?: string; // URL ảnh xem trước (deprecated)
+  preview?: {
+    thumbnailUrl?: string; // ✅ THÊM: URL ảnh xem trước mới
+  };
   createdAt: string;
+  updatedAt?: string;
 }
 
 export const useMyDesigns = () => {
   const [designs, setDesigns] = useState<MyCustomDesign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "draft" | "saved">("all");
 
   useEffect(() => {
     const fetchDesigns = async () => {
@@ -35,5 +42,18 @@ export const useMyDesigns = () => {
     fetchDesigns();
   }, []);
 
-  return { designs, loading, setDesigns };
+  // ✅ THÊM: Filter designs theo status
+  const filteredDesigns = designs.filter((design) => {
+    if (filter === "all") return true;
+    return design.status === filter;
+  });
+
+  return {
+    designs: filteredDesigns,
+    allDesigns: designs,
+    loading,
+    setDesigns,
+    filter,
+    setFilter,
+  };
 };

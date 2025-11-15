@@ -8,19 +8,13 @@ import { format } from "date-fns";
 /**
  * @description Sắp xếp các key của object theo thứ tự ABC
  * Bắt buộc bởi VNPay để tạo checksum
+ * ✅ SỬA: Chỉ sắp xếp key, không encode giá trị (qs.stringify sẽ xử lý)
  */
 function sortObject(obj) {
   const sorted = {};
-  const str = [];
-  let key;
-  for (key in obj) {
-    if (obj.hasOwnProperty(key)) {
-      str.push(encodeURIComponent(key));
-    }
-  }
-  str.sort();
-  for (key = 0; key < str.length; key++) {
-    sorted[str[key]] = encodeURIComponent(obj[str[key]]).replace(/%20/g, "+");
+  const keys = Object.keys(obj).sort();
+  for (const key of keys) {
+    sorted[key] = obj[key]; // Giữ nguyên giá trị, không encode
   }
   return sorted;
 }
@@ -28,7 +22,8 @@ function sortObject(obj) {
 export class VnPayService {
   constructor() {
     this.tmnCode = config.vnp.tmnCode;
-    this.hashSecret = config.vnp.hashSecret;
+    // ✅ SỬA: Trim hashSecret để loại bỏ khoảng trắng thừa từ .env
+    this.hashSecret = (config.vnp.hashSecret || "").trim();
     this.vnpUrl = config.vnp.url;
     this.returnUrlBase = config.vnp.returnUrl;
     this.ipnUrl = config.vnp.ipnUrl;
@@ -37,6 +32,8 @@ export class VnPayService {
       Logger.warn(
         "[VnPayService] VNP_TMN_CODE hoặc VNP_HASH_SECRET chưa được cấu hình!"
       );
+    } else {
+      Logger.debug(`[VnPayService] HashSecret length: ${this.hashSecret.length}`);
     }
   }
 
@@ -82,20 +79,49 @@ export class VnPayService {
     // Sắp xếp params theo ABC
     vnpParams = sortObject(vnpParams);
 
-    // Tạo chuỗi query
-    const signData = qs.stringify(vnpParams, { encode: false });
+    // ✅ SỬA: Tạo chuỗi query string để ký (KHÔNG encode - theo tài liệu VNPay)
+    // Format: key1=value1&key2=value2 (giữ nguyên giá trị, không encode)
+    const signData = Object.keys(vnpParams)
+      .map((key) => `${key}=${vnpParams[key]}`)
+      .join("&");
 
-    // Tạo chữ ký (SecureHash)
+    // ✅ Log chi tiết (chỉ trong development để bảo mật)
+    if (config.env === "development") {
+      Logger.debug(`[VnPayService] SignData (full): ${signData}`);
+      Logger.debug(`[VnPayService] SignData length: ${signData.length}`);
+      Logger.debug(`[VnPayService] HashSecret: ${this.hashSecret.substring(0, 10)}...${this.hashSecret.substring(this.hashSecret.length - 10)}`);
+      Logger.debug(`[VnPayService] HashSecret length: ${this.hashSecret.length}`);
+    }
+
+    // Tạo chữ ký (SecureHash) bằng SHA512
     const hmac = crypto.createHmac("sha512", this.hashSecret);
     const signed = hmac.update(Buffer.from(signData, "utf-8")).digest("hex");
+    
+    if (config.env === "development") {
+      Logger.debug(`[VnPayService] SecureHash (full): ${signed}`);
+    } else {
+      Logger.debug(`[VnPayService] SecureHash created (length: ${signed.length})`);
+    }
 
     vnpParams["vnp_SecureHash"] = signed;
 
-    // Build URL đầy đủ
-    const paymentUrl =
-      this.vnpUrl + "?" + qs.stringify(vnpParams, { encode: false });
+    // ✅ SỬA: Sắp xếp lại params sau khi thêm SecureHash (theo ABC)
+    // VNPay yêu cầu tất cả params trong URL phải được sắp xếp theo ABC
+    vnpParams = sortObject(vnpParams);
 
-    Logger.debug(`[VnPayService] URL: ${paymentUrl}`);
+    // ✅ Build URL đầy đủ với URL encoding đúng cách
+    // VNPay yêu cầu encode các giá trị khi build URL (nhưng không encode khi tạo chữ ký)
+    const queryString = Object.keys(vnpParams)
+      .map((key) => {
+        const value = String(vnpParams[key]);
+        // URL encode giá trị khi build URL
+        return `${key}=${encodeURIComponent(value)}`;
+      })
+      .join("&");
+
+    const paymentUrl = `${this.vnpUrl}?${queryString}`;
+
+    Logger.debug(`[VnPayService] Final URL (first 200 chars): ${paymentUrl.substring(0, 200)}...`);
     return paymentUrl;
   }
 
@@ -116,10 +142,13 @@ export class VnPayService {
     // Sắp xếp
     vnpParams = sortObject(vnpParams);
 
-    // Tạo chuỗi query
-    const signData = qs.stringify(vnpParams, { encode: false });
+    // ✅ SỬA: Tạo chuỗi query string để verify (KHÔNG encode - theo tài liệu VNPay)
+    // Format: key1=value1&key2=value2 (giữ nguyên giá trị, không encode)
+    const signData = Object.keys(vnpParams)
+      .map((key) => `${key}=${vnpParams[key]}`)
+      .join("&");
 
-    // Tạo chữ ký (SecureHash)
+    // Tạo chữ ký (SecureHash) bằng SHA512
     const hmac = crypto.createHmac("sha512", this.hashSecret);
     const signed = hmac.update(Buffer.from(signData, "utf-8")).digest("hex");
 

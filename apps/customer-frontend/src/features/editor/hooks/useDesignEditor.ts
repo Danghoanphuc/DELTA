@@ -8,6 +8,11 @@ import * as THREE from "three";
 import { useCartStore } from "@/stores/useCartStore";
 import { Product } from "@/types/product";
 import * as editorService from "../services/editorService";
+import {
+  saveDraftDesign,
+  getDraftDesign,
+  getCustomizedDesignById,
+} from "../services/editorService";
 import { EditorItem, DecalItem, GroupItem } from "../types/decal.types";
 import { InteractionResult } from "./use3DInteraction";
 import {
@@ -32,6 +37,9 @@ export function useDesignEditor() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isModelLoaded, setIsModelLoaded] = useState(false);
+  // ✅ THÊM: State cho draft
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
   const [items, setItems] = useState<EditorItem[]>([]);
   const [activeToolbarTab, setActiveToolbarTab] = useState<string>("templates");
@@ -39,6 +47,12 @@ export function useDesignEditor() {
   const [uploadedImages, setUploadedImages] = useState<UploadedImageVM[]>([]);
   const [gizmoMode, setGizmoMode] = useState<GizmoMode>("translate");
   const [isSnapping, setIsSnapping] = useState(false);
+  const [toolMode, setToolMode] = useState<"select" | "pan">("select");
+  
+  // ✅ THÊM: History stack cho Undo/Redo (max 50 actions)
+  const [history, setHistory] = useState<EditorItem[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const MAX_HISTORY = 50;
 
   // (State về giá)
   const [selectedQuantity, setSelectedQuantity] = useState(1);
@@ -56,16 +70,57 @@ export function useDesignEditor() {
   }, [items, selectedItemIds]);
 
   // (useEffect tải dữ liệu)
-  // ✅ SỬA: Lấy productId ra ngoài và dùng useMemo để tránh re-render vô hạn
+  // ✅ SỬA: Lấy productId và customizedDesignId ra ngoài
   const productId = useMemo(() => searchParams.get("productId"), [searchParams]);
+  const customizedDesignId = useMemo(
+    () => searchParams.get("customizedDesignId"),
+    [searchParams]
+  );
   
   // ✅ THÊM: Ref để tránh gọi API nhiều lần khi component re-render
   const isFetchingRef = React.useRef(false);
   
   useEffect(() => {
-    // ✅ Guard: Tránh gọi API nếu đang fetch hoặc không có productId
-    if (isFetchingRef.current || !productId) {
-      if (!productId) {
+    // ✅ Guard: Tránh gọi API nếu đang fetch
+    if (isFetchingRef.current) return;
+
+    // ✅ Nếu có customizedDesignId, load design trước
+    if (customizedDesignId && !productId) {
+      const loadDesign = async () => {
+        isFetchingRef.current = true;
+        setIsLoading(true);
+        try {
+          const design = await getCustomizedDesignById(customizedDesignId);
+          if (design.baseProductId) {
+            // Load product từ baseProductId
+            const fetchedProduct = await editorService.getProductById(
+              design.baseProductId
+            );
+            setProduct(fetchedProduct);
+            // Load editorData
+            if (design.editorData?.items) {
+              setItems(design.editorData.items);
+            }
+          } else {
+            toast.error("Thiết kế này không có sản phẩm gốc");
+            navigate("/designs");
+          }
+        } catch (err: any) {
+          console.error("Lỗi load design:", err);
+          toast.error("Không thể tải thiết kế");
+          navigate("/designs");
+        } finally {
+          setIsLoading(false);
+          isFetchingRef.current = false;
+        }
+      };
+      loadDesign();
+      return;
+    }
+
+    // ✅ Guard: Tránh gọi API nếu không có productId
+    if (!productId) {
+      if (!customizedDesignId) {
         toast.error("Không tìm thấy ID sản phẩm trong URL.");
         navigate("/shop");
       }
@@ -86,17 +141,87 @@ export function useDesignEditor() {
       const fetchProduct = async () => {
         try {
           const fetchedProduct = await editorService.getProductById(productId);
+          
+          // ✅ VALIDATION: Kiểm tra product có đủ điều kiện để edit
+          if (!fetchedProduct) {
+            toast.error("Không tìm thấy sản phẩm");
+            navigate("/shop");
+            throw new Error("Product not found");
+          }
+
+          // 1. Kiểm tra có hỗ trợ design service
+          if (!fetchedProduct.customization?.hasDesignService) {
+            toast.error(
+              "Sản phẩm này không hỗ trợ chỉnh sửa 3D. Đang chuyển về trang sản phẩm..."
+            );
+            navigate(`/products/${productId}`);
+            throw new Error("Product does not support design service");
+          }
+
+          // 2. Kiểm tra có 3D model URL
+          if (!fetchedProduct.assets?.modelUrl) {
+            toast.error(
+              "Sản phẩm này chưa có mô hình 3D. Đang chuyển về trang sản phẩm..."
+            );
+            navigate(`/products/${productId}`);
+            throw new Error("Product missing 3D model");
+          }
+
+          // 3. Kiểm tra có surfaces để thiết kế
+          if (!fetchedProduct.assets?.surfaces || fetchedProduct.assets.surfaces.length === 0) {
+            toast.error(
+              "Sản phẩm này chưa có bề mặt có thể thiết kế. Đang chuyển về trang sản phẩm..."
+            );
+            navigate(`/products/${productId}`);
+            throw new Error("Product missing design surfaces");
+          }
+
+          // Tất cả validation đều OK → Set product
           setProduct(fetchedProduct);
           if (fetchedProduct.pricing && fetchedProduct.pricing.length > 0) {
             // Cập nhật state ở đây
             setSelectedQuantity(fetchedProduct.pricing[0].minQuantity || 1);
           }
+
+          // ✅ THÊM: Load customized design hoặc draft design
+          if (customizedDesignId) {
+            // Load từ customizedDesignId (ưu tiên)
+            try {
+              const design = await getCustomizedDesignById(customizedDesignId);
+              if (design.editorData?.items) {
+                setItems(design.editorData.items);
+                toast.success("Đã tải thiết kế đã lưu");
+              }
+            } catch (err) {
+              console.error("Lỗi load customized design:", err);
+              toast.error("Không thể tải thiết kế đã lưu");
+            }
+          } else {
+            // Load draft design nếu không có customizedDesignId
+            try {
+              const draft = await getDraftDesign(productId);
+              if (draft && draft.editorData?.items) {
+                // Restore items từ draft
+                setItems(draft.editorData.items);
+                toast.info("Đã khôi phục bản nháp trước đó");
+              }
+            } catch (err) {
+              // Không có draft hoặc lỗi → bỏ qua
+              console.debug("Không có draft hoặc lỗi khi load draft:", err);
+            }
+          }
         } catch (err: any) {
           console.error("Lỗi tải Product:", err);
-          toast.error(
-            err.message || "Không thể tải sản phẩm (lỗi editorService)"
-          );
-          navigate("/shop");
+          // Chỉ hiển thị toast nếu chưa hiển thị (tránh duplicate)
+          if (!err.message?.includes("Product")) {
+            toast.error(
+              err.message || "Không thể tải sản phẩm (lỗi editorService)"
+            );
+          }
+          // Đã navigate trong validation, không cần navigate lại
+          if (!err.message?.includes("navigate")) {
+            navigate("/shop");
+          }
           throw err;
         }
       };
@@ -130,14 +255,98 @@ export function useDesignEditor() {
     };
 
     fetchStudioData();
-    // ✅ SỬA: Chỉ dùng productId làm dependency, không dùng searchParams hoặc navigate
+    // ✅ SỬA: Dùng cả productId và customizedDesignId làm dependency
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId]);
+  }, [productId, customizedDesignId]);
 
-  // (useEffect Snapping)
+  // === UNDO/REDO HELPERS ===
+  
+  // ✅ THÊM: Save current state vào history
+  const saveToHistory = useCallback((newItems: EditorItem[]) => {
+    setHistory((prevHistory) => {
+      // Xóa các state sau historyIndex (khi user đã undo rồi làm action mới)
+      const newHistory = prevHistory.slice(0, historyIndex + 1);
+      // Thêm state mới
+      const updatedHistory = [...newHistory, JSON.parse(JSON.stringify(newItems))];
+      // Giới hạn max history
+      if (updatedHistory.length > MAX_HISTORY) {
+        return updatedHistory.slice(-MAX_HISTORY);
+      }
+      return updatedHistory;
+    });
+    setHistoryIndex((prev) => {
+      const newIndex = prev + 1;
+      return newIndex >= MAX_HISTORY ? MAX_HISTORY - 1 : newIndex;
+    });
+  }, [historyIndex, MAX_HISTORY]);
+
+  // ✅ THÊM: Wrapper để setItems và tự động save vào history
+  const setItemsWithHistory = useCallback(
+    (updater: EditorItem[] | ((prev: EditorItem[]) => EditorItem[])) => {
+      setItems((prevItems) => {
+        const newItems =
+          typeof updater === "function" ? updater(prevItems) : updater;
+        // Save vào history (chỉ khi có thay đổi thực sự)
+        if (JSON.stringify(newItems) !== JSON.stringify(prevItems)) {
+          saveToHistory(newItems);
+        }
+        return newItems;
+      });
+    },
+    [saveToHistory]
+  );
+
+  // ✅ THÊM: Undo function
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      const prevState = history[historyIndex - 1];
+      setItems(prevState);
+      setHistoryIndex((prev) => prev - 1);
+      toast.info("Đã hoàn tác");
+    } else {
+      toast.info("Không thể hoàn tác thêm");
+    }
+  }, [history, historyIndex]);
+
+  // ✅ THÊM: Redo function
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const nextState = history[historyIndex + 1];
+      setItems(nextState);
+      setHistoryIndex((prev) => prev + 1);
+      toast.info("Đã làm lại");
+    } else {
+      toast.info("Không thể làm lại thêm");
+    }
+  }, [history, historyIndex]);
+
+  // ✅ THÊM: Check if can undo/redo
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < history.length - 1;
+
+  // ✅ THÊM: Initialize history khi items thay đổi từ load
+  useEffect(() => {
+    if (items.length > 0 && history.length === 0) {
+      // Lần đầu load items → save vào history
+      setHistory([JSON.parse(JSON.stringify(items))]);
+      setHistoryIndex(0);
+    }
+  }, []); // Chỉ chạy 1 lần khi mount
+
+  // ✅ THÊM: Keyboard shortcuts cho Undo/Redo (sau khi đã định nghĩa undo/redo)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Shift") setIsSnapping(true);
+      
+      // Keyboard shortcuts cho Undo/Redo
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        e.preventDefault();
+        redo();
+      }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === "Shift") setIsSnapping(false);
@@ -148,7 +357,7 @@ export function useDesignEditor() {
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("keyup", handleKeyUp);
     };
-  }, []);
+  }, [undo, redo]);
 
   // === HANDLERS (Core Logic) ===
 
@@ -191,7 +400,7 @@ export function useDesignEditor() {
     setSelectedItemIds([]);
   }, []);
 
-  // (Handler: addItem)
+  // (Handler: addItem) - ✅ WRAP với saveToHistory
   const addItem = useCallback(
     (
       itemType: "decal",
@@ -255,17 +464,17 @@ export function useDesignEditor() {
       }
 
       if (newDecal) {
-        setItems((prev) => [...prev, newDecal!]);
+        setItemsWithHistory((prev) => [...prev, newDecal!]);
         handleSelectItem(newDecal.id, false);
       }
     },
-    [firstSelectedItem, handleSelectItem]
+    [firstSelectedItem, handleSelectItem, setItemsWithHistory]
   );
 
   // (Handler: deleteSelectedItems)
   const deleteSelectedItems = useCallback(() => {
     if (selectedItemIds.length === 0) return;
-    setItems((prevItems) => {
+    setItemsWithHistory((prevItems) => {
       const itemsToDelete = new Set<string>(selectedItemIds);
       const stack = [...selectedItemIds];
       while (stack.length > 0) {
@@ -281,19 +490,29 @@ export function useDesignEditor() {
       return prevItems.filter((item) => !itemsToDelete.has(item.id));
     });
     setSelectedItemIds([]);
-  }, [selectedItemIds]);
+  }, [selectedItemIds, setItemsWithHistory]);
 
-  // (Handler: updateItemProperties)
+  // (Handler: updateItemProperties) - ✅ Note: Không save history cho mỗi property change (quá nhiều)
+  // Chỉ save khi user thả chuột hoặc kết thúc drag
   const updateItemProperties = useCallback(
-    (itemId: string, updates: Partial<DecalItem> | Partial<GroupItem>) => {
-      setItems(
-        (prev) =>
-          prev.map((item) =>
-            item.id === itemId ? { ...item, ...updates } : item
-          ) as EditorItem[]
-      );
+    (itemId: string, updates: Partial<DecalItem> | Partial<GroupItem>, saveHistory = false) => {
+      if (saveHistory) {
+        setItemsWithHistory(
+          (prev) =>
+            prev.map((item) =>
+              item.id === itemId ? { ...item, ...updates } : item
+            ) as EditorItem[]
+        );
+      } else {
+        setItems(
+          (prev) =>
+            prev.map((item) =>
+              item.id === itemId ? { ...item, ...updates } : item
+            ) as EditorItem[]
+        );
+      }
     },
-    []
+    [setItemsWithHistory]
   );
 
   // (Handler: handleGroupSelection)
@@ -309,7 +528,7 @@ export function useDesignEditor() {
       isLocked: false,
     };
 
-    setItems((prevItems) => {
+    setItemsWithHistory((prevItems) => {
       const firstParentId = prevItems.find(
         (i) => i.id === selectedItemIds[0]
       )?.parentId;
@@ -327,14 +546,14 @@ export function useDesignEditor() {
     });
     setSelectedItemIds([newGroupId]);
     toast.success("Đã nhóm các lớp!");
-  }, [selectedItemIds]);
+  }, [selectedItemIds, setItemsWithHistory]);
 
   // (Handler: handleUngroupSelection)
   const handleUngroupSelection = useCallback(() => {
     const selectedGroup = firstSelectedItem;
     if (!selectedGroup || selectedGroup.type !== "group") return;
     const groupParentId = selectedGroup.parentId;
-    setItems((prevItems) => {
+    setItemsWithHistory((prevItems) => {
       const itemsWithoutGroup = prevItems.filter(
         (item) => item.id !== selectedGroup.id
       );
@@ -348,12 +567,12 @@ export function useDesignEditor() {
     });
     setSelectedItemIds([]);
     toast.success("Đã rã nhóm!");
-  }, [firstSelectedItem]);
+  }, [firstSelectedItem, setItemsWithHistory]);
 
   // (Handler: reorderItems)
   const reorderItems = useCallback(
     (activeId: string, overId: string | null, containerId: string | null) => {
-      setItems((prevItems) => {
+      setItemsWithHistory((prevItems) => {
         const activeItem = prevItems.find((i) => i.id === activeId);
         const overItem = prevItems.find((i) => i.id === overId);
         if (!activeItem || !overItem) return prevItems;
@@ -376,7 +595,7 @@ export function useDesignEditor() {
         return arrayMove(prevItems, activeIndex, overIndex);
       });
     },
-    []
+    [setItemsWithHistory]
   );
 
   // (Handler: handleToolbarImageUpload)
@@ -460,6 +679,30 @@ export function useDesignEditor() {
   }, [selectedQuantity, product?.pricing]);
   // === HẾT LOGIC GIÁ ===
 
+  // ✅ THÊM: Auto-save draft mỗi 30 giây
+  useEffect(() => {
+    if (!product || items.length === 0) return;
+
+    const autoSaveInterval = setInterval(async () => {
+      try {
+        const draftIdResult = await saveDraftDesign(product._id, {
+          items: items,
+        });
+        if (draftIdResult) {
+          setDraftId(draftIdResult);
+          setLastSavedAt(new Date());
+          // Không hiển thị toast để không làm phiền user
+          console.debug("✅ Auto-saved draft");
+        }
+      } catch (err) {
+        console.error("Lỗi auto-save draft:", err);
+        // Không hiển thị error để không làm phiền user
+      }
+    }, 30000); // 30 giây
+
+    return () => clearInterval(autoSaveInterval);
+  }, [product, items]);
+
   const handleSaveAndAddToCart = async () => {
     if (!product) {
       toast.error("Lỗi: Không có thông tin sản phẩm gốc.");
@@ -478,6 +721,12 @@ export function useDesignEditor() {
       const newDesignId = await editorService.saveCustomDesign(product._id, {
         items: items, // Gửi cấu trúc tree
       });
+
+      // ✅ Xóa draft sau khi lưu chính thức
+      if (draftId) {
+        setDraftId(null);
+        setLastSavedAt(null);
+      }
 
       await addToCart({
         productId: product._id,
@@ -527,10 +776,18 @@ export function useDesignEditor() {
     gizmoMode,
     setGizmoMode,
     isSnapping,
+    toolMode,
+    setToolMode,
     selectedQuantity,
     setSelectedQuantity,
     minQuantity,
     currentPricePerUnit,
     handleSaveAndAddToCart,
+    
+    // ✅ THÊM: Undo/Redo
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   };
 }

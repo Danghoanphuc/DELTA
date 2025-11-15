@@ -19,6 +19,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
 import { ProductWizardFormValues } from "@/features/printer/schemas/productWizardSchema";
 import { Image, X } from "lucide-react";
+import { toast } from "sonner";
 
 // ✅ SỬA LỖI TẠI ĐÂY: Thêm 'useEffect' vào import
 import { useMemo, useEffect } from "react";
@@ -77,40 +78,95 @@ export function Step3_Images({
           <FormField
             control={control}
             name="images"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Tải lên ảnh (Tối thiểu 1, Tối đa 5. Ảnh đầu tiên là ảnh bìa)
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    type="file"
-                    accept="image/png, image/jpeg, image/webp"
-                    multiple
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      field.onChange(files);
-                    }}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+            render={({ field }) => {
+              const currentFiles = field.value || [];
+              
+              return (
+                <FormItem>
+                  <FormLabel>
+                    Tải lên ảnh (Tối thiểu 1, Tối đa 10. Ảnh đầu tiên là ảnh bìa)
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type="file"
+                      accept="image/png, image/jpeg, image/webp"
+                      multiple
+                      onChange={(e) => {
+                        const newFiles = Array.from(e.target.files || []);
+                        const existingFiles = currentFiles || [];
+                        
+                        // Merge file mới với file cũ
+                        const mergedFiles = [...existingFiles, ...newFiles];
+                        
+                        // Kiểm tra tổng số file không vượt quá 10
+                        if (mergedFiles.length > 10) {
+                          toast.error(
+                            `Tối đa 10 ảnh. Bạn đã có ${existingFiles.length} ảnh, chỉ có thể thêm tối đa ${10 - existingFiles.length} ảnh nữa.`
+                          );
+                          const allowedNewFiles = mergedFiles.slice(0, 10);
+                          field.onChange(allowedNewFiles);
+                        } else {
+                          field.onChange(mergedFiles);
+                          if (newFiles.length > 0) {
+                            toast.success(`Đã thêm ${newFiles.length} ảnh. Tổng: ${mergedFiles.length}/10`);
+                          }
+                        }
+                        
+                        // Reset input để có thể chọn lại cùng file
+                        e.target.value = "";
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
 
           {/* Khung xem trước ảnh */}
           {previewUrls.length > 0 && (
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-              {previewUrls.map((url, index) => (
-                <div key={index} className="relative aspect-square">
-                  <img
-                    src={url}
-                    alt={`Preview ${index + 1}`}
-                    className="w-full h-full object-cover rounded-lg border"
-                  />
+            <FormField
+              control={control}
+              name="images"
+              render={({ field }) => (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    Đã chọn {watchedImages.length}/10 ảnh
+                  </p>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                    {previewUrls.map((url, index) => (
+                      <div key={index} className="relative aspect-square group">
+                        <img
+                          src={url}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-full object-cover rounded-lg border"
+                        />
+                        {/* Nút xóa ảnh */}
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => {
+                            const newFiles = watchedImages.filter((_, i) => i !== index);
+                            field.onChange(newFiles);
+                            toast.success("Đã xóa ảnh");
+                          }}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                        {/* Badge số thứ tự */}
+                        {index === 0 && (
+                          <div className="absolute bottom-1 left-1 bg-blue-600 text-white text-xs px-2 py-0.5 rounded">
+                            Ảnh bìa
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
+              )}
+            />
           )}
 
           <Button type="button" onClick={onValidate}>

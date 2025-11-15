@@ -59,7 +59,7 @@ export function ProductCard({ product, onOpenQuickShop }: ProductCardProps) {
         message="Đăng nhập để lưu sản phẩm yêu thích"
       />
 
-      <Card className="group relative overflow-hidden rounded-lg shadow-sm hover:shadow-xl transition-shadow duration-300 break-inside-avoid mb-3">
+      <Card className="group relative overflow-hidden rounded-lg shadow-sm hover:shadow-xl transition-all duration-300 break-inside-avoid mb-3 hover-lift micro-bounce" role="article" aria-label={`Sản phẩm ${product.name}`}>
         {/* (Ảnh sản phẩm, Badges, Nút Yêu thích giữ nguyên) */}
         <Link to={`/products/${product._id}`} className="block overflow-hidden">
           <ImageWithFallback
@@ -82,12 +82,13 @@ export function ProductCard({ product, onOpenQuickShop }: ProductCardProps) {
         <Button
           size="icon"
           variant="ghost"
-          className="absolute top-2 right-2 z-10 rounded-full w-8 h-8 bg-white/70 text-gray-600 hover:text-red-500 hover:bg-red-50
-                       opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute top-2 right-2 z-10 rounded-full w-9 h-9 bg-white/90 backdrop-blur-sm text-gray-600 hover:text-red-500 hover:bg-red-50
+                       shadow-sm transition-all duration-200 hover:scale-110 active:scale-95"
           title="Yêu thích"
           onClick={handleFavoriteClick}
+          aria-label="Thêm vào yêu thích"
         >
-          <Heart size={16} />
+          <Heart size={18} className="fill-none stroke-2" />
         </Button>
 
         {/* (Desktop Hover Overlay giữ nguyên) */}

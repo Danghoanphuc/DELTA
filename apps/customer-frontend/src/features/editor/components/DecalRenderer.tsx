@@ -114,9 +114,7 @@ export const DecalRenderer: React.FC<DecalRendererProps> = ({
   }, [isSelected, decal]);
 
   // === Xử lý Ẩn/Hiện ===
-  if (!decal.isVisible) {
-    return null; // Không render nếu bị ẩn
-  }
+  // ✅ SỬA: Sử dụng visible prop thay vì return null để giữ nguyên vị trí và thứ tự
 
   return (
     <>
@@ -126,6 +124,7 @@ export const DecalRenderer: React.FC<DecalRendererProps> = ({
         position={offsetPosition}
         rotation={decalRotation}
         scale={scale}
+        visible={decal.isVisible} // ✅ SỬA: Sử dụng visible prop để ẩn/hiện mà không làm mất vị trí
         onClick={(e) => {
           e.stopPropagation();
           e.nativeEvent.stopImmediatePropagation();
@@ -149,7 +148,7 @@ export const DecalRenderer: React.FC<DecalRendererProps> = ({
       </mesh>
 
       {/* GIZMO (Chỉ hiển thị nếu được chọn VÀ không bị khóa) */}
-      {isSelected && !decal.isLocked && (
+      {isSelected && !decal.isLocked && decal.isVisible && ( // ✅ SỬA: Chỉ hiện TransformControls khi decal visible
         <TransformControls
           ref={controlsRef}
           object={meshRef as any}
@@ -159,17 +158,11 @@ export const DecalRenderer: React.FC<DecalRendererProps> = ({
           showZ={gizmoMode !== "rotate"}
           showX={gizmoMode !== "rotate"}
           onMouseDown={(e: any) => {
-            // ❌ BỎ CÁC DÒNG NÀY (Sửa lỗi Crash)
-            // e.stopPropagation();
-            // e.nativeEvent.stopImmediatePropagation();
-            if (orbitControls) orbitControls.enabled = false;
+            // OrbitControls đã được tắt khi selectedDecalId !== null
+            // Không cần tắt lại ở đây
           }}
           onMouseUp={(e: any) => {
-            // ❌ BỎ CÁC DÒNG NÀY (Sửa lỗi Crash)
-            // e.stopPropagation();
-            // e.nativeEvent.stopImmediatePropagation();
-            if (orbitControls) orbitControls.enabled = true;
-
+            // Cập nhật decal khi kết thúc transform
             if (meshRef.current) {
               const { position, scale } = meshRef.current;
               onUpdate(decal.id, {

@@ -17,14 +17,51 @@ export class PrinterController {
       Logger.debug(
         `[PrinterCtrl] Nhận yêu cầu Onboarding cho User: ${req.user._id}`
       );
+      
+      // ✅ FIX: Validate payload trước khi gọi service
+      const { businessName, contactPhone, shopAddress } = req.body;
+      
+      if (!businessName || !businessName.trim()) {
+        throw new ValidationException("Tên doanh nghiệp là bắt buộc");
+      }
+      if (!contactPhone || !contactPhone.trim()) {
+        throw new ValidationException("Số điện thoại liên hệ là bắt buộc");
+      }
+      if (!shopAddress || !shopAddress.street || !shopAddress.district || !shopAddress.city) {
+        throw new ValidationException("Địa chỉ xưởng in là bắt buộc");
+      }
+      
+      // ✅ FIX: Đảm bảo coordinates có giá trị hợp lệ
+      if (shopAddress.location && shopAddress.location.coordinates) {
+        const [lng, lat] = shopAddress.location.coordinates;
+        if (typeof lng !== "number" || typeof lat !== "number" || 
+            lng === 0 && lat === 0) {
+          // Nếu coordinates không hợp lệ, set default (TP.HCM)
+          shopAddress.location.coordinates = [106.6297, 10.8231];
+          Logger.warn(`[PrinterCtrl] Coordinates không hợp lệ, sử dụng default: ${shopAddress.location.coordinates}`);
+        }
+      } else {
+        // Nếu không có coordinates, set default
+        shopAddress.location = {
+          type: "Point",
+          coordinates: [106.6297, 10.8231], // Default: TP.HCM
+        };
+      }
+      
       const profile = await this.printerService.createProfile(
         req.user._id,
         req.body
       );
+      
+      Logger.success(
+        `[PrinterCtrl] Đã tạo profile thành công: ${profile._id} cho User: ${req.user._id}`
+      );
+      
       res
         .status(API_CODES.CREATED)
         .json(ApiResponse.success({ profile }, "Tạo hồ sơ nhà in thành công!"));
     } catch (error) {
+      Logger.error(`[PrinterCtrl] Lỗi khi tạo profile:`, error);
       next(error);
     }
   };
@@ -98,6 +135,30 @@ export class PrinterController {
       res.status(API_CODES.SUCCESS).json(ApiResponse.success({ gallery }));
     } catch (error) {
       next(error);
+    }
+  };
+
+  /**
+   * ✅ FIX: Endpoint kiểm tra profile có tồn tại không
+   * @route   GET /api/printers/profile-exists
+   * @desc    Check if printer profile exists for current user
+   * @access  Private (Printer only)
+   */
+  checkProfileExists = async (req, res, next) => {
+    try {
+      const profile = await this.printerService.getProfile(req.user._id);
+      if (profile) {
+        res.status(API_CODES.SUCCESS).json(ApiResponse.success({ exists: true }));
+      } else {
+        res.status(API_CODES.NOT_FOUND).json(ApiResponse.error("Profile not found"));
+      }
+    } catch (error) {
+      // Nếu không tìm thấy profile, trả về 404
+      if (error.name === "NotFoundException") {
+        res.status(API_CODES.NOT_FOUND).json(ApiResponse.error("Profile not found"));
+      } else {
+        next(error);
+      }
     }
   };
 }

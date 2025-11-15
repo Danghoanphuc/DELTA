@@ -11,7 +11,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { PrinterProduct } from "@/types/product";
 import { Button } from "@/shared/components/ui/button";
-import { Brush } from "lucide-react";
+import { Brush, ShoppingCart } from "lucide-react";
 import { Separator } from "@/shared/components/ui/separator";
 import { cn } from "@/shared/lib/utils";
 
@@ -29,6 +29,15 @@ interface ProductCustomizationProps {
   ) => void;
   onStartEditing: () => void;
   onPurchase?: () => void;
+  // ✅ THÊM: Props cho nút thêm vào giỏ hàng
+  onAddToCart?: () => void;
+  isAddingToCart?: boolean;
+  inCart?: boolean;
+  minQuantity?: number;
+  selectedQuantity?: number;
+  onQuantityChange?: (qty: number) => void;
+  pricePerUnit?: number;
+  formatPrice?: (price: number) => string;
 }
 
 export const ProductCustomization = ({
@@ -37,8 +46,16 @@ export const ProductCustomization = ({
   onCustomizationChange = () => {},
   onStartEditing,
   onPurchase,
+  onAddToCart,
+  isAddingToCart = false,
+  inCart = false,
+  minQuantity = 1,
+  selectedQuantity = 1,
+  onQuantityChange,
+  pricePerUnit = 0,
+  formatPrice = (price: number) => price.toString(),
 }: ProductCustomizationProps) => {
-  // ❌ Đã xóa logic 'hasSpecs'. Component này chỉ tập trung vào TÙY CHỈNH.
+  const isQuantityInvalid = selectedQuantity < minQuantity;
 
   return (
     // Chúng ta dùng Card mỏng hơn, không viền, chỉ để phân tách
@@ -56,6 +73,29 @@ export const ProductCustomization = ({
           <Brush size={20} className="mr-2" />
           Bắt đầu Thiết kế
         </Button>
+
+        {/* === NÚT THÊM VÀO GIỎ HÀNG === */}
+        {onAddToCart && (
+          <Button
+            size="lg"
+            variant="outline"
+            className={cn(
+              "w-full text-base font-semibold border-2",
+              inCart
+                ? "border-green-500 text-green-600 hover:bg-green-50"
+                : "border-blue-600 text-blue-600 hover:bg-blue-50"
+            )}
+            onClick={onAddToCart}
+            disabled={isAddingToCart || isQuantityInvalid}
+          >
+            <ShoppingCart size={20} className="mr-2" />
+            {isAddingToCart
+              ? "Đang thêm..."
+              : inCart
+              ? "✓ Đã có trong giỏ"
+              : "Thêm vào giỏ hàng"}
+          </Button>
+        )}
 
         {/* === CÁC TÙY CHỌN PHỤ === */}
         <div className="text-center text-xs text-gray-500">

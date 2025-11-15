@@ -88,18 +88,23 @@ export function PrinterOnboardingPage() {
     setIsLoading(true);
 
     try {
+      // ✅ FIX: Đảm bảo coordinates có giá trị hợp lệ
+      const coordinates = address.coordinates && address.coordinates.length === 2 
+        ? address.coordinates 
+        : [106.6297, 10.8231]; // Default: Tọa độ TP.HCM
+
       const payload = {
-        businessName,
-        contactPhone,
-        logoUrl,
-        coverImage,
+        businessName: businessName.trim(),
+        contactPhone: contactPhone.trim(),
+        logoUrl: logoUrl || null,
+        coverImage: coverImage || null,
         shopAddress: {
-          street: address.street,
-          district: address.district,
-          city: address.city,
+          street: address.street.trim(),
+          district: address.district.trim(),
+          city: address.city.trim(),
           location: {
             type: "Point",
-            coordinates: address.coordinates,
+            coordinates: coordinates,
           },
         },
       };

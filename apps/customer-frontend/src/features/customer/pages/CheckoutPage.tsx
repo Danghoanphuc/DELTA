@@ -1,5 +1,5 @@
 // apps/customer-frontend/src/features/customer/pages/CheckoutPage.tsx (ĐÃ VÁ)
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { loadStripe, StripeElementsOptions } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import { useForm, FormProvider, SubmitHandler } from "react-hook-form";
@@ -17,15 +17,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/shared/components/ui/form";
-import { Input } from "@/shared/components/ui/input";
+// Form components không cần thiết cho RadioGroup vì đã thay bằng div/label
+// import {
+//   Form,
+//   FormControl,
+//   FormField,
+//   FormItem,
+//   FormLabel,
+//   FormMessage,
+// } from "@/shared/components/ui/form";
+// import { Input } from "@/shared/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group";
 
 // ✅ SỬA LỖI TS2613: Đổi từ default import sang named import
@@ -49,21 +50,21 @@ const checkoutSchema = z.object({
 });
 type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 
-// Stripe Promise
-const stripePromise = loadStripe(config.stripePublicKey);
+// ✅ SỬA LỖI: Chỉ load Stripe khi có publishable key hợp lệ
+const stripePromise = config.stripePublicKey
+  ? loadStripe(config.stripePublicKey)
+  : null;
 
 const CheckoutPage = () => {
-  const { user } = useAuthStore((state) => ({ user: state.user }));
+  // ✅ SỬA LỖI INFINITE LOOP: Tách selectors để tránh tạo object mới mỗi lần render
+  const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
 
-  // ✅ SỬA LỖI TS2339: Lấy 'cart' object
-  const { cart, isLoading, isCheckoutValidating, validateCheckout } =
-    useCartStore((state) => ({
-      cart: state.cart,
-      isLoading: state.isLoading,
-      isCheckoutValidating: state.isCheckoutValidating,
-      validateCheckout: state.validateCheckout,
-    }));
+  // ✅ SỬA LỖI INFINITE LOOP: Tách selectors riêng biệt
+  const cart = useCartStore((state) => state.cart);
+  const isLoading = useCartStore((state) => state.isLoading);
+  const isCheckoutValidating = useCartStore((state) => state.isCheckoutValidating);
+  const validateCheckout = useCartStore((state) => state.validateCheckout);
 
   // State cho Stripe
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -76,6 +77,7 @@ const CheckoutPage = () => {
   // Form
   const form = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutSchema),
+    mode: "onChange", // Validate real-time để tự động hiển thị phần phương thức thanh toán
     defaultValues: {
       shippingAddress: {
         fullName: user?.displayName || "",
@@ -92,10 +94,28 @@ const CheckoutPage = () => {
   });
 
   const paymentMethod = form.watch("paymentMethod");
+  const isFormValid = form.formState.isValid;
+  const [showPaymentMethods, setShowPaymentMethods] = useState(false);
+  
+  // Tự động hiển thị phần phương thức thanh toán khi form valid
+  useEffect(() => {
+    if (isFormValid && !showPaymentMethods) {
+      setShowPaymentMethods(true);
+    }
+  }, [isFormValid, showPaymentMethods]);
 
   // Xử lý khi đổi phương thức thanh toán
   const onPaymentMethodChange = async (value: "stripe" | "vnpay" | "cod") => {
+    // ✅ Luôn cập nhật form value trước
+    form.setValue("paymentMethod", value);
+    
     if (value === "stripe") {
+      // ✅ Kiểm tra Stripe key trước khi khởi tạo
+      if (!config.stripePublicKey) {
+        toast.error("Stripe chưa được cấu hình. Vui lòng chọn phương thức thanh toán khác.");
+        form.setValue("paymentMethod", "vnpay");
+        return;
+      }
       if (!cart || cart.items.length === 0) {
         toast.error("Vui lòng thêm sản phẩm vào giỏ hàng trước.");
         form.setValue("paymentMethod", "vnpay"); // Reset
@@ -116,6 +136,7 @@ const CheckoutPage = () => {
         setIsStripeLoading(false);
       }
     } else {
+      // ✅ Xóa Stripe state khi chọn phương thức khác
       setClientSecret(null);
       setMasterOrderId(null);
     }
@@ -132,10 +153,37 @@ const CheckoutPage = () => {
     }
 
     try {
+      // ✅ Map dữ liệu từ form sang format backend expect
+      const mappedShippingAddress = {
+        recipientName: data.shippingAddress.fullName?.trim() || "", // fullName -> recipientName
+        phone: data.shippingAddress.phone?.trim() || "",
+        street: data.shippingAddress.street?.trim() || "",
+        district: data.shippingAddress.state?.trim() || "", // state -> district
+        city: data.shippingAddress.city?.trim() || "",
+        ward: data.shippingAddress.postalCode?.trim() || "", // Optional
+        notes: "", // Optional
+      };
+
+      // ✅ Debug: Log dữ liệu trước khi gửi
+      console.log("[CheckoutPage] Dữ liệu form gốc:", data.shippingAddress);
+      console.log("[CheckoutPage] Dữ liệu đã map:", mappedShippingAddress);
+
+      // ✅ Validate dữ liệu trước khi gửi
+      if (!mappedShippingAddress.recipientName || !mappedShippingAddress.district) {
+        console.error("[CheckoutPage] Validation failed:", {
+          recipientName: mappedShippingAddress.recipientName,
+          district: mappedShippingAddress.district,
+          originalData: data.shippingAddress,
+        });
+        toast.error("Vui lòng điền đầy đủ thông tin địa chỉ giao hàng (Họ tên và Quận/Huyện)");
+        return;
+      }
+
       if (data.paymentMethod === "vnpay") {
+        // ✅ Backend tự động lấy cart từ user, không cần truyền cartId
         const { paymentUrl } = await vnpayCreatePayment(
-          cart!._id,
-          data.shippingAddress
+          cart!._id, // Giữ lại để tương thích với interface, nhưng backend không dùng
+          mappedShippingAddress
         );
         toast.info("Đang điều hướng đến cổng thanh toán VNPay...");
         window.location.href = paymentUrl;
@@ -194,24 +242,31 @@ const CheckoutPage = () => {
               className="space-y-6"
             >
               <AddressForm />
-              {paymentMethod !== "stripe" && (
+              
+              {/* Nút tiếp tục để hiển thị phương thức thanh toán */}
+              {!showPaymentMethods && (
                 <Button
-                  type="submit"
-                  disabled={isProcessing || isCheckoutValidating}
+                  type="button"
+                  onClick={() => {
+                    form.trigger().then((isValid) => {
+                      if (isValid) {
+                        setShowPaymentMethods(true);
+                      } else {
+                        toast.error("Vui lòng điền đầy đủ thông tin địa chỉ giao hàng");
+                      }
+                    });
+                  }}
                   className="w-full text-lg"
+                  size="lg"
                 >
-                  {isProcessing && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  {paymentMethod === "vnpay"
-                    ? "Tiến hành thanh toán VNPay"
-                    : "Hoàn tất đơn hàng (COD)"}
+                  Tiếp tục đến phương thức thanh toán
                 </Button>
               )}
             </form>
-          </FormProvider>
 
-          {form.formState.isValid && (
+            {/* ✅ SỬA LỖI: Di chuyển Card vào trong FormProvider để FormItem/FormControl có thể truy cập form context */}
+            {/* Luôn hiển thị phần chọn phương thức thanh toán khi đã điền đủ thông tin */}
+            {showPaymentMethods && (
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle>Phương thức thanh toán</CardTitle>
@@ -219,62 +274,70 @@ const CheckoutPage = () => {
               <CardContent>
                 <RadioGroup
                   value={paymentMethod}
-                  onValueChange={(val) =>
-                    onPaymentMethodChange(val as "stripe" | "vnpay" | "cod")
-                  }
+                  onValueChange={(val) => {
+                    onPaymentMethodChange(val as "stripe" | "vnpay" | "cod");
+                  }}
                   className="space-y-4"
                 >
-                  {/* (Radio VNPay & COD) */}
-                  <FormItem>
-                    <FormControl>
-                      <RadioGroupItem value="vnpay" id="vnpay" />
-                    </FormControl>
-                    <FormLabel
+                  {/* (Radio VNPay) */}
+                  <div 
+                    className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => onPaymentMethodChange("vnpay")}
+                  >
+                    <RadioGroupItem value="vnpay" id="vnpay" />
+                    <label
                       htmlFor="vnpay"
-                      className="flex w-full cursor-pointer items-center justify-between font-normal"
+                      className="flex-1 cursor-pointer font-normal text-sm"
                     >
-                      <span>Thanh toán qua VNPay (ATM/Visa/Master)</span>
-                    </FormLabel>
-                  </FormItem>
-                  <FormItem>
-                    <FormControl>
-                      <RadioGroupItem value="cod" id="cod" />
-                    </FormControl>
-                    <FormLabel
+                      Thanh toán qua VNPay (ATM/Visa/Master)
+                    </label>
+                  </div>
+                  
+                  {/* (Radio COD) */}
+                  <div 
+                    className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => onPaymentMethodChange("cod")}
+                  >
+                    <RadioGroupItem value="cod" id="cod" />
+                    <label
                       htmlFor="cod"
-                      className="flex w-full cursor-pointer items-center justify-between font-normal"
+                      className="flex-1 cursor-pointer font-normal text-sm"
                     >
-                      <span>Thanh toán khi nhận hàng (COD)</span>
-                    </FormLabel>
-                  </FormItem>
+                      Thanh toán khi nhận hàng (COD)
+                    </label>
+                  </div>
+                  
                   {/* (Radio Stripe) */}
-                  <FormItem>
-                    <FormControl>
-                      <RadioGroupItem
-                        value="stripe"
-                        id="stripe"
-                        disabled={isStripeLoading}
-                      />
-                    </FormControl>
-                    <FormLabel
+                  <div 
+                    className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => {
+                      if (!isStripeLoading) {
+                        onPaymentMethodChange("stripe");
+                      }
+                    }}
+                  >
+                    <RadioGroupItem
+                      value="stripe"
+                      id="stripe"
+                      disabled={isStripeLoading}
+                    />
+                    <label
                       htmlFor="stripe"
-                      className="flex w-full cursor-pointer items-center justify-between font-normal"
+                      className="flex-1 cursor-pointer font-normal text-sm flex items-center gap-3"
                     >
-                      <span className="flex items-center gap-3">
-                        <CreditCard className="h-6 w-6" />
-                        <span>Thanh toán bằng Thẻ Quốc tế (Visa, Master)</span>
-                      </span>
+                      <CreditCard className="h-5 w-5" />
+                      <span>Thanh toán bằng Thẻ Quốc tế (Visa, Master)</span>
                       {isStripeLoading && (
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-xs text-muted-foreground ml-auto">
                           Đang tải form...
                         </span>
                       )}
-                    </FormLabel>
-                  </FormItem>
+                    </label>
+                  </div>
                 </RadioGroup>
 
                 {/* --- Step 3: Hiển thị Form Stripe --- */}
-                {clientSecret && stripeOptions && (
+                {clientSecret && stripeOptions && stripePromise && (
                   <div className="mt-6">
                     <Elements options={stripeOptions} stripe={stripePromise}>
                       {/* ✅ SỬA LỖI TS2741: Thêm prop 'clientUrl' */}
@@ -285,9 +348,32 @@ const CheckoutPage = () => {
                     </Elements>
                   </div>
                 )}
+
+                {/* Nút submit cho VNPay và COD */}
+                {paymentMethod !== "stripe" && (
+                  <div className="mt-6">
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        form.handleSubmit(onAddressSubmit)();
+                      }}
+                      disabled={isProcessing || isCheckoutValidating}
+                      className="w-full text-lg"
+                      size="lg"
+                    >
+                      {isProcessing && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      {paymentMethod === "vnpay"
+                        ? "Tiến hành thanh toán VNPay"
+                        : "Hoàn tất đơn hàng (COD)"}
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
+            )}
+          </FormProvider>
         </div>
 
         {/* === CỘT PHẢI: TÓM TẮT ĐƠN HÀNG === */}

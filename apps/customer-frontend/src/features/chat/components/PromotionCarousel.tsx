@@ -33,6 +33,7 @@ const promoBanners = [
 ];
 
 export const PromotionCarousel = () => {
+
   return (
     // ❌ GỠ BỎ: div wrapper (max-w, px, mt)
     <Carousel

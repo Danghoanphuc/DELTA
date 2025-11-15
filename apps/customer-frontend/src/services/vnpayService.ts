@@ -10,13 +10,15 @@ export const vnpayCreatePayment = async (
   shippingAddress: any
 ): Promise<{ paymentUrl: string }> => {
   try {
-    const response = await axiosClient.post('/payment/vnpay/create', {
-      cartId,
+    // ✅ SỬA: Endpoint đúng là /checkout/vnpay/create-payment-url
+    const response = await axiosClient.post('/checkout/vnpay/create-payment-url', {
       shippingAddress,
+      // Backend sẽ tự động lấy cart từ user, không cần truyền cartId
     });
     
+    // Backend trả về: { success: true, data: { paymentUrl, masterOrderId, totalAmount } }
     return {
-      paymentUrl: response.data.paymentUrl,
+      paymentUrl: response.data.data.paymentUrl || response.data.paymentUrl,
     };
   } catch (error: any) {
     throw new Error(

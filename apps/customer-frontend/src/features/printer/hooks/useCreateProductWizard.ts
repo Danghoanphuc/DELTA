@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import api from "@/shared/lib/axios";
 import { Asset } from "@/types/asset";
 import { getProductById } from "@/services/productService";
@@ -21,6 +22,7 @@ export function useCreateProductWizard(
   productId?: string,
   onSuccess?: () => void
 ) {
+  const navigate = useNavigate();
   // ❌ Bỏ isSubmitting
   // const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,6 +64,7 @@ export function useCreateProductWizard(
         setIsLoading(true);
         if (!productId) {
           const assetRes = await api.get("/assets/my-assets");
+          // Backend trả về: { success: true, data: { privateAssets: [], publicAssets: [] } }
           setPrivateAssets(assetRes.data?.data?.privateAssets || []);
           setPublicAssets(assetRes.data?.data?.publicAssets || []);
           setActiveStep(1);
@@ -165,6 +168,11 @@ export function useCreateProductWizard(
         onSuccess: () => {
           if (onSuccess) {
             onSuccess(); // (Gọi hàm onSuccess từ props - thường là closeForm)
+          }
+          // ✅ Sau khi đăng sản phẩm thành công (không phải edit), redirect về trang quản lý
+          if (!productId) {
+            // Chỉ redirect khi tạo mới, không redirect khi edit
+            navigate("/printer/dashboard?tab=products");
           }
         },
         onError: (err: any) => {

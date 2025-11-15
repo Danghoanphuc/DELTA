@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/stores/useCartStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { Button } from '@/shared/components/ui/button';
+import { ShippingCalculator } from '../components/ShippingCalculator';
 import {
   Card,
   CardContent,
@@ -18,6 +19,7 @@ const CartPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const isAuthenticated = !!user;
+  const [shippingFee, setShippingFee] = useState(0);
   const {
     cart,
     isLoading,
@@ -83,18 +85,27 @@ const CartPage = () => {
 
   const items = cart?.items || [];
   const totalAmount = cart?.totalAmount || 0;
+  const finalTotal = totalAmount + shippingFee;
 
   if (items.length === 0) {
     return (
       <div className="container mx-auto px-4 py-16">
         <Card className="max-w-md mx-auto text-center">
-          <CardContent className="pt-8">
-            <ShoppingBag className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Giỏ hàng trống</h2>
-            <p className="text-gray-600 mb-6">
-              Chưa có sản phẩm nào trong giỏ hàng của bạn
+          <CardContent className="pt-12 pb-8">
+            <div className="relative mb-6">
+              <ShoppingBag className="mx-auto h-20 w-20 text-gray-300 animate-pulse-slow" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold mb-2 text-gray-800">
+              Giỏ hàng trống
+            </h2>
+            <p className="text-gray-600 mb-8">
+              Chưa có sản phẩm nào trong giỏ hàng của bạn. Hãy bắt đầu khám phá
+              những sản phẩm tuyệt vời!
             </p>
-            <Button asChild>
+            <Button asChild size="lg" className="hover-lift">
               <Link to="/shop">Tiếp tục mua sắm</Link>
             </Button>
           </CardContent>
@@ -140,32 +151,38 @@ const CartPage = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)}
-                      disabled={item.quantity <= 1}
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    
-                    <span className="w-12 text-center font-medium">
-                      {item.quantity}
-                    </span>
-                    
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)}
+                    disabled={item.quantity <= 1}
+                    className="micro-bounce"
+                    aria-label="Giảm số lượng"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  
+                  <span className="w-12 text-center font-medium" aria-label={`Số lượng: ${item.quantity}`}>
+                    {item.quantity}
+                  </span>
+                  
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)}
+                    className="micro-bounce"
+                    aria-label="Tăng số lượng"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
                   </div>
 
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => handleRemoveItem(item._id)}
+                    className="micro-bounce hover:bg-red-50"
+                    aria-label={`Xóa ${item.product?.name || "sản phẩm"} khỏi giỏ hàng`}
                   >
                     <Trash2 className="h-5 w-5 text-red-500" />
                   </Button>
@@ -188,16 +205,24 @@ const CartPage = () => {
                 </div>
                 <div className="flex justify-between">
                   <span>Phí vận chuyển</span>
-                  <span>Tính khi thanh toán</span>
+                  <span>
+                    {shippingFee > 0
+                      ? `${shippingFee.toLocaleString('vi-VN')}₫`
+                      : 'Tính khi thanh toán'}
+                  </span>
                 </div>
                 <Separator className="my-4" />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Tổng cộng</span>
-                  <span>{totalAmount.toLocaleString('vi-VN')}₫</span>
+                  <span>{finalTotal.toLocaleString('vi-VN')}₫</span>
                 </div>
               </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex-col gap-4">
+              <ShippingCalculator
+                totalAmount={totalAmount}
+                onShippingChange={setShippingFee}
+              />
               <Button 
                 className="w-full" 
                 size="lg"

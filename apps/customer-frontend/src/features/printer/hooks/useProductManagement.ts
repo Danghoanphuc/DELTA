@@ -24,16 +24,21 @@ export function useProductManagement() {
   );
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
+  // State của Edit Modal (mới)
+  const [editingProduct, setEditingProduct] = useState<PrinterProduct | null>(
+    null
+  );
+  const [showEditModal, setShowEditModal] = useState(false);
+
   // ==================== FETCH DATA (Dùng useQuery) ====================
-  // ❌ Bỏ: useState<PrinterProduct[]>
-  // ❌ Bỏ: useState(true) cho loading
-  // ❌ Bỏ: useCallback(fetchProducts)
-  // ❌ Bỏ: useEffect(fetchProducts)
+
 
   // ✅ Thay thế tất cả bằng useQuery
-  const { data: products = [], isLoading: loading } = useQuery({
+  const { data: products = [], isLoading: loading, error } = useQuery({
     queryKey: PRINTER_PRODUCTS_QUERY_KEY,
     queryFn: productService.getMyProducts, // ✅ Gọi service đã sửa (Bước vá lỗi)
+    retry: false, // ✅ Tắt retry để tránh infinite loop khi lỗi 500
+    refetchOnWindowFocus: false, // ✅ Tắt refetch khi focus để tránh spam requests
   });
 
   // ==================== DELETE LOGIC (Dùng useMutation) ====================
@@ -87,7 +92,13 @@ export function useProductManagement() {
   };
 
   const openEditForm = (product: PrinterProduct) => {
-    navigateTo("edit", product._id);
+    setEditingProduct(product);
+    setShowEditModal(true);
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditingProduct(null);
   };
 
   const closeForm = () => {
@@ -122,11 +133,14 @@ export function useProductManagement() {
     loading, // Từ useQuery
     action,
     editingProductId,
+    editingProduct, // Sản phẩm đang được chỉnh sửa
+    showEditModal, // Trạng thái modal edit
     deletingProduct,
     showDeleteDialog,
     handleDeleteProduct,
     openAddForm,
     openEditForm,
+    closeEditModal, // Đóng modal edit
     closeForm,
     openDeleteDialog,
     closeDeleteDialog,

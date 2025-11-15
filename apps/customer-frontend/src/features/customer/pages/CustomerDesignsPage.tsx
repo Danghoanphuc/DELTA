@@ -8,6 +8,7 @@ import { DesignCard } from "../components/DesignCard";
 import { DesignEmptyState } from "../components/DesignEmptyState";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { Card, CardContent } from "@/shared/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 // ❌ GỠ BỎ: Sidebar, MobileNav
 
 const LoadingSkeleton = () => (
@@ -25,7 +26,11 @@ const LoadingSkeleton = () => (
 );
 
 export const CustomerDesignsPage = () => {
-  const { designs, loading } = useMyDesigns();
+  const { designs, loading, filter, setFilter, allDesigns } = useMyDesigns();
+
+  // ✅ THÊM: Đếm số lượng theo từng loại
+  const draftCount = allDesigns.filter((d) => d.status === "draft").length;
+  const savedCount = allDesigns.filter((d) => d.status === "saved" || !d.status).length;
 
   return (
     // ❌ GỠ BỎ: Sidebar, MobileNav
@@ -43,11 +48,28 @@ export const CustomerDesignsPage = () => {
             </p>
           </div>
           <Button asChild>
-            <Link to="/templates">
+            <Link to="/shop">
               <Plus size={18} className="mr-2" />
               Tạo thiết kế mới
             </Link>
           </Button>
+        </div>
+
+        {/* ✅ THÊM: Filter Tabs */}
+        <div className="mb-6">
+          <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>
+            <TabsList>
+              <TabsTrigger value="all">
+                Tất cả ({allDesigns.length})
+              </TabsTrigger>
+              <TabsTrigger value="draft">
+                Bản nháp ({draftCount})
+              </TabsTrigger>
+              <TabsTrigger value="saved">
+                Đã lưu ({savedCount})
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
         {/* Content Grid */}

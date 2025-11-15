@@ -93,4 +93,38 @@ export class DesignController {
       next(error);
     }
   };
+
+  // ✅ THÊM: Save draft design
+  saveDraftDesign = async (req, res, next) => {
+    try {
+      const design = await this.designService.saveDraftDesign(
+        req.user._id,
+        req.body
+      );
+      res
+        .status(API_CODES.SUCCESS)
+        .json(ApiResponse.success({ design }, "Đã lưu bản nháp"));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // ✅ THÊM: Get draft design
+  getDraftDesign = async (req, res, next) => {
+    try {
+      const { productId } = req.query;
+      if (!productId) {
+        return res.status(400).json(
+          ApiResponse.error("Thiếu productId trong query")
+        );
+      }
+      const design = await this.designService.getDraftDesign(
+        req.user._id,
+        productId
+      );
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ design }));
+    } catch (error) {
+      next(error);
+    }
+  };
 }

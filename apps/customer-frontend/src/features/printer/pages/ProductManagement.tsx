@@ -16,6 +16,7 @@ import {
 import { ProductListHeader } from "@/features/printer/components/ProductListHeader";
 import { ProductTable } from "@/features/printer/components/ProductTable";
 import { ProductEmptyState } from "@/features/printer/components/ProductEmptyState"; // Import Empty State
+import { EditProductModal } from "@/features/printer/components/EditProductModal";
 
 export function ProductManagement() {
   const {
@@ -25,6 +26,8 @@ export function ProductManagement() {
     // ✅ 1. Lấy state ĐÚNG từ hook (đọc từ URL)
     action,
     editingProductId,
+    editingProduct,
+    showEditModal,
 
     deletingProduct,
     showDeleteDialog,
@@ -33,6 +36,7 @@ export function ProductManagement() {
     // ✅ 2. Lấy các hàm điều hướng ĐÚNG
     openAddForm,
     openEditForm,
+    closeEditModal,
     closeForm,
     openDeleteDialog,
     closeDeleteDialog,
@@ -91,6 +95,19 @@ export function ProductManagement() {
           />
         )}
       </div>
+
+      {/* Edit Product Modal */}
+      {editingProduct && (
+        <EditProductModal
+          product={editingProduct}
+          isOpen={showEditModal}
+          onClose={closeEditModal}
+          onSuccess={() => {
+            onProductEdited();
+            closeEditModal();
+          }}
+        />
+      )}
 
       {/* Delete Confirmation Dialog (Giữ nguyên) */}
       <AlertDialog open={showDeleteDialog} onOpenChange={closeDeleteDialog}>

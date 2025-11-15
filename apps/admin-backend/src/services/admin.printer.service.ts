@@ -31,6 +31,13 @@ interface IPrinterProfile {
     cccdUrl?: string;
   };
   user: string | IUser; // <-- SỬA: Cho phép populate
+  shopAddress?: {
+    street: string;
+    district: string;
+    city: string;
+  };
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 type IPrinterProfileModel = Model<IPrinterProfile & Document>;
 
@@ -44,18 +51,24 @@ const PrinterProfileModel =
 
 /**
  * Lấy danh sách nhà in đang chờ duyệt
- * (Không thay đổi)
+ * ✅ FIX: Hiển thị cả "not_submitted" và "pending_review" để admin thấy tất cả profiles mới
  */
 export const getPendingPrinters = async (query: any) => {
   const page = parseInt(query.page || "1", 10);
   const limit = parseInt(query.limit || "10", 10);
 
+  // ✅ FIX: Lấy cả "not_submitted" và "pending_review"
+  // "not_submitted": Profile mới tạo, chưa nộp verification docs
+  // "pending_review": Profile đã nộp verification docs, đang chờ duyệt
   const filter = {
-    verificationStatus: "pending_review",
+    verificationStatus: { $in: ["not_submitted", "pending_review"] },
+    // ✅ Chỉ lấy các profile chưa được verify
+    isVerified: false,
   };
 
   const printers = await PrinterProfileModel.find(filter)
-    .sort({ updatedAt: 1 })
+    .populate("user", "email displayName avatarUrl") // ✅ FIX: Populate user info
+    .sort({ createdAt: -1 }) // ✅ FIX: Sắp xếp theo ngày tạo mới nhất trước
     .skip((page - 1) * limit)
     .limit(limit);
 
@@ -91,6 +104,17 @@ export const verifyPrinter = async (
     printer.verificationStatus = "approved";
     printer.isVerified = true;
     printer.isActive = true;
+
+    // ✅ FIX: Đảm bảo user có printerProfileId được set
+    if (printer.user && typeof printer.user !== "string") {
+      const userId = (printer.user as IUser)._id || (printer.user as IUser).id;
+      if (userId) {
+        await CustomerModel.findByIdAndUpdate(userId, {
+          printerProfileId: printer._id,
+        });
+        console.log(`✅ Đã cập nhật printerProfileId cho user ${userId}`);
+      }
+    }
     // (Sau này có thể thêm logic gửi mail Chúc mừng)
   } else {
     // Logic khi REJECT

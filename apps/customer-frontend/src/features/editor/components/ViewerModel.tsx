@@ -75,20 +75,18 @@ export function ViewerModel({
         // onDrop và onDragOver đã được xử lý bởi <Canvas> ở component cha
       />
 
-      {/* Render Decals */}
-      {decals
-        .filter((d) => d.isVisible)
-        .map((decal) => (
-          <DecalRenderer
-            key={decal.id}
-            decal={decal}
-            onSelect={onDecalSelect}
-            isSelected={decal.id === selectedDecalId}
-            onUpdate={onDecalUpdate}
-            gizmoMode={gizmoMode}
-            isSnapping={isSnapping}
-          />
-        ))}
+      {/* Render Decals - ✅ SỬA: Render tất cả để giữ thứ tự, visibility được xử lý trong DecalRenderer */}
+      {decals.map((decal) => (
+        <DecalRenderer
+          key={decal.id}
+          decal={decal}
+          onSelect={onDecalSelect}
+          isSelected={decal.id === selectedDecalId}
+          onUpdate={onDecalUpdate}
+          gizmoMode={gizmoMode}
+          isSnapping={isSnapping}
+        />
+      ))}
     </>
   );
 }

@@ -55,6 +55,15 @@ const ProductSchema = new mongoose.Schema(
       ],
     },
 
+    // ✅ THÊM: Hình ảnh sản phẩm
+    images: [
+      {
+        url: { type: String, required: true },
+        publicId: { type: String },
+        isPrimary: { type: Boolean, default: false },
+      },
+    ],
+
     // (Giữ nguyên) Pricing
     pricing: [
       {

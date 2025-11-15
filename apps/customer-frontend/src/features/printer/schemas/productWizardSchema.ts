@@ -19,7 +19,7 @@ export const productWizardSchema = z.object({
   images: z
     .array(fileSchema)
     .min(1, "Cần ít nhất 1 ảnh sản phẩm.")
-    .max(5, "Tối đa 5 ảnh."),
+    .max(10, "Tối đa 10 ảnh."),
   pricing: z.array(pricingSchema).min(1, "Phải có ít nhất 1 bậc giá"),
   isActive: z.boolean(),
 });

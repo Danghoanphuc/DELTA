@@ -22,6 +22,7 @@ import {
 import { PrinterProduct, ProductPrice } from "@/types/product";
 import { toast } from "sonner";
 import api from "@/shared/lib/axios";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface EditProductModalProps {
   product: PrinterProduct;
@@ -36,6 +37,7 @@ export function EditProductModal({
   onClose,
   onSuccess,
 }: EditProductModalProps) {
+  const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     name: product.name,
     category: product.category,
@@ -76,6 +78,12 @@ export function EditProductModal({
     try {
       await api.put(`/products/${product._id}`, formData);
       toast.success("✅ Cập nhật sản phẩm thành công!");
+      
+      // Invalidate queries để refresh danh sách
+      queryClient.invalidateQueries({ queryKey: ["printer-products", "my-products"] });
+      queryClient.invalidateQueries({ queryKey: ["products", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["product", product._id] });
+      
       onSuccess();
       onClose();
     } catch (err: any) {

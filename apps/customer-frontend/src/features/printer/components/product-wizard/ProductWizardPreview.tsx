@@ -35,9 +35,11 @@ export function ProductWizardPreview({ asset }: PreviewProps) {
             onModelLoaded={() => {}}
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed">
-            <Box size={48} className="text-gray-300" />
-            <p className="mt-2 text-gray-500">Vui lòng chọn Phôi ở Bước 1</p>
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-8">
+            <Box size={48} className="text-gray-300 mb-4" />
+            <p className="text-sm text-gray-500 text-center">
+              Vui lòng chọn Phôi ở Bước 1
+            </p>
           </div>
         )}
       </CardContent>

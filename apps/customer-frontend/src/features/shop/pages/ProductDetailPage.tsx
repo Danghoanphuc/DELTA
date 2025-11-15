@@ -1,9 +1,10 @@
-// src/features/shop/pages/ProductDetailPage.tsx (ĐÃ VÁ LẦN 2)
+// src/features/shop/pages/ProductDetailPage.tsx
 
 import React, { useMemo, lazy, Suspense, useState, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { Breadcrumb } from "@/shared/components/ui/breadcrumb";
 import { useProductDetail } from "../hooks/useProductDetail";
 import { useNavigate } from "react-router-dom";
 import { useCartStore } from "@/stores/useCartStore";
@@ -18,6 +19,7 @@ import { ProductDetailFooter } from "../components/ProductDetailFooter";
 import { ProductPurchaseSheet } from "../components/details/ProductPurchaseSheet";
 // ✅ SỬA LỖI TS2307: Sửa lại đường dẫn import cho SectionSkeleton
 import { SectionSkeleton } from "../components/details/SectionSkeleton";
+import { ProductDetailSkeleton } from "@/shared/components/ui/skeleton";
 
 // (Các import động)
 // ... (giữ nguyên) ...
@@ -29,11 +31,7 @@ const PrinterProfileSection = lazy(
 );
 
 // (Component LoadingScreen, ErrorScreen giữ nguyên)
-const LoadingScreen = () => (
-  <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
-    <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
-  </div>
-);
+const LoadingScreen = () => <ProductDetailSkeleton />;
 
 const ErrorScreen = ({ message }: { message: string }) => (
   <div className="flex h-[calc(100vh-4rem)] flex-col items-center justify-center gap-4 p-4 text-center">
@@ -117,7 +115,37 @@ const ProductDetailPage = () => {
   };
 
   const handleStartEditing = () => {
-    if (!product) return;
+    if (!product) {
+      toast.error("Không tìm thấy thông tin sản phẩm");
+      return;
+    }
+
+    // ✅ VALIDATION: Kiểm tra điều kiện để vào Editor
+    // 1. Kiểm tra product có hỗ trợ design service
+    if (!product.customization?.hasDesignService) {
+      toast.error(
+        "Sản phẩm này không hỗ trợ chỉnh sửa 3D. Vui lòng chọn sản phẩm khác."
+      );
+      return;
+    }
+
+    // 2. Kiểm tra có 3D model URL
+    if (!product.assets?.modelUrl) {
+      toast.error(
+        "Sản phẩm này chưa có mô hình 3D. Vui lòng liên hệ nhà in để được hỗ trợ."
+      );
+      return;
+    }
+
+    // 3. Kiểm tra có surfaces để thiết kế
+    if (!product.assets?.surfaces || product.assets.surfaces.length === 0) {
+      toast.error(
+        "Sản phẩm này chưa có bề mặt có thể thiết kế. Vui lòng liên hệ nhà in."
+      );
+      return;
+    }
+
+    // Tất cả điều kiện đều OK → Navigate đến editor
     navigate(`/design-editor?productId=${product._id}`);
   };
 
@@ -179,6 +207,14 @@ const ProductDetailPage = () => {
     <ProductCustomization
       onStartEditing={handleStartEditing}
       onPurchase={() => handleOpenSheet("buy")}
+      onAddToCart={handleAddToCart}
+      isAddingToCart={isAddingToCart}
+      inCart={inCart}
+      minQuantity={minQuantity}
+      selectedQuantity={selectedQuantity}
+      onQuantityChange={setSelectedQuantity}
+      pricePerUnit={pricePerUnit}
+      formatPrice={formatPrice}
     />
   ) : (
     <ProductPurchase
@@ -196,28 +232,45 @@ const ProductDetailPage = () => {
 
   return (
     <div className="container mx-auto max-w-7xl p-4 md:p-6 lg:p-8 relative">
-      <Button
-        variant="ghost"
-        className="absolute top-4 left-4 z-30"
-        onClick={() => navigate(-1)}
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Quay lại
-      </Button>
+      <div className="mb-4 flex items-center justify-between">
+        <Button
+          variant="ghost"
+          className="lg:hidden"
+          onClick={() => navigate(-1)}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Quay lại
+        </Button>
+        <Breadcrumb
+          items={[
+            { label: "Trang chủ", href: "/app" },
+            { label: "Cửa hàng", href: "/shop" },
+            { label: product.name },
+          ]}
+          className="hidden lg:flex"
+        />
+      </div>
 
       <div className="pb-24">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          <div className="lg:col-span-5 z-20">
+        {/* Layout mới: Image Gallery + Product Info + Purchase Panel (giống Taobao) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Cột 1: Image Gallery (5/12) */}
+          <div className="lg:col-span-5">
+            <ProductImageGallery images={product.images} name={product.name} />
+          </div>
+
+          {/* Cột 2: Product Info + Purchase Panel (7/12) */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* Product Info */}
             <ProductInfo
               product={product}
               currentPricePerUnit={pricePerUnit}
               formatPrice={formatPrice}
             />
+
+            {/* Purchase Panel */}
+            <div className="sticky top-4">{ShopPanel}</div>
           </div>
-          <div className="lg:col-span-3 relative z-10">
-            <ProductImageGallery images={product.images} name={product.name} />
-          </div>
-          <div className="lg:col-span-2 relative z-20">{ShopPanel}</div>
         </div>
 
         <div className="mt-12 lg:mt-20">
