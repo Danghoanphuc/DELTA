@@ -29,7 +29,7 @@ const FullPageLoader = () => (
 
 export function PrinterStudio() {
   // Camera controls ref
-  const cameraControlsRef = useRef<CameraControlsHandle>(null);
+  const cameraControlsRef = useRef<CameraControlsHandle | null>(null);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [toolMode, setToolMode] = useState<"select" | "pan">("select");
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);

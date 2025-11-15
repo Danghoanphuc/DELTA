@@ -23,12 +23,11 @@ import { ContextualPropertyBar } from "./components/ContextualPropertyBar";
 import { EditorErrorBoundary } from "./components/EditorErrorBoundary";
 import { toast } from "sonner"; // ✅ Thêm toast
 import { CameraControlsHandle } from "./components/ProductViewer3D";
-import { useRef, useEffect, useState } from "react";
 import { ExportDialog } from "./components/ExportDialog";
 
 function DesignEditorPageContent() {
   const navigate = useNavigate();
-  const cameraControlsRef = useRef<CameraControlsHandle>(null);
+  const cameraControlsRef = useRef<CameraControlsHandle | null>(null);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 

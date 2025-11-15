@@ -31,11 +31,6 @@ export interface IPrinterProfile {
   } | string;
   updatedAt: string | Date;
   createdAt?: string | Date;
-  shopAddress?: {
-    street: string;
-    district: string;
-    city: string;
-  };
 }
 
 export interface IPaginatedPrinters {

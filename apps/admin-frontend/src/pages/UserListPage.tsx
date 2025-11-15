@@ -257,8 +257,8 @@ Hành động này sẽ được ghi lại (Audit Log).`
                         <StatusBadge isActive={user.status === "active"} />
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                        {/* ✅ FIX: Dùng printerProfileId thay vì printerProfile */}
-                        {user.printerProfileId ? "Printer" : "Customer"}
+                        {/* ✅ FIX: Kiểm tra printerProfile thay vì printerProfileId */}
+                        {user.printerProfile ? "Printer" : "Customer"}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                         {new Date(user.createdAt).toLocaleDateString("vi-VN")}

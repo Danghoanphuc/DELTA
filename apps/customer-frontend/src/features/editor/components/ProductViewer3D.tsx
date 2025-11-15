@@ -65,7 +65,7 @@ interface SceneContentProps {
   isSnapping: boolean;
   modelRef: React.RefObject<THREE.Group | null>;
   isDraggingFlag: React.MutableRefObject<boolean>;
-  cameraControlsRef?: React.RefObject<CameraControlsHandle>;
+  cameraControlsRef?: React.RefObject<CameraControlsHandle | null>;
   toolMode?: "select" | "pan";
 }
 
@@ -255,7 +255,7 @@ interface ProductViewer3DProps {
   onDecalUpdate: (id: string, updates: Partial<DecalItem>) => void; // Tên bên ngoài là 'onDecalUpdate'
   gizmoMode: GizmoMode;
   isSnapping: boolean;
-  cameraControlsRef?: React.RefObject<CameraControlsHandle>;
+  cameraControlsRef?: React.RefObject<CameraControlsHandle | null>;
   toolMode?: "select" | "pan";
 }
 

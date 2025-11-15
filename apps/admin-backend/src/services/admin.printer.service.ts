@@ -107,7 +107,7 @@ export const verifyPrinter = async (
 
     // ✅ FIX: Đảm bảo user có printerProfileId được set
     if (printer.user && typeof printer.user !== "string") {
-      const userId = (printer.user as IUser)._id || (printer.user as IUser).id;
+      const userId = (printer.user as IUser)._id;
       if (userId) {
         await CustomerModel.findByIdAndUpdate(userId, {
           printerProfileId: printer._id,
