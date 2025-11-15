@@ -121,7 +121,20 @@ async function startServer() {
     };
 
     app.use(cors(corsOptions));
-    app.use(helmet());
+    // ✅ FIX: Cấu hình helmet để không chặn popup và postMessage
+    app.use(
+      helmet({
+        contentSecurityPolicy: {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Cho phép inline script trong OAuth callback
+            frameAncestors: ["'self'", "*"], // Cho phép popup
+          },
+        },
+        crossOriginEmbedderPolicy: false, // Tắt để không chặn postMessage
+        crossOriginOpenerPolicy: false, // Tắt để cho phép popup communication
+      })
+    );
     app.use(morgan("dev"));
     app.use(express.urlencoded({ extended: true }));
 

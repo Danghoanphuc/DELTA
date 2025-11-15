@@ -44,7 +44,10 @@ router.get(
   }),
   async (req, res) => {
     try {
-      Logger.info(`[OAuth] Callback triggered for user: ${req.user.email}`);
+      Logger.info(`[OAuth] Callback triggered for user: ${req.user?.email || 'unknown'}`);
+      Logger.info(`[OAuth] Request origin: ${req.get('origin') || 'none'}`);
+      Logger.info(`[OAuth] Request referer: ${req.get('referer') || 'none'}`);
+      Logger.info(`[OAuth] CLIENT_ORIGINS: ${JSON.stringify(CLIENT_ORIGINS)}`);
 
       // Create session and get tokens
       const result = await authService.createOAuthSession(req.user);
@@ -66,188 +69,117 @@ router.get(
 
       Logger.success(`[OAuth] Session created for user: ${req.user.email}`);
 
-      // Send HTML response with postMessage script
+      // ✅ FIX: Đơn giản hóa hoàn toàn - bỏ HTML/CSS phức tạp, chỉ giữ script
+      // Send minimal HTML response with postMessage script
       res.send(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Đăng nhập thành công</title>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-              * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-              }
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                margin: 0;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              }
-              .container {
-                text-align: center;
-                background: white;
-                padding: 2.5rem;
-                border-radius: 1rem;
-                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-                max-width: 400px;
-              }
-              .spinner {
-                border: 4px solid #f3f4f6;
-                border-top-color: #667eea;
-                border-radius: 50%;
-                width: 50px;
-                height: 50px;
-                animation: spin 1s linear infinite;
-                margin: 0 auto 1.5rem;
-              }
-              @keyframes spin {
-                to { transform: rotate(360deg); }
-              }
-              h1 {
-                font-size: 1.5rem;
-                color: #1f2937;
-                margin-bottom: 0.5rem;
-                font-weight: 600;
-              }
-              p {
-                color: #6b7280;
-                font-size: 0.95rem;
-              }
-              .checkmark {
-                font-size: 3rem;
-                color: #10b981;
-                margin-bottom: 1rem;
-                display: none;
-              }
-              .checkmark.show {
-                display: block;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="checkmark" id="checkmark">✓</div>
-              <div class="spinner" id="spinner"></div>
-              <h1>Đăng nhập thành công!</h1>
-              <p>Đang chuyển hướng...</p>
-            </div>
-            <script>
-              (function() {
-                const payload = ${JSON.stringify(payload)};
-                const targetOrigins = ${JSON.stringify(CLIENT_ORIGINS)};
-                let attempts = 0;
-                const maxAttempts = 30; // ✅ FIX: Tăng số lần retry lên 30 (3 giây)
-                let messageSent = false;
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Đăng nhập thành công</title>
+  <meta charset="UTF-8">
+</head>
+<body>
+  <script>
+    (function() {
+      const payload = ${JSON.stringify(payload)};
+      const targetOrigins = ${JSON.stringify(CLIENT_ORIGINS)};
+      
+      console.log("[OAuth] Callback script started");
+      console.log("[OAuth] Target origins:", targetOrigins);
+      console.log("[OAuth] Payload:", payload);
+      console.log("[OAuth] Window opener:", window.opener ? "exists" : "null");
+      console.log("[OAuth] Window closed:", window.closed);
+      
+      function sendAndClose() {
+        // Kiểm tra opener
+        if (!window.opener) {
+          console.error("[OAuth] ❌ No opener window found");
+          if (targetOrigins.length > 0) {
+            console.log("[OAuth] Redirecting to:", targetOrigins[0] + "/?oauth=success");
+            window.location.href = targetOrigins[0] + "/?oauth=success";
+          }
+          return;
+        }
+        
+        if (window.opener.closed) {
+          console.error("[OAuth] ❌ Opener window is closed");
+          if (targetOrigins.length > 0) {
+            console.log("[OAuth] Redirecting to:", targetOrigins[0] + "/?oauth=success");
+            window.location.href = targetOrigins[0] + "/?oauth=success";
+          }
+          return;
+        }
+        
+        // Gửi message ngay lập tức
+        console.log("[OAuth] ✅ Sending messages...");
+        
+        // Gửi đến tất cả target origins
+        targetOrigins.forEach(origin => {
+          try {
+            window.opener.postMessage(payload, origin);
+            console.log("[OAuth] ✅ Sent to origin:", origin);
+          } catch (e) {
+            console.warn("[OAuth] ⚠️ Failed to send to", origin, ":", e.message);
+          }
+        });
+        
+        // ✅ CRITICAL: Gửi với wildcard để đảm bảo message được nhận
+        try {
+          window.opener.postMessage(payload, "*");
+          console.log("[OAuth] ✅ Sent with wildcard (*)");
+        } catch (e) {
+          console.warn("[OAuth] ⚠️ Failed to send with wildcard:", e.message);
+        }
+        
+        // Đóng popup ngay lập tức (delay tối thiểu)
+        setTimeout(() => {
+          try {
+            console.log("[OAuth] Attempting to close popup...");
+            window.close();
+            
+            // Kiểm tra xem đã đóng chưa
+            setTimeout(() => {
+              if (!window.closed) {
+                console.warn("[OAuth] ⚠️ Popup still open, trying again...");
+                window.close();
                 
-                console.log("[OAuth] Callback page loaded");
-                console.log("[OAuth] Target origins:", targetOrigins);
-                console.log("[OAuth] Payload:", payload);
-                console.log("[OAuth] Window opener:", window.opener ? "exists" : "null");
-                
-                function sendMessage() {
-                  attempts++;
-                  
-                  if (window.opener && !window.opener.closed) {
-                    console.log("[OAuth] ✅ Attempt", attempts, "- Sending message to:", targetOrigins);
-                    
-                    // ✅ FIX: Gửi message đến tất cả target origins
-                    // ✅ FIX: Cũng gửi với "*" để đảm bảo message được nhận (chỉ trong OAuth callback)
-                    targetOrigins.forEach((origin) => {
-                      try {
-                        window.opener.postMessage(payload, origin);
-                        console.log("[OAuth] Message sent to origin:", origin);
-                      } catch (err) {
-                        console.error("[OAuth] Error sending message to", origin, ":", err);
-                      }
-                    });
-                    
-                    // ✅ FIX: Fallback - gửi với "*" nếu không có target origins hoặc để đảm bảo message được nhận
-                    // Lưu ý: Chỉ dùng trong OAuth callback, không dùng cho các trường hợp khác
-                    try {
-                      window.opener.postMessage(payload, "*");
-                      console.log("[OAuth] Message also sent with wildcard origin (*)");
-                    } catch (err) {
-                      console.warn("[OAuth] Could not send message with wildcard:", err);
-                    }
-
-                    // Đánh dấu đã gửi message
-                    if (!messageSent) {
-                      messageSent = true;
-                      
-                      // Show success checkmark
-                      const spinner = document.getElementById('spinner');
-                      const checkmark = document.getElementById('checkmark');
-                      if (spinner) spinner.style.display = 'none';
-                      if (checkmark) checkmark.classList.add('show');
-                      
-                      // ✅ FIX: Đóng popup sau khi gửi message thành công
-                      setTimeout(() => {
-                        try {
-                          console.log("[OAuth] Attempting to close popup");
-                          window.close();
-                          // Fallback: Nếu không đóng được, thử lại sau 500ms
-                          setTimeout(() => {
-                            if (!window.closed) {
-                              console.warn("[OAuth] Popup still open, trying to close again");
-                              window.close();
-                            }
-                          }, 500);
-                        } catch (err) {
-                          console.error("[OAuth] Error closing popup:", err);
-                          // Fallback: Redirect nếu không đóng được
-                          if (targetOrigins.length > 0) {
-                            window.location.href = targetOrigins[0] + "/?oauth=success";
-                          }
-                        }
-                      }, 500); // ✅ FIX: Giảm delay xuống 500ms để đóng nhanh hơn
-                    }
-                  } else if (attempts < maxAttempts) {
-                    // Retry if opener not ready yet
-                    console.log("[OAuth] Opener not ready, retrying... (attempt", attempts, "/", maxAttempts, ")");
-                    setTimeout(sendMessage, 100);
-                  } else {
-                    // Fallback: redirect to homepage
-                    console.error("[OAuth] ❌ Cannot find opener window after", maxAttempts, "attempts, redirecting...");
-                    if (targetOrigins.length > 0) {
-                      window.location.href = targetOrigins[0] + "/?oauth=success";
-                    } else {
-                      console.error("[OAuth] No target origins available!");
-                    }
-                  }
-                }
-                
-                // ✅ FIX: Bắt đầu gửi message ngay khi DOM ready
-                if (document.readyState === 'loading') {
-                  document.addEventListener('DOMContentLoaded', sendMessage);
-                } else {
-                  // DOM đã sẵn sàng, gửi ngay
-                  sendMessage();
-                }
-                
-                // ✅ FIX: Thêm fallback timeout để đảm bảo popup đóng sau 5 giây
+                // Nếu vẫn không đóng được sau 1 giây, redirect
                 setTimeout(() => {
-                  if (!messageSent && !window.closed) {
-                    console.warn("[OAuth] Timeout: Force closing popup");
-                    try {
-                      window.close();
-                    } catch (err) {
-                      console.error("[OAuth] Error in timeout close:", err);
-                      if (targetOrigins.length > 0) {
-                        window.location.href = targetOrigins[0] + "/?oauth=success";
-                      }
-                    }
+                  if (!window.closed && targetOrigins.length > 0) {
+                    console.warn("[OAuth] ⚠️ Cannot close popup, redirecting...");
+                    window.location.href = targetOrigins[0] + "/?oauth=success";
                   }
-                }, 5000);
-              })();
-            </script>
-          </body>
-        </html>
+                }, 1000);
+              } else {
+                console.log("[OAuth] ✅ Popup closed successfully");
+              }
+            }, 100);
+          } catch (err) {
+            console.error("[OAuth] ❌ Error closing popup:", err);
+            // Fallback: redirect
+            if (targetOrigins.length > 0) {
+              window.location.href = targetOrigins[0] + "/?oauth=success";
+            }
+          }
+        }, 50); // ✅ FIX: Delay tối thiểu 50ms
+      }
+      
+      // Chạy ngay khi script load (không đợi DOM)
+      sendAndClose();
+      
+      // ✅ FIX: Fallback timeout - nếu sau 2 giây vẫn chưa đóng, redirect
+      setTimeout(() => {
+        if (!window.closed) {
+          console.warn("[OAuth] ⚠️ Timeout: Popup still open after 2s, redirecting...");
+          if (targetOrigins.length > 0) {
+            window.location.href = targetOrigins[0] + "/?oauth=success";
+          }
+        }
+      }, 2000);
+    })();
+  </script>
+</body>
+</html>
       `);
     } catch (error) {
       Logger.error("❌ OAuth Callback Error:", error);

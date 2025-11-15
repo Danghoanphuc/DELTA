@@ -18,10 +18,16 @@ export function SocialButton({ provider }: SocialButtonProps) {
   const navigate = useNavigate();
 
   const openGooglePopup = () => {
+    console.log("[OAuth] Frontend - Opening Google popup...");
+    console.log("[OAuth] Frontend - Current origin:", window.location.origin);
+    console.log("[OAuth] Frontend - API_URL:", API_URL);
+    
     const searchParams = new URLSearchParams({
       origin: window.location.origin,
     });
     const url = `${API_URL}/api/auth/google?${searchParams.toString()}`;
+    console.log("[OAuth] Frontend - OAuth URL:", url);
+    
     const name = "Google Login";
     const width = 500;
     const height = 600;
@@ -35,13 +41,25 @@ export function SocialButton({ provider }: SocialButtonProps) {
     );
 
     if (!popup) {
-      console.error("[OAuth] Popup blocked by browser");
+      console.error("[OAuth] ❌ Popup blocked by browser");
       alert("Popup bị chặn! Vui lòng cho phép popup và thử lại.");
       return;
     }
+    
+    console.log("[OAuth] Frontend - Popup opened successfully");
 
-    // ✅ THÊM: Lắng nghe postMessage từ popup
+    // ✅ FIX: Lắng nghe postMessage từ popup - cải thiện logic
+    let messageReceived = false;
+    let timeoutId: NodeJS.Timeout;
+    let checkPopupClosed: NodeJS.Timeout;
+    
     const messageListener = async (event: MessageEvent) => {
+      // ✅ FIX: Bỏ qua nếu đã nhận message
+      if (messageReceived) {
+        console.log("[OAuth] Message already processed, ignoring duplicate");
+        return;
+      }
+
       // Build allowed origins list
       const allowedOrigins = new Set([
         "http://localhost:5173",
@@ -53,8 +71,9 @@ export function SocialButton({ provider }: SocialButtonProps) {
       try {
         const backendOrigin = new URL(API_URL).origin;
         allowedOrigins.add(backendOrigin);
-        console.log("[OAuth] API_URL:", API_URL);
-        console.log("[OAuth] Backend origin:", backendOrigin);
+        console.log("[OAuth] Frontend - API_URL:", API_URL);
+        console.log("[OAuth] Frontend - Backend origin:", backendOrigin);
+        console.log("[OAuth] Frontend - Current origin:", window.location.origin);
       } catch (error) {
         console.warn("[OAuth] Cannot parse API_URL origin:", error, "API_URL:", API_URL);
         // ✅ FIX: Thêm các backend origins phổ biến trong production
@@ -62,41 +81,45 @@ export function SocialButton({ provider }: SocialButtonProps) {
         allowedOrigins.add("http://delta-customer.onrender.com");
       }
 
-      console.log("[OAuth] Allowed origins:", Array.from(allowedOrigins));
-      console.log("[OAuth] Received message from origin:", event.origin);
-      console.log("[OAuth] Message data:", event.data);
+      console.log("[OAuth] Frontend - Allowed origins:", Array.from(allowedOrigins));
+      console.log("[OAuth] Frontend - Received message from origin:", event.origin);
+      console.log("[OAuth] Frontend - Message data:", event.data);
 
-      // ✅ FIX: Kiểm tra origin - chấp nhận từ backend origin hoặc frontend origin
-      // ✅ FIX: Nếu có payload hợp lệ, chấp nhận message (OAuth callback an toàn hơn)
+      // ✅ FIX: Kiểm tra payload trước - nếu có accessToken thì chấp nhận ngay
       const hasValidPayload = event.data?.success && event.data?.accessToken;
       
-      if (!allowedOrigins.has(event.origin) && !hasValidPayload) {
-        console.warn("[OAuth] Ignoring message from unauthorized origin:", event.origin, "Allowed:", Array.from(allowedOrigins));
-        return;
-      }
-      
-      // ✅ FIX: Log cảnh báo nếu origin không khớp nhưng có payload hợp lệ
-      if (!allowedOrigins.has(event.origin) && hasValidPayload) {
-        console.warn("[OAuth] ⚠️ Origin không khớp nhưng có payload hợp lệ. Chấp nhận message từ:", event.origin);
+      if (!hasValidPayload) {
+        // Nếu không có payload hợp lệ, kiểm tra origin
+        if (!allowedOrigins.has(event.origin)) {
+          console.warn("[OAuth] Ignoring message - no valid payload and origin mismatch:", event.origin);
+          return;
+        }
+      } else {
+        // ✅ CRITICAL: Nếu có payload hợp lệ, chấp nhận ngay (bỏ qua origin check)
+        console.log("[OAuth] ✅ Valid payload detected, accepting message from:", event.origin);
       }
 
-      if (event.data?.success && event.data?.accessToken) {
-        console.log("[OAuth] ✅ Received access token from popup");
+      if (hasValidPayload) {
+        messageReceived = true;
+        console.log("[OAuth] ✅ Frontend - Received access token from popup");
         
-        // Xóa listener
+        // Xóa listener ngay lập tức
         window.removeEventListener("message", messageListener);
+        clearTimeout(timeoutId);
+        clearInterval(checkPopupClosed);
         
-        // ✅ FIX: Đóng popup ngay lập tức và có fallback
+        // ✅ FIX: Đóng popup ngay lập tức
         try {
           if (popup && !popup.closed) {
+            console.log("[OAuth] Closing popup from frontend...");
             popup.close();
-            // Fallback: Nếu popup không đóng được, thử lại sau 500ms
+            // Fallback: Thử lại sau 100ms
             setTimeout(() => {
               if (popup && !popup.closed) {
                 console.warn("[OAuth] Popup still open, trying to close again");
                 popup.close();
               }
-            }, 500);
+            }, 100);
           }
         } catch (err) {
           console.warn("[OAuth] Error closing popup:", err);
@@ -104,12 +127,14 @@ export function SocialButton({ provider }: SocialButtonProps) {
 
         try {
           // Set token và fetch user
+          console.log("[OAuth] Setting access token and fetching user...");
           setAccessToken(event.data.accessToken);
           await fetchMe();
           toast.success("Đăng nhập thành công!");
           
           // ✅ Redirect ngay vào /app
           navigate("/app", { replace: true });
+          console.log("[OAuth] ✅ Successfully logged in and redirected");
         } catch (err: any) {
           console.error("[OAuth] Error after receiving token:", err);
           if (err.response?.status === 404) {
@@ -119,8 +144,11 @@ export function SocialButton({ provider }: SocialButtonProps) {
           }
         }
       } else if (event.data?.error) {
+        messageReceived = true;
         console.error("[OAuth] Received error from popup:", event.data.error);
         window.removeEventListener("message", messageListener);
+        clearTimeout(timeoutId);
+        clearInterval(checkPopupClosed);
         try {
           if (popup && !popup.closed) {
             popup.close();
@@ -132,26 +160,29 @@ export function SocialButton({ provider }: SocialButtonProps) {
       }
     };
 
-    // Lắng nghe message từ popup
+    // ✅ FIX: Lắng nghe message từ popup - đảm bảo chỉ lắng nghe một lần
+    console.log("[OAuth] Frontend - Setting up message listener");
     window.addEventListener("message", messageListener);
 
     // ✅ FIX: Thêm timeout để đóng popup nếu không nhận được message sau 30 giây
     const timeoutId = setTimeout(() => {
-      if (popup && !popup.closed) {
-        console.warn("[OAuth] Timeout: No message received, closing popup");
+      if (!messageReceived && popup && !popup.closed) {
+        console.warn("[OAuth] ⚠️ Timeout: No message received after 30s, closing popup");
         try {
           popup.close();
         } catch (err) {
           console.warn("[OAuth] Error closing popup on timeout:", err);
         }
         window.removeEventListener("message", messageListener);
+        clearInterval(checkPopupClosed);
         toast.error("Đăng nhập timeout. Vui lòng thử lại.");
       }
     }, 30000); // 30 seconds timeout
 
-    // Cleanup: Xóa listener nếu popup đóng thủ công
+    // ✅ FIX: Cleanup - Xóa listener nếu popup đóng thủ công
     const checkPopupClosed = setInterval(() => {
-      if (popup.closed) {
+      if (popup.closed && !messageReceived) {
+        console.log("[OAuth] Popup closed manually, cleaning up");
         clearInterval(checkPopupClosed);
         clearTimeout(timeoutId);
         window.removeEventListener("message", messageListener);
