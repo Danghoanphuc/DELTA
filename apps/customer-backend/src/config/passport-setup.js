@@ -81,7 +81,7 @@ passport.use(
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: `${
-        process.env.SERVER_URL || "http://localhost:5001"
+        process.env.SERVER_URL || "http://localhost:8000"
       }/api/auth/google/callback`,
       passReqToCallback: true, // Để truy cập req trong callback
     },

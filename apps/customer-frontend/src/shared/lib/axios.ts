@@ -14,8 +14,8 @@ if (!API_HOST) {
 
 const api = axios.create({
   // ✅ SỬA LỖI: Gắn cứng hậu tố /api tại đây.
-  // Giờ đây baseURL sẽ là 'http://localhost:5001/api' (local)
-  // hoặc 'https://delta-j7qn.onrender.com/api' (production)
+  // Giờ đây baseURL sẽ là 'http://localhost:8000/api' (local)
+  // hoặc 'https://delta-customer.onrender.com/api' (production)
   baseURL: `${API_HOST}/api`,
   withCredentials: true,
 });
