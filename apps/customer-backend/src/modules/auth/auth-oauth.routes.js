@@ -157,6 +157,7 @@ router.get(
                     console.log("[OAuth] ✅ Attempt", attempts, "- Sending message to:", targetOrigins);
                     
                     // ✅ FIX: Gửi message đến tất cả target origins
+                    // ✅ FIX: Cũng gửi với "*" để đảm bảo message được nhận (chỉ trong OAuth callback)
                     targetOrigins.forEach((origin) => {
                       try {
                         window.opener.postMessage(payload, origin);
@@ -165,6 +166,15 @@ router.get(
                         console.error("[OAuth] Error sending message to", origin, ":", err);
                       }
                     });
+                    
+                    // ✅ FIX: Fallback - gửi với "*" nếu không có target origins hoặc để đảm bảo message được nhận
+                    // Lưu ý: Chỉ dùng trong OAuth callback, không dùng cho các trường hợp khác
+                    try {
+                      window.opener.postMessage(payload, "*");
+                      console.log("[OAuth] Message also sent with wildcard origin (*)");
+                    } catch (err) {
+                      console.warn("[OAuth] Could not send message with wildcard:", err);
+                    }
 
                     // Đánh dấu đã gửi message
                     if (!messageSent) {

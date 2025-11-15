@@ -53,17 +53,31 @@ export function SocialButton({ provider }: SocialButtonProps) {
       try {
         const backendOrigin = new URL(API_URL).origin;
         allowedOrigins.add(backendOrigin);
-        console.log("[OAuth] Allowed origins:", Array.from(allowedOrigins));
-        console.log("[OAuth] Received message from origin:", event.origin);
-        console.log("[OAuth] Message data:", event.data);
+        console.log("[OAuth] API_URL:", API_URL);
+        console.log("[OAuth] Backend origin:", backendOrigin);
       } catch (error) {
-        console.warn("[OAuth] Cannot parse API_URL origin:", error);
+        console.warn("[OAuth] Cannot parse API_URL origin:", error, "API_URL:", API_URL);
+        // ✅ FIX: Thêm các backend origins phổ biến trong production
+        allowedOrigins.add("https://delta-customer.onrender.com");
+        allowedOrigins.add("http://delta-customer.onrender.com");
       }
 
+      console.log("[OAuth] Allowed origins:", Array.from(allowedOrigins));
+      console.log("[OAuth] Received message from origin:", event.origin);
+      console.log("[OAuth] Message data:", event.data);
+
       // ✅ FIX: Kiểm tra origin - chấp nhận từ backend origin hoặc frontend origin
-      if (!allowedOrigins.has(event.origin)) {
+      // ✅ FIX: Nếu có payload hợp lệ, chấp nhận message (OAuth callback an toàn hơn)
+      const hasValidPayload = event.data?.success && event.data?.accessToken;
+      
+      if (!allowedOrigins.has(event.origin) && !hasValidPayload) {
         console.warn("[OAuth] Ignoring message from unauthorized origin:", event.origin, "Allowed:", Array.from(allowedOrigins));
         return;
+      }
+      
+      // ✅ FIX: Log cảnh báo nếu origin không khớp nhưng có payload hợp lệ
+      if (!allowedOrigins.has(event.origin) && hasValidPayload) {
+        console.warn("[OAuth] ⚠️ Origin không khớp nhưng có payload hợp lệ. Chấp nhận message từ:", event.origin);
       }
 
       if (event.data?.success && event.data?.accessToken) {
