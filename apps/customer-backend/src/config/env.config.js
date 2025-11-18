@@ -62,6 +62,14 @@ const envVarsSchema = Joi.object()
     VNP_URL: Joi.string().uri().required(),
     VNP_RETURN_URL: Joi.string().uri().required(),
     VNP_IPN_URL: Joi.string().uri().required(),
+
+    // --- CẤU HÌNH MOMO ---
+    MOMO_PARTNER_CODE: Joi.string().allow("").optional(),
+    MOMO_ACCESS_KEY: Joi.string().allow("").optional(),
+    MOMO_SECRET_KEY: Joi.string().allow("").optional(),
+    MOMO_ENDPOINT: Joi.string().uri().allow("").optional(),
+    MOMO_RETURN_URL: Joi.string().uri().allow("").optional(),
+    MOMO_IPN_URL: Joi.string().uri().allow("").optional(),
   })
   .unknown(); // Cho phép các biến env khác không được định nghĩa
 
@@ -156,5 +164,15 @@ export const config = {
     url: envVars.VNP_URL,
     returnUrl: envVars.VNP_RETURN_URL,
     ipnUrl: envVars.VNP_IPN_URL,
+  },
+
+  // --- MOMO ---
+  momo: {
+    partnerCode: envVars.MOMO_PARTNER_CODE,
+    accessKey: envVars.MOMO_ACCESS_KEY,
+    secretKey: envVars.MOMO_SECRET_KEY,
+    endpoint: envVars.MOMO_ENDPOINT,
+    returnUrl: envVars.MOMO_RETURN_URL,
+    ipnUrl: envVars.MOMO_IPN_URL,
   },
 };

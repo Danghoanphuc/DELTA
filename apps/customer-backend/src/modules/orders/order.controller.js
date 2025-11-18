@@ -54,9 +54,19 @@ export class OrderController {
 
   getPrinterOrderById = async (req, res, next) => {
     try {
+      // ✅ FIX: Validate orderId trước khi gọi service
+      const orderId = req.params.orderId;
+      if (!orderId || orderId === "undefined") {
+        return res.status(API_CODES.BAD_REQUEST).json(
+          ApiResponse.error("Order ID is required", API_CODES.BAD_REQUEST)
+        );
+      }
+      
+      console.log("🔍 [Controller] getPrinterOrderById - orderId:", orderId, "userId:", req.user._id);
+      
       const order = await this.orderService.getPrinterOrderById(
         req.user._id,
-        req.params.orderId
+        orderId
       );
       res.status(API_CODES.SUCCESS).json(ApiResponse.success({ order }));
     } catch (error) {

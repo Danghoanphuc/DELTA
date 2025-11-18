@@ -18,12 +18,20 @@ export class CheckoutController {
     }
   };
 
-  // --- HÀM MỚI (GĐ 5.R2) ---
-  createVnPayUrl = async (req, res, next) => {
+  // --- MoMo create payment URL ---
+  createMomoUrl = async (req, res, next) => {
     try {
-      // (Chúng ta cần IP của user)
-      // Chuyển req (đã chứa IP) vào service
-      const result = await this.checkoutService.createVnPayPaymentUrl(req);
+      const result = await this.checkoutService.createMomoPaymentUrl(req);
+      res.status(API_CODES.CREATED).json(ApiResponse.success(result));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // --- COD confirm order ---
+  confirmCodOrder = async (req, res, next) => {
+    try {
+      const result = await this.checkoutService.confirmCodOrder(req);
       res.status(API_CODES.CREATED).json(ApiResponse.success(result));
     } catch (error) {
       next(error);

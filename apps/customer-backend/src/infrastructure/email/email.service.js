@@ -82,6 +82,230 @@ export const sendVerificationEmail = async (email, token) => {
 };
 
 // ============================================
+// EMAIL: ORDER CONFIRMATION FOR CUSTOMER (✅ NEW)
+// ============================================
+
+export const sendOrderConfirmationEmail = async (customerEmail, order) => {
+  const orderDetailsLink = `${clientUrl}/orders/${order._id || order.masterOrderId}`;
+
+  console.log(
+    `📧 Chuẩn bị gửi email xác nhận đơn hàng #${order.orderNumber} đến ${customerEmail}`
+  );
+
+  // ✅ Tạo bảng chi tiết sản phẩm (từ printerOrders)
+  const allItems = (order.printerOrders || []).flatMap((po) => po.items || []);
+  const itemsHtml = allItems
+    .map(
+      (item) => `
+    <tr style="border-bottom: 1px solid #eee;">
+      <td style="padding: 12px 10px;">
+        <strong>${item.productName}</strong>
+        ${
+          item.options?.notes
+            ? `<br><span style="font-size: 12px; color: #666;">Ghi chú: ${item.options.notes}</span>`
+            : ""
+        }
+      </td>
+      <td style="padding: 12px 10px; text-align: center;">${item.quantity}</td>
+      <td style="padding: 12px 10px; text-align: right;">${formatPrice(
+        item.unitPrice
+      )}</td>
+      <td style="padding: 12px 10px; text-align: right;"><strong>${formatPrice(
+        item.subtotal
+      )}</strong></td>
+    </tr>
+  `
+    )
+    .join("");
+
+  // ✅ Địa chỉ giao hàng
+  const shippingAddressHtml = `
+    ${order.shippingAddress?.recipientName || ""}<br>
+    ${order.shippingAddress?.phone || ""}<br>
+    ${order.shippingAddress?.street || ""}${
+    order.shippingAddress?.ward ? ", " + order.shippingAddress.ward : ""
+  }<br>
+    ${order.shippingAddress?.district || ""}, ${order.shippingAddress?.city || ""}
+    ${
+      order.shippingAddress?.notes
+        ? `<br><em style="font-size: 12px; color: #666;">Ghi chú: ${order.shippingAddress.notes}</em>`
+        : ""
+    }
+  `;
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: fromEmail,
+      to: customerEmail,
+      subject: `[${appName}] ✅ Đơn hàng #${order.orderNumber} đã được đặt thành công!`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px 0;">
+            <tr>
+              <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                  
+                  <!-- Header -->
+                  <tr>
+                    <td style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; text-align: center;">
+                      <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">
+                        ✅ Đặt hàng thành công!
+                      </h1>
+                      <p style="margin: 10px 0 0 0; color: #d1fae5; font-size: 16px;">
+                        Mã đơn hàng: #${order.orderNumber}
+                      </p>
+                    </td>
+                  </tr>
+
+                  <!-- Content -->
+                  <tr>
+                    <td style="padding: 30px;">
+                      <p style="margin: 0 0 20px 0; font-size: 16px; color: #333;">
+                        Chào ${order.customerName || "bạn"},
+                      </p>
+                      <p style="margin: 0 0 25px 0; font-size: 16px; color: #333;">
+                        Cảm ơn bạn đã đặt hàng tại ${appName}! Đơn hàng của bạn đã được tiếp nhận và đang được xử lý.
+                      </p>
+
+                      <!-- Order Info -->
+                      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e5e7eb;">
+                        <tr>
+                          <td style="padding: 20px;">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                              <tr>
+                                <td style="padding: 5px 0;">
+                                  <strong style="color: #6b7280; font-size: 14px;">Mã đơn hàng:</strong>
+                                </td>
+                                <td align="right" style="padding: 5px 0;">
+                                  <span style="color: #111827; font-size: 14px; font-weight: bold;">${
+                                    order.orderNumber
+                                  }</span>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 5px 0;">
+                                  <strong style="color: #6b7280; font-size: 14px;">Thời gian đặt:</strong>
+                                </td>
+                                <td align="right" style="padding: 5px 0;">
+                                  <span style="color: #111827; font-size: 14px;">${formatDate(
+                                    order.createdAt
+                                  )}</span>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="padding: 5px 0;">
+                                  <strong style="color: #6b7280; font-size: 14px;">Tổng tiền:</strong>
+                                </td>
+                                <td align="right" style="padding: 5px 0;">
+                                  <span style="color: #111827; font-size: 16px; font-weight: bold;">${formatPrice(
+                                    order.totalAmount || order.totalPrice || 0
+                                  )}</span>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <!-- Products Table -->
+                      <h2 style="margin: 0 0 15px 0; font-size: 18px; color: #111827; border-bottom: 2px solid #10b981; padding-bottom: 10px;">
+                        📦 Chi tiết sản phẩm
+                      </h2>
+                      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                        <thead>
+                          <tr style="background-color: #f3f4f6;">
+                            <th style="padding: 12px 10px; text-align: left; font-size: 14px; color: #374151; border-bottom: 2px solid #e5e7eb;">Sản phẩm</th>
+                            <th style="padding: 12px 10px; text-align: center; font-size: 14px; color: #374151; border-bottom: 2px solid #e5e7eb;">SL</th>
+                            <th style="padding: 12px 10px; text-align: right; font-size: 14px; color: #374151; border-bottom: 2px solid #e5e7eb;">Đơn giá</th>
+                            <th style="padding: 12px 10px; text-align: right; font-size: 14px; color: #374151; border-bottom: 2px solid #e5e7eb;">Thành tiền</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${itemsHtml}
+                        </tbody>
+                      </table>
+
+                      <!-- Shipping Address -->
+                      <h2 style="margin: 0 0 15px 0; font-size: 18px; color: #111827; border-bottom: 2px solid #10b981; padding-bottom: 10px;">
+                        🚚 Địa chỉ giao hàng
+                      </h2>
+                      <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e5e7eb;">
+                        <p style="margin: 0; font-size: 14px; color: #374151; line-height: 1.6;">
+                          ${shippingAddressHtml}
+                        </p>
+                      </div>
+
+                      <!-- CTA Button -->
+                      <div style="text-align: center; margin: 30px 0;">
+                        <a href="${orderDetailsLink}" 
+                           style="display: inline-block; 
+                                  padding: 14px 32px; 
+                                  background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
+                                  color: white; 
+                                  text-decoration: none; 
+                                  border-radius: 8px; 
+                                  font-size: 16px; 
+                                  font-weight: bold;
+                                  box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);">
+                          📋 Xem chi tiết đơn hàng
+                        </a>
+                      </div>
+
+                      <!-- Footer Message -->
+                      <p style="margin: 25px 0 0 0; font-size: 14px; color: #6b7280; text-align: center; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                        Chúng tôi sẽ thông báo cho bạn khi đơn hàng được xác nhận và giao hàng. Cảm ơn bạn đã tin tưởng ${appName}! 🚀
+                      </p>
+
+                    </td>
+                  </tr>
+
+                  <!-- Footer -->
+                  <tr>
+                    <td style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+                      <p style="margin: 0 0 10px 0; font-size: 14px; color: #6b7280;">
+                        Cần hỗ trợ? Liên hệ với chúng tôi tại <a href="mailto:support@${resendDomain}" style="color: #10b981; text-decoration: none;">support@${resendDomain}</a>
+                      </p>
+                      <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                        © ${new Date().getFullYear()} ${appName}. All rights reserved.
+                      </p>
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `,
+    });
+
+    if (error) {
+      console.error(
+        `❌ Lỗi Resend API khi gửi email xác nhận đến ${customerEmail}:`,
+        error
+      );
+      return;
+    }
+
+    console.log(
+      `✅ Email xác nhận đơn hàng #${order.orderNumber} đã gửi đến ${customerEmail}. ID: ${data?.id}`
+    );
+  } catch (error) {
+    console.error(
+      `❌ Lỗi nghiêm trọng khi gửi email xác nhận đến ${customerEmail}:`,
+      error
+    );
+  }
+};
+
+// ============================================
 // EMAIL: NEW ORDER NOTIFICATION (✅ FIXED - BỔ SUNG ĐẦY ĐỦ)
 // ============================================
 
@@ -90,28 +314,38 @@ export const sendNewOrderNotification = async (
   order,
   customer
 ) => {
-  const orderDetailsLink = `${clientUrl}/printer/orders/${order._id}`;
+  // ✅ FIX: Lấy printerOrder từ MasterOrder (order có thể là printerOrder hoặc MasterOrder)
+  const printerOrder = order.items ? order : null; // Nếu có items trực tiếp thì là printerOrder
+  const masterOrder = order.printerOrders ? order : null; // Nếu có printerOrders thì là MasterOrder
+  
+  // Lấy items từ printerOrder hoặc từ masterOrder.printerOrders
+  const items = printerOrder?.items || 
+    (masterOrder?.printerOrders?.find(po => 
+      po.printerProfileId?.toString() === order.printerProfileId?.toString()
+    )?.items || []);
+
+  const orderDetailsLink = `${clientUrl}/printer/dashboard?tab=orders`;
 
   console.log(
     `📧 Chuẩn bị gửi email thông báo đơn hàng mới #${order.orderNumber} đến ${printerEmail}`
   );
 
   // ✅ Tạo bảng chi tiết sản phẩm
-  const itemsHtml = order.items
+  const itemsHtml = items
     .map(
       (item) => `
     <tr style="border-bottom: 1px solid #eee;">
       <td style="padding: 12px 10px;">
         <strong>${item.productName}</strong>
         ${
-          item.customization?.notes
-            ? `<br><span style="font-size: 12px; color: #666;">Ghi chú: ${item.customization.notes}</span>`
+          item.options?.notes || item.customization?.notes
+            ? `<br><span style="font-size: 12px; color: #666;">Ghi chú: ${item.options?.notes || item.customization?.notes}</span>`
             : ""
         }
       </td>
       <td style="padding: 12px 10px; text-align: center;">${item.quantity}</td>
       <td style="padding: 12px 10px; text-align: right;">${formatPrice(
-        item.pricePerUnit
+        item.unitPrice || item.pricePerUnit
       )}</td>
       <td style="padding: 12px 10px; text-align: right;"><strong>${formatPrice(
         item.subtotal
@@ -217,13 +451,15 @@ export const sendNewOrderNotification = async (
                               </tr>
                               <tr>
                                 <td style="padding: 5px 0;">
-                                  <strong style="color: #6b7280; font-size: 14px;">Phương thức thanh toán:</strong>
+                                  <strong style="color: #6b7280; font-size: 14px;">Trạng thái thanh toán:</strong>
                                 </td>
                                 <td align="right" style="padding: 5px 0;">
                                   <span style="color: #111827; font-size: 14px;">${
-                                    order.payment.method === "cod"
-                                      ? "Thanh toán khi nhận hàng (COD)"
-                                      : "Chuyển khoản ngân hàng"
+                                    order.paymentStatus === "paid"
+                                      ? "✅ Đã thanh toán"
+                                      : order.paymentStatus === "pending"
+                                      ? "⏳ Chờ thanh toán"
+                                      : "💳 Thanh toán khi nhận hàng (COD)"
                                   }</span>
                                 </td>
                               </tr>
@@ -256,33 +492,21 @@ export const sendNewOrderNotification = async (
                           <td align="right" style="padding: 8px 0;">
                             <table cellpadding="0" cellspacing="0" style="width: 300px;">
                               <tr>
-                                <td style="padding: 5px 10px; font-size: 14px; color: #6b7280;">Tạm tính:</td>
+                                <td style="padding: 5px 10px; font-size: 14px; color: #6b7280;">Tổng tiền đơn hàng:</td>
                                 <td align="right" style="padding: 5px 10px; font-size: 14px; color: #111827;">${formatPrice(
-                                  order.subtotal
+                                  printerOrder?.printerTotalPrice || order.printerTotalPrice || order.totalAmount || 0
                                 )}</td>
                               </tr>
                               <tr>
-                                <td style="padding: 5px 10px; font-size: 14px; color: #6b7280;">Phí vận chuyển:</td>
-                                <td align="right" style="padding: 5px 10px; font-size: 14px; color: #111827;">${formatPrice(
-                                  order.shippingFee
+                                <td style="padding: 5px 10px; font-size: 14px; color: #6b7280;">Hoa hồng PrintZ:</td>
+                                <td align="right" style="padding: 5px 10px; font-size: 14px; color: #6b7280;">-${formatPrice(
+                                  printerOrder?.commissionFee || order.commissionFee || 0
                                 )}</td>
                               </tr>
-                              ${
-                                order.discount > 0
-                                  ? `
-                              <tr>
-                                <td style="padding: 5px 10px; font-size: 14px; color: #059669;">Giảm giá:</td>
-                                <td align="right" style="padding: 5px 10px; font-size: 14px; color: #059669;">-${formatPrice(
-                                  order.discount
-                                )}</td>
-                              </tr>
-                              `
-                                  : ""
-                              }
                               <tr style="border-top: 2px solid #4f46e5;">
-                                <td style="padding: 10px 10px 5px 10px; font-size: 16px; font-weight: bold; color: #111827;">Tổng cộng:</td>
+                                <td style="padding: 10px 10px 5px 10px; font-size: 16px; font-weight: bold; color: #111827;">Bạn nhận được:</td>
                                 <td align="right" style="padding: 10px 10px 5px 10px; font-size: 18px; font-weight: bold; color: #4f46e5;">${formatPrice(
-                                  order.total
+                                  printerOrder?.printerPayout || order.printerPayout || (printerOrder?.printerTotalPrice || order.printerTotalPrice || 0) - (printerOrder?.commissionFee || order.commissionFee || 0)
                                 )}</td>
                               </tr>
                             </table>
@@ -379,3 +603,4 @@ export const sendNewOrderNotification = async (
     );
   }
 };
+

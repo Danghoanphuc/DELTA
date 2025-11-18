@@ -1,5 +1,5 @@
 // apps/customer-frontend/src/features/customer/pages/CheckoutConfirmationPage.tsx
-// ✅ GĐ 5.R3: Trang mới để xử lý redirect từ VNPay
+// ✅ Trang xác nhận kết quả thanh toán (MoMo/Stripe/COD)
 
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
@@ -30,50 +30,37 @@ const CheckoutConfirmationPage: React.FC = () => {
   const [message, setMessage] = useState("Đang xác thực thanh toán...");
 
   useEffect(() => {
-    Logger.debug(`[VNPAY-Return] Quay về cho Order ID: ${masterOrderId}`);
-    Logger.debug(
-      "[VNPAY-Return] Query Params:",
-      Object.fromEntries(searchParams)
-    );
+    Logger.debug(`[PAY-Return] Quay về cho Order ID: ${masterOrderId}`);
+    Logger.debug("[PAY-Return] Query Params:", Object.fromEntries(searchParams));
 
-    // Lấy các params quan trọng từ VNPay
-    const vnp_ResponseCode = searchParams.get("vnp_ResponseCode");
-    const vnp_TxnRef = searchParams.get("vnp_TxnRef");
+    const orderId = searchParams.get("orderId"); // MoMo
+    const resultCode = searchParams.get("resultCode"); // MoMo: '0' = success
 
-    // 1. Kiểm tra mã giao dịch
-    if (vnp_TxnRef !== masterOrderId) {
-      Logger.error("[VNPAY-Return] Lỗi: masterOrderId không khớp vnp_TxnRef!");
+    if (orderId && masterOrderId && orderId !== masterOrderId) {
+      Logger.error("[PAY-Return] Lỗi: orderId không khớp masterOrderId!");
       setStatus("failed");
-      setMessage("Lỗi bảo mật: Mã đơn hàng không khớp.");
+      setMessage("Lỗi xác thực đơn hàng.");
       return;
     }
 
-    // (Trong tương lai, chúng ta nên gọi API backend /api/orders/verify/:masterOrderId
-    // để kiểm tra trạng thái PAID trong DB thay vì chỉ dựa vào URL)
-
-    // 2. Kiểm tra mã phản hồi
-    if (vnp_ResponseCode === "00") {
-      // Thành công
-      Logger.info("[VNPAY-Return] Thanh toán THÀNH CÔNG (00).");
+    if (resultCode === "0") {
+      Logger.info("[PAY-Return] Thanh toán THÀNH CÔNG.");
       setStatus("success");
       setMessage("Thanh toán thành công! Đơn hàng của bạn đang được xử lý.");
-      // Xóa giỏ hàng
       clearCart();
-    } else if (vnp_ResponseCode === "24") {
-      // Khách hàng hủy giao dịch
-      Logger.warn("[VNPAY-Return] Khách hàng hủy giao dịch (24).");
+      return;
+    }
+
+    if (resultCode === "49") {
+      Logger.warn("[PAY-Return] Khách hàng hủy giao dịch (49)");
       setStatus("failed");
       setMessage("Giao dịch đã bị hủy. Vui lòng thử lại.");
-    } else {
-      // Các lỗi khác
-      Logger.error(
-        `[VNPAY-Return] Thanh toán THẤT BẠI (Code: ${vnp_ResponseCode})`
-      );
-      setStatus("failed");
-      setMessage(
-        `Thanh toán thất bại. (Mã lỗi: ${vnp_ResponseCode}). Vui lòng liên hệ hỗ trợ.`
-      );
+      return;
     }
+
+    // Không có resultCode (ví dụ redirect qua BE về trang my-orders)
+    setStatus("success");
+    setMessage("Nếu đơn hàng chưa hiển thị, vui lòng tải lại trang hoặc kiểm tra email.");
   }, [masterOrderId, searchParams, clearCart]);
 
   const renderIcon = () => {

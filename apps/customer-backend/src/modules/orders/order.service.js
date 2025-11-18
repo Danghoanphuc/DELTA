@@ -1,12 +1,15 @@
 // src/modules/orders/order.service.js
-// ✅ GĐ 5.R2: Đại phẫu thuật - Tách lõi Ghi sổ để hỗ trợ Hybrid (Stripe + VNPay)
+// ✅ GĐ 5.R2: Đại phẫu thuật - Tách lõi Ghi sổ để hỗ trợ nhiều cổng (Stripe + MoMo)
 
 import { OrderRepository } from "./order.repository.js";
 import { productRepository } from "../products/product.repository.js";
 import { PrinterProfile } from "../../shared/models/printer-profile.model.js";
 import { MasterOrder } from "../../shared/models/master-order.model.js";
 import { User } from "../../shared/models/user.model.js";
-// import { sendNewOrderNotification } from "../../infrastructure/email/email.service.js";
+import {
+  sendNewOrderNotification,
+  sendOrderConfirmationEmail,
+} from "../../infrastructure/email/email.service.js";
 import {
   ValidationException,
   NotFoundException,
@@ -23,7 +26,6 @@ import { getStripeClient } from "../../shared/utils/stripe.js";
 import BalanceLedgerModel from "../../shared/models/balance-ledger.model.js";
 
 // === DỊCH VỤ MỚI ===
-import { VnPayService } from "../../shared/services/vnpay.service.js";
 import { CartService } from "../cart/cart.service.js";
 
 export class OrderService {
@@ -31,7 +33,6 @@ export class OrderService {
     this.orderRepository = new OrderRepository();
     this.productRepository = productRepository;
     this.stripe = getStripeClient();
-    this.vnPayService = new VnPayService(); // <-- KHỞI TẠO MỚI
     this.cartService = new CartService();
   }
 
@@ -148,14 +149,17 @@ export class OrderService {
         }
 
         const orderGroup = printerGroups.get(groupKey);
+        // Prefer primary image if available
+        const primaryImageUrl =
+          (Array.isArray(product.images)
+            ? product.images.find((img) => img?.isPrimary)?.url
+            : undefined) || product.images?.[0]?.url || "";
+
         orderGroup.items.push({
           productId: product._id,
           productName: product.name,
-          thumbnailUrl:
-            product.assets?.previewUrl ||
-            product.assets?.modelUrl ||
-            product.images?.[0] ||
-            "",
+          // Always prefer real product image; avoid using modelUrl (non-image)
+          thumbnailUrl: primaryImageUrl || product.assets?.previewUrl || "",
           quantity: item.quantity,
           unitPrice,
           subtotal,
@@ -253,58 +257,41 @@ export class OrderService {
     return await this._finalizeOrderAndRecordLedger(order, "STRIPE");
   };
 
-  // --- HÀM MỚI (GĐ 5.R2) ---
+  // --- HÀM MỚI: xử lý webhook từ MoMo ---
   /**
-   * Xử lý Webhook (IPN) TỪ VNPAY
-   * @param {object} vnpayQuery - Object query (req.query) từ VNPay IPN
+   * @param {object} payload - req.body từ MoMo IPN
    */
-  handleVnPayWebhookPayment = async (vnpayQuery) => {
-    Logger.debug(
-      `[OrderSvc] Bắt đầu handleVnPayWebhookPayment cho TxnRef: ${vnpayQuery.vnp_TxnRef}`
-    );
+  handleMomoWebhookPayment = async (payload) => {
+    const masterOrderId = String(payload.orderId || "");
+    const resultCode = String(payload.resultCode ?? "");
+    Logger.debug(`[OrderSvc] handleMomoWebhookPayment orderId=${masterOrderId} code=${resultCode}`);
 
-    // 1. Xác thực chữ ký VNPay
-    const isValidSignature = this.vnPayService.verifyReturn(vnpayQuery);
-    if (!isValidSignature) {
-      throw new ValidationException("VNPay IPN: Chữ ký không hợp lệ.");
+    if (!masterOrderId) {
+      throw new ValidationException("MoMo IPN: thiếu orderId");
     }
 
-    const masterOrderId = vnpayQuery.vnp_TxnRef;
-    const vnpResponseCode = vnpayQuery.vnp_ResponseCode;
-
-    // 2. Tìm MasterOrder
-    const order = await this.orderRepository.findMasterOrderById(masterOrderId);
+    const order = await this.maybeFindOrder(masterOrderId);
     if (!order) {
-      throw new NotFoundException(
-        `Không tìm thấy MasterOrder cho VNPay TxnRef: ${masterOrderId}. (IPN)`
-      );
+      throw new NotFoundException(`Không tìm thấy MasterOrder: ${masterOrderId}`);
     }
 
-    // 3. Kiểm tra Idempotency
     if (order.paymentStatus === PAYMENT_STATUS.PAID) {
-      Logger.warn(
-        `[OrderSvc] MasterOrder ${order.orderNumber} (VNPay) đã được thanh toán. Bỏ qua (idempotency).`
-      );
-      return { RspCode: "02", Message: "Order already confirmed" }; // Mã VNPay: Đơn đã thanh toán
+      Logger.warn(`[OrderSvc] MasterOrder ${order.orderNumber} (MOMO) đã được thanh toán. Bỏ qua.`);
+      return { resultCode: 0, message: "Order already confirmed" };
     }
 
-    // 4. Kiểm tra trạng thái giao dịch VNPay
-    if (vnpResponseCode !== "00") {
-      // Thanh toán không thành công
-      // (TODO: Cập nhật trạng thái 'Failed' cho MasterOrder?)
-      Logger.warn(
-        `[OrderSvc] VNPay IPN báo thất bại (${vnpResponseCode}) cho Order: ${order.orderNumber}.`
-      );
-      // Vẫn trả về thành công cho VNPay biết là đã nhận,
-      // nhưng không ghi sổ
-      return { RspCode: "00", Message: "Confirmed (Failure)" };
+    if (resultCode !== "0") {
+      Logger.warn(`[OrderSvc] MoMo IPN thất bại (code=${resultCode}) cho ${order.orderNumber}`);
+      return { resultCode: 0, message: "Received" };
     }
 
-    // 5. Giao dịch thành công (00) -> Gọi hàm lõi
-    await this._finalizeOrderAndRecordLedger(order, "VNPAY");
+    await this._finalizeOrderAndRecordLedger(order, "MOMO");
+    return { resultCode: 0, message: "Success" };
+  };
 
-    // 6. Trả lời VNPay
-    return { RspCode: "00", Message: "Confirm Success" };
+  // helper for backward compat
+  maybeFindOrder = async (id) => {
+    return await this.orderRepository.findMasterOrderById(id);
   };
 
   // --- HÀM LÕI (PRIVATE) MỚI (GĐ 5.R2) ---
@@ -374,9 +361,68 @@ export class OrderService {
     }
 
     // 5. Gửi email
-    // (FIXME: Cần cấu hình email service)
-    // await sendNewOrderConfirmation(order.customerEmail, order);
-    // (TODO: Gửi email cho TỪNG nhà in)
+    try {
+      // ✅ Gửi email xác nhận cho Customer
+      await sendOrderConfirmationEmail(order.customerEmail, order);
+      Logger.info(
+        `[OrderSvc] Đã gửi email xác nhận cho Customer: ${order.customerEmail}`
+      );
+
+      // ✅ Gửi email thông báo cho TỪNG nhà in
+      for (const printerOrder of order.printerOrders) {
+        try {
+          // Lấy email của Printer từ User model
+          const printerProfile = await PrinterProfile.findById(
+            printerOrder.printerProfileId
+          ).populate("user", "email displayName");
+          
+          if (printerProfile?.user?.email) {
+            // Tạo order object cho email (chỉ chứa thông tin của printer này)
+            const printerOrderForEmail = {
+              ...printerOrder.toObject(),
+              orderNumber: order.orderNumber,
+              customerName: order.customerName,
+              shippingAddress: order.shippingAddress,
+              customerNotes: order.customerNotes,
+              paymentStatus: order.paymentStatus,
+              createdAt: order.createdAt,
+            };
+
+            await sendNewOrderNotification(
+              printerProfile.user.email,
+              {
+                ...order.toObject(),
+                printerProfileId: printerOrder.printerProfileId,
+              },
+              {
+                name: order.customerName,
+                email: order.customerEmail,
+              }
+            );
+            Logger.info(
+              `[OrderSvc] Đã gửi email thông báo cho Printer: ${printerProfile.user.email}`
+            );
+          } else {
+            Logger.warn(
+              `[OrderSvc] Không tìm thấy email cho Printer: ${printerOrder.printerProfileId}`
+            );
+          }
+        } catch (emailError) {
+          Logger.error(
+            `[OrderSvc] Lỗi khi gửi email cho Printer ${printerOrder.printerProfileId}:`,
+            emailError
+          );
+          // Không throw error để không ảnh hưởng đến flow chính
+        }
+      }
+    } catch (emailError) {
+      Logger.error(
+        `[OrderSvc] Lỗi khi gửi email cho Order ${order.orderNumber}:`,
+        emailError
+      );
+      // Không throw error để không ảnh hưởng đến flow chính
+    }
+
     Logger.info(
       `[OrderSvc] Hoàn tất xử lý ${paymentGatewayType} cho Order: ${order.orderNumber}`
     );
@@ -389,20 +435,157 @@ export class OrderService {
 
   getMyOrders = async (customerId) => {
     Logger.debug(`[OrderSvc] Lấy đơn hàng cho Customer: ${customerId}`);
-    return await this.orderRepository.findMyMasterOrders(customerId);
+    const masterOrders = await this.orderRepository.findMyMasterOrders(customerId);
+
+    const normalizeImageUrl = (url) => {
+      if (!url || typeof url !== "string") return "";
+      // Convert Cloudinary raw to image if possible
+      return url.includes("/raw/upload/")
+        ? url.replace("/raw/upload/", "/image/upload/")
+        : url;
+    };
+
+    // Helper: detect non-image cloudinary paths (e.g., 3d-models)
+    const looksLikeNonImage = (url) => {
+      if (!url) return true;
+      const lower = url.toLowerCase();
+      // Heuristic: known 3d-models folder or missing common image extensions
+      if (lower.includes("/3d-models/")) return true;
+      return !/\.(png|jpe?g|webp|gif|svg)(\?|$)/.test(lower);
+    };
+
+    // Chuẩn hóa dữ liệu để frontend CustomerOrdersPage hiển thị đúng
+    // - Map masterStatus -> status
+    // - Gộp items từ tất cả printerOrders thành mảng items phẳng
+    // - Giữ lại các trường cần thiết (orderNumber, totalAmount, paymentStatus, etc.)
+    return masterOrders.map((mo) => {
+      const flatItems =
+        (mo.printerOrders || []).flatMap((po) =>
+          (po.items || []).map((it) => ({
+            productId: it.productId?.toString?.() || "",
+            productName: it.productName,
+            quantity: it.quantity,
+            pricePerUnit: it.unitPrice,
+            subtotal: it.subtotal,
+            imageUrl: normalizeImageUrl(it.thumbnailUrl || ""),
+            // thêm thumbnail nếu có
+            productSnapshot: {
+              images: it.thumbnailUrl ? [{ url: normalizeImageUrl(it.thumbnailUrl) }] : [],
+            },
+          }))
+        ) || [];
+
+      return {
+        _id: mo._id.toString(),
+        orderNumber: mo.orderNumber,
+        customerId: mo.customerId?.toString?.() || "",
+        customerName: mo.customerName,
+        customerEmail: mo.customerEmail,
+        items: flatItems,
+        shippingAddress: mo.shippingAddress,
+        // Tổng tiền hiển thị
+        total: mo.totalAmount,
+        subtotal: mo.totalAmount, // hiện chưa tách phí ship/tax
+        shippingFee: 0,
+        tax: 0,
+        discount: 0,
+        // Map trạng thái
+        status: mo.masterStatus, // FE dùng order.status
+        paymentStatus: mo.paymentStatus,
+        paymentMethod: "cod", // tạm thời không có cổng -> để FE không crash
+        payment: {
+          paidAt: mo.paidAt,
+        },
+        customerNotes: mo.customerNotes,
+        createdAt: mo.createdAt,
+        updatedAt: mo.updatedAt,
+      };
+    });
   };
   getOrderById = async (customerId, orderId) => {
     Logger.debug(
       `[OrderSvc] Lấy chi tiết đơn hàng ${orderId} cho Customer: ${customerId}`
     );
-    const order = await this.orderRepository.findMasterOrderByIdForCustomer(
+    const mo = await this.orderRepository.findMasterOrderByIdForCustomer(
       orderId,
       customerId
     );
-    if (!order) {
+    if (!mo) {
       throw new NotFoundException("Không tìm thấy đơn hàng.");
     }
-    return order;
+
+    const normalizeImageUrl = (url) => {
+      if (!url || typeof url !== "string") return "";
+      return url.includes("/raw/upload/")
+        ? url.replace("/raw/upload/", "/image/upload/")
+        : url;
+    };
+
+    // Chuẩn hóa giống getMyOrders
+    const flatItems =
+      (mo.printerOrders || []).flatMap((po) =>
+        (po.items || []).map((it) => ({
+          productId: it.productId?.toString?.() || "",
+          productName: it.productName,
+          quantity: it.quantity,
+          pricePerUnit: it.unitPrice,
+          subtotal: it.subtotal,
+          imageUrl: normalizeImageUrl(it.thumbnailUrl || ""),
+          productSnapshot: {
+            images: it.thumbnailUrl ? [{ url: normalizeImageUrl(it.thumbnailUrl) }] : [],
+          },
+        }))
+      ) || [];
+
+    // Fallback: If any item has missing/non-image URL, try fetch product primary image
+    const needsFallback = flatItems.some(
+      (it) => !it.imageUrl || it.imageUrl.toLowerCase().includes("/3d-models/")
+    );
+    if (needsFallback) {
+      const uniqueIds = [
+        ...new Set(flatItems.map((it) => it.productId).filter(Boolean)),
+      ];
+      const idToPrimaryUrl = new Map();
+      for (const pid of uniqueIds) {
+        try {
+          const p = await this.productRepository.findOne({ _id: pid });
+          const primary =
+            (Array.isArray(p?.images)
+              ? p.images.find((img) => img?.isPrimary)?.url
+              : undefined) || p?.images?.[0]?.url;
+          if (primary) idToPrimaryUrl.set(pid, normalizeImageUrl(primary));
+        } catch {}
+      }
+      for (const it of flatItems) {
+        const fallbackUrl = idToPrimaryUrl.get(it.productId);
+        if (fallbackUrl && (!it.imageUrl || it.imageUrl.toLowerCase().includes("/3d-models/"))) {
+          it.imageUrl = fallbackUrl;
+          it.productSnapshot = { images: [{ url: fallbackUrl }] };
+        }
+      }
+    }
+
+    return {
+      _id: mo._id.toString(),
+      orderNumber: mo.orderNumber,
+      customerId: mo.customerId?.toString?.() || "",
+      customerName: mo.customerName,
+      customerEmail: mo.customerEmail,
+      items: flatItems,
+      shippingAddress: mo.shippingAddress,
+      total: mo.totalAmount,
+      subtotal: mo.totalAmount,
+      shippingFee: 0,
+      tax: 0,
+      discount: 0,
+      status: mo.masterStatus,
+      paymentStatus: mo.paymentStatus,
+      paymentMethod: "cod",
+      payment: { paidAt: mo.paidAt },
+      customerNotes: mo.customerNotes,
+      createdAt: mo.createdAt,
+      updatedAt: mo.updatedAt,
+    };
   };
   getPrinterOrders = async (printerUserId, queryParams) => {
     Logger.debug(`[OrderSvc] Lấy đơn hàng cho Printer: ${printerUserId}`);
@@ -416,12 +599,21 @@ export class OrderService {
       );
     }
     
-    return await this.orderRepository.findOrdersForPrinter(
+    // ✅ PAGINATION: Repository trả về object có orders, page, totalPages
+    const result = await this.orderRepository.findOrdersForPrinter(
       user.printerProfileId,
       queryParams
     );
+    
+    return result;
   };
   getPrinterOrderById = async (printerUserId, orderId) => {
+    // ✅ FIX: Validate orderId trước khi xử lý
+    if (!orderId || orderId === "undefined" || orderId === "null") {
+      Logger.error(`[OrderSvc] getPrinterOrderById - Invalid orderId: ${orderId}`);
+      throw new NotFoundException("Order ID không hợp lệ.");
+    }
+    
     Logger.debug(
       `[OrderSvc] Lấy chi tiết đơn hàng ${orderId} cho Printer: ${printerUserId}`
     );

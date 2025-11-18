@@ -1,4 +1,4 @@
-// src/features/shop/components/SortBar.tsx (TẠO MỚI)
+// src/features/shop/components/SortBar.tsx (ĐÃ VÁ LỖI)
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,7 +25,9 @@ export const SortBar = ({ sortBy, onSortChange, className }: SortBarProps) => {
   const isPriceSort = sortBy === "price_asc" || sortBy === "price_desc";
 
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    // ✅ SỬA 1: Thêm 'min-w-0' (hoặc 'flex-shrink')
+    // để component này có thể co lại khi bị đẩy
+    <div className={cn("flex items-center gap-2 min-w-0", className)}>
       <Tabs
         value={isPriceSort ? "price" : sortBy}
         onValueChange={(value) => {
@@ -34,7 +36,11 @@ export const SortBar = ({ sortBy, onSortChange, className }: SortBarProps) => {
           }
         }}
       >
-        <TabsList className="h-10 p-1 bg-gray-100 rounded-lg">
+        {/* ✅ SỬA 2: Thêm class để cho phép cuộn ngang trên mobile */}
+        <TabsList
+          className="h-10 p-1 bg-gray-100 rounded-lg 
+                     max-w-full overflow-x-auto hide-scrollbar"
+        >
           {sortTabs.map((tab) => (
             <TabsTrigger
               key={tab.value}

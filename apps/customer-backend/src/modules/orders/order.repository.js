@@ -1,6 +1,7 @@
 // src/modules/orders/order.repository.js
 // NÂNG CẤP GĐ 5.4: Chuyển sang MasterOrder
 import { MasterOrder } from "../../shared/models/master-order.model.js";
+import mongoose from "mongoose";
 
 export class OrderRepository {
   async generateOrderNumber() {
@@ -56,11 +57,22 @@ export class OrderRepository {
    * @param {object} queryParams - Các tham số lọc và sắp xếp
    */
   async findOrdersForPrinter(printerProfileId, queryParams) {
-    const { status, search, sort = "newest" } = queryParams || {};
+    const {
+      status,
+      search,
+      sort = "newest",
+      page = 1,
+      limit = 20,
+    } = queryParams || {};
+
+    // ✅ FIX: Convert printerProfileId sang ObjectId để đảm bảo query đúng
+    const printerProfileObjectId = mongoose.Types.ObjectId.isValid(printerProfileId)
+      ? new mongoose.Types.ObjectId(printerProfileId)
+      : printerProfileId;
 
     // Tạo query filter
     const filter = {
-      "printerOrders.printerProfileId": printerProfileId,
+      "printerOrders.printerProfileId": printerProfileObjectId,
     };
 
     // Thêm filter theo status nếu có
@@ -87,17 +99,30 @@ export class OrderRepository {
       sortOption = { "printerOrders.printerTotalPrice": 1 };
     }
 
-    // Tìm các MasterOrder có printerOrder với printerProfileId này
+    // ✅ PAGINATION: Tính skip và limit
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
+    const skip = (pageNum - 1) * limitNum;
+
+    // Đếm tổng số MasterOrder (trước khi transform)
+    const totalMasterOrders = await MasterOrder.countDocuments(filter);
+
+    // Tìm các MasterOrder có printerOrder với printerProfileId này (có pagination)
     const orders = await MasterOrder.find(filter)
       .sort(sortOption)
+      .skip(skip)
+      .limit(limitNum)
       .lean();
 
     // Transform: Lọc và map chỉ lấy printerOrder tương ứng với printerProfileId
     const printerOrders = [];
     for (const masterOrder of orders) {
-      const printerOrder = masterOrder.printerOrders.find(
-        (po) => po.printerProfileId.toString() === printerProfileId.toString()
-      );
+      // ✅ FIX: So sánh ObjectId đúng cách
+      const printerOrder = masterOrder.printerOrders.find((po) => {
+        const poId = po.printerProfileId?.toString?.() || po.printerProfileId;
+        const searchId = printerProfileObjectId?.toString?.() || printerProfileId?.toString?.();
+        return poId === searchId;
+      });
       if (printerOrder) {
         // Tạo đối tượng order đơn giản hóa cho frontend
         printerOrders.push({
@@ -109,6 +134,9 @@ export class OrderRepository {
           items: printerOrder.items,
           printerTotalPrice: printerOrder.printerTotalPrice,
           printerStatus: printerOrder.printerStatus,
+          // ✅ NEW: Thêm artworkStatus và printerNotes
+          artworkStatus: printerOrder.artworkStatus || "pending_upload",
+          printerNotes: printerOrder.printerNotes,
           shippingCode: printerOrder.shippingCode,
           shippedAt: printerOrder.shippedAt,
           completedAt: printerOrder.completedAt,
@@ -123,7 +151,14 @@ export class OrderRepository {
       }
     }
 
-    return printerOrders;
+    // ✅ PAGINATION: Trả về kèm metadata
+    return {
+      orders: printerOrders,
+      page: pageNum,
+      limit: limitNum,
+      total: totalMasterOrders, // Tổng số MasterOrder (có thể > số printerOrders nếu có nhiều printer trong 1 order)
+      totalPages: Math.ceil(totalMasterOrders / limitNum),
+    };
   }
 
   /**
@@ -132,10 +167,29 @@ export class OrderRepository {
    * @param {string} printerProfileId - ID của nhà in
    */
   async findOrderByIdForPrinter(orderId, printerProfileId) {
+    // ✅ FIX: Validate orderId trước khi xử lý
+    if (!orderId || orderId === "undefined" || orderId === "null") {
+      console.error("❌ [OrderRepo] findOrderByIdForPrinter - orderId is invalid:", orderId);
+      return null;
+    }
+    
+    // ✅ FIX: Convert printerProfileId sang ObjectId để đảm bảo query đúng
+    const printerProfileObjectId = mongoose.Types.ObjectId.isValid(printerProfileId)
+      ? new mongoose.Types.ObjectId(printerProfileId)
+      : printerProfileId;
+    
+    // ✅ FIX: Validate orderId trước khi convert
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      console.error("❌ [OrderRepo] findOrderByIdForPrinter - orderId is not a valid ObjectId:", orderId);
+      return null;
+    }
+    
+    const orderObjectId = new mongoose.Types.ObjectId(orderId);
+
     // Tìm MasterOrder có printerOrder với ID này
     const masterOrder = await MasterOrder.findOne({
-      "printerOrders._id": orderId,
-      "printerOrders.printerProfileId": printerProfileId,
+      "printerOrders._id": orderObjectId,
+      "printerOrders.printerProfileId": printerProfileObjectId,
     });
 
     if (!masterOrder) {
@@ -152,14 +206,36 @@ export class OrderRepository {
       return null;
     }
 
-    // Trả về đối tượng tương tự như findOrdersForPrinter
+    // ✅ FIX: Transform items để match với Order type (pricePerUnit thay vì unitPrice)
+    const transformedItems = (printerOrder.items || []).map((item) => ({
+      productId: item.productId?.toString?.() || item.productId || "",
+      productName: item.productName || "",
+      quantity: item.quantity || 0,
+      pricePerUnit: item.unitPrice || item.pricePerUnit || 0, // ✅ Map unitPrice -> pricePerUnit
+      subtotal: item.subtotal || 0,
+      customization: item.options || item.customization || {},
+      productSnapshot: item.thumbnailUrl
+        ? { images: [{ url: item.thumbnailUrl }] }
+        : undefined,
+    }));
+
+    // Trả về đối tượng tương tự như findOrdersForPrinter nhưng format đúng cho frontend
     return {
       _id: printerOrder._id.toString(),
       masterOrderId: masterOrder._id.toString(),
       orderNumber: masterOrder.orderNumber,
+      customerId: masterOrder.customerId?.toString?.() || "",
       customerName: masterOrder.customerName,
       customerEmail: masterOrder.customerEmail,
-      items: printerOrder.items,
+      items: transformedItems, // ✅ Items đã được transform
+      // ✅ Map printerStatus -> status, printerTotalPrice -> total
+      status: printerOrder.printerStatus || "pending",
+      total: printerOrder.printerTotalPrice || 0,
+      subtotal: printerOrder.printerTotalPrice || 0,
+      shippingFee: 0,
+      tax: 0,
+      discount: 0,
+      // Giữ lại các field gốc để backward compatibility
       printerTotalPrice: printerOrder.printerTotalPrice,
       printerStatus: printerOrder.printerStatus,
       shippingCode: printerOrder.shippingCode,
@@ -169,6 +245,10 @@ export class OrderRepository {
       updatedAt: masterOrder.updatedAt,
       masterStatus: masterOrder.masterStatus,
       paymentStatus: masterOrder.paymentStatus,
+      paymentMethod: "cod", // Default
+      payment: {
+        paidAt: masterOrder.paidAt,
+      },
       shippingAddress: masterOrder.shippingAddress,
       customerNotes: masterOrder.customerNotes,
     };

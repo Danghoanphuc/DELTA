@@ -12,6 +12,14 @@ import { cn } from "@/shared/lib/utils";
 
 export function MobileNav() {
   const location = useLocation();
+  const hiddenPatterns = [/^\/product\//, /^\/products\//];
+  const shouldHide = hiddenPatterns.some((pattern) =>
+    pattern.test(location.pathname)
+  );
+
+  if (shouldHide) {
+    return null;
+  }
 
   // 5 icon điều hướng chính cho mobile
   const menuItems = [
@@ -36,7 +44,7 @@ export function MobileNav() {
   };
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-white/95 backdrop-blur-lg border-t border-gray-200 z-30 shadow-lg safe-bottom">
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 min-h-[50px] h-20 max-h-20 bg-white/95 backdrop-blur-lg border-t border-gray-200 z-30 shadow-lg safe-bottom">
       <nav className="h-full flex items-center justify-around px-2">
         {menuItems.map((item) => {
           const isActive = getIsActive(item.path);

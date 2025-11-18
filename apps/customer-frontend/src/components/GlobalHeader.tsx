@@ -1,18 +1,14 @@
 // src/components/GlobalHeader.tsx (CẬP NHẬT - PHIÊN BẢN "LAI")
-import { useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  Search,
   Package,
   FolderOpen,
-  Menu,
-  X,
   Compass, // Khám phá
   LayoutGrid, // Cửa hàng
   ShoppingCart,
+  Bell,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
 import { UserContextSwitcher } from "./UserContextSwitcher";
 import { SearchAutocomplete } from "./SearchAutocomplete";
 import printzLogo from "@/assets/img/logo-printz.png";
@@ -30,19 +26,8 @@ export function GlobalHeader({
   cartItemCount,
   onCartClick,
 }: GlobalHeaderProps) {
-  const navigate = useNavigate();
   const location = useLocation();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (onSearchSubmit) {
-      onSearchSubmit(searchTerm);
-    } else {
-      navigate(`/app?search=${searchTerm}`);
-    }
-  };
+  const navigate = useNavigate();
 
   // ✅ ĐIỀU HƯỚNG CẤP 1 (TRÊN HEADER)
   const navItems = [
@@ -58,17 +43,17 @@ export function GlobalHeader({
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-white/95 backdrop-blur-lg border-b border-gray-200">
-      <div className="flex items-center justify-between h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* --- 1. Logo & Nav (Desktop) --- */}
-        <div className="flex items-center gap-4">
+    <header className="hidden lg:block fixed top-0 left-0 right-0 z-40 h-16 bg-white/95 backdrop-blur-lg border-b border-gray-200">
+      <div className="flex items-center justify-between h-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 gap-2">
+        {/* --- 1. Logo & Nav (Desktop Only - Hidden on Mobile) --- */}
+        <div className="hidden lg:flex items-center gap-4">
           <Link to="/app" className="flex items-center gap-2 flex-shrink-0">
             <img src={printzLogo} alt="PrintZ Logo" className="w-10 h-10" />
-            <span className="hidden sm:inline font-bold text-xl text-gray-800">
+            <span className="font-bold text-xl text-gray-800">
               Printz
             </span>
           </Link>
-          <nav className="hidden md:flex items-center gap-2">
+          <nav className="flex items-center gap-2">
             {navItems.map((item) => (
               <Button
                 key={item.path}
@@ -88,19 +73,30 @@ export function GlobalHeader({
           </nav>
         </div>
 
-        {/* --- 2. Search Bar (Desktop) --- */}
+        {/* --- 2. Search Bar (Mobile: Flexible Width with margin, Desktop: Max Width) --- */}
         {onSearchSubmit && (
-          <div className="hidden lg:block w-full max-w-md">
+          <div className="flex-1 lg:flex-initial lg:w-full lg:max-w-md mr-2 lg:mr-0">
             <SearchAutocomplete onSearchSubmit={onSearchSubmit} />
           </div>
         )}
 
-        {/* --- 3. Tiện ích (User & Cart) --- */}
+        {/* --- 3. Tiện ích (Cart & User) --- */}
         <div className="flex items-center gap-2">
+          {/* Notifications */}
           <Button
             variant="ghost"
             size="icon"
-            className="hidden md:flex relative micro-bounce"
+            className="relative"
+            aria-label="Thông báo"
+            onClick={() => navigate("/notifications")}
+          >
+            <Bell size={20} />
+          </Button>
+          {/* Cart Icon - Always Visible */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative micro-bounce"
             onClick={onCartClick}
             aria-label={`Giỏ hàng có ${cartItemCount} sản phẩm`}
           >
@@ -114,43 +110,12 @@ export function GlobalHeader({
               </span>
             )}
           </Button>
-          <UserContextSwitcher contextColor="blue" />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-          </Button>
+          {/* User Switcher */}
+          <div>
+            <UserContextSwitcher contextColor="blue" />
+          </div>
         </div>
       </div>
-
-      {/* --- Mobile Menu Drawer --- */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-16 left-0 right-0 bg-white shadow-lg p-4 border-t">
-          <nav className="flex flex-col gap-4">
-            {onSearchSubmit && (
-              <SearchAutocomplete onSearchSubmit={onSearchSubmit} />
-            )}
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={cn(
-                  "text-base font-medium  hover:text-blue-600 p-2 rounded-md",
-                  getIsActive(item.path)
-                    ? "text-blue-600 bg-blue-50"
-                    : "text-gray-700"
-                )}
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      )}
     </header>
   );
 }

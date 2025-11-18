@@ -26,7 +26,7 @@ export function CustomerSettingsPage() {
     // ❌ GỠ BỎ: <div ...>, <Sidebar />, <MobileNav />
     <>
       {/* ✅ Căn giữa và thêm padding */}
-      <div className="pt-6 p-4 md:p-8 max-w-5xl mx-auto">
+      <div className="pt-6 p-4 md:p-8 pb-28 max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
@@ -43,12 +43,12 @@ export function CustomerSettingsPage() {
           className="flex flex-col md:flex-row gap-6"
         >
           {/* Tabs Trigger (Menu bên trái) */}
-          <TabsList className="flex md:flex-col h-auto p-2 bg-white md:w-1/4 lg:w-1/5 rounded-lg shadow-sm self-start">
+          <TabsList className="grid grid-cols-2 gap-2 md:flex md:flex-col h-auto p-2 bg-white md:w-1/4 lg:w-1/5 rounded-2xl shadow-sm self-start">
             {tabs.map((tab) => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
-                className="w-full justify-start text-base md:text-sm p-3 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-none"
+                className="w-full justify-start text-sm md:text-sm p-3 rounded-xl border border-transparent data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-none"
               >
                 <tab.icon className="w-4 h-4 mr-2 flex-shrink-0" />
                 {tab.label}

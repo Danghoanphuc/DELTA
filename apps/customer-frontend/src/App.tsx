@@ -84,6 +84,10 @@ const CustomerOrdersPage = lazyWorkaround(
 const OrderDetailPage = lazyWorkaround(
   () => import("@/features/shop/pages/OrderDetailPage")
 );
+// ✅ NEW: PrinterOrderDetailPage cho Printer
+const PrinterOrderDetailPage = lazyWorkaround(
+  () => import("@/features/printer/pages/PrinterOrderDetailPage")
+);
 const CustomerDesignsPage = lazyWorkaround(
   () => import("@/features/customer/pages/CustomerDesignsPage")
 );
@@ -110,8 +114,11 @@ function App() {
   const mergeGuestCart = useCartStore((state) => state.mergeGuestCart);
 
   useEffect(() => {
-    fetchMe(true);
-  }, [fetchMe]);
+    // Chỉ gọi fetchMe khi có accessToken để tránh redirect không mong muốn
+    if (isAuthenticated) {
+      fetchMe(true);
+    }
+  }, [fetchMe, isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
@@ -134,13 +141,15 @@ function App() {
       <Toaster position="top-right" richColors />
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* ==================== PUBLIC LAYOUT ==================== */}
+          {/* ==================== LANDING LAYOUT (No AppLayout) ==================== */}
+          {/* Landing pages có header riêng, không cần AppLayout */}
+          <Route path="/" element={<SmartLanding />} />
+          <Route path="/policy" element={<PolicyPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/process" element={<ProcessPage />} />
+
+          {/* ==================== APP LAYOUT ==================== */}
           <Route element={<AppLayout />}>
-            {/* --- Public Pages --- */}
-            <Route path="/" element={<SmartLanding />} />
-            <Route path="/policy" element={<PolicyPage />} />
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/process" element={<ProcessPage />} />
 
             {/* --- Auth Pages --- */}
             <Route path="/signin" element={<SignInPage />} />
@@ -162,10 +171,7 @@ function App() {
             {/* --- Protected Customer Routes --- */}
             <Route element={<ProtectedRoute />}>
               <Route path="/checkout" element={<CheckoutPage />} />
-              <Route
-                path="/checkout/confirmation/:masterOrderId"
-                element={<CheckoutConfirmationPage />}
-              />
+              <Route path="/checkout/confirmation" element={<CheckoutConfirmationPage />} />
               <Route path="/orders" element={<CustomerOrdersPage />} />
               <Route path="/orders/:orderId" element={<OrderDetailPage />} />
               <Route path="/designs" element={<CustomerDesignsPage />} />
@@ -183,7 +189,7 @@ function App() {
             <Route path="/printer/dashboard" element={<PrinterApp />} />
             <Route
               path="/printer/orders/:orderId"
-              element={<OrderDetailPage />}
+              element={<PrinterOrderDetailPage />}
             />
             <Route path="/printer/studio/:productId" element={<PrinterStudio />} />
           </Route>

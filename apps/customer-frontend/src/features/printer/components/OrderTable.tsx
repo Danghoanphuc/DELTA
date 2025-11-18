@@ -11,17 +11,50 @@ import { Button } from "@/shared/components/ui/button";
 import { Order, OrderStatus } from "@/types/order";
 import { Link } from "react-router-dom";
 import { Eye } from "lucide-react";
-import { formatPrice, formatDate } from "@/features/printer/utils/formatters"; // <-- Import mới
+import { formatPrice, formatDate } from "@/features/printer/utils/formatters";
 import {
   getStatusBadge,
   getStatusActions,
-} from "@/features/printer/utils/orderHelpers"; // <-- Import mới
+} from "@/features/printer/utils/orderHelpers";
+import { Badge } from "@/shared/components/ui/badge";
 
 interface OrderTableProps {
   orders: Order[];
   loading: boolean;
   onUpdateStatus: (orderId: string, newStatus: OrderStatus) => void;
 }
+
+// ✅ Helper để hiển thị Artwork Status badge
+const getArtworkStatusBadge = (status?: string) => {
+  const statusConfig: Record<
+    string,
+    { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
+  > = {
+    pending_upload: {
+      label: "Chờ upload",
+      variant: "secondary",
+    },
+    pending_approval: {
+      label: "Chờ duyệt",
+      variant: "outline",
+    },
+    approved: {
+      label: "Đã duyệt",
+      variant: "default",
+    },
+    rejected: {
+      label: "Từ chối",
+      variant: "destructive",
+    },
+  };
+
+  const config = statusConfig[status || "pending_upload"] || statusConfig.pending_upload;
+  return (
+    <Badge variant={config.variant} className="whitespace-nowrap">
+      {config.label}
+    </Badge>
+  );
+};
 
 export function OrderTable({
   orders,
@@ -31,12 +64,24 @@ export function OrderTable({
   return (
     <div className="overflow-x-auto">
       <Table>
-        <TableHeader>{/* ... (TableHead giữ nguyên) ... */}</TableHeader>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[120px]">Mã đơn</TableHead>
+            <TableHead>Khách hàng</TableHead>
+            <TableHead className="text-right">Tổng tiền</TableHead>
+            <TableHead>Trạng thái</TableHead>
+            <TableHead>File In</TableHead>
+            <TableHead>Ngày đặt</TableHead>
+            <TableHead className="text-right w-[200px]">Thao tác</TableHead>
+          </TableRow>
+        </TableHeader>
         <TableBody>
-          {orders.map((order) => {
-            const actions = getStatusActions(order.status); // <-- Logic đã được tách
+          {orders.map((order, index) => {
+            const actions = getStatusActions(order.status);
+            // ✅ FIX: Đảm bảo key luôn unique (dùng index làm fallback)
+            const rowKey = order._id || `order-${index}`;
             return (
-              <TableRow key={order._id}>
+              <TableRow key={rowKey}>
                 <TableCell className="font-medium">
                   <Link
                     to={`/printer/orders/${order._id}`}
@@ -45,15 +90,18 @@ export function OrderTable({
                     {order.orderNumber}
                   </Link>
                 </TableCell>
-                <TableCell>{/* ... (Nội dung giữ nguyên) ... */}</TableCell>
-                <TableCell>{/* ... (Nội dung giữ nguyên) ... */}</TableCell>
-                <TableCell className="font-semibold text-blue-600">
-                  {formatPrice(order.total)} {/* <-- Dùng helper */}
+                <TableCell>{order.customerName || "N/A"}</TableCell>
+                <TableCell className="font-semibold text-blue-600 text-right">
+                  {formatPrice(order.total || 0)}
                 </TableCell>
-                <TableCell>{getStatusBadge(order.status)}</TableCell>{" "}
-                {/* <-- Dùng helper */}
+                <TableCell>{getStatusBadge(order.status)}</TableCell>
+                <TableCell>
+                  {getArtworkStatusBadge(
+                    (order as any).artworkStatus || "pending_upload"
+                  )}
+                </TableCell>
                 <TableCell className="text-sm text-gray-500">
-                  {formatDate(order.createdAt)} {/* <-- Dùng helper */}
+                  {formatDate(order.createdAt)}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2">

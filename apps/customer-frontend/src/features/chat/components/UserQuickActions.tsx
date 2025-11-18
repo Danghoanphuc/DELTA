@@ -4,8 +4,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Star, Heart, Clock, Package } from "lucide-react";
 import { useAuthStore } from "@/stores/useAuthStore";
-// ❌ GỠ BỎ: UserAvatarFallback
-import { UserAvatar } from "@/components/UserAvatar"; // ✅ THAY THẾ
+import { UserAvatar } from "@/components/UserAvatar";
 import zinGift from "@/assets/img/zin-avatar.png";
 
 // --- Phần đã đăng nhập ---
@@ -18,11 +17,11 @@ const AuthenticatedView = ({ user }: { user: any }) => {
   ];
 
   return (
-    <Card className="shadow-sm border-none bg-white h-full flex flex-col">
+    // ✅ SỬA: min-h-[21.5rem] -> min-h-[17rem]
+    <Card className="shadow-sm border-none bg-white h-full flex flex-col min-h-[17rem]">
       <CardContent className="p-4 flex-1 flex flex-col">
         {/* User Info */}
         <div className="flex items-center gap-3 mb-4">
-          {/* ✅ SỬA LỖI TẠI ĐÂY */}
           <UserAvatar
             name={user.displayName || "User"}
             src={user.avatarUrl}
@@ -37,7 +36,7 @@ const AuthenticatedView = ({ user }: { user: any }) => {
           </div>
         </div>
 
-        {/* Actions (Giữ nguyên) */}
+        {/* Actions */}
         <div className="space-y-2 flex-1">
           {actions.map((action) => (
             <Button
@@ -53,27 +52,6 @@ const AuthenticatedView = ({ user }: { user: any }) => {
             </Button>
           ))}
         </div>
-
-        {/* Promo (Giữ nguyên) */}
-        <div className="mt-4 p-4 bg-yellow-50 rounded-lg text-center border border-yellow-200">
-          <img
-            src={zinGift}
-            alt="Ưu đãi"
-            className="w-12 h-12 mx-auto mb-2 opacity-70"
-          />
-          <h4 className="font-semibold text-sm text-gray-800">
-            Ưu đãi đặc biệt
-          </h4>
-          <p className="text-xs text-gray-600 mb-3">
-            Giảm giá 50% cho thành viên mới
-          </p>
-          <Button
-            size="sm"
-            className="bg-gradient-to-r from-orange-500 to-red-500 w-full"
-          >
-            Xem ngay
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );
@@ -83,11 +61,11 @@ const AuthenticatedView = ({ user }: { user: any }) => {
 const GuestView = () => {
   const navigate = useNavigate();
   return (
-    <Card className="shadow-sm border-none bg-white h-full flex flex-col">
+    // ✅ SỬA: min-h-[21.5rem] -> min-h-[17rem]
+    <Card className="shadow-sm border-none bg-white h-full flex flex-col min-h-[17rem]">
       <CardContent className="p-4 flex-1 flex flex-col">
         {/* Guest Info */}
         <div className="flex items-center gap-3 mb-4">
-          {/* ✅ SỬA LỖI TẠI ĐÂY */}
           <UserAvatar
             name="?"
             size={40}
@@ -95,11 +73,11 @@ const GuestView = () => {
           />
           <div>
             <p className="text-sm text-gray-500">Xin chào!</p>
-            <p className="font-semibold text-gray-900">Khách hàng</p>
+            <p className="font-semibold text-gray-900">Đăng nhập vào Printz </p>
           </div>
         </div>
 
-        {/* (Phần còn lại của GuestView giữ nguyên) */}
+        {/* (Buttons Đăng nhập/Đăng ký) */}
         <Button
           size="lg"
           className="w-full bg-gradient-to-r from-blue-500 to-purple-600 mb-2"
@@ -107,16 +85,9 @@ const GuestView = () => {
         >
           Đăng nhập ngay
         </Button>
-        <p className="text-sm text-center text-gray-600 mb-4">
-          Thành viên mới?{" "}
-          <Link
-            to="/signup"
-            className="font-medium text-purple-600 hover:underline"
-          >
-            Đăng ký
-          </Link>
-        </p>
+    
 
+        {/* (Các nút actions mờ) */}
         <div className="space-y-2 opacity-60 flex-1">
           <Button
             variant="ghost"
@@ -151,27 +122,6 @@ const GuestView = () => {
             Đơn hàng của tôi
           </Button>
         </div>
-
-        <div className="mt-4 p-4 bg-yellow-50 rounded-lg text-center border border-yellow-200">
-          <img
-            src={zinGift}
-            alt="Ưu đãi"
-            className="w-12 h-12 mx-auto mb-2 opacity-70"
-          />
-          <h4 className="font-semibold text-sm text-gray-800">
-            Ưu đãi đặc biệt
-          </h4>
-          <p className="text-xs text-gray-600 mb-3">
-            Giảm giá 50% cho thành viên mới
-          </p>
-          <Button
-            size="sm"
-            className="bg-gradient-to-r from-orange-500 to-red-500 w-full"
-            onClick={() => navigate("/signup")}
-          >
-            Xem ngay
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );
@@ -181,7 +131,7 @@ export const UserQuickActions = () => {
   const { user } = useAuthStore();
 
   return (
-    <div className="sticky top-24">
+    <div>
       {user ? <AuthenticatedView user={user} /> : <GuestView />}
     </div>
   );

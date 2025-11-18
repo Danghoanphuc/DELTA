@@ -1,6 +1,6 @@
 // features/shop/hooks/useOrderDetail.ts
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Order, OrderStatus } from "@/types/order";
 import { useAuthStore } from "@/stores/useAuthStore";
 import api from "@/shared/lib/axios";
@@ -17,26 +17,45 @@ import {
 export const useOrderDetail = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const location = useLocation();
+  const { user, activeContext } = useAuthStore();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isPrinter = user?.role === "printer";
+  // ✅ FIX: Detect isPrinter dựa vào activeContext hoặc URL path hoặc printerProfileId
+  const isPrinter =
+    activeContext === "printer" ||
+    location.pathname.startsWith("/printer/") ||
+    !!user?.printerProfileId;
 
   useEffect(() => {
     const fetchOrder = async () => {
-      if (!orderId) return;
+      // ✅ DEBUG: Log để kiểm tra
+      console.log("🔍 useOrderDetail - orderId:", orderId, "isPrinter:", isPrinter);
+      
+      if (!orderId) {
+        console.warn("⚠️ useOrderDetail - orderId is missing!");
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
         const endpoint = isPrinter
           ? `/orders/printer/${orderId}`
           : `/orders/${orderId}`;
+        console.log("🔍 useOrderDetail - Fetching from:", endpoint);
         const res = await api.get(endpoint);
         setOrder(res.data?.order || res.data?.data?.order);
       } catch (err: any) {
-        toast.error("Không thể tải thông tin đơn hàng");
-        navigate(isPrinter ? "/printer/orders" : "/orders");
+        console.error("❌ Error fetching order:", err);
+        toast.error(
+          err.response?.data?.message || "Không thể tải thông tin đơn hàng"
+        );
+        // ✅ FIX: Navigate về đúng route
+        navigate(
+          isPrinter ? "/printer/dashboard?tab=orders" : "/orders"
+        );
       } finally {
         setLoading(false);
       }

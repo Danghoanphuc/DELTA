@@ -36,8 +36,8 @@ export const AppLayout = () => {
         />
         <main
           className={cn(
-            "pt-16", // Padding top cho GlobalHeader
-            "pb-20 lg:pb-0" // Padding bottom cho MobileNav (h-20 mới)
+            "pb-5 lg:pb-0", // Padding bottom cho MobileNav (h-20 mới)
+            "pt-4 lg:pt-16" // Gần sát mép trên ở mobile, offset header ở desktop
           )}
         >
           {/* Outlet sẽ render nội dung trang full-width */}

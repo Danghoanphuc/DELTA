@@ -4,11 +4,11 @@
 import axios from "axios";
 import { useAuthStore } from "@/stores/useAuthStore"; // Đảm bảo đường dẫn này đúng
 
-const API_HOST = import.meta.env.VITE_API_URL;
+const API_HOST = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-if (!API_HOST) {
-  console.error(
-    "Lỗi cấu hình: VITE_API_URL chưa được định nghĩa trong file .env"
+if (!import.meta.env.VITE_API_URL) {
+  console.warn(
+    "⚠️ VITE_API_URL chưa được định nghĩa trong file .env, sử dụng default: http://localhost:8000"
   );
 }
 
@@ -18,6 +18,7 @@ const api = axios.create({
   // hoặc 'https://delta-customer.onrender.com/api' (production)
   baseURL: `${API_HOST}/api`,
   withCredentials: true,
+  timeout: 10000, // ✅ THÊM: Timeout 10s để tránh treo quá lâu
 });
 
 // --- Interceptors (Giữ nguyên - Rất tốt) ---

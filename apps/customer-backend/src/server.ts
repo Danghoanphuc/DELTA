@@ -86,8 +86,8 @@ async function startServer() {
     const webhookStripeRoutes = (
       await import("./routes/webhook.stripe.routes.js")
     ).default;
-    const vnpayWebhookRoutes = (
-      await import("./modules/webhooks/vnpay.webhook.routes.js")
+    const momoWebhookRoutes = (
+      await import("./modules/webhooks/momo.webhook.routes.js")
     ).default;
 
     Logger.info("✅ Đã tải (import) routes động thành công.");
@@ -191,7 +191,7 @@ async function startServer() {
     apiRouter.use("/customer", protect, customerRoutes);
     apiRouter.use("/checkout", protect, checkoutRoutes);
     apiRouter.use("/printer-stripe", protect, isPrinter, printerStripeRoutes);
-    apiRouter.use("/webhooks/vnpay", vnpayWebhookRoutes);
+    apiRouter.use("/webhooks/momo", momoWebhookRoutes);
 
     app.use("/api", apiRouter);
 

@@ -21,7 +21,7 @@ const mockAiPins: InspirationPin[] = [];
 
 // (FeedSkeleton giữ nguyên)
 const FeedSkeleton = () => (
-  <div className="columns-2 md:columns-3 lg:columns-5 gap-3 space-y-3 p-4 md:p-6">
+  <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3 p-4 md:p-6">
     {[...Array(10)].map((_, i) => (
       <Skeleton
         key={i}
@@ -113,7 +113,8 @@ export const InspirationFeed = ({
   return (
     <>
       <div className="w-full max-w-7xl mx-auto px-4 md:px-6 py-6">
-        <div className="columns-2 md:columns-3 lg:columns-5 gap-3 space-y-3">
+        {/* ✅ SỬA: Giảm từ lg:columns-5 xuống lg:columns-4 */}
+        <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
           {items.map((item) => (
             <div key={item.feedId} className="break-inside-avoid mb-3">
               {"type" in item && item.type === "inspiration" ? (

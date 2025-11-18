@@ -165,7 +165,7 @@ export function SocialButton({ provider }: SocialButtonProps) {
     window.addEventListener("message", messageListener);
 
     // ✅ FIX: Thêm timeout để đóng popup nếu không nhận được message sau 30 giây
-    const timeoutId = setTimeout(() => {
+    timeoutId = setTimeout(() => {
       if (!messageReceived && popup && !popup.closed) {
         console.warn("[OAuth] ⚠️ Timeout: No message received after 30s, closing popup");
         try {
@@ -180,7 +180,7 @@ export function SocialButton({ provider }: SocialButtonProps) {
     }, 30000); // 30 seconds timeout
 
     // ✅ FIX: Cleanup - Xóa listener nếu popup đóng thủ công
-    const checkPopupClosed = setInterval(() => {
+    checkPopupClosed = setInterval(() => {
       if (popup.closed && !messageReceived) {
         console.log("[OAuth] Popup closed manually, cleaning up");
         clearInterval(checkPopupClosed);

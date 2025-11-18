@@ -59,6 +59,14 @@ const PrinterOrderSchema = new mongoose.Schema({
     enum: Object.values(SUB_ORDER_STATUS),
     default: SUB_ORDER_STATUS.PENDING,
   },
+  // ✅ NEW: Trạng thái File In (Artwork Status) - Quan trọng cho W2P
+  artworkStatus: {
+    type: String,
+    enum: ["pending_upload", "pending_approval", "approved", "rejected"],
+    default: "pending_upload",
+  },
+  // ✅ NEW: Ghi chú nội bộ của nhà in
+  printerNotes: { type: String, maxlength: 2000 },
   shippingCode: { type: String },
   shippedAt: { type: Date },
   completedAt: { type: Date },

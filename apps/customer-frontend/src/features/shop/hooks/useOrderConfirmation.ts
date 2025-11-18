@@ -1,12 +1,13 @@
 // features/shop/hooks/useOrderConfirmation.ts
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Order } from "@/types/order";
 import api from "@/shared/lib/axios";
 import { toast } from "sonner";
 
 export const useOrderConfirmation = () => {
-  const { orderId } = useParams<{ orderId: string }>();
+  const { orderId: orderIdFromParams } = useParams<{ orderId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -15,6 +16,8 @@ export const useOrderConfirmation = () => {
 
   useEffect(() => {
     const fetchOrder = async () => {
+      // Lấy orderId từ param hoặc từ VNPay query (vnp_TxnRef)
+      const orderId = orderIdFromParams || searchParams.get("orderId") || searchParams.get("vnp_TxnRef") || "";
       if (!orderId) {
         navigate("/");
         return;
@@ -31,7 +34,7 @@ export const useOrderConfirmation = () => {
       }
     };
     fetchOrder();
-  }, [orderId, navigate]);
+  }, [orderIdFromParams, searchParams, navigate]);
 
   const handleCopyOrderNumber = () => {
     if (order?.orderNumber) {

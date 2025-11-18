@@ -25,9 +25,10 @@ export const ShopFilterBar = ({
   onFilterOpen,
 }: ShopFilterBarProps) => {
   return (
-    <div className="flex flex-col gap-4">
-      {/* === HÀNG 1: SẮP XẾP (Giữ nguyên) === */}
-      <div className="flex items-center justify-between">
+    // ✅ SỬA: Giảm "gap-4" -> "gap-3"
+    <div className="flex flex-col gap-3">
+      {/* === HÀNG 1: SẮP XẾP (ẩn trên mobile) === */}
+      <div className="hidden md:flex items-center justify-between">
         <SortBar sortBy={sortBy} onSortChange={onSortChange} />
         <Button
           variant="outline"
@@ -39,9 +40,7 @@ export const ShopFilterBar = ({
         </Button>
       </div>
 
-      {/* === HÀNG 2: DANH MỤC (Thay thế) === */}
-      {/* ❌ GỠ BỎ: Thanh cuộn icon cũ */}
-      {/* ✅ THÊM: Filter trực quan mới */}
+    
       <VisualCategoryFilter
         taxonomy={taxonomy}
         selectedCategory={selectedCategory}

@@ -78,6 +78,9 @@ export const CustomerOrdersPage = () => {
       }
     > = {
       pending: { label: "Chờ xác nhận", variant: "secondary" },
+      // Map tạm cho trạng thái backend 'processing'
+      // @ts-ignore
+      processing: { label: "Đang xử lý", variant: "default" },
       confirmed: { label: "Đã xác nhận", variant: "default" },
       printing: { label: "Đang in", variant: "default" },
       shipping: { label: "Đang giao", variant: "default" },
@@ -112,7 +115,7 @@ export const CustomerOrdersPage = () => {
     // ❌ GỠ BỎ: Sidebar, MobileNav
     <>
       {/* ✅ Căn giữa và thêm padding */}
-      <div className="pt-6 p-4 md:p-8 max-w-7xl mx-auto">
+      <div className="pt-6 p-4 md:p-8 pb-28 max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
@@ -177,7 +180,57 @@ export const CustomerOrdersPage = () => {
                     className="hover:shadow-lg transition-shadow"
                   >
                     <CardContent className="p-6">
-                      {/* ... (Nội dung card đơn hàng) ... */}
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="text-sm text-gray-500">
+                              Mã đơn: <span className="font-medium text-gray-900">{order.orderNumber}</span>
+                            </span>
+                            {/* @ts-ignore: hỗ trợ 'processing' */}
+                            {getStatusBadge(order.status as any)}
+                          </div>
+
+                          <div className="mt-2 text-sm text-gray-600">
+                            <span>Ngày đặt: {order.createdAt ? formatDate(order.createdAt as any) : "-"}</span>
+                          </div>
+
+                          <div className="mt-3 text-sm text-gray-700 line-clamp-1">
+                            {order.items && order.items.length > 0
+                              ? `${order.items[0].productName}${
+                                  order.items.length > 1 ? ` và ${order.items.length - 1} sản phẩm khác` : ""
+                                }`
+                              : "Không có sản phẩm"}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-2">
+                          <div className="text-right">
+                            <div className="text-xs text-gray-500">Tổng tiền</div>
+                            <div className="text-base font-semibold">
+                              {formatPrice(order.total || order.subtotal || 0)}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button asChild size="sm" variant="secondary">
+                              <Link to={`/orders/${order._id}`}>
+                                <Eye className="w-4 h-4 mr-1" />
+                                Xem chi tiết
+                              </Link>
+                            </Button>
+                            {/* Cho phép hủy nếu còn ở trạng thái chờ */}
+                            {order.status === "pending" && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                disabled={cancellingId === order._id}
+                                onClick={() => handleCancelOrder(order._id)}
+                              >
+                                {cancellingId === order._id ? "Đang hủy..." : "Hủy đơn"}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}

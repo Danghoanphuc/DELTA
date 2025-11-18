@@ -6,7 +6,7 @@ import axiosClient from '@/shared/lib/axios';
 interface CheckoutData {
   shippingAddress: any;
   billingAddress?: any;
-  paymentMethod: 'stripe' | 'vnpay' | 'cod';
+  paymentMethod: 'stripe' | 'momo' | 'cod';
 }
 
 export const useCheckout = () => {
@@ -34,8 +34,7 @@ export const useCheckout = () => {
       
       if (response.data.success) {
         toast.success('Đặt hàng thành công!');
-        
-        if (checkoutData.paymentMethod === 'vnpay' && response.data.paymentUrl) {
+        if (checkoutData.paymentMethod === 'momo' && response.data.paymentUrl) {
           window.location.href = response.data.paymentUrl;
         } else {
           navigate(`/checkout/confirmation/${response.data.masterOrderId}`);

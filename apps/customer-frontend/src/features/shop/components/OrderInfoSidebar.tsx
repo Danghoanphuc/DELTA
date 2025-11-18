@@ -64,11 +64,17 @@ export const OrderInfoSidebar = ({
         </div>
         <div className="flex justify-between">
           <span className="text-gray-600">Trạng thái:</span>
-          <Badge
-            variant={order.paymentStatus === "paid" ? "default" : "secondary"}
-          >
+          <Badge variant={
+            order.paymentStatus === "paid"
+              ? "default"
+              : order.paymentStatus === "failed"
+              ? "destructive"
+              : "secondary"
+          }>
             {order.paymentStatus === "paid" && "Đã thanh toán"}
             {order.paymentStatus === "pending" && "Chờ thanh toán"}
+            {order.paymentStatus === "failed" && "Thanh toán thất bại"}
+            {order.paymentStatus === "refunded" && "Đã hoàn tiền"}
           </Badge>
         </div>
       </CardContent>

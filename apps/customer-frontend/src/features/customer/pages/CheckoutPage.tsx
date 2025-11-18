@@ -1,6 +1,6 @@
 // apps/customer-frontend/src/features/customer/pages/CheckoutPage.tsx (ĐÃ VÁ)
 import React, { useState, useEffect } from "react";
-import { loadStripe, StripeElementsOptions } from "@stripe/stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import { useForm, FormProvider, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,34 +26,30 @@ import {
 //   FormLabel,
 //   FormMessage,
 // } from "@/shared/components/ui/form";
-// import { Input } from "@/shared/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group";
 
-// ✅ SỬA LỖI TS2613: Đổi từ default import sang named import
+// ✅ Sử dụng hook
 import { OrderSummaryCard } from "@/features/shop/components/OrderSummaryCard";
 import { useCartStore } from "@/stores/useCartStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useCheckout } from "../hooks/useCheckout";
 import { CreditCard, Truck } from "lucide-react";
 import { AddressForm } from "../components/AddressForm";
-import { addressSchema } from "../components/addressSchema";
-import { Loader2 } from "lucide-react";
+import { Loader } from "lucide-react";
 import { config } from "@/config/env.config";
-import { vnpayCreatePayment } from "@/services/vnpayService";
+import { checkoutService, codCheckoutService } from "@/services/checkoutService";
 
 // Schema
 const checkoutSchema = z.object({
-  shippingAddress: addressSchema,
-  paymentMethod: z.enum(["stripe", "vnpay", "cod"]),
-  billingSameAsShipping: z.boolean(),
-  billingAddress: addressSchema.optional(),
+  shippingAddress: z.any(), // will be validated by zod schema elsewhere
+  paymentMethod: z.enum(["stripe", "momo", "cod"]),
+  billingSameAs: z.boolean().optional(),
+  billingAddress: z.any().optional(),
 });
+
 type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 
-// ✅ SỬA LỖI: Chỉ load Stripe khi có publishable key hợp lệ
-const stripePromise = config.stripePublicKey
-  ? loadStripe(config.stripePublicKey)
-  : null;
+const stripePromise = config.stripePublicKey ? loadStripe(config.stripePublicKey) : null;
 
 const CheckoutPage = () => {
   // ✅ SỬA LỖI INFINITE LOOP: Tách selectors để tránh tạo object mới mỗi lần render
@@ -88,8 +84,8 @@ const CheckoutPage = () => {
         postalCode: "",
         country: "Việt Nam",
       },
-      billingSameAsShipping: true,
-      paymentMethod: "stripe",
+      billingSameAs: true,
+      paymentMethod: "momo",
     },
   });
 
@@ -105,7 +101,7 @@ const CheckoutPage = () => {
   }, [isFormValid, showPaymentMethods]);
 
   // Xử lý khi đổi phương thức thanh toán
-  const onPaymentMethodChange = async (value: "stripe" | "vnpay" | "cod") => {
+  const onPaymentMethodChange = async (value: "stripe" | "momo" | "cod") => {
     // ✅ Luôn cập nhật form value trước
     form.setValue("paymentMethod", value);
     
@@ -113,12 +109,12 @@ const CheckoutPage = () => {
       // ✅ Kiểm tra Stripe key trước khi khởi tạo
       if (!config.stripePublicKey) {
         toast.error("Stripe chưa được cấu hình. Vui lòng chọn phương thức thanh toán khác.");
-        form.setValue("paymentMethod", "vnpay");
+        form.setValue("paymentMethod", "momo");
         return;
       }
-      if (!cart || cart.items.length === 0) {
+      if (!cart || !cart.items.length) {
         toast.error("Vui lòng thêm sản phẩm vào giỏ hàng trước.");
-        form.setValue("paymentMethod", "vnpay"); // Reset
+        form.setValue("paymentMethod", "momo"); // Reset
         return;
       }
       setIsStripeLoading(true);
@@ -131,7 +127,7 @@ const CheckoutPage = () => {
         toast.error("Không thể khởi tạo thanh toán Stripe", {
           description: error.message,
         });
-        form.setValue("paymentMethod", "vnpay"); // Reset
+        form.setValue("paymentMethod", "momo"); // Reset
       } finally {
         setIsStripeLoading(false);
       }
@@ -179,20 +175,26 @@ const CheckoutPage = () => {
         return;
       }
 
-      if (data.paymentMethod === "vnpay") {
+      if (data.paymentMethod === "momo") {
         // ✅ Backend tự động lấy cart từ user, không cần truyền cartId
-        const { paymentUrl } = await vnpayCreatePayment(
-          cart!._id, // Giữ lại để tương thích với interface, nhưng backend không dùng
-          mappedShippingAddress
-        );
-        toast.info("Đang điều hướng đến cổng thanh toán VNPay...");
-        window.location.href = paymentUrl;
+        const { paymentUrl } = await checkoutService.createMomoUrl({
+          shippingAddress: mappedShippingAddress,
+        });
+        toast.info("Đang mở MoMo để thanh toán...");
+        // Debug: log FULL URL để đảm bảo không bị cắt/truncate
+        console.log("[MoMo] paymentUrl:", paymentUrl, "length=", paymentUrl?.length);
+        // Mở VNPay ở tab mới để không mất log/Network của tab hiện tại
+        window.open(paymentUrl, "_blank", "noopener");
       } else if (data.paymentMethod === "stripe") {
         toast.info(
           "Vui lòng hoàn tất thông tin thẻ thanh toán (Stripe) bên dưới."
         );
       } else {
-        toast.success("Đã đặt hàng COD (Chức năng đang phát triển)");
+        const { masterOrderId } = await codCheckoutService.createCodOrder({
+          shippingAddress: mappedShippingAddress,
+        });
+        toast.success("Đặt hàng COD thành công!");
+        navigate(`/checkout/confirmation/${masterOrderId}`);
       }
     } catch (error: any) {
       toast.error("Đặt hàng thất bại", { description: error.message });
@@ -206,7 +208,7 @@ const CheckoutPage = () => {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -225,8 +227,8 @@ const CheckoutPage = () => {
     );
   }
 
-  const stripeOptions: StripeElementsOptions | undefined = clientSecret
-    ? { clientSecret, appearance: { theme: "stripe" } }
+  const stripeOptions = clientSecret
+    ? { clientSecret, appearance: { theme: "stripe" as const } }
     : undefined;
 
   return (
@@ -275,21 +277,21 @@ const CheckoutPage = () => {
                 <RadioGroup
                   value={paymentMethod}
                   onValueChange={(val) => {
-                    onPaymentMethodChange(val as "stripe" | "vnpay" | "cod");
+                    onPaymentMethodChange(val as "stripe" | "momo" | "cod");
                   }}
                   className="space-y-4"
                 >
                   {/* (Radio VNPay) */}
                   <div 
                     className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => onPaymentMethodChange("vnpay")}
+                    onClick={() => onPaymentMethodChange("momo")}
                   >
-                    <RadioGroupItem value="vnpay" id="vnpay" />
+                    <RadioGroupItem value="momo" id="momo" />
                     <label
-                      htmlFor="vnpay"
+                      htmlFor="momo"
                       className="flex-1 cursor-pointer font-normal text-sm"
                     >
-                      Thanh toán qua VNPay (ATM/Visa/Master)
+                      Thanh toán MoMo (QR/Thẻ nội địa)
                     </label>
                   </div>
                   
@@ -362,10 +364,10 @@ const CheckoutPage = () => {
                       size="lg"
                     >
                       {isProcessing && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader className="mr-2 h-4 w-4 animate-spin" />
                       )}
-                      {paymentMethod === "vnpay"
-                        ? "Tiến hành thanh toán VNPay"
+                      {paymentMethod === "momo"
+                        ? "Thanh toán MoMo"
                         : "Hoàn tất đơn hàng (COD)"}
                     </Button>
                   </div>

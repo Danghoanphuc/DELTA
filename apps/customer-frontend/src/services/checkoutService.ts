@@ -7,7 +7,7 @@ import { Logger } from "@/shared/utils/logger.util";
 
 // Kiểu dữ liệu cho payload (giả định, Phúc có thể mở rộng)
 interface ICheckoutPayload {
-  cartItems: any[]; // (FIXME: Dùng type ICartItem)
+  cartItems?: any[]; // (FIXME: Dùng type ICartItem)
   shippingAddress: any; // (FIXME: Dùng type IAddress)
 }
 
@@ -18,8 +18,8 @@ interface IStripeIntentResponse {
   totalAmount: number;
 }
 
-// Kiểu trả về của VNPay
-interface IVnPayUrlResponse {
+// Kiểu trả về của URL thanh toán nội địa (MoMo)
+interface IPayUrlResponse {
   paymentUrl: string;
   masterOrderId: string;
   totalAmount: number;
@@ -47,27 +47,43 @@ const createStripePaymentIntent = async (
 };
 
 /**
- * Gọi API backend để tạo URL thanh toán VNPay (cho thanh toán nội địa)
+ * Gọi API backend để tạo URL thanh toán MoMo (nội địa)
  */
-const createVnPayUrl = async (
+const createMomoUrl = async (
   payload: ICheckoutPayload
-): Promise<IVnPayUrlResponse> => {
+): Promise<IPayUrlResponse> => {
   try {
-    Logger.debug("[CheckoutSvc-FE] Đang gọi API (VNPay)...", payload);
+    Logger.debug("[CheckoutSvc-FE] Đang gọi API (MoMo)...", payload);
     // SỬA LỖI: Đổi protectedApi.post thành api.post
-    const response = await api.post(
-      "/checkout/vnpay/create-payment-url",
-      payload
-    );
-    Logger.debug("[CheckoutSvc-FE] Nhận VNPay URL:", response.data.data);
+    const response = await api.post("/checkout/momo/create-payment-url", payload);
+    Logger.debug("[CheckoutSvc-FE] Nhận MoMo URL:", response.data.data);
     return response.data.data;
   } catch (error) {
-    Logger.error("[CheckoutSvc-FE] Lỗi khi tạo VNPay URL:", error);
+    Logger.error("[CheckoutSvc-FE] Lỗi khi tạo MoMo URL:", error);
     throw error;
   }
 };
 
 export const checkoutService = {
   createStripePaymentIntent,
-  createVnPayUrl,
+  createMomoUrl,
+};
+
+/**
+ * Gọi API backend để đặt hàng COD
+ */
+const createCodOrder = async (payload: ICheckoutPayload): Promise<{ masterOrderId: string; totalAmount: number }> => {
+  try {
+    Logger.debug("[CheckoutSvc-FE] Đang gọi API (COD)...", payload);
+    const response = await api.post("/checkout/cod/confirm", payload);
+    Logger.debug("[CheckoutSvc-FE] Đặt COD thành công:", response.data.data);
+    return response.data.data;
+  } catch (error) {
+    Logger.error("[CheckoutSvc-FE] Lỗi khi đặt COD:", error);
+    throw error;
+  }
+};
+
+export const codCheckoutService = {
+  createCodOrder,
 };

@@ -18,7 +18,10 @@ router.post(
   checkoutController.createStripePaymentIntent
 );
 
-// --- ENDPOINT MỚI (GĐ 5.R2) ---
-router.post("/vnpay/create-payment-url", checkoutController.createVnPayUrl);
+// --- MoMo create payment URL ---
+router.post("/momo/create-payment-url", checkoutController.createMomoUrl);
+
+// --- COD confirm order ---
+router.post("/cod/confirm", checkoutController.confirmCodOrder);
 
 export default router;

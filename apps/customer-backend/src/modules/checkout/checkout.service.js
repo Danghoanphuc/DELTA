@@ -5,19 +5,23 @@ import { Logger } from "../../shared/utils/index.js";
 import { getStripeClient } from "../../shared/utils/stripe.js";
 import { OrderService } from "../orders/order.service.js";
 import { CartService } from "../cart/cart.service.js";
+import { ValidationException } from "../../shared/exceptions/index.js";
+import { MASTER_ORDER_STATUS, PAYMENT_STATUS } from "@printz/types";
 import {
-  ValidationException,
-} from "../../shared/exceptions/index.js";
+  sendOrderConfirmationEmail,
+  sendNewOrderNotification,
+} from "../../infrastructure/email/email.service.js";
+import { PrinterProfile } from "../../shared/models/printer-profile.model.js";
 
-// === IMPORTS MỚI ===
-import { VnPayService } from "../../shared/services/vnpay.service.js";
+// === Payment Services ===
+import { MomoService } from "../..//shared/services/momo.service.js";
 
 export class CheckoutService {
   constructor() {
     this.stripe = getStripeClient();
     this.orderService = new OrderService();
     this.cartService = new CartService();
-    this.vnPayService = new VnPayService(); // <-- KHỞI TẠO MỚI
+    this.momoService = new MomoService();
   }
 
   // --- HÀM CŨ (GĐ 5.4) - GIỮ NGUYÊN ---
@@ -100,19 +104,24 @@ export class CheckoutService {
     }
   };
 
-  // --- HÀM MỚI (GĐ 5.R2) ---
-  /**
-   * Tạo URL thanh toán VNPay
-   * @param {object} req - Request object
-   */
-  createVnPayPaymentUrl = async (req) => {
+  // --- MoMo create payment URL ---
+  createMomoPaymentUrl = async (req) => {
     const user = req.user;
     const { shippingAddress } = req.body;
-    const ipAddr = req.ip;
+    // Lấy IP thật từ các header phổ biến qua proxy/tunnel và ép IPv4
+    const ipCandidates = [
+      req.headers["cf-connecting-ip"],
+      (req.headers["x-forwarded-for"] || "").toString().split(",")[0],
+      req.headers["x-real-ip"],
+      req.ip,
+      req.socket?.remoteAddress,
+    ];
+    const rawIp =
+      ipCandidates.find((v) => v && String(v).trim()) || "127.0.0.1";
+    const ipv4Match = String(rawIp).match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/);
+    const ipAddr = ipv4Match ? ipv4Match[0] : "127.0.0.1";
 
-    Logger.debug(
-      `[CheckoutSvc] Bắt đầu createVnPayPaymentUrl cho user: ${user.email}`
-    );
+    Logger.debug(`[CheckoutSvc] Bắt đầu createMomoPaymentUrl cho user: ${user.email}`);
 
     this.#assertShippingAddress(shippingAddress);
 
@@ -123,7 +132,7 @@ export class CheckoutService {
 
     const cartSnapshot = await this.cartService.getCart(user._id);
     if (!cartSnapshot || !cartSnapshot.items.length) {
-      Logger.warn("[CheckoutSvc] Giỏ hàng rỗng, từ chối tạo URL VNPay.");
+      Logger.warn("[CheckoutSvc] Giỏ hàng rỗng, từ chối tạo URL MoMo.");
       throw new ValidationException("Giỏ hàng rỗng.");
     }
 
@@ -137,28 +146,123 @@ export class CheckoutService {
     });
     const totalAmount = masterOrder.totalAmount; // (VND)
 
-    // 2. Gọi VnPayService để tạo URL
+    // 2. Gọi MomoService để tạo URL
     const orderInfo = `Thanh toan don hang ${masterOrder.orderNumber}`;
-
-    const paymentUrl = this.vnPayService.createPaymentUrl(
+    const paymentUrl = await this.momoService.createPaymentUrl(
       masterOrder._id.toString(),
       totalAmount,
       ipAddr,
       orderInfo
     );
 
-    // 3. (Lưu lại thông tin giao dịch VNPAY nếu cần - Tạm thời bỏ qua)
+    // 3. (Lưu lại thông tin giao dịch nếu cần - Tạm thời bỏ qua)
     // MasterOrder đã được tạo là đủ
 
-    Logger.info(
-      `[CheckoutSvc] Tạo VNPay URL thành công cho Order: ${masterOrder.orderNumber}`
-    );
+    Logger.info(`[CheckoutSvc] Tạo MoMo URL thành công cho Order: ${masterOrder.orderNumber}`);
 
     // 4. (Xóa giỏ hàng... sau)
     // await this.cartService.clearCart(user.customerProfile);
 
     return {
       paymentUrl: paymentUrl,
+      masterOrderId: masterOrder._id,
+      totalAmount: masterOrder.totalAmount,
+    };
+  };
+
+  // --- COD: Tạo đơn và xác nhận đặt hàng thanh toán khi nhận hàng ---
+  confirmCodOrder = async (req) => {
+    const user = req.user;
+    const { shippingAddress } = req.body || {};
+
+    Logger.debug(
+      `[CheckoutSvc] Bắt đầu confirmCodOrder cho user: ${user?.email || user?._id}`
+    );
+
+    // Validate địa chỉ + giỏ hàng
+    this.#assertShippingAddress(shippingAddress);
+
+    const validation = await this.cartService.validateCheckout(user._id);
+    if (!validation.isValid) {
+      throw new ValidationException(validation.message);
+    }
+
+    const cartSnapshot = await this.cartService.getCart(user._id);
+    if (!cartSnapshot || !cartSnapshot.items.length) {
+      Logger.warn("[CheckoutSvc] Giỏ hàng rỗng, từ chối đặt COD.");
+      throw new ValidationException("Giỏ hàng rỗng.");
+    }
+
+    const sanitizedCartItems = this.#mapCartItems(cartSnapshot.items);
+
+    // 1) Tạo MasterOrder (pre-create)
+    const masterOrder = await this.orderService.createOrder(user, {
+      ...req.body,
+      cartItems: sanitizedCartItems,
+    });
+
+    // 2) Cập nhật trạng thái cho COD: chưa thanh toán nhưng vào xử lý
+    masterOrder.paymentStatus = PAYMENT_STATUS.UNPAID;
+    masterOrder.status = MASTER_ORDER_STATUS.PROCESSING;
+    masterOrder.masterStatus = MASTER_ORDER_STATUS.PROCESSING;
+    await masterOrder.save();
+
+    // 3) Xóa giỏ hàng
+    try {
+      await this.cartService.clearCart(user._id);
+    } catch (clearError) {
+      Logger.warn(
+        `[CheckoutSvc] Không thể xóa giỏ hàng cho user ${user._id}: ${clearError.message}`
+      );
+    }
+
+    // 4) Gửi email
+    try {
+      // ✅ Gửi email xác nhận cho Customer
+      await sendOrderConfirmationEmail(masterOrder.customerEmail, masterOrder);
+      Logger.info(
+        `[CheckoutSvc] Đã gửi email xác nhận cho Customer: ${masterOrder.customerEmail}`
+      );
+
+      // ✅ Gửi email thông báo cho TỪNG nhà in
+      for (const printerOrder of masterOrder.printerOrders) {
+        try {
+          const printerProfile = await PrinterProfile.findById(
+            printerOrder.printerProfileId
+          ).populate("user", "email displayName");
+          
+          if (printerProfile?.user?.email) {
+            await sendNewOrderNotification(
+              printerProfile.user.email,
+              masterOrder.toObject(),
+              {
+                name: masterOrder.customerName,
+                email: masterOrder.customerEmail,
+              }
+            );
+            Logger.info(
+              `[CheckoutSvc] Đã gửi email thông báo cho Printer: ${printerProfile.user.email}`
+            );
+          }
+        } catch (emailError) {
+          Logger.error(
+            `[CheckoutSvc] Lỗi khi gửi email cho Printer ${printerOrder.printerProfileId}:`,
+            emailError
+          );
+        }
+      }
+    } catch (emailError) {
+      Logger.error(
+        `[CheckoutSvc] Lỗi khi gửi email cho Order ${masterOrder.orderNumber}:`,
+        emailError
+      );
+    }
+
+    Logger.info(
+      `[CheckoutSvc] Đặt hàng COD thành công: ${masterOrder.orderNumber} (UNPAID -> PROCESSING)`
+    );
+
+    return {
       masterOrderId: masterOrder._id,
       totalAmount: masterOrder.totalAmount,
     };
