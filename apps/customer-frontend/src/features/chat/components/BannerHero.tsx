@@ -1,8 +1,13 @@
 // features/chat/components/BannerHero.tsx (CẬP NHẬT)
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/shared/components/ui/card";
+import { cn } from "@/shared/lib/utils";
 
-export const BannerHero = () => {
+interface BannerHeroProps {
+  className?: string;
+}
+
+export const BannerHero = ({ className = "" }: BannerHeroProps) => {
   const slides = [
     {
       image:
@@ -30,28 +35,23 @@ export const BannerHero = () => {
   const current = slides[index];
 
   return (
-    // ✅ SỬA CHIỀU CAO: h-56 -> h-40 (giảm ~1/3 trên mobile)
-    <Card className="h-28 sm:h-44 lg:h-32 overflow-hidden">
-      <CardContent className="p-0 h-full w-full">
-        <div className="relative h-full w-full">
-          <img
-            src={current.image}
-            alt={current.alt}
-            className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
+    <div className={cn("w-full aspect-[2/1] rounded-lg overflow-hidden relative", className)}>
+      <img
+        src={current.image}
+        alt={current.alt}
+        className="absolute inset-0 w-full h-full object-cover"
+        loading="lazy"
+      />
+      <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2 z-10">
+        {slides.map((_, i) => (
+          <span
+            key={i}
+            className={`h-1.5 w-6 rounded-full ${
+              i === index ? "bg-white" : "bg-white/50"
+            }`}
           />
-          <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2 z-10">
-            {slides.map((_, i) => (
-              <span
-                key={i}
-                className={`h-1.5 w-6 rounded-full ${
-                  i === index ? "bg-white" : "bg-white/50"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        ))}
+      </div>
+    </div>
   );
 };

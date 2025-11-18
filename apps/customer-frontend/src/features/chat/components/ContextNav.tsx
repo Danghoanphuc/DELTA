@@ -1,54 +1,71 @@
-// features/chat/components/ContextNav.tsx (CẬP NHẬT)
-import { Button } from "@/shared/components/ui/button";
-import {
-  Wand2,
-  Building2,
-  Timer,
-  CalendarDays,
-  Images,
-  Tag,
-} from "lucide-react";
-import { Card, CardContent } from "@/shared/components/ui/card"; // ✅ Thêm Card
-import { cn } from "@/shared/lib/utils"; // ✅ Thêm cn
+// features/chat/components/ContextNav.tsx (TÁI CẤU TRÚC)
+import { Wand2, Building2, Timer, CalendarDays } from "lucide-react";
+import { Card, CardContent } from "@/shared/components/ui/card";
+import { cn } from "@/shared/lib/utils";
 
 const items = [
-  { label: "Printz Studio", icon: Wand2, href: "/design-editor" },
-  { label: "Printz B2B", icon: Building2, href: "/contact" },
-  { label: "In gấp 24h", icon: Timer, href: "/shop?fast=1" },
-  { label: "Theo sự kiện", icon: CalendarDays, href: "/inspiration" },
-  { label: "Kho mẫu", icon: Images, href: "/inspiration" },
-  { label: "Deal rẻ hôm nay", icon: Tag, href: "/shop?deal=today" },
+  {
+    label: "Printz Studio",
+    sublabel: "Thiết kế online tức thì",
+    icon: Wand2,
+    href: "/design-editor",
+  },
+  {
+    label: "Printz B2B",
+    sublabel: "Giải pháp cho doanh nghiệp",
+    icon: Building2,
+    href: "/contact",
+  },
+  {
+    label: "In gấp 24h",
+    sublabel: "Ưu tiên giao nhanh",
+    icon: Timer,
+    href: "/shop?fast=1",
+  },
+  {
+    label: "Theo sự kiện",
+    sublabel: "Gợi ý theo mùa lễ",
+    icon: CalendarDays,
+    href: "/inspiration",
+  },
 ];
 
-export const ContextNav = () => {
+interface ContextNavProps {
+  className?: string;
+  compact?: boolean;
+}
+
+export const ContextNav = ({ className = "", compact = false }: ContextNavProps) => {
   return (
-    // ❌ Xóa: max-w-7xl mx-auto px-4 md:px-6 mt-4 (Vì component cha đã có)
-    <div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {items.map((it) => (
-          // ✅ THAY THẾ: Dùng Card thay vì Button
-          <a href={it.href} key={it.label} className="group">
-            <Card
-              className={cn(
-                "hover:bg-blue-50 hover:border-blue-300 transition-all",
-                "border-gray-200 shadow-sm"
-              )}
-            >
-              <CardContent
-                className="flex flex-col items-center justify-center p-4 h-20" // ✅ Tăng chiều cao
-              >
-                <it.icon
-                  size={20}
-                  className="text-blue-600 mb-1.5 flex-shrink-0"
-                />
-                <span className="text-xs font-medium text-center text-gray-700 group-hover:text-blue-700">
-                  {it.label}
-                </span>
-              </CardContent>
-            </Card>
+    <Card
+      className={cn(
+        "bg-white/90 border border-white/70 shadow-[0_20px_60px_rgba(15,23,42,0.08)] h-full",
+        !compact && "min-h-[360px]",
+        className
+      )}
+    >
+      <CardContent className="p-4 space-y-3">
+        {items.map((item) => (
+          <a
+            key={item.label}
+            href={item.href}
+            className={cn(
+              "flex items-center gap-3 rounded-2xl border border-slate-100 bg-white/80 px-4 py-3 text-left hover:border-blue-200 hover:bg-blue-50/40 transition duration-200",
+              compact && "px-3 py-2.5"
+            )}
+          >
+            <span className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-[0_10px_20px_rgba(59,130,246,0.25)]">
+              <item.icon size={18} />
+            </span>
+            <div>
+              <div className="text-sm font-semibold text-slate-900">
+                {item.label}
+              </div>
+              <div className="text-xs text-slate-500">{item.sublabel}</div>
+            </div>
           </a>
         ))}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };

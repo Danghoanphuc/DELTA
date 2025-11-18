@@ -1,15 +1,10 @@
 // src/features/chat/services/chat.api.service.ts (CẬP NHẬT)
 import api from "@/shared/lib/axios";
 import { AiApiResponse, ChatMessage, ChatConversation } from "@/types/chat";
-import { Order } from "@/types/order"; // <-- Import Order type
+import { Order } from "@/types/order"; 
 
-/**
- * (fetchChatConversations, fetchChatHistory, postChatMessage, uploadChatFile giữ nguyên)
- */
 export const fetchChatConversations = async (): Promise<ChatConversation[]> => {
   try {
-    // ✅ FIX: Đổi endpoint từ '/chat/conversations/my-conversations'
-    // thành '/chat/conversations' cho khớp với backend (chat.routes.js)
     const res = await api.get("/chat/conversations");
     return Array.isArray(res.data?.data?.conversations)
       ? res.data.data.conversations
@@ -68,12 +63,8 @@ export const uploadChatFile = async (
   return aiResponse;
 };
 
-/**
- * ✅ MỚI: Lấy chi tiết MỘT đơn hàng (yêu cầu auth)
- */
 export const fetchOrderDetails = async (orderId: string): Promise<Order> => {
   try {
-    // API này đã tồn tại ở backend (modules/orders/order.routes.js)
     const res = await api.get(`/orders/${orderId}`);
     if (res.data.success && res.data.data.order) {
       return res.data.data.order;
@@ -82,6 +73,28 @@ export const fetchOrderDetails = async (orderId: string): Promise<Order> => {
     }
   } catch (err) {
     console.error(`Không thể tải chi tiết đơn hàng ${orderId}:`, err);
-    throw err; // Ném lỗi để useChat xử lý
+    throw err; 
   }
+};
+
+// ✅ MỚI: Đổi tên cuộc trò chuyện
+export const renameConversation = async (conversationId: string, newTitle: string): Promise<boolean> => {
+    try {
+        await api.patch(`/chat/conversations/${conversationId}`, { title: newTitle });
+        return true;
+    } catch (err) {
+        console.error("Lỗi đổi tên cuộc trò chuyện:", err);
+        return false;
+    }
+};
+
+// ✅ MỚI: Xóa cuộc trò chuyện
+export const deleteConversation = async (conversationId: string): Promise<boolean> => {
+    try {
+        await api.delete(`/chat/conversations/${conversationId}`);
+        return true;
+    } catch (err) {
+        console.error("Lỗi xóa cuộc trò chuyện:", err);
+        return false;
+    }
 };

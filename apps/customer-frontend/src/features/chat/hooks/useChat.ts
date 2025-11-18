@@ -10,13 +10,10 @@ import {
   TextMessage,
   ChatConversation,
 } from "@/types/chat";
-// ❌ GỠ BỎ: import { PrinterProduct } from "@/types/product";
-// ❌ GỠ BỎ: import { Order } from "@/types/order";
 import { useAuthStore } from "@/stores/useAuthStore";
 import * as chatApi from "../services/chat.api.service";
-// ❌ GỠ BỎ: import api from "@/shared/lib/axios";
 
-export const WELCOME_ID = "welcome_msg_001"; // Export để ChatPage có thể dùng
+export const WELCOME_ID = "welcome_msg_001"; 
 export const WELCOME_MESSAGE: ChatMessage = {
   _id: WELCOME_ID,
   senderType: "AI",
@@ -41,13 +38,9 @@ export const useChat = () => {
   const [quickReplies, setQuickReplies] =
     useState<QuickReply[]>(WELCOME_REPLIES);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
-  const [isChatExpanded, setIsChatExpanded] = useState(true); // Mặc định là true
+  const [isChatExpanded, setIsChatExpanded] = useState(true); 
   const accessToken = useAuthStore((s) => s.accessToken);
 
-  // ❌ GỠ BỎ: Toàn bộ state cho "Quick View" Sản Phẩm
-  // ❌ GỠ BỎ: Toàn bộ state cho "Quick View" Đơn Hàng
-
-  // (useEffect, addAiMessageToState, addUserMessageToState, handleError giữ nguyên)
   useEffect(() => {
     if (!accessToken) {
       setConversations([]);
@@ -57,7 +50,6 @@ export const useChat = () => {
     chatApi.fetchChatConversations().then((convos) => {
       setConversations(convos.reverse());
     });
-    // Không gọi handleNewChat() nữa, để giữ conversationId nếu có
   }, [accessToken]);
 
   const addAiMessageToState = (response: AiApiResponse) => {
@@ -125,7 +117,6 @@ export const useChat = () => {
     });
   };
 
-  // (onSendText, onSendQuickReply, onFileUpload giữ nguyên)
   const onSendText = async (
     text: string,
     latitude?: number,
@@ -171,15 +162,11 @@ export const useChat = () => {
     }
   };
 
-  // ❌ GỠ BỎ: Toàn bộ Handlers cho "Quick View" Sản Phẩm
-  // ❌ GỠ BỎ: Toàn bộ Handlers cho "Quick View" Đơn Hàng
-
-  // (handleNewChat, handleSelectConversation giữ nguyên)
   const handleNewChat = () => {
     setMessages([WELCOME_MESSAGE]);
     setQuickReplies(WELCOME_REPLIES);
     setCurrentConversationId(null);
-    setIsChatExpanded(true); // Trang chat luôn expanded
+    setIsChatExpanded(true); 
   };
 
   const handleSelectConversation = async (conversationId: string) => {
@@ -200,7 +187,40 @@ export const useChat = () => {
     }
   };
 
-  // 4. Cập nhật return
+  // ✅ MỚI: Handle Rename
+  const handleRenameConversation = async (id: string, newTitle: string) => {
+      // Optimistic update
+      setConversations(prev => prev.map(c => c._id === id ? { ...c, title: newTitle } : c));
+      const success = await chatApi.renameConversation(id, newTitle);
+      if (!success) {
+          toast.error("Không thể đổi tên, vui lòng thử lại.");
+          // Revert if failed (optional, or just fetch again)
+          const convos = await chatApi.fetchChatConversations();
+          setConversations(convos.reverse());
+      }
+  };
+
+  // ✅ MỚI: Handle Delete
+  const handleDeleteConversation = async (id: string) => {
+      if (confirm("Bạn có chắc chắn muốn xóa cuộc trò chuyện này?")) {
+          const prevConvos = [...conversations];
+          setConversations(prev => prev.filter(c => c._id !== id));
+          
+          // Nếu đang xóa cuộc trò chuyện hiện tại -> Reset về New Chat
+          if (currentConversationId === id) {
+              handleNewChat();
+          }
+
+          const success = await chatApi.deleteConversation(id);
+          if (!success) {
+              toast.error("Xóa thất bại.");
+              setConversations(prevConvos); // Revert
+          } else {
+              toast.success("Đã xóa cuộc trò chuyện.");
+          }
+      }
+  }
+
   return {
     messages,
     quickReplies,
@@ -214,7 +234,8 @@ export const useChat = () => {
     conversations,
     currentConversationId,
     handleSelectConversation,
-    // ❌ GỠ BỎ: Toàn bộ state/handlers cho Quick View
+    handleRenameConversation, // ✅ Export
+    handleDeleteConversation, // ✅ Export
   };
 };
 

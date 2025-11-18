@@ -6,9 +6,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { ChatMessage, QuickReply } from "@/types/chat";
 import { ChatMessages } from "./ChatMessages";
+import { ChatWelcome } from "./ChatWelcome";
 import { motion } from "framer-motion";
 import { Badge } from "@/shared/components/ui/badge";
-import zinAvatar from "@/assets/img/zin-avatar.png";
 import { useDropzone } from "react-dropzone";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { LoginPopup } from "@/features/auth/components/LoginPopup";
@@ -17,29 +17,30 @@ import { LoginPopup } from "@/features/auth/components/LoginPopup";
 interface ChatBarProps {
   messages: ChatMessage[];
   isLoadingAI: boolean;
-  isExpanded: boolean;
   quickReplies: QuickReply[];
-  setIsExpanded: (expanded: boolean) => void;
   onSendText: (text: string, latitude?: number, longitude?: number) => void;
   onSendQuickReply: (text: string, payload: string) => void;
   onFileUpload: (file: File) => void;
+  showWelcome?: boolean;
+  onWelcomePromptClick?: (prompt: string) => void;
 }
 
 export function ChatBar({
   messages,
   isLoadingAI,
-  isExpanded,
   quickReplies,
-  setIsExpanded,
   onSendText,
   onSendQuickReply,
   onFileUpload,
+  showWelcome,
+  onWelcomePromptClick,
 }: ChatBarProps) {
   // (Tất cả state và refs giữ nguyên)
   const [message, setMessage] = useState("");
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
+  const messagesScrollAreaRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { accessToken } = useAuthStore();
@@ -59,29 +60,6 @@ export function ChatBar({
     { text: "Thiết kế brochure", payload: "/tim brochure" },
   ];
 
-  // (Logic handleOutside đã sửa ở lượt trước - giữ nguyên)
-  useEffect(() => {
-    const handleOutside = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as Element;
-      if (chatRef.current && chatRef.current.contains(target)) {
-        return;
-      }
-      if (target.closest("[data-radix-dialog-content]")) {
-        return;
-      }
-      setIsExpanded(false);
-    };
-    document.addEventListener("mousedown", handleOutside as EventListener);
-    document.addEventListener("touchstart", handleOutside as EventListener);
-    return () => {
-      document.removeEventListener("mousedown", handleOutside as EventListener);
-      document.removeEventListener(
-        "touchstart",
-        handleOutside as EventListener
-      );
-    };
-  }, [setIsExpanded]);
-
   // (Tất cả các hàm handler khác: handleSend, handleQuickReply, onDrop, v.v... giữ nguyên)
   const handleSend = () => {
     if (isLoadingAI) return;
@@ -90,7 +68,6 @@ export function ChatBar({
       setFileToUpload(null);
       setMessage("");
     } else if (message.trim()) {
-      setIsExpanded(true);
       const textToSend = message.trim();
       new Promise<GeolocationPosition | null>((resolve) => {
         navigator.geolocation.getCurrentPosition(
@@ -114,7 +91,6 @@ export function ChatBar({
 
   const handleQuickReply = (reply: QuickReply) => {
     if (isLoadingAI) return;
-    setIsExpanded(true);
     onSendQuickReply(reply.text, reply.payload);
     textareaRef.current?.focus();
   };
@@ -133,7 +109,6 @@ export function ChatBar({
           return;
         }
         setFileToUpload(file);
-        setIsExpanded(true);
         textareaRef.current?.focus();
       }
     },
@@ -168,18 +143,54 @@ export function ChatBar({
     }
   };
 
+  const handleTextAreaBlur = () => {
+    // Reset body styles when textarea loses focus
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+  };
+
   const handleTextAreaFocus = () => {
-    setIsExpanded(true);
     const isMobile = window.innerWidth < 768;
     if (isMobile) {
-      setTimeout(() => {
-        if (chatRef.current) {
-          chatRef.current.scrollIntoView({
-            behavior: "smooth",
-            block: "end",
-          });
-        }
-      }, 300);
+      // Prevent body scroll when keyboard appears
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+
+      // Use visual viewport API if available for better keyboard handling
+      const visualViewport = window.visualViewport;
+      if (visualViewport) {
+        const handleViewportChange = () => {
+          const keyboardHeight = window.innerHeight - visualViewport.height;
+          if (keyboardHeight > 150) { // Keyboard is likely open
+            setTimeout(() => {
+              if (chatRef.current) {
+                chatRef.current.scrollIntoView({
+                  behavior: "smooth",
+                  block: "end",
+                });
+              }
+            }, 100);
+          }
+        };
+
+        visualViewport.addEventListener('resize', handleViewportChange);
+        // Clean up after focus
+        setTimeout(() => {
+          visualViewport.removeEventListener('resize', handleViewportChange);
+        }, 1000);
+      } else {
+        // Fallback for browsers without visual viewport API
+        setTimeout(() => {
+          if (chatRef.current) {
+            chatRef.current.scrollIntoView({
+              behavior: "smooth",
+              block: "end",
+            });
+          }
+        }, 300);
+      }
     }
   };
 
@@ -192,50 +203,50 @@ export function ChatBar({
         message="Vui lòng đăng nhập để gửi file"
       />
 
-      <motion.div
+      <div
         {...(getRootProps() as any)}
         ref={chatRef}
-        className="w-full mx-auto relative"
-        animate={{ maxWidth: isExpanded ? "900px" : "700px" }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="relative h-full w-full rounded-[30px] overflow-hidden"
       >
         {/* ✅ FIX 1: DND FLICKERING - Thêm pointer-events-none */}
         {isDragActive && (
-          <div className="absolute inset-0 bg-blue-500/30 backdrop-blur-sm z-50 rounded-2xl md:rounded-3xl flex items-center justify-center pointer-events-none">
+          <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center rounded-[30px] bg-blue-500/30 backdrop-blur-sm">
             <p className="text-white font-bold text-lg">Thả file để tải lên</p>
           </div>
         )}
 
-        <div className="bg-gradient-to-r from-blue-400 to-cyan-500 rounded-2xl md:rounded-3xl p-[1.5px] shadow-xl shadow-blue-400/30">
-          <div className="bg-white rounded-2xl md:rounded-3xl overflow-hidden">
-            <motion.div
-              initial={false}
-              animate={{ height: isExpanded ? "340px" : "110px" }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              // ✅ FIX 2: SPACING - Thêm mb-2
-              // ✅ FIX 1 (Phụ): Thêm pointer-events-none khi drag
+        <div className="h-full w-full rounded-[30px] bg-gradient-to-r from-blue-400 to-cyan-500 p-[1.5px] shadow-xl shadow-blue-400/30">
+          <div className="flex h-full w-full flex-col overflow-hidden rounded-[28px] bg-white">
+            <div
               className={cn(
-                `overflow-y-auto px-3 md:px-6 pt-3 md:pt-6 mb-2`,
-                !isExpanded ? "cursor-pointer" : "",
+                "mb-2 flex-1 overflow-y-auto px-4 pt-4 md:px-6 md:pt-6",
                 isDragActive && "pointer-events-none"
               )}
-              onClick={() => {
-                if (!isExpanded) {
-                  setIsExpanded(true);
-                  textareaRef.current?.focus();
-                }
-              }}
+              ref={messagesScrollAreaRef}
             >
-              {messages.length > 0 && (
-                <div className="mb-4">
-                  <ChatMessages messages={messages} isLoadingAI={isLoadingAI} />
-                </div>
+              {showWelcome ? (
+                <ChatWelcome
+                  onPromptClick={
+                    onWelcomePromptClick
+                      ? onWelcomePromptClick
+                      : (prompt: string) => onSendText(prompt)
+                  }
+                />
+              ) : (
+                messages.length > 0 && (
+                  <div className="mb-4">
+                    <ChatMessages
+                      messages={messages}
+                      isLoadingAI={isLoadingAI}
+                      scrollContainerRef={messagesScrollAreaRef}
+                    />
+                  </div>
+                )
               )}
-            </motion.div>
+            </div>
 
-            {/* ✅ FIX 2: SPACING - Thêm mb-2 */}
-            {quickReplies.length > 0 && !isLoadingAI && (
-              <div className="px-3 md:px-6 pt-2 pb-2 flex gap-2 flex-wrap mb-2">
+            {quickReplies.length > 0 && !isLoadingAI && !showWelcome && (
+              <div className="mb-2 flex flex-wrap gap-3 px-4 pb-3 pt-3 md:px-6 md:gap-2 md:pb-2 md:pt-2">
                 {quickReplies.map((reply, index) => (
                   <motion.div
                     key={index}
@@ -245,7 +256,7 @@ export function ChatBar({
                   >
                     <Badge
                       variant="outline"
-                      className="cursor-pointer active:scale-95 hover:scale-105 transition-transform text-[11px] md:text-xs py-1.5 px-3 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                      className="cursor-pointer active:scale-95 hover:scale-105 transition-transform text-sm md:text-xs py-2 px-4 md:py-1.5 md:px-3 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 touch-manipulation"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleQuickReply(reply);
@@ -261,7 +272,7 @@ export function ChatBar({
             {/* ======================================== */}
             {/* ✅ FIX 3: ALIGNMENT - CẤU TRÚC LẠI HOÀN TOÀN */}
             {/* ======================================== */}
-            <div className="px-3 md:px-6 pb-3 md:pb-6 pt-3 flex items-end gap-2 md:gap-3">
+            <div className="px-4 md:px-6 pb-4 md:pb-6 pt-4 md:pt-3 flex items-end gap-3 md:gap-3">
               {/* --- 1. Nút ghim file (đã tách riêng) --- */}
               <input
                 type="file"
@@ -272,9 +283,9 @@ export function ChatBar({
               />
               <button
                 onClick={handleAttachClick}
-                className="w-10 h-10 rounded-xl border border-slate-200/80 bg-slate-50/80 backdrop-blur-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed touch-manipulation flex-shrink-0"
+                className="w-12 h-12 md:w-10 md:h-10 rounded-xl border border-slate-200/80 bg-slate-50/80 backdrop-blur-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed touch-manipulation flex-shrink-0"
                 title="Đính kèm file (ảnh, PDF)"
-                style={{ minWidth: "40px" }} // Đảm bảo không bị co lại
+                style={{ minWidth: "48px" }} // Đảm bảo không bị co lại trên mobile
               >
                 <Paperclip className="w-5 h-5" />
               </button>
@@ -284,8 +295,8 @@ export function ChatBar({
                 className={cn(
                   "bg-slate-50/80 backdrop-blur-sm rounded-xl md:rounded-2xl border border-slate-200/80 overflow-hidden hover:border-indigo-300 transition-colors focus-within:border-indigo-500 focus-within:ring-2 md:focus-within:ring-4 focus-within:ring-indigo-100",
                   "flex-1 flex flex-col justify-center", // <-- flex-col và justify-center
-                  "min-h-10", // <-- Căn chiều cao tối thiểu 40px
-                  "p-2.5 md:p-3" // <-- Padding bên trong
+                  "min-h-12 md:min-h-10", // <-- Căn chiều cao tối thiểu 48px trên mobile, 40px trên desktop
+                  "p-3 md:p-3" // <-- Padding bên trong
                 )}
                 // Kích hoạt focus cho textarea khi click vào vùng container
                 onClick={() => textareaRef.current?.focus()}
@@ -298,7 +309,7 @@ export function ChatBar({
                         setFileToUpload(null);
                         setMessage("");
                       }}
-                      className="bg-gray-200 text-gray-600 px-2 py-1 rounded-md flex items-center gap-1.5 text-xs"
+                      className="bg-gray-200 text-gray-600 px-3 py-2 rounded-md flex items-center gap-2 text-sm md:px-2 md:py-1 md:gap-1.5 md:text-xs touch-manipulation active:scale-95 transition-transform"
                     >
                       <X size={14} />
                       <span className="truncate max-w-[150px] md:max-w-xs">
@@ -314,12 +325,13 @@ export function ChatBar({
                   value={message}
                   onChange={handleInput}
                   onFocus={handleTextAreaFocus}
+                  onBlur={handleTextAreaBlur}
                   placeholder={
                     fileToUpload
                       ? "Thêm ghi chú cho file..."
                       : "Gõ yêu cầu của bạn..."
                   }
-                  className="w-full bg-transparent p-0 outline-none resize-none text-sm md:text-base text-slate-700 placeholder:text-slate-400 disabled:opacity-50"
+                  className="w-full bg-transparent p-0 outline-none resize-none text-base md:text-base text-slate-700 placeholder:text-slate-400 disabled:opacity-50"
                   style={{ minHeight: "24px", maxHeight: "120px" }} // minHeight chỉ là của textarea
                   rows={1}
                   disabled={isLoadingAI}
@@ -337,7 +349,7 @@ export function ChatBar({
                 onClick={handleSend}
                 disabled={isLoadingAI || (!message.trim() && !fileToUpload)}
                 className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-indigo-200 transition-all active:scale-95 hover:scale-105 flex items-center justify-center text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 touch-manipulation flex-shrink-0"
-                style={{ height: "40px", width: "40px", padding: 0 }}
+                style={{ height: "48px", width: "48px", padding: 0 }}
               >
                 {isLoadingAI ? (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -354,7 +366,7 @@ export function ChatBar({
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
     </>
   );
 }

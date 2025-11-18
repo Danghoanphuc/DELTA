@@ -2,13 +2,55 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
-import { Star, Heart, Clock, Package } from "lucide-react";
+import { Star, Heart, Clock, Package, Sparkles } from "lucide-react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { UserAvatar } from "@/components/UserAvatar";
-import zinGift from "@/assets/img/zin-avatar.png";
+import { cn } from "@/shared/lib/utils";
+
+interface AiAssistantCTAProps {
+  onOpenChat?: () => void;
+}
+
+const AiAssistantCTA = ({ onOpenChat }: AiAssistantCTAProps) => (
+  <div className="mt-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-3 text-white flex items-center gap-3 shadow-[0_15px_40px_rgba(59,130,246,0.35)]">
+    <span className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center">
+      <Sparkles size={22} className="text-white" />
+    </span>
+    <div className="flex-1">
+      <p className="text-sm font-semibold">Zin AI Assistant</p>
+      <p className="text-xs text-white/80">
+        Trao đổi ý tưởng & đặt hàng cùng AI
+      </p>
+    </div>
+    {onOpenChat ? (
+      <Button
+        size="sm"
+        className="bg-white text-blue-700 hover:bg-white/90"
+        type="button"
+        onClick={onOpenChat}
+      >
+        Chat
+      </Button>
+    ) : (
+      <Button
+        asChild
+        size="sm"
+        className="bg-white text-blue-700 hover:bg-white/90"
+      >
+        <Link to="/chat">Chat</Link>
+      </Button>
+    )}
+  </div>
+);
 
 // --- Phần đã đăng nhập ---
-const AuthenticatedView = ({ user }: { user: any }) => {
+const AuthenticatedView = ({
+  user,
+  onOpenChat,
+}: {
+  user: any;
+  onOpenChat?: () => void;
+}) => {
   const actions = [
     { label: "Yêu thích của bạn", icon: Star, path: "/settings" },
     { label: "Thiết kế đã lưu", icon: Heart, path: "/designs" },
@@ -17,8 +59,7 @@ const AuthenticatedView = ({ user }: { user: any }) => {
   ];
 
   return (
-    // ✅ SỬA: min-h-[21.5rem] -> min-h-[17rem]
-    <Card className="shadow-sm border-none bg-white h-full flex flex-col min-h-[17rem]">
+    <Card className="shadow-sm border-none bg-white h-full flex flex-col">
       <CardContent className="p-4 flex-1 flex flex-col">
         {/* User Info */}
         <div className="flex items-center gap-3 mb-4">
@@ -52,17 +93,17 @@ const AuthenticatedView = ({ user }: { user: any }) => {
             </Button>
           ))}
         </div>
+        <AiAssistantCTA onOpenChat={onOpenChat} />
       </CardContent>
     </Card>
   );
 };
 
 // --- Phần chưa đăng nhập ---
-const GuestView = () => {
+const GuestView = ({ onOpenChat }: { onOpenChat?: () => void }) => {
   const navigate = useNavigate();
   return (
-    // ✅ SỬA: min-h-[21.5rem] -> min-h-[17rem]
-    <Card className="shadow-sm border-none bg-white h-full flex flex-col min-h-[17rem]">
+    <Card className="shadow-sm border-none bg-white h-full flex flex-col">
       <CardContent className="p-4 flex-1 flex flex-col">
         {/* Guest Info */}
         <div className="flex items-center gap-3 mb-4">
@@ -122,17 +163,30 @@ const GuestView = () => {
             Đơn hàng của tôi
           </Button>
         </div>
+        <AiAssistantCTA onOpenChat={onOpenChat} />
       </CardContent>
     </Card>
   );
 };
 
-export const UserQuickActions = () => {
+interface UserQuickActionsProps {
+  className?: string;
+  onOpenChat?: () => void;
+}
+
+export const UserQuickActions = ({
+  className = "",
+  onOpenChat,
+}: UserQuickActionsProps) => {
   const { user } = useAuthStore();
 
   return (
-    <div>
-      {user ? <AuthenticatedView user={user} /> : <GuestView />}
+    <div className={cn("h-full min-h-[360px]", className)}>
+      {user ? (
+        <AuthenticatedView user={user} onOpenChat={onOpenChat} />
+      ) : (
+        <GuestView onOpenChat={onOpenChat} />
+      )}
     </div>
   );
 };

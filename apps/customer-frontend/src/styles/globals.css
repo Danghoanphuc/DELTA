@@ -347,10 +347,6 @@ html {
     border-radius: 4px;
   }
 
-  /* Custom class based on user request */
-  .justify-center.w-full.h-full {
-    width: 50%;
-  }
 }
 /* ... (phần mobile fixes, hide-scrollbar, safe-area giữ nguyên) ... */
 /* frontend/src/styles/globals.css - THÊM VÀO CUỐI FILE */
@@ -404,4 +400,31 @@ html {
   .safe-bottom {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
+}
+/* --- THÊM VÀO CUỐI FILE globals.css --- */
+
+/* Scrollbar tinh tế riêng cho khung Chat */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;  /* Mỏng hơn mặc định (8px -> 5px) */
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* Nền trong suốt cho thoáng */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.4); /* Màu xám nhạt */
+  border-radius: 10px; /* Bo tròn mềm mại */
+  transition: background-color 0.2s;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(107, 114, 128, 0.8); /* Đậm lên khi di chuột vào */
+}
+
+/* Ẩn scrollbar trên Firefox (nếu cần) */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
 }

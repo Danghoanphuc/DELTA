@@ -1,27 +1,40 @@
 // src/features/chat/components/ChatMessages.tsx (CẬP NHẬT)
-import { useEffect, useRef } from "react";
-import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
-import { ChatMessage, TextMessage } from "@/types/chat";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { ChatMessage } from "@/types/chat";
 import { cn } from "@/shared/lib/utils";
 // ❌ GỠ BỎ: UserAvatarFallback
 import { UserAvatar } from "@/components/UserAvatar"; // ✅ THAY THẾ
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useTheme } from "@/shared/hooks/useTheme";
 import zinAvatar from "@/assets/img/zin-avatar.png";
 import { ChatProductCarousel } from "@/features/chat/components/ChatProductCarousel";
 import { ChatOrderCarousel } from "@/features/chat/components/ChatOrderCarousel";
 
-// (BotAvatar giữ nguyên)
-const BotAvatar = () => (
-  <div className="w-7 h-7 md:w-10 md:h-10 rounded-xl md:rounded-2xl flex items-center justify-center overflow-hidden flex-shrink-0 shadow-lg">
-    <img
-      src={zinAvatar}
-      alt="Zin AI Avatar"
-      className="w-full h-full object-cover"
-    />
-  </div>
-);
+// Bot Avatar - Clean like Grok
+const BotAvatar = () => {
+  const { isDark } = useTheme();
+  return (
+    <div className={cn(
+      "w-8 h-8 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0",
+      isDark ? "bg-gray-700" : "bg-gray-200"
+    )}>
+      <img
+        src={zinAvatar}
+        alt="Zin AI Avatar"
+        className="w-full h-full object-cover"
+      />
+    </div>
+  );
+};
 
-// ✅ SỬA LỖI TẠI ĐÂY: Dùng UserAvatar
+// User Avatar - Clean like Grok
 const UserAvatarComponent = () => {
   const user = useAuthStore((s) => s.user);
   return (
@@ -29,40 +42,34 @@ const UserAvatarComponent = () => {
       name={user?.displayName || user?.username || "U"}
       src={user?.avatarUrl}
       size={32}
-      fallbackClassName="bg-indigo-100 text-indigo-600"
-      className="text-indigo-600"
+      fallbackClassName="bg-gray-400 text-white"
     />
   );
 };
 
-// (MessageContent giữ nguyên)
+// Message Content - Clean like Grok
 const MessageContent = ({ msg }: { msg: ChatMessage }) => {
   switch (msg.type) {
     case "ai_response":
     case "text":
       return (
-        <div
-          className={cn(
-            "p-3 rounded-xl max-w-xs md:max-w-md",
-            msg.senderType === "User"
-              ? "bg-blue-600 text-white rounded-br-none"
-              : "bg-gray-100 text-gray-800 rounded-bl-none"
-          )}
-        >
-          <p className="whitespace-pre-wrap">{msg.content.text}</p>
+        <div className="max-w-2xl">
+          <p className="text-gray-900 dark:text-gray-100 leading-relaxed whitespace-pre-wrap">
+            {msg.content.text}
+          </p>
         </div>
       );
     case "product_selection":
       return (
-        <div className="p-3 rounded-xl bg-gray-100 rounded-bl-none">
-          <p className="mb-3">{msg.content.text}</p>
+        <div className="max-w-2xl">
+          <p className="text-gray-900 dark:text-gray-100 mb-4 leading-relaxed">{msg.content.text}</p>
           <ChatProductCarousel products={msg.content.products} />
         </div>
       );
     case "order_selection":
       return (
-        <div className="p-3 rounded-xl bg-gray-100 rounded-bl-none">
-          <p className="mb-3">{msg.content.text}</p>
+        <div className="max-w-2xl">
+          <p className="text-gray-900 dark:text-gray-100 mb-4 leading-relaxed">{msg.content.text}</p>
           <ChatOrderCarousel orders={msg.content.orders} />
         </div>
       );
@@ -74,49 +81,160 @@ const MessageContent = ({ msg }: { msg: ChatMessage }) => {
 interface ChatMessagesProps {
   messages: ChatMessage[];
   isLoadingAI: boolean;
+  scrollContainerRef?: RefObject<HTMLDivElement | null>;
 }
 
-export function ChatMessages({ messages, isLoadingAI }: ChatMessagesProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+const VERTICAL_PADDING = 24;
+const AUTO_SCROLL_THRESHOLD_PX = 200;
+
+export function ChatMessages({
+  messages,
+  isLoadingAI,
+  scrollContainerRef,
+}: ChatMessagesProps) {
+  const fallbackScrollRef = useRef<HTMLDivElement>(null);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const totalItems = messages.length + (isLoadingAI ? 1 : 0);
+  const lastMessage = messages[messages.length - 1];
+
+  const getScrollElement = useCallback(() => {
+    return scrollContainerRef?.current ?? fallbackScrollRef.current;
+  }, [scrollContainerRef]);
+
+  const estimateRowHeight = useCallback(() => 200, []);
+
+  const virtualizer = useVirtualizer({
+    count: totalItems,
+    getScrollElement,
+    estimateSize: estimateRowHeight,
+    overscan: 8,
+    getItemKey: (index) =>
+      index < messages.length ? messages[index]._id : "ai-typing",
+  });
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "end",
-    });
-  }, [messages, isLoadingAI]);
+    const scrollEl = getScrollElement();
+    if (!scrollEl) return;
+
+    const handleScroll = () => {
+      const distanceFromBottom =
+        scrollEl.scrollHeight - (scrollEl.scrollTop + scrollEl.clientHeight);
+      setIsNearBottom(distanceFromBottom < AUTO_SCROLL_THRESHOLD_PX);
+    };
+
+    handleScroll();
+    scrollEl.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      scrollEl.removeEventListener("scroll", handleScroll);
+    };
+  }, [getScrollElement]);
+
+  const scrollToBottom = useCallback(
+    (behavior: "auto" | "smooth" = "smooth") => {
+      if (!getScrollElement()) return;
+      const lastIndex = totalItems - 1;
+      if (lastIndex < 0) return;
+      virtualizer.scrollToIndex(lastIndex, { align: "end", behavior });
+    },
+    [getScrollElement, totalItems, virtualizer]
+  );
+
+  useEffect(() => {
+    if (messages.length === 0 && isLoadingAI) {
+      scrollToBottom();
+      return;
+    }
+
+    if (messages.length === 0) return;
+
+    const shouldForceScroll = lastMessage?.senderType === "User";
+
+    if (shouldForceScroll || isNearBottom) {
+      scrollToBottom();
+    }
+  }, [
+    isLoadingAI,
+    isNearBottom,
+    lastMessage?._id,
+    lastMessage?.senderType,
+    messages.length,
+    scrollToBottom,
+  ]);
+
+  const virtualItems = virtualizer.getVirtualItems();
 
   return (
-    <ScrollArea className="h-full">
-      <div className="flex flex-col gap-4 p-4">
-        {messages.map((msg) => (
-          <div
-            key={msg._id}
-            className={cn(
-              "flex items-start gap-3",
-              msg.senderType === "User" && "justify-end"
-            )}
-          >
-            {msg.senderType === "AI" && <BotAvatar />}
-            <MessageContent msg={msg} />
-            {msg.senderType === "User" && <UserAvatarComponent />}{" "}
-            {/* ✅ SỬA LỖI TẠI ĐÂY */}
-          </div>
-        ))}
-        {isLoadingAI && (
-          <div className="flex items-start gap-3">
-            <BotAvatar />
-            <div className="p-3 rounded-xl bg-gray-100 text-gray-800 rounded-bl-none">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+    <div
+      ref={!scrollContainerRef ? fallbackScrollRef : undefined}
+      className={cn(
+        "relative w-full",
+        !scrollContainerRef && "h-full overflow-y-auto"
+      )}
+    >
+      <div
+        className="relative w-full"
+        style={{
+          height: virtualizer.getTotalSize() + VERTICAL_PADDING * 2,
+        }}
+      >
+        {virtualItems.map((virtualItem) => {
+          const isMessageRow = virtualItem.index < messages.length;
+          const message = messages[virtualItem.index];
+
+          return (
+            <div
+              key={virtualItem.key}
+              ref={virtualizer.measureElement}
+              data-index={virtualItem.index}
+              className="absolute left-0 right-0 will-change-transform"
+              style={{
+                transform: `translateY(${
+                  virtualItem.start + VERTICAL_PADDING
+                }px)`,
+              }}
+            >
+              <div className="py-3">
+                {isMessageRow && message ? (
+                  <div
+                    className={cn(
+                      "flex gap-4",
+                      message.senderType === "User" && "flex-row-reverse"
+                    )}
+                  >
+                    <div className="flex-shrink-0">
+                      {message.senderType === "AI" && <BotAvatar />}
+                      {message.senderType === "User" && <UserAvatarComponent />}
+                    </div>
+                    <MessageContent msg={message} />
+                  </div>
+                ) : (
+                  <TypingIndicator />
+                )}
               </div>
             </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+          );
+        })}
       </div>
-    </ScrollArea>
+    </div>
   );
 }
+
+const TypingIndicator = () => (
+  <div className="flex gap-4">
+    <div className="flex-shrink-0">
+      <BotAvatar />
+    </div>
+    <div className="max-w-2xl">
+      <div className="flex items-center gap-2">
+        <span className="text-gray-500 dark:text-gray-400 text-sm italic">
+          Zin đang suy nghĩ
+        </span>
+        <div className="flex gap-1">
+          <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse"></div>
+          <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse [animation-delay:0.2s]"></div>
+          <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse [animation-delay:0.4s]"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+);

@@ -105,6 +105,13 @@ const InspirationPage = lazy(
 const ChatAppPage = lazy(
   () => import("@/features/chat/pages/ChatAppPage")
 );
+// ✅ THÊM: Import ChatPage và ChatHistoryPage
+const ChatPage = lazy(
+  () => import("@/features/chat/pages/ChatPage")
+);
+const ChatHistoryPage = lazy(
+  () => import("@/features/chat/pages/ChatHistoryPage")
+);
 
 function App() {
   // (Nội dung hàm App... giữ nguyên)
@@ -141,16 +148,19 @@ function App() {
       <Toaster position="top-right" richColors />
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* ==================== LANDING LAYOUT (No AppLayout) ==================== */}
-          {/* Landing pages có header riêng, không cần AppLayout */}
+          {/* ==================== 1. LANDING LAYOUT ==================== */}
           <Route path="/" element={<SmartLanding />} />
           <Route path="/policy" element={<PolicyPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/process" element={<ProcessPage />} />
 
-          {/* ==================== APP LAYOUT ==================== */}
-          <Route element={<AppLayout />}>
+          {/* ==================== 2. CHAT LAYOUT (STANDALONE) ==================== */}
+          {/* ✅ FIX QUAN TRỌNG: Đưa Chat ra ngoài AppLayout để chiếm trọn màn hình */}
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/chat/history" element={<ChatHistoryPage />} />
 
+          {/* ==================== 3. APP LAYOUT (BÁN HÀNG) ==================== */}
+          <Route element={<AppLayout />}>
             {/* --- Auth Pages --- */}
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/signup" element={<SignUpPage />} />
@@ -159,13 +169,13 @@ function App() {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
-            {/* --- Shop / Product Pages --- */}
+            {/* --- Shop Pages --- */}
             <Route path="/shop" element={<ShopPortalPage />} />
-            <Route path="/app" element={<ChatAppPage />} />
+            <Route path="/app" element={<ChatAppPage />} /> {/* Trang này vẫn cần Header/Footer nên giữ lại */}
+            
             <Route path="/product/:slug" element={<ProductDetailPage />} />
             <Route path="/products/:id" element={<ProductDetailPage />} />
             <Route path="/cart" element={<CartPage />} />
-            {/* ✅ SỬA LỖI TS2739: Dùng trang wrapper mới */}
             <Route path="/inspiration" element={<InspirationPage />} />
 
             {/* --- Protected Customer Routes --- */}
@@ -180,18 +190,13 @@ function App() {
             </Route>
           </Route>
 
-          {/* ==================== PRINTER APP (Layout riêng) ==================== */}
+          {/* ==================== 4. PRINTER APP ==================== */}
           <Route element={<ProtectedRoute />}>
-            <Route
-              path="/printer/onboarding"
-              element={<PrinterOnboardingPage />}
-            />
-            <Route path="/printer/dashboard" element={<PrinterApp />} />
-            <Route
-              path="/printer/orders/:orderId"
-              element={<PrinterOrderDetailPage />}
-            />
-            <Route path="/printer/studio/:productId" element={<PrinterStudio />} />
+             {/* ... Giữ nguyên ... */}
+             <Route path="/printer/onboarding" element={<PrinterOnboardingPage />} />
+             <Route path="/printer/dashboard" element={<PrinterApp />} />
+             <Route path="/printer/orders/:orderId" element={<PrinterOrderDetailPage />} />
+             <Route path="/printer/studio/:productId" element={<PrinterStudio />} />
           </Route>
 
           {/* ==================== 404 ==================== */}

@@ -46,7 +46,7 @@ export function LPHero() {
                 variant="outline"
                 className="px-8 py-6 rounded-full border-2 border-purple-600 text-purple-600 hover:bg-purple-50"
               >
-                <Link to="/app?openChat=zin">
+                <Link to="/chat">
                   Hỏi AI Zin
                   <MessageCircle className="ml-2 w-5 h-5" />
                 </Link>

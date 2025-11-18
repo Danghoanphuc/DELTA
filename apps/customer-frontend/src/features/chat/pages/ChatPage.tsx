@@ -1,26 +1,33 @@
-// src/features/chat/pages/ChatPage.tsx (CẬP NHẬT)
+// src/features/chat/pages/ChatPage.tsx (HEADER UPDATED)
 
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+    Menu,
+    Plus, // ✅ FIX: Import Plus icon
+    Home,
+    MessageSquarePlus,
+    X,
+    Search,
+    Settings // ✅ Thêm icon bánh răng cho cài đặt
+} from "lucide-react";
+
+// Components
 import { ChatHistorySidebar } from "@/features/chat/components/ChatHistorySidebar";
 import { ChatMessages } from "@/features/chat/components/ChatMessages";
-import { ChatProvider, useChatContext } from "../context/ChatProvider";
-import { cn } from "@/shared/lib/utils";
+import { ChatInput } from "@/features/chat/components/ChatInput";
 import { ChatWelcome } from "../components/ChatWelcome";
-import { WELCOME_ID } from "../hooks/useChat"; // Import ID
+import { ChatProvider, useChatContext } from "../context/ChatProvider";
+import { Button } from "@/shared/components/ui/button";
+import { WELCOME_ID } from "../hooks/useChat";
+import { cn } from "@/shared/lib/utils";
+import { useIsMobile } from "@/shared/hooks/useMediaQuery";
+import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts";
+import { FocusTrap } from "@/shared/components/ui/FocusTrap";
+import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
 
-// Import UI từ Chatbar
-import { Paperclip, Send, X, Loader2 } from "lucide-react";
-import { useState, useRef, useCallback, useEffect } from "react";
-import { toast } from "sonner";
-import { motion } from "framer-motion";
-import { Badge } from "@/shared/components/ui/badge";
-import { useDropzone } from "react-dropzone";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { LoginPopup } from "@/features/auth/components/LoginPopup";
-
-/**
- * Component con chứa UI chat (Dựa trên UI của Chatbar.tsx)
- */
-const ChatView = () => {
+const ChatLayout = () => {
   const {
     messages,
     quickReplies,
@@ -34,274 +41,281 @@ const ChatView = () => {
     handleNewChat,
   } = useChatContext();
 
-  const showWelcome =
-    messages.length === 0 ||
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
+  const [searchQuery, setSearchQuery] = useState("");
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile(); 
+
+  const showWelcome = messages.length === 0 ||
     (messages.length === 1 && messages[0]._id === WELCOME_ID);
 
-  // === Logic Input từ Chatbar.tsx ===
-  const [message, setMessage] = useState("");
-  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { accessToken } = useAuthStore();
-
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessage(e.target.value);
-    // Auto-resize textarea (nếu cần)
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height =
-        textareaRef.current.scrollHeight + "px";
-    }
+  const onSelectConversationWrapper = (id: string) => {
+    handleSelectConversation(id);
+    if (isMobile) setIsSidebarOpen(false);
   };
 
-  const handleSend = () => {
-    if (isLoadingAI) return;
-    if (fileToUpload) {
-      onFileUpload(fileToUpload);
-      setFileToUpload(null);
-      setMessage("");
-    } else if (message.trim()) {
-      const textToSend = message.trim();
-      new Promise<GeolocationPosition | null>((resolve) => {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => resolve(pos),
-          () => resolve(null)
-        );
-      }).then((position) => {
-        onSendText(
-          textToSend,
-          position?.coords.latitude,
-          position?.coords.longitude
-        );
-      });
-    }
-    setMessage("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "24px";
-    }
-    textareaRef.current?.focus();
-  };
+  const onNewChatWrapper = () => {
+      handleNewChat();
+      if (isMobile) setIsSidebarOpen(false);
+  }
 
-  const handleQuickReply = (reply: any) => {
-    if (isLoadingAI) return;
-    onSendQuickReply(reply.text, reply.payload);
-    textareaRef.current?.focus();
-  };
-
-  const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
-      if (!accessToken) {
-        setShowLoginPopup(true);
-        return;
-      }
-      const file = acceptedFiles[0];
-      if (file) {
-        if (file.size > 10 * 1024 * 1024) {
-          toast.error("File quá lớn, vui lòng chọn file dưới 10MB.");
-          return;
-        }
-        setFileToUpload(file);
-        textareaRef.current?.focus();
-      }
+  useKeyboardShortcuts([
+    {
+      key: 'k',
+      meta: true,
+      ctrl: true,
+      callback: () => {
+        setIsSidebarOpen(true);
+        setTimeout(() => {
+          document.getElementById('chat-search-input')?.focus();
+        }, 100);
+      },
+      description: 'Mở tìm kiếm lịch sử'
     },
-    [accessToken, onFileUpload]
+    {
+      key: 'n',
+      meta: true,
+      ctrl: true,
+      callback: handleNewChat,
+      description: 'Tạo chat mới'
+    }
+  ]);
+
+  // ✅ HEADER MOBILE ĐÃ ĐƯỢC CẢI TẠO
+  const MobileHeader = () => (
+    <header className="lg:hidden h-14 border-b border-gray-100 bg-white/95 dark:bg-gray-900/95 backdrop-blur flex items-center justify-between px-4 sticky top-0 z-30 shadow-sm transition-all">
+        {/* Trái: Menu Toggle & Logo */}
+        <div className="flex items-center gap-3">
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                className="-ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
+                onClick={() => setIsSidebarOpen(true)}
+                aria-label="Mở menu lịch sử chat"
+            >
+                <Menu size={24} />
+            </Button>
+            <span className="font-bold text-lg text-gray-900 dark:text-gray-100 tracking-tight">Zin AI Chat</span>
+        </div>
+
+        {/* Phải: Home Button (Thay thế cho Back & Plus) */}
+        <div className="flex items-center">
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                className="text-gray-500 dark:text-gray-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-gray-800 rounded-full" 
+                asChild
+                aria-label="Quay về trang chủ"
+            >
+                <Link to="/app">
+                    <Home size={24} strokeWidth={2} />
+                </Link>
+            </Button>
+            
+            {/* ❌ Đã gỡ bỏ nút Plus (+), người dùng tạo chat mới bằng Sidebar */}
+        </div>
+    </header>
   );
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    noClick: true,
-    noKeyboard: true,
-    multiple: false,
-  });
+  const DesktopSidebar = () => (
+    <aside className="hidden lg:flex w-80 h-full border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex-col flex-shrink-0">
+         <div className="h-16 border-b border-gray-200 dark:border-gray-700 px-4 flex items-center justify-between bg-white dark:bg-gray-800">
+            <Link to="/app" className="flex items-center gap-2 font-bold text-xl text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded-lg transition-colors" aria-label="Về trang chủ">
+                <Home size={24} />
+            </Link>
+            <Button 
+                onClick={handleNewChat} 
+                size="sm" 
+                variant="outline"
+                className="gap-2 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-200 dark:hover:border-blue-500 transition-all"
+                aria-label="Tạo cuộc trò chuyện mới"
+            >
+                <MessageSquarePlus size={16} />
+                Chat mới
+            </Button>
+         </div>
+         
+         <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+             <div className="relative">
+                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                 <input
+                     id="chat-search-input"
+                     type="text"
+                     placeholder="Tìm kiếm lịch sử..."
+                     value={searchQuery}
+                     onChange={(e) => setSearchQuery(e.target.value)}
+                     className="w-full pl-9 pr-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 border border-transparent focus:border-blue-200 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 rounded-lg transition-all outline-none text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                     aria-label="Tìm kiếm trong lịch sử chat"
+                 />
+             </div>
+         </div>
+         
+         <div className="flex-1 overflow-hidden">
+             <ChatHistorySidebar
+                 conversations={conversations}
+                 currentConversationId={currentConversationId}
+                 onSelectConversation={onSelectConversationWrapper}
+                 onNewChat={onNewChatWrapper}
+                 searchQuery={searchQuery}
+             />
+         </div>
+         
+         <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+             <button className="w-full flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-3 py-2 rounded-lg transition-colors font-medium">
+                 <Settings size={18} />
+                 Cài đặt và trợ giúp
+             </button>
+         </div>
+    </aside>
+  );
 
-  const handleAttachClick = () => {
-    if (!accessToken) {
-      setShowLoginPopup(true);
-      return;
-    }
-    fileInputRef.current?.click();
-  };
+  const MobileOverlaySidebar = () => (
+    <AnimatePresence>
+        {isSidebarOpen && (
+            <>
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setIsSidebarOpen(false)}
+                    className="fixed inset-0 bg-black/40 z-40 lg:hidden backdrop-blur-sm"
+                    aria-hidden="true"
+                />
+                <FocusTrap active={isSidebarOpen}>
+                    <motion.aside
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Menu lịch sử chat"
+                        initial={{ x: "-100%" }}
+                        animate={{ x: 0 }}
+                        exit={{ x: "-100%" }}
+                        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                        className="fixed inset-y-0 left-0 z-50 w-[85%] max-w-[320px] bg-white dark:bg-gray-900 shadow-2xl lg:hidden flex flex-col"
+                    >
+                         <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/50">
+                            <h2 className="font-bold text-lg text-gray-800 dark:text-gray-100">Lịch sử Chat</h2>
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => setIsSidebarOpen(false)}
+                                className="h-8 w-8 rounded-full bg-gray-200/50 dark:bg-gray-700/50 hover:bg-gray-300 dark:hover:bg-gray-600"
+                                aria-label="Đóng menu"
+                            >
+                                <X size={18} />
+                            </Button>
+                        </div>
 
-  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onDrop([file]);
-    }
-  };
-  // === Kết thúc logic Input ===
+                        <div className="p-3 border-b border-gray-100 dark:border-gray-700">
+                             <Button 
+                                onClick={onNewChatWrapper} 
+                                className="w-full bg-blue-600 dark:bg-blue-500 text-white shadow-md mb-2 hover:bg-blue-700"
+                                aria-label="Tạo cuộc trò chuyện mới"
+                            >
+                                <Plus size={18} className="mr-2" />
+                                Cuộc trò chuyện mới
+                            </Button>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Tìm kiếm..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-9 pr-3 py-2 text-sm bg-gray-100 dark:bg-gray-800 border border-transparent focus:border-blue-200 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 rounded-lg transition-all outline-none text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                                    aria-label="Tìm kiếm trong lịch sử chat"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-hidden">
+                            <ChatHistorySidebar
+                                conversations={conversations}
+                                currentConversationId={currentConversationId}
+                                onSelectConversation={onSelectConversationWrapper}
+                                onNewChat={onNewChatWrapper}
+                                searchQuery={searchQuery}
+                            />
+                        </div>
+                    </motion.aside>
+                </FocusTrap>
+            </>
+        )}
+    </AnimatePresence>
+  );
 
   return (
-    <>
-      <LoginPopup
-        isOpen={showLoginPopup}
-        onClose={() => setShowLoginPopup(false)}
-        message="Vui lòng đăng nhập để gửi file"
-      />
-      {/* ❌ GỠ BỎ: GlobalHeader */}
-      <div
-        className={cn("flex-1 flex overflow-hidden", "pt-16")} // Giữ pt-16 từ AppLayout
-        style={{ height: "100vh" }}
-      >
-        {/* --- Cột lịch sử chat --- */}
-        <div className="hidden lg:block h-full border-r bg-white w-64 flex-shrink-0">
-          <ChatHistorySidebar
-            conversations={conversations}
-            currentConversationId={currentConversationId}
-            onSelectConversation={handleSelectConversation}
-            onNewChat={handleNewChat}
-          />
-        </div>
+    <div className="fixed inset-0 h-[100dvh] w-screen bg-white dark:bg-gray-950 flex overflow-hidden font-sans z-[100]">
+        
+        <DesktopSidebar />
+        <MobileOverlaySidebar />
 
-        {/* --- Giao diện chat chính (Full-width, full-height) --- */}
-        <div
-          {...getRootProps()}
-          className="flex-1 flex flex-col h-full bg-white relative overflow-hidden"
-        >
-          {isDragActive && (
-            <div className="absolute inset-0 bg-blue-500/30 backdrop-blur-sm z-50 flex items-center justify-center pointer-events-none">
-              <p className="text-white font-bold text-lg">
-                Thả file để tải lên
-              </p>
-            </div>
-          )}
+        <main className="flex-1 flex flex-col h-full min-w-0 relative bg-white dark:bg-gray-950">
+            
+            <MobileHeader />
 
-          {/* Khu vực nội dung (ChatMessages hoặc Welcome) */}
-          <div className="flex-1 overflow-y-auto flex flex-col">
-            {showWelcome ? (
-              <ChatWelcome onPromptClick={onSendText} />
-            ) : (
-              <div className="max-w-3xl mx-auto w-full h-full">
-                <ChatMessages messages={messages} isLoadingAI={isLoadingAI} />
-              </div>
-            )}
-          </div>
-
-          {/* Khu vực Quick Replies (nếu có) */}
-          {quickReplies.length > 0 && !isLoadingAI && (
-            <div className="px-3 md:px-6 py-2 flex gap-2 flex-wrap max-w-3xl mx-auto w-full">
-              {quickReplies.map((reply, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Badge
-                    variant="outline"
-                    className="cursor-pointer active:scale-95 hover:scale-105 transition-transform text-xs md:text-sm py-1.5 px-3 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleQuickReply(reply);
-                    }}
-                  >
-                    {reply.text}
-                  </Badge>
-                </motion.div>
-              ))}
-            </div>
-          )}
-
-          {/* Khu vực input (Lấy từ Chatbar) */}
-          <div className="flex-shrink-0 border-t">
-            <div className="max-w-3xl mx-auto w-full">
-              {/* === Layout Input Area (Từ Chatbar) === */}
-              <div className="px-3 md:px-6 pb-3 md:pb-6 pt-3 flex items-end gap-2 md:gap-3">
-                {/* --- 1. Nút ghim file --- */}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileSelected}
-                  className="hidden"
-                />
-                <button
-                  onClick={handleAttachClick}
-                  className="w-10 h-10 rounded-xl border border-slate-200/80 bg-slate-50/80 backdrop-blur-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed touch-manipulation flex-shrink-0"
-                  title="Đính kèm file (ảnh, PDF)"
-                  style={{ minWidth: "40px" }}
-                >
-                  <Paperclip className="w-5 h-5" />
-                </button>
-
-                {/* --- 2. Khung nhập liệu --- */}
-                <div
-                  className={cn(
-                    "bg-slate-50/80 backdrop-blur-sm rounded-xl md:rounded-2xl border border-slate-200/80 overflow-hidden hover:border-indigo-300 transition-colors focus-within:border-indigo-500 focus-within:ring-2 md:focus-within:ring-4 focus-within:ring-indigo-100",
-                    "flex-1 flex flex-col justify-center",
-                    "min-h-10",
-                    "p-2.5 md:p-3"
-                  )}
-                  onClick={() => textareaRef.current?.focus()}
-                >
-                  {fileToUpload && !isLoadingAI && (
-                    <div className="flex mb-1.5">
-                      <button
-                        onClick={() => setFileToUpload(null)}
-                        className="bg-gray-200 text-gray-600 px-2 py-1 rounded-md flex items-center gap-1.5 text-xs"
-                      >
-                        <X size={14} />
-                        <span className="truncate max-w-[150px] md:max-w-xs">
-                          {fileToUpload.name}
-                        </span>
-                      </button>
+            {/* Messages Area - Sử dụng custom-scrollbar */}
+            <div className="flex-1 overflow-y-auto scroll-smooth custom-scrollbar px-0 relative" ref={messagesScrollRef}>
+                {showWelcome ? (
+                    <div className="h-full w-full flex flex-col justify-center items-center pb-10"> 
+                        <ChatWelcome onPromptClick={onSendText} />
                     </div>
-                  )}
-                  <textarea
-                    ref={textareaRef}
-                    value={message}
-                    onChange={handleInput}
-                    placeholder={
-                      fileToUpload
-                        ? "Thêm ghi chú cho file..."
-                        : "Gõ yêu cầu của bạn..."
-                    }
-                    className="w-full bg-transparent p-0 outline-none resize-none text-sm md:text-base text-slate-700 placeholder:text-slate-400 disabled:opacity-50"
-                    style={{ minHeight: "24px", maxHeight: "120px" }}
-                    rows={1}
-                    disabled={isLoadingAI}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSend();
-                      }
-                    }}
-                  />
-                </div>
-
-                {/* --- 3. Nút Gửi --- */}
-                <button
-                  onClick={handleSend}
-                  disabled={isLoadingAI || (!message.trim() && !fileToUpload)}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-indigo-200 transition-all active:scale-95 hover:scale-105 flex items-center justify-center text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 touch-manipulation flex-shrink-0"
-                  style={{ height: "40px", width: "40px", padding: 0 }}
-                >
-                  {isLoadingAI ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                  <span className="sr-only">
-                    {fileToUpload ? "Gửi file" : "Gửi"}
-                  </span>
-                </button>
-              </div>
-              {/* === Kết thúc Layout Input Area === */}
+                ) : (
+                    <div className="max-w-3xl mx-auto w-full py-6 px-4">
+                        <ErrorBoundary>
+                            <ChatMessages
+                                messages={messages}
+                                isLoadingAI={isLoadingAI}
+                                scrollContainerRef={messagesScrollRef}
+                            />
+                        </ErrorBoundary>
+                    </div>
+                )}
             </div>
-          </div>
-        </div>
-      </div>
-    </>
+
+            {/* Input Area */}
+            <div className={cn(
+                "flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 z-20",
+                "pb-[env(safe-area-inset-bottom)] transition-all duration-300 ease-in-out" 
+            )}>
+                <div className="max-w-3xl mx-auto w-full px-3 py-2 md:px-4 md:py-4 space-y-2">
+                    
+                    {/* Flex Horizontal Scroll */}
+                    {quickReplies.length > 0 && !isLoadingAI && (
+                       <div className="flex items-center gap-2 pb-2 px-1 overflow-x-auto no-scrollbar mask-image-scrim">
+                       {quickReplies.map((reply, idx) => (
+                           <button 
+                               key={idx}
+                               onClick={() => onSendQuickReply(reply.text, reply.payload)}
+                                    className="flex-shrink-0 px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-full hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all whitespace-nowrap shadow-sm active:scale-95"
+                                >
+                                    {reply.text}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    <ChatInput
+                        isLoading={isLoadingAI}
+                        onSendText={onSendText}
+                        onFileUpload={onFileUpload}
+                    />
+                    
+                    <div className="text-center hidden md:block">
+                         <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                             Zin AI có thể mắc lỗi. Hãy kiểm tra thông tin quan trọng.
+                         </span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
   );
 };
 
-/**
- * Component cha, bọc Provider
- */
 export default function ChatPage() {
   return (
     <ChatProvider>
-      <ChatView />
+      <ChatLayout />
     </ChatProvider>
   );
 }

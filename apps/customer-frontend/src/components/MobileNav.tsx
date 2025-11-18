@@ -28,7 +28,7 @@ export function MobileNav() {
     {
       icon: MessageCircle,
       label: "Chat AI",
-      path: "/app?openChat=zin",
+      path: "/chat",
       isCentral: true,
     },
     { icon: Package, label: "Đơn hàng", path: "/orders" },
@@ -39,6 +39,9 @@ export function MobileNav() {
     const [pathname] = path.split("?");
     if (pathname === "/app") {
       return location.pathname === "/app";
+    }
+    if (pathname === "/chat") {
+      return location.pathname.startsWith("/chat");
     }
     return location.pathname.startsWith(pathname);
   };

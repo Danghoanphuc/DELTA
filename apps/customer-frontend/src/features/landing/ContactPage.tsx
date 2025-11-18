@@ -384,7 +384,7 @@ export default function ContactPage() {
             <Button
               variant="outline"
               className="border-2 border-white text-white hover:bg-white/10 px-8 py-6 rounded-full"
-              onClick={() => navigate("/app?openChat=zin")}
+              onClick={() => navigate("/chat")}
             >
               <MessageCircle className="mr-2 w-5 h-5" />
               Chat trực tuyến

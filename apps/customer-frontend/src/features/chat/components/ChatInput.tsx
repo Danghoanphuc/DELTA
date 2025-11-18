@@ -1,8 +1,8 @@
-// src/features/chat/components/ChatInput.tsx (TẠO MỚI)
-import { useState, useRef, useCallback } from "react";
-import { Paperclip, Send, X, Loader2 } from "lucide-react";
+// src/features/chat/components/ChatInput.tsx (SMOOTH EXPANSION FIX)
+
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Send, X, Loader2, Image as ImageIcon, Paperclip } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { Textarea } from "@/shared/components/ui/textarea";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { LoginPopup } from "@/features/auth/components/LoginPopup";
 import { useDropzone } from "react-dropzone";
@@ -27,23 +27,54 @@ export function ChatInput({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { accessToken } = useAuthStore();
 
+  // ✅ FIX: Smooth Expansion Logic
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      // Reset height tạm thời để lấy scrollHeight chính xác khi xóa bớt text
+      textarea.style.height = '40px'; // Chiều cao cơ sở (1 dòng)
+      
+      const scrollHeight = textarea.scrollHeight;
+      
+      // Nếu có nội dung, set height bằng scrollHeight, tối đa 120px
+      if (message.trim()) {
+          textarea.style.height = `${Math.min(scrollHeight, 120)}px`;
+      } else {
+          textarea.style.height = '40px'; // Reset về mặc định nếu rỗng
+      }
+    }
+  }, [message]);
+
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
   };
 
   const handleSend = () => {
     if (isLoading) return;
+    if (!message.trim() && !fileToUpload) return;
+
     if (fileToUpload) {
       onFileUpload(fileToUpload);
       setFileToUpload(null);
-      setMessage("");
-    } else if (message.trim()) {
+    } 
+    
+    if (message.trim()) {
       const textToSend = message.trim();
+      setMessage("");
+      // Focus và reset height ngay lập tức
+      if (textareaRef.current) {
+          textareaRef.current.style.height = '40px'; 
+          textareaRef.current.focus();
+      }
+
       new Promise<GeolocationPosition | null>((resolve) => {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => resolve(pos),
-          () => resolve(null)
-        );
+        if (navigator.geolocation) {
+           navigator.geolocation.getCurrentPosition(
+            (pos) => resolve(pos),
+            () => resolve(null),
+            { timeout: 5000 }
+          );
+        } else resolve(null);
       }).then((position) => {
         onSendText(
           textToSend,
@@ -52,13 +83,10 @@ export function ChatInput({
         );
       });
     }
-    setMessage("");
-    textareaRef.current?.focus();
   };
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
-      // (Tương tự logic drop của ChatBar.tsx)
       if (!accessToken) {
         setShowLoginPopup(true);
         return;
@@ -66,7 +94,7 @@ export function ChatInput({
       const file = acceptedFiles[0];
       if (file) {
         if (file.size > 10 * 1024 * 1024) {
-          toast.error("File quá lớn, vui lòng chọn file dưới 10MB.");
+          toast.error("File quá lớn (Max 10MB).");
           return;
         }
         setFileToUpload(file);
@@ -76,12 +104,12 @@ export function ChatInput({
     [accessToken]
   );
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, isDragActive } = useDropzone({
     onDrop,
     noClick: true,
     noKeyboard: true,
     multiple: false,
-    // (Thêm accept types nếu cần)
+    accept: { 'image/*': [], 'application/pdf': [] }
   });
 
   const handleAttachClick = () => {
@@ -92,12 +120,7 @@ export function ChatInput({
     fileInputRef.current?.click();
   };
 
-  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onDrop([file]);
-    }
-  };
+  const isReadyToSend = message.trim().length > 0 || fileToUpload !== null;
 
   return (
     <>
@@ -106,84 +129,82 @@ export function ChatInput({
         onClose={() => setShowLoginPopup(false)}
         message="Vui lòng đăng nhập để gửi file"
       />
-      {/* Vùng Dropzone */}
-      <div
-        {...getRootProps()}
-        className={cn(
-          "relative p-4 border-t bg-white",
-          isDragActive && "bg-blue-50"
-        )}
-      >
+      
+      <div {...getRootProps()} className="relative flex flex-col w-full transition-all duration-300">
         {isDragActive && (
-          <div className="absolute inset-0 bg-blue-500/30 backdrop-blur-sm z-50 rounded-t-lg flex items-center justify-center pointer-events-none">
-            <p className="text-white font-bold text-lg">Thả file để tải lên</p>
+          <div className="absolute inset-0 -top-10 bg-blue-500/90 z-50 rounded-2xl flex items-center justify-center backdrop-blur-sm animate-in fade-in">
+            <p className="text-white font-bold text-lg">Thả file vào đây</p>
           </div>
         )}
 
-        {/* Badge xem trước file */}
+        {/* Preview File */}
         {fileToUpload && !isLoading && (
-          <div className="mb-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setFileToUpload(null)}
-            >
-              <X size={14} className="mr-2" />
-              <span className="truncate max-w-xs">{fileToUpload.name}</span>
-            </Button>
+          <div className="px-1 pb-2 animate-in slide-in-from-bottom-2">
+            <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm">
+              <ImageIcon size={14} />
+              <span className="truncate max-w-[200px]">{fileToUpload.name}</span>
+              <button onClick={() => setFileToUpload(null)} className="ml-1 p-0.5 hover:bg-blue-200 rounded-full transition-colors">
+                <X size={14} />
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Thanh Input chính */}
-        <div className="flex items-end gap-2">
-          <input
+        {/* AREA NHẬP LIỆU CHÍNH */}
+        <div className="flex items-end gap-2 w-full">
+           <input
             type="file"
             ref={fileInputRef}
-            onChange={handleFileSelected}
+            onChange={(e) => { if(e.target.files?.[0]) onDrop([e.target.files[0]]); }}
             className="hidden"
+            accept="image/*,.pdf"
           />
+          
+          {/* Nút Ghim */}
           <Button
-            variant="outline"
+            variant="ghost"
             size="icon"
             onClick={handleAttachClick}
             disabled={isLoading}
-            className="flex-shrink-0"
+            className="flex-shrink-0 h-11 w-11 rounded-xl text-gray-500 hover:bg-gray-100 active:bg-gray-200 transition-colors"
+            title="Đính kèm file"
           >
-            <Paperclip size={18} />
+            <Paperclip size={22} />
           </Button>
 
-          <Textarea
-            ref={textareaRef}
-            value={message}
-            onChange={handleInput}
-            placeholder={
-              fileToUpload
-                ? "Thêm ghi chú cho file..."
-                : "Hỏi Zin bất cứ điều gì..."
-            }
-            className="flex-1 resize-none bg-gray-100 border-none focus-visible:ring-blue-500"
-            rows={1}
-            disabled={isLoading}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            style={{ maxHeight: "150px" }} // Cho phép mở rộng tối đa
-          />
-
+          {/* Ô Textarea */}
+          <div className="flex-1 min-w-0 bg-gray-100/80 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-[20px] px-4 py-2.5 focus-within:border-blue-400 focus-within:bg-white dark:focus-within:bg-gray-800 focus-within:ring-4 focus-within:ring-blue-100 dark:focus-within:ring-blue-900/20 transition-all duration-300 shadow-sm">
+              <textarea
+                ref={textareaRef}
+                value={message}
+                onChange={handleInput}
+                placeholder={fileToUpload ? "Thêm ghi chú..." : "Nhập tin nhắn..."}
+                // ✅ FIX: Thêm transition-all ease-out duration-200 để animation mượt
+                className="w-full max-h-[120px] min-h-[24px] bg-transparent border-none focus:outline-none resize-none text-[15px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 leading-relaxed py-0 transition-all duration-200 ease-out"
+                rows={1}
+                disabled={isLoading}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+              />
+          </div>
+          
+          {/* Nút Gửi */}
           <Button
             size="icon"
             onClick={handleSend}
-            disabled={isLoading || (!message.trim() && !fileToUpload)}
-            className="flex-shrink-0 bg-gradient-to-r from-blue-600 to-purple-600"
-          >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send size={18} />
+            disabled={isLoading || !isReadyToSend}
+            className={cn(
+                "flex-shrink-0 h-11 w-11 rounded-xl transition-all duration-300 shadow-md",
+                isReadyToSend 
+                    ? "bg-gradient-to-br from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white translate-x-0 opacity-100 rotate-0" 
+                    : "bg-gray-100 text-gray-300 translate-x-4 opacity-0 rotate-45 pointer-events-none hidden" 
             )}
+          >
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send size={20} className="ml-0.5" strokeWidth={2.5} />}
           </Button>
         </div>
       </div>

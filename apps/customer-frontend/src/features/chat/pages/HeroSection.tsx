@@ -7,9 +7,7 @@ import ResponsiveH1 from "@/shared/components/ui/responsiveH1";
 interface HeroSectionProps {
   messages: ChatMessage[];
   isLoadingAI: boolean;
-  isExpanded: boolean;
   quickReplies: QuickReply[]; // ✅ MỚI
-  setIsExpanded: (expanded: boolean) => void;
   // ✅ THAY ĐỔI CÁC HANDLER
   onSendText: (text: string, latitude?: number, longitude?: number) => void;
   onSendQuickReply: (text: string, payload: string) => void;
@@ -19,9 +17,7 @@ interface HeroSectionProps {
 export function HeroSection({
   messages,
   isLoadingAI,
-  isExpanded,
   quickReplies, // ✅ MỚI
-  setIsExpanded,
   onSendText, // ✅ THAY ĐỔI
   onSendQuickReply, // ✅ MỚI
   onFileUpload, // ✅ MỚI
@@ -35,14 +31,12 @@ export function HeroSection({
         </ResponsiveH1>
       </div>
 
-      {/* ✅ TRUYỀN PROPS MỚI XUỐNG CHATBAR */}
+      {/* ✅ TRUYỀN PROPS XUỐNG CHATBAR */}
       <div className="w-full max-w-4xl mx-auto">
         <ChatBar
           messages={messages}
           isLoadingAI={isLoadingAI}
-          isExpanded={isExpanded}
           quickReplies={quickReplies}
-          setIsExpanded={setIsExpanded}
           onSendText={onSendText}
           onSendQuickReply={onSendQuickReply}
           onFileUpload={onFileUpload}

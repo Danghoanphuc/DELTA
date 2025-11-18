@@ -46,7 +46,7 @@ export function GlobalHeader({
     <header className="hidden lg:block fixed top-0 left-0 right-0 z-40 h-16 bg-white/95 backdrop-blur-lg border-b border-gray-200">
       <div className="flex items-center justify-between h-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 gap-2">
         {/* --- 1. Logo & Nav (Desktop Only - Hidden on Mobile) --- */}
-        <div className="hidden lg:flex items-center gap-4">
+        <div className="hidden lg:flex items-center gap-4 flex-shrink-0 relative z-20 pr-2">
           <Link to="/app" className="flex items-center gap-2 flex-shrink-0">
             <img src={printzLogo} alt="PrintZ Logo" className="w-10 h-10" />
             <span className="font-bold text-xl text-gray-800">
@@ -75,7 +75,7 @@ export function GlobalHeader({
 
         {/* --- 2. Search Bar (Mobile: Flexible Width with margin, Desktop: Max Width) --- */}
         {onSearchSubmit && (
-          <div className="flex-1 lg:flex-initial lg:w-full lg:max-w-md mr-2 lg:mr-0">
+          <div className="flex-1 max-w-xl mx-4 min-w-0 relative z-10">
             <SearchAutocomplete onSearchSubmit={onSearchSubmit} />
           </div>
         )}

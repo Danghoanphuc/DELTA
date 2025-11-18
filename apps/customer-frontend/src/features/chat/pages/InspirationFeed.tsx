@@ -21,13 +21,15 @@ const mockAiPins: InspirationPin[] = [];
 
 // (FeedSkeleton giữ nguyên)
 const FeedSkeleton = () => (
-  <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3 p-4 md:p-6">
+  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 p-4 md:p-6">
     {[...Array(10)].map((_, i) => (
-      <Skeleton
+      <div
         key={i}
-        className="rounded-lg h-64"
+        className="rounded-lg overflow-hidden"
         style={{ height: `${200 + Math.random() * 150}px` }}
-      />
+      >
+        <Skeleton className="w-full h-full" />
+      </div>
     ))}
   </div>
 );
@@ -113,10 +115,9 @@ export const InspirationFeed = ({
   return (
     <>
       <div className="w-full max-w-7xl mx-auto px-4 md:px-6 py-6">
-        {/* ✅ SỬA: Giảm từ lg:columns-5 xuống lg:columns-4 */}
-        <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {items.map((item) => (
-            <div key={item.feedId} className="break-inside-avoid mb-3">
+            <div key={item.feedId} className="h-full">
               {"type" in item && item.type === "inspiration" ? (
                 <InspirationPinCard pin={item} />
               ) : (
