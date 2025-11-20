@@ -1,15 +1,12 @@
 // apps/admin-backend/src/middleware/admin.auth.middleware.ts
-import express, {
-  type Request,
-  type Response,
-  type NextFunction,
-} from "express"; // <-- SỬA
-import jwt from "jsonwebtoken";
-import { Admin, type IAdmin, type AdminRole } from "../models/admin.model.js"; // <-- SỬA
+import type { Request, Response, NextFunction } from "express";
+import jwt, { type Secret } from "jsonwebtoken";
+import { Admin, type IAdmin, type AdminRole } from "../models/admin.model.js";
 import {
   UnauthorizedException,
   ForbiddenException,
 } from "../shared/exceptions.js";
+import { config } from "../config/env.config.js";
 
 // Gắn thông tin admin vào Request của Express
 declare global {
@@ -39,10 +36,8 @@ export const isAuthenticatedAdmin = async (
     return next(new UnauthorizedException("Yêu cầu xác thực (Admin)"));
   }
 
-  const secret = process.env.ADMIN_JWT_SECRET;
-  if (!secret) {
-    return next(new Error("Lỗi máy chủ (JWT)"));
-  }
+  // ✅ SECURITY FIX: Use config instead of direct env access
+  const secret: Secret = config.auth.jwtSecret;
 
   try {
     const decoded: any = jwt.verify(token, secret);

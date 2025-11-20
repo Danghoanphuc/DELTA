@@ -100,7 +100,7 @@ export const ProductPurchaseSheet = ({
           <DrawerFooter className="p-0">
             <Button
               onClick={handleSubmit}
-              disabled={isAddingToCart || selectedQuantity < minQuantity}
+              disabled={isAddingToCart}
               size="lg"
               className="w-full text-base py-6 bg-blue-600 hover:bg-blue-700"
             >

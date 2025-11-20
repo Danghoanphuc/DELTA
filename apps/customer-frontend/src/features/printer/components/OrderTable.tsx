@@ -61,6 +61,9 @@ export function OrderTable({
   loading,
   onUpdateStatus,
 }: OrderTableProps) {
+  // ✅ DEBUG: Log orders array để kiểm tra
+  console.log("🔍 [OrderTable] orders:", orders);
+  
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -77,6 +80,14 @@ export function OrderTable({
         </TableHeader>
         <TableBody>
           {orders.map((order, index) => {
+            // ✅ DEBUG: Log mỗi order để xem _id
+            console.log(`🔍 [OrderTable] order[${index}]:`, {
+              _id: order._id,
+              masterOrderId: order.masterOrderId,
+              printerOrderId: order.printerOrderId,
+              orderNumber: order.orderNumber,
+            });
+            
             const actions = getStatusActions(order.status);
             // ✅ FIX: Đảm bảo key luôn unique (dùng index làm fallback)
             const rowKey = order._id || `order-${index}`;

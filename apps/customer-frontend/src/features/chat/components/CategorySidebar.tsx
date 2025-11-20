@@ -1,14 +1,10 @@
 // features/chat/components/CategorySidebar.tsx
+// ✅ MAJOR UPDATE: Mega menu with comprehensive Vietnamese category data
 import { useRef, useState, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-
-interface Category {
-  label: string;
-  value: string;
-  image?: string;
-}
+import { ChevronLeft, ChevronRight, Users, TrendingUp, Flame, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { printzCategories, type PrintZCategory } from "@/data/categories.data";
 
 type CategorySidebarProps = {
   className?: string;
@@ -19,67 +15,14 @@ export const CategorySidebar = ({
   className = "",
   layout = "vertical",
 }: CategorySidebarProps) => {
-  const defaultCategories: Category[] = [
-    {
-      label: "Bao thư, bao lì xì",
-      value: "holiday-cards",
-      image:
-        "https://res.cloudinary.com/da3xfws3n/image/upload/v1763385804/bao_th%C6%B0_bao_li%CC%80_xi%CC%80_biesjs.svg",
-    },
-    {
-      label: "Lịch & Quà tặng",
-      value: "calendar-gifts",
-      image:
-        "https://res.cloudinary.com/da3xfws3n/image/upload/v1763381378/Calendar_and_Gifts_Icon_in_Mint_and_Blush_rs5zks.svg",
-    },
-    {
-      label: "Danh thiếp & Thẻ",
-      value: "business-cards",
-      image:
-        "https://res.cloudinary.com/da3xfws3n/image/upload/v1763386452/Thi%E1%BA%BFt_k%E1%BA%BF_ch%C6%B0a_c%C3%B3_t%C3%AAn_4_zw10gs.svg",
-    },
-    {
-      label: "Quảng cáo in ấn",
-      value: "postcards-marketing",
-      image:
-        "https://res.cloudinary.com/da3xfws3n/image/upload/v1763386942/Thi%E1%BA%BFt_k%E1%BA%BF_ch%C6%B0a_c%C3%B3_t%C3%AAn_5_lgldk1.svg",
-    },
-    {
-      label: "Bảng hiệu, biểu ngữ",
-      value: "signage-banners-posters",
-      image:
-        "https://res.cloudinary.com/da3xfws3n/image/upload/v1763386922/Thi%E1%BA%BFt_k%E1%BA%BF_ch%C6%B0a_c%C3%B3_t%C3%AAn_6_imoupw.svg",
-    },
-    {
-      label: "Nhãn dán & tem",
-      value: "labels-stickers",
-      image:
-        "https://res.cloudinary.com/da3xfws3n/image/upload/v1763387243/nha%CC%83n_da%CC%81n_pezqf5.svg",
-    },
-    {
-      label: "Túi Tote",
-      value: "tote-bags",
-      image:
-        "https://res.cloudinary.com/da3xfws3n/image/upload/v1763387284/Thi%E1%BA%BFt_k%E1%BA%BF_ch%C6%B0a_c%C3%B3_t%C3%AAn_2_q1c7pf.svg",
-    },
-    {
-      label: "Quà khuyến mại",
-      value: "promotional-products",
-      image:
-        "https://res.cloudinary.com/da3xfws3n/image/upload/v1763385803/sa%CC%89n_ph%C3%A2%CC%89m_khuy%C3%AA%CC%81n_ma%CC%83i_rupn6q.svg",
-    },
-    {
-      label: "Bao bì & Hộp",
-      value: "packaging",
-      image:
-        "https://res.cloudinary.com/da3xfws3n/image/upload/v1763385799/%C4%90o%CC%81ng_go%CC%81i_zbdloi.svg",
-    },
-  ];
+  // ✅ Use comprehensive data from categories.data.ts
+  const categories: PrintZCategory[] = printzCategories;
 
+  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
   const isHorizontal = layout === "horizontal";
   const isMobileGrid = layout === "mobile-grid";
 
-  // --- LOGIC SCROLL (Cho Desktop) ---
+  // --- LOGIC SCROLL (Cho Desktop Horizontal Rail) ---
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
@@ -109,6 +52,159 @@ export const CategorySidebar = ({
       });
       setTimeout(checkScroll, 300);
     }
+  };
+
+  // --- ✅ NEW: MEGA MENU POPUP ---
+  const renderMegaMenu = (category: PrintZCategory) => {
+    if (!category.subcategories && !category.useCases) return null;
+
+    return (
+      <div 
+        className="absolute left-full top-0 ml-2 w-[520px] bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.15)] border border-gray-100 p-6 z-50 animate-in fade-in slide-in-from-left-2 duration-200"
+        onMouseEnter={() => setHoveredCategory(category.id)}
+        onMouseLeave={() => setHoveredCategory(null)}
+      >
+        {/* Header */}
+        <div className="mb-5 pb-4 border-b border-gray-100">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h3 className="font-bold text-lg text-gray-900 mb-1.5">{category.label}</h3>
+              {category.description && (
+                <p className="text-sm text-gray-600 leading-relaxed">{category.description}</p>
+              )}
+            </div>
+            {(category.trending || category.seasonal || category.featured) && (
+              <div className="flex gap-1.5 ml-3">
+                {category.trending && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-700 rounded-full text-[10px] font-semibold">
+                    <TrendingUp className="w-3 h-3" />
+                    HOT
+                  </span>
+                )}
+                {category.seasonal && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-700 rounded-full text-[10px] font-semibold">
+                    <Flame className="w-3 h-3" />
+                    MÙA
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Pricing & Printer Count */}
+          <div className="flex items-center gap-4 mt-3 text-sm">
+            {category.printerCount && (
+              <span className="flex items-center gap-1.5 text-gray-600">
+                <Users className="w-4 h-4" />
+                <span className="font-medium text-gray-900">{category.printerCount}</span> nhà in
+              </span>
+            )}
+            {category.pricing.avgPrice && (
+              <span className="text-green-600 font-semibold">
+                {category.pricing.avgPrice}
+              </span>
+            )}
+            {category.pricing.bulkDiscount && (
+              <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                Giảm giá số lượng
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Grid Layout */}
+        <div className="grid grid-cols-2 gap-6">
+          {/* Left: Subcategories */}
+          {category.subcategories && category.subcategories.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-sm text-gray-700 mb-3 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-1 h-4 bg-blue-600 rounded-full"></span>
+                Loại sản phẩm
+              </h4>
+              <ul className="space-y-1.5">
+                {category.subcategories.slice(0, 6).map((sub) => (
+                  <li key={sub.value}>
+                    <a
+                      href={`/shop?category=${category.value}&sub=${sub.value}`}
+                      className="flex items-center justify-between group hover:bg-blue-50 px-3 py-2 rounded-lg transition-all duration-200"
+                    >
+                      <span className="text-sm text-gray-700 group-hover:text-blue-600 font-medium flex-1">
+                        {sub.label}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {sub.popular && (
+                          <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">
+                            HOT
+                          </span>
+                        )}
+                        {sub.productCount && (
+                          <span className="text-xs text-gray-400 font-medium min-w-[32px] text-right">
+                            {sub.productCount}
+                          </span>
+                        )}
+                      </div>
+                    </a>
+                  </li>
+                ))}
+                {category.subcategories.length > 6 && (
+                  <li>
+                    <a
+                      href={`/shop?category=${category.value}`}
+                      className="text-sm text-blue-600 hover:text-blue-700 font-semibold px-3 py-2 block"
+                    >
+                      + {category.subcategories.length - 6} loại khác
+                    </a>
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+
+          {/* Right: Use Cases */}
+          {category.useCases && category.useCases.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-sm text-gray-700 mb-3 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-1 h-4 bg-green-600 rounded-full"></span>
+                Phù hợp cho
+              </h4>
+              <ul className="space-y-1.5">
+                {category.useCases.slice(0, 5).map((useCase) => (
+                  <li key={useCase.searchTerm}>
+                    <a
+                      href={`/shop?category=${category.value}&use-case=${useCase.searchTerm}`}
+                      className="flex items-center gap-3 group hover:bg-green-50 px-3 py-2 rounded-lg transition-all duration-200"
+                    >
+                      <span className="text-xl flex-shrink-0">{useCase.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm text-gray-700 group-hover:text-green-600 font-medium block">
+                          {useCase.label}
+                        </span>
+                        {useCase.description && (
+                          <span className="text-xs text-gray-500 block truncate">
+                            {useCase.description}
+                          </span>
+                        )}
+                      </div>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* Footer CTA */}
+        <div className="mt-6 pt-4 border-t border-gray-100">
+          <a
+            href={`/shop?category=${category.value}`}
+            className="text-sm text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1.5 group"
+          >
+            Xem tất cả {category.label}
+            <ChevronRightIcon className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+          </a>
+        </div>
+      </div>
+    );
   };
 
   // --- MODE DESKTOP (HORIZONTAL RAIL) ---
@@ -147,7 +243,7 @@ export const CategorySidebar = ({
           className="w-full overflow-x-auto hide-scrollbar py-4 -my-4 px-1 scroll-smooth"
         >
           <div className="flex gap-3">
-            {defaultCategories.map((c) => (
+            {categories.map((c) => (
               <Button
                 key={c.value}
                 asChild
@@ -178,6 +274,12 @@ export const CategorySidebar = ({
                   <span className="text-center text-xs font-medium text-slate-600 leading-snug line-clamp-2 group-hover:text-blue-700 h-[32px] flex items-center justify-center w-full">
                     {c.label}
                   </span>
+                  {(c.trending || c.seasonal) && (
+                    <span className="absolute top-2 right-2">
+                      {c.trending && <TrendingUp className="w-3.5 h-3.5 text-orange-500" />}
+                      {c.seasonal && <Flame className="w-3.5 h-3.5 text-red-500" />}
+                    </span>
+                  )}
                 </a>
               </Button>
             ))}
@@ -187,102 +289,138 @@ export const CategorySidebar = ({
     );
   }
 
-  // --- MODE VERTICAL & MOBILE GRID ---
-  const displayCategories = defaultCategories.slice(
-    0,
-    isMobileGrid ? 9 : defaultCategories.length
-  );
-
-  return (
-    <aside
-      className={cn(
-        isMobileGrid
-          ? "bg-transparent border-none p-0 space-y-3"
-          : "rounded-2xl border border-white/70 bg-white/90 backdrop-blur-sm shadow-[0_22px_55px_rgba(15,23,42,0.08)] p-4 space-y-3",
-        !isMobileGrid && "max-h-[calc(100vh-6rem)] overflow-auto custom-scrollbar",
-        className
-      )}
-    >
-      {!isMobileGrid && (
+  // --- MODE VERTICAL SIDEBAR (Desktop) ---
+  if (!isMobileGrid) {
+    return (
+      <aside
+        className={cn(
+          "rounded-2xl border border-white/70 bg-white/90 backdrop-blur-sm shadow-[0_22px_55px_rgba(15,23,42,0.08)] p-4 space-y-3",
+          "max-h-[calc(100vh-6rem)] overflow-auto custom-scrollbar",
+          className
+        )}
+      >
         <div className="flex items-center justify-between text-sm font-semibold text-slate-800 sticky top-0 bg-white/95 backdrop-blur z-10 pb-2 border-b border-slate-100">
           Danh mục sản phẩm
           <span className="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-            {defaultCategories.length}
+            {categories.length}
           </span>
         </div>
-      )}
 
-      <div
-        className={cn(
-          isMobileGrid
-            ? "grid grid-cols-3 gap-x-2 gap-y-4 pt-2" // ✅ Tăng khoảng cách dọc (gap-y) để text không bị dính
-            : "flex flex-col space-y-1"
-        )}
-      >
+        <div className="space-y-1">
+          {categories.map((category) => (
+            <div
+              key={category.id}
+              className="relative"
+              onMouseEnter={() => setHoveredCategory(category.id)}
+              onMouseLeave={() => setHoveredCategory(null)}
+            >
+              <Button
+                asChild
+                variant="ghost"
+                className={cn(
+                  "w-full justify-start px-3 py-3 rounded-xl hover:bg-blue-50 hover:text-blue-700 gap-3 transition-all",
+                  hoveredCategory === category.id && "bg-blue-50 text-blue-700"
+                )}
+              >
+                <a href={`/shop?category=${category.value}`}>
+                  <div className="flex items-center gap-3 w-full">
+                    {/* Icon */}
+                    <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {category.image && (
+                        <img
+                          src={category.image}
+                          alt={category.label}
+                          className="w-3/4 h-3/4 object-contain mix-blend-multiply"
+                          loading="lazy"
+                        />
+                      )}
+                    </div>
+
+                    {/* Text */}
+                    <div className="flex-1 text-left min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium truncate">{category.label}</span>
+                        {category.seasonal && (
+                          <Flame className="w-3 h-3 text-red-500 flex-shrink-0" />
+                        )}
+                        {category.trending && (
+                          <TrendingUp className="w-3 h-3 text-orange-500 flex-shrink-0" />
+                        )}
+                      </div>
+                      {category.printerCount && (
+                        <span className="text-xs text-gray-500">
+                          {category.printerCount} nhà in
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Arrow */}
+                    <ChevronRightIcon className={cn(
+                      "w-4 h-4 text-gray-400 transition-transform flex-shrink-0",
+                      hoveredCategory === category.id && "translate-x-1"
+                    )} />
+                  </div>
+                </a>
+              </Button>
+
+              {/* ✅ MEGA MENU POPUP */}
+              {hoveredCategory === category.id && renderMegaMenu(category)}
+            </div>
+          ))}
+        </div>
+
+        {/* ✅ CTA: Chat với AI */}
+        <div className="mt-6 p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-100">
+          <p className="text-sm font-medium text-gray-700 mb-2">
+            Không tìm thấy danh mục phù hợp?
+          </p>
+          <a
+            href="/chat"
+            className="text-sm text-blue-600 hover:text-blue-700 font-semibold inline-flex items-center gap-1"
+          >
+            💬 Chat với AI để được tư vấn
+            <ChevronRightIcon className="w-3.5 h-3.5" />
+          </a>
+        </div>
+      </aside>
+    );
+  }
+
+  // --- MODE MOBILE GRID ---
+  const displayCategories = categories.slice(0, 9);
+
+  return (
+    <aside className={cn("bg-transparent border-none p-0 space-y-3", className)}>
+      <div className="grid grid-cols-3 gap-x-2 gap-y-4 pt-2">
         {displayCategories.map((c) => (
           <Button
             key={c.value}
             asChild
             variant="ghost"
-            className={cn(
-              "text-gray-700 h-auto transition-all duration-200",
-              isMobileGrid
-                // ✅ MOBILE FIXES:
-                // 1. h-auto: Để chiều cao tự động giãn theo nội dung
-                // 2. px-0: Tận dụng tối đa chiều ngang
-                // 3. border-none/shadow-none: Bỏ viền như yêu cầu
-                // 4. items-start: Căn text lên trên thay vì center (tránh bị đẩy lung tung)
-                ? "flex-col justify-start px-0 py-0 w-full whitespace-normal gap-2 bg-transparent hover:bg-transparent border-none shadow-none"
-                : "w-full justify-start px-3 py-3 rounded-xl hover:bg-blue-50 hover:text-blue-700 gap-3"
-            )}
+            className="flex-col justify-start px-0 py-0 w-full whitespace-normal gap-2 bg-transparent hover:bg-transparent border-none shadow-none h-auto"
           >
             <a href={`/shop?category=${encodeURIComponent(c.value)}`}>
-              <div
-                className={cn(
-                  isMobileGrid
-                    ? "flex flex-col items-center gap-2 w-full"
-                    : "flex items-center gap-3 w-full"
-                )}
-              >
-                {/* Icon/Image Wrapper */}
-                <div
-                  className={cn(
-                    "flex items-center justify-center flex-shrink-0",
-                    isMobileGrid 
-                      // ✅ MOBILE IMAGE FIX:
-                      // Tăng size lên w-16 h-16 (64px) hoặc w-20 (80px)
-                      // Bỏ bg-gray-50 để ảnh trông tự nhiên trên nền trắng
-                      ? "w-16 h-16 rounded-2xl bg-gray-50/50" 
-                      : "w-10 h-10 rounded-lg bg-gray-50 overflow-hidden"
-                  )}
-                >
+              <div className="flex flex-col items-center gap-2 w-full">
+                {/* Icon/Image */}
+                <div className="w-16 h-16 rounded-2xl bg-gray-50/50 flex items-center justify-center flex-shrink-0 relative">
                   {c.image && (
                     <img
                       src={c.image}
                       alt={c.label}
-                      className={cn(
-                        "object-contain mix-blend-multiply",
-                        isMobileGrid ? "w-full h-full p-1" : "w-3/4 h-3/4" // Ảnh mobile full container (có padding nhỏ)
-                      )}
+                      className="w-full h-full p-1 object-contain mix-blend-multiply"
                       loading="lazy"
                     />
+                  )}
+                  {(c.trending || c.seasonal) && (
+                    <span className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
+                      {c.trending && <TrendingUp className="w-3 h-3 text-orange-500" />}
+                      {c.seasonal && <Flame className="w-3 h-3 text-red-500" />}
+                    </span>
                   )}
                 </div>
 
                 {/* Text */}
-                <span
-                  className={cn(
-                    "text-sm font-medium leading-tight",
-                    isMobileGrid
-                      // ✅ MOBILE TEXT FIX:
-                      // 1. min-h-[2.5em]: Đủ chỗ cho 2 dòng
-                      // 2. line-clamp-2: Ngắt dòng thông minh
-                      // 3. text-[11px]: Font chữ vừa vặn hơn
-                      // 4. tracking-tight: Giúp các từ dài (như 'Quảng cáo') ít bị rớt dòng vô duyên
-                      ? "text-center text-[11px] w-full line-clamp-2 min-h-[2.5em] flex items-start justify-center text-gray-700 tracking-tight px-1"
-                      : "text-left flex-1 truncate"
-                  )}
-                >
+                <span className="text-center text-[11px] w-full line-clamp-2 min-h-[2.5em] flex items-start justify-center text-gray-700 tracking-tight px-1 font-medium">
                   {c.label}
                 </span>
               </div>

@@ -35,6 +35,7 @@ export class PDFRendererWorker {
     } = options;
 
     console.log("🎨 [PDF Worker] Starting render for:", baseProductId);
+    this.logMemoryUsage("before_render", baseProductId);
 
     try {
       // 1. Parse specifications
@@ -76,6 +77,8 @@ export class PDFRendererWorker {
     } catch (error) {
       console.error("❌ [PDF Worker] Render failed:", error);
       throw error;
+    } finally {
+      this.logMemoryUsage("after_render", baseProductId);
     }
   }
 
@@ -347,6 +350,16 @@ export class PDFRendererWorker {
       console.error("❌ [PDF Worker] Job failed:", error);
       throw error;
     }
+  }
+
+  logMemoryUsage(stage, jobId) {
+    const memory = process.memoryUsage();
+    const toMb = (value) => (value / 1024 / 1024).toFixed(1);
+    console.log(
+      `🧠 [PDF Worker] ${stage} job=${jobId} rss=${toMb(memory.rss)}MB heap=${toMb(
+        memory.heapUsed
+      )}MB external=${toMb(memory.external || 0)}MB`
+    );
   }
 }
 

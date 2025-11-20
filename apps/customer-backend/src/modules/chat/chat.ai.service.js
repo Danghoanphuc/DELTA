@@ -2,10 +2,11 @@
 import OpenAI from "openai";
 import { Logger } from "../../shared/utils/index.js";
 import { ChatResponseUtil } from "./chat.response.util.js";
+import { config } from "../../config/env.config.js";
 
 export class ChatAiService {
   constructor() {
-    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    this.openai = new OpenAI({ apiKey: config.apiKeys.openai });
   }
 
   /**
@@ -14,7 +15,7 @@ export class ChatAiService {
   _buildUserContextPrompt(context) {
     if (context.actorType === "User" && context.user) {
       const { displayName, email, role } = context.user;
-      
+
       // --- TẠO CHIẾN THUẬT BÁN HÀNG DỰA TRÊN VAI TRÒ ---
       const roleTactics = {
         designer: `

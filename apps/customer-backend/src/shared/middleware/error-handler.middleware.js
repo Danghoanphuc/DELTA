@@ -10,10 +10,10 @@ import { Logger } from "../utils/logger.util.js"; // Cần import Logger
  * (Giữ nguyên code gốc của bạn)
  */
 export function handleUploadError(err, req, res, next) {
-  console.error("🔴 Upload Error Handler triggered:", err);
+  Logger.warn("Upload Error Handler triggered", err.message);
 
   if (err instanceof multer.MulterError) {
-    console.error("❌ Multer Error:", err.code, "-", err.message);
+    Logger.error("Multer Error", { code: err.code, message: err.message });
     let message = "Lỗi tải lên file.";
     switch (err.code) {
       case "LIMIT_FILE_SIZE":
@@ -52,8 +52,8 @@ export function handleUploadError(err, req, res, next) {
  * Phải được đặt SAU TẤT CẢ các app.use() và routes khác trong server.js.
  */
 export const errorHandler = (err, req, res, next) => {
-  // Logger.error(`[${req.method} ${req.path}]`, err.message); // Tạm comment Logger
-  console.error("!!! ERROR HANDLER ACTIVATED:", err); // Dùng console.error
+  // ✅ IMPROVEMENT: Use proper Logger
+  Logger.error(`[${req.method} ${req.path}]`, err.message);
 
   // 1. Xử lý các lỗi tùy chỉnh (kế thừa từ BaseException)
   if (err instanceof BaseException) {

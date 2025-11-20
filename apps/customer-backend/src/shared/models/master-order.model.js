@@ -65,6 +65,37 @@ const PrinterOrderSchema = new mongoose.Schema({
     enum: ["pending_upload", "pending_approval", "approved", "rejected"],
     default: "pending_upload",
   },
+  
+  // ✅ OBJECTIVE 2: Proof Files (Hỗ trợ nhiều file proof với versioning)
+  proofFiles: [
+    {
+      url: { type: String, required: true },
+      version: { type: Number, required: true }, // v1, v2, v3...
+      uploadedAt: { type: Date, default: Date.now },
+      uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      fileType: { type: String }, // 'image/png', 'application/pdf'
+      fileName: { type: String },
+      status: {
+        type: String,
+        enum: ["current", "superseded", "rejected"],
+        default: "current",
+      },
+    },
+  ],
+  
+  // ✅ OBJECTIVE 2: Rejection history (audit trail)
+  rejectionHistory: [
+    {
+      rejectedAt: { type: Date, default: Date.now },
+      reason: { type: String, required: true, maxlength: 500 },
+      rejectedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    },
+  ],
+  
+  // ✅ OBJECTIVE 2: Approval tracking
+  approvedAt: { type: Date },
+  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  
   // ✅ NEW: Ghi chú nội bộ của nhà in
   printerNotes: { type: String, maxlength: 2000 },
   shippingCode: { type: String },
@@ -115,6 +146,10 @@ const MasterOrderSchema = new mongoose.Schema(
 
     // --- Thông tin thanh toán Stripe ---
     paymentIntentId: { type: String, index: true },
+
+    // --- PayOS Integration ---
+    orderCode: { type: Number, unique: true, sparse: true }, // sparse: true để cho phép null/undefined cho các đơn hàng cũ hoặc payment method khác
+    
     paymentStatus: {
       type: String,
       enum: Object.values(PAYMENT_STATUS),

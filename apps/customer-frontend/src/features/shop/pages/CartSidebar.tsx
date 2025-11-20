@@ -13,6 +13,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
 import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
 import { useCartStore } from "@/stores/useCartStore";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -47,6 +48,7 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
   const [isHardChecking, setIsHardChecking] = useState(false); // ✅ GĐ 5.4: State cho nút "Thanh toán"
+  const [editingQuantities, setEditingQuantities] = useState<Record<string, string>>({}); // ✅ Local state để người dùng có thể gõ thoải mái
   const navigate = useNavigate(); // ✅ GĐ 5.4: Hook để điều hướng
 
   useEffect(() => {
@@ -323,13 +325,47 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                           >
                             <Minus size={14} />
                           </Button>
-                          <span className="text-sm font-medium w-8 text-center">
-                            {isUpdatingThisItem ? (
-                              <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-                            ) : (
-                              item.quantity
-                            )}
-                          </span>
+                          
+                          {/* ✅ Thay span bằng Input để người dùng có thể nhập trực tiếp */}
+                          {isUpdatingThisItem ? (
+                            <div className="w-16 h-7 flex items-center justify-center">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            </div>
+                          ) : (
+                            <Input
+                              type="number"
+                              min="1"
+                              value={editingQuantities[item._id] ?? item.quantity}
+                              onChange={(e) => {
+                                // ✅ Chỉ update local state, không call API
+                                setEditingQuantities(prev => ({
+                                  ...prev,
+                                  [item._id]: e.target.value
+                                }));
+                              }}
+                              onBlur={(e) => {
+                                const newQty = Math.max(1, parseInt(e.target.value) || 1);
+                                const delta = newQty - item.quantity;
+                                if (delta !== 0) {
+                                  handleQuantityChange(item._id, delta);
+                                }
+                                // Clear local editing state
+                                setEditingQuantities(prev => {
+                                  const updated = {...prev};
+                                  delete updated[item._id];
+                                  return updated;
+                                });
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.currentTarget.blur(); // Trigger onBlur
+                                }
+                              }}
+                              className="w-16 h-7 text-center text-sm font-medium p-1"
+                              disabled={isUpdatingThisItem}
+                            />
+                          )}
+                          
                           <Button
                             size="icon"
                             variant="outline"

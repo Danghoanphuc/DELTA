@@ -122,6 +122,58 @@ const ProductSchema = new mongoose.Schema(
       lastSuspensionAt: Date,
     },
     // ==========================================================
+
+    // === RAG: VECTOR EMBEDDING FOR SEMANTIC SEARCH ===
+    embedding: {
+      type: [Number], // Array of floats (1536 dimensions for text-embedding-3-small)
+      select: false,  // Do not return by default in queries (privacy & performance)
+      index: false,   // Mongoose index not needed - Atlas Vector Search handles indexing
+    },
+    // ================================================
+
+    // === ✨ SMART PIPELINE: DRAFT SYSTEM ===
+    isDraft: {
+      type: Boolean,
+      default: true, // ✅ Mặc định là draft khi tạo mới
+      index: true,
+    },
+    draftStep: {
+      type: Number,
+      default: 1, // Bước nào user đang ở (1-5)
+      min: 1,
+      max: 5,
+    },
+    draftLastSavedAt: {
+      type: Date,
+      default: Date.now,
+    },
+
+    // === ✨ SMART PIPELINE: ASYNC UPLOAD TRACKING ===
+    uploadStatus: {
+      type: String,
+      enum: ["pending", "uploading", "completed", "failed"],
+      default: "pending",
+    },
+    uploadProgress: {
+      type: Number, // 0-100
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+
+    // === ✨ SMART PIPELINE: AI GENERATION METADATA ===
+    aiGenerated: {
+      description: { type: Boolean, default: false },
+      tags: { type: Boolean, default: false },
+      generatedAt: Date,
+    },
+
+    // === ✨ SMART PIPELINE: VALIDATION STATE (cho Draft) ===
+    validationErrors: {
+      type: Map,
+      of: String, // { "name": "Tên quá ngắn", "pricing": "Giá không hợp lệ" }
+    },
+    // ================================================
   },
   {
     timestamps: true,
@@ -130,5 +182,10 @@ const ProductSchema = new mongoose.Schema(
   }
 );
 
+// ✅ Text search index
 ProductSchema.index({ name: "text", description: "text", category: "text" });
+
+// ✅ Draft queries optimization
+ProductSchema.index({ printerProfileId: 1, isDraft: 1, draftLastSavedAt: -1 });
+
 export const Product = mongoose.model("Product", ProductSchema);

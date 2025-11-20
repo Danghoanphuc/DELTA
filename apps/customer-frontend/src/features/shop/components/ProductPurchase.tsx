@@ -73,7 +73,7 @@ export const ProductPurchase = ({
             : "border-blue-600 text-blue-600 hover:bg-blue-50"
         )}
         onClick={onAddToCart}
-        disabled={isAddingToCart || isQuantityInvalid}
+        disabled={isAddingToCart}
       >
         <ShoppingCart size={20} className="mr-2" />
         {isAddingToCart
@@ -88,7 +88,7 @@ export const ProductPurchase = ({
         size="lg"
         className="w-full text-base font-semibold bg-red-600 hover:bg-red-700 text-white"
         onClick={onBuyNow}
-        disabled={isAddingToCart || isQuantityInvalid}
+        disabled={isAddingToCart}
       >
         Mua ngay
       </Button>

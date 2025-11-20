@@ -32,14 +32,25 @@ const submitProductApi = async ({
 
   formData.append("productData", JSON.stringify(finalProductData));
 
-  images.forEach((file) => {
-    formData.append("images", file);
+  // Append images (nếu có) - chỉ append File, không append URL object
+  images.forEach((item) => {
+    if (item instanceof File) {
+      formData.append("images", item);
+    }
+    // Nếu là URL object, đã được upload async rồi, không cần append vào FormData
   });
 
   const headers = { "Content-Type": "multipart/form-data" };
+  
+  // ✅ Tăng timeout lên 3 phút cho upload ảnh (vì Cloudinary có thể chậm)
+  const config = {
+    headers,
+    timeout: 180000, // 3 minutes = 180,000ms
+  };
+  
   const apiCall = productId
-    ? api.put(`/products/${productId}`, formData, { headers })
-    : api.post("/products", formData, { headers });
+    ? api.put(`/products/${productId}`, formData, config)
+    : api.post("/products", formData, config);
 
   const response = await apiCall;
   return response.data;

@@ -25,6 +25,7 @@ export enum PaymentStatus {
 export const MASTER_ORDER_STATUS = {
   PENDING: "pending",
   PENDING_PAYMENT: "pending_payment",
+  PAID_WAITING_FOR_PRINTER: "paid_waiting_for_printer",
   PROCESSING: "processing",
   SHIPPING: "shipping",
   COMPLETED: "completed",
@@ -34,6 +35,7 @@ export const MASTER_ORDER_STATUS = {
 // Constants for Sub Order Status (Printer Order Status)
 export const SUB_ORDER_STATUS = {
   PENDING: "pending",
+  PAID_WAITING_FOR_PRINTER: "paid_waiting_for_printer",
   CONFIRMED: "confirmed",
   DESIGNING: "designing",
   PRINTING: "printing",
@@ -67,9 +69,15 @@ export interface IOrder {
   _id: Types.ObjectId;
   masterOrder: Types.ObjectId; // Ref: MasterOrder
   printer: Types.ObjectId; // Ref: PrinterProfile
+  printerBusinessName: string;
+  stripeAccountId?: string;
 
   items: IOrderItem[];
   totalPrice: number; // (Sub-total của nhà in này)
+  printerTotalPrice: number;
+  appliedCommissionRate: number;
+  commissionFee: number;
+  printerPayout: number;
 
   // ✅ SỬA LỖI (TS2305): Đổi IShippingAddress -> IAddress
   shippingAddress: IAddress;
@@ -88,18 +96,23 @@ export interface IMasterOrder {
   _id: Types.ObjectId;
   orderNumber: string; // (Ví dụ: P-251112-0001)
   customerId: Types.ObjectId; // Ref: CustomerProfile
+  customerName: string;
   customerEmail: string;
+  customerNotes?: string;
 
   orders: Types.ObjectId[]; // Mảng các Sub-Orders
 
   totalAmount: number; // Tổng tiền (VND)
   totalItems: number;
+  totalPrice: number;
+  totalCommission: number;
+  totalPayout: number;
 
   // ✅ SỬA LỖI (TS2305): Đổi IShippingAddress -> IAddress
   shippingAddress: IAddress;
 
   status: OrderStatus;
-  paymentStatus: PaymentStatus;
+  paymentStatus: (typeof PAYMENT_STATUS)[keyof typeof PAYMENT_STATUS];
 
   paymentIntentId?: string; // (Stripe PI)
 

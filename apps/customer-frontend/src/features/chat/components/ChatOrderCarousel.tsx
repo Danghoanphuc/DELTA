@@ -45,33 +45,38 @@ const ChatOrderCard = ({ order }: { order: SimplifiedOrder }) => {
   // ✅ BƯỚC 2: SỬ DỤNG CONTEXT TOÀN CỤC
   const { openOrderQuickView } = useGlobalModalContext();
 
-  // (Logic an toàn giữ nguyên)
+  // ✅ FIX: Safe data extraction with fallbacks
   const firstItem =
     order.items && order.items.length > 0 ? order.items[0] : null;
   const orderTitle = firstItem
     ? firstItem.productName +
       (order.items.length > 1 ? ` và ${order.items.length - 1} sp khác` : "")
     : "Đơn hàng";
+  
+  // ✅ FIX: Safe total with fallback
+  const orderTotal = order.total ?? 0;
 
   return (
     <Card className="overflow-hidden shadow-md border">
       <CardContent className="p-4">
-        {/* (Header thẻ giữ nguyên) */}
+        {/* Header thẻ */}
         <div className="flex justify-between items-center mb-2">
-          <p className="font-semibold text-sm truncate">#{order.orderNumber}</p>
+          <p className="font-semibold text-sm truncate">
+            #{order.orderNumber || "N/A"}
+          </p>
           <Badge
             className={cn(
               "text-xs px-2 py-0.5",
-              getStatusVariant(order.status)
+              getStatusVariant(order.status || "pending")
             )}
           >
-            {order.status}
+            {order.status || "pending"}
           </Badge>
         </div>
         <p className="text-xs text-gray-500 mb-3 truncate">{orderTitle}</p>
         <div className="flex items-center justify-between">
           <span className="text-blue-600 font-bold text-sm">
-            {order.total.toLocaleString("vi-VN")}đ
+            {orderTotal.toLocaleString("vi-VN")}đ
           </span>
           {/* ✅ BƯỚC 3: Kích hoạt modal toàn cục */}
           <Button

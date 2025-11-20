@@ -98,16 +98,16 @@ const fetchPaginatedProducts = async ({
       },
     });
     
-    // Debug: Log response để kiểm tra
-    console.log("📦 Products API Response:", res.data);
-    
     // ✅ Backend trả về: { success: true, data: { data: [], page: 1, totalPages: 5 } }
     // data.data là mảng products trực tiếp, không phải data.data.products
     const products: PrinterProduct[] = res.data?.data?.data || [];
     const page = res.data?.data?.page || pageParam;
     const totalPages = res.data?.data?.totalPages || 1;
     
-    console.log(`📊 Found ${products.length} products (page ${page}/${totalPages})`);
+    // Debug: Chỉ log khi dev mode
+    if (import.meta.env.DEV) {
+      console.log(`📊 Products: ${products.length} items (page ${page}/${totalPages})`);
+    }
 
     const productsWithAssets: Product[] = products.map((p) => ({
       ...p,

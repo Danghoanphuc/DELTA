@@ -11,6 +11,7 @@ import { SettingsPage } from "@/features/printer/pages/SettingsPage";
 import { SupportPage } from "@/features/printer/pages/SupportPage";
 import { AccountPage } from "@/features/printer/pages/AccountPage";
 import  AssetManagementPage  from "@/features/printer/pages/AssetManagementPage";
+import { WalletPage } from "@/features/printer/pages/WalletPage";
 
 // ✅ GIAI ĐOẠN 2: Thêm UI cho "Chốt kiểm soát"
 import { Button } from "@/shared/components/ui/button";
@@ -132,6 +133,8 @@ export default function PrinterApp() {
         return <AssetManagementPage />;
       case "orders":
         return <OrderManagement />;
+      case "wallet":
+        return <WalletPage />; // Luôn được phép
       case "settings":
         return <SettingsPage />; // Luôn được phép
       case "support":

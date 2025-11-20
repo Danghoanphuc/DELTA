@@ -14,7 +14,7 @@ import {
 import { PrinterProfile } from "../../shared/models/printer-profile.model.js";
 
 // === Payment Services ===
-import { MomoService } from "../..//shared/services/momo.service.js";
+import { MomoService } from "../../infrastructure/payment/momo.client.js";
 
 export class CheckoutService {
   constructor() {

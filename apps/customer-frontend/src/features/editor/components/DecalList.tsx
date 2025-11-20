@@ -15,10 +15,18 @@ import {
   FolderOpen,
   Lock,
   Unlock,
+  AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { NativeScrollArea } from "@/shared/components/ui/NativeScrollArea";
 import { cn } from "@/shared/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/components/ui/tooltip";
 
 // 1. Import DND-Kit (Core, Sortable, Utilities)
 import {
@@ -143,6 +151,29 @@ const SortableItem = ({
         <span className="text-sm truncate" title={name}>
           {name}
         </span>
+        {/* Quality warning icon for images */}
+        {item.type === "decal" && (item as DecalItem).decalType === "image" && (item as DecalItem).qualityStatus && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex-shrink-0">
+                  {(item as DecalItem).qualityStatus === "bad" ? (
+                    <AlertCircle size={14} className="text-red-500" />
+                  ) : (item as DecalItem).qualityStatus === "warning" ? (
+                    <AlertTriangle size={14} className="text-yellow-500" />
+                  ) : null}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">
+                  {(item as DecalItem).qualityStatus === "bad"
+                    ? "Độ phân giải rất thấp - In sẽ bị mờ"
+                    : "Độ phân giải thấp - Khuyến nghị dùng ảnh chất lượng cao hơn"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
 
       {/* Actions (Lock, Hide) */}

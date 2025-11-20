@@ -65,10 +65,12 @@ export class CartService {
     if (!priceTier) {
       throw new ValidationException("Mức giá không hợp lệ.");
     }
+    
+    // ✅ Auto-correct quantity nếu nhỏ hơn minQuantity (UX friendly)
+    let finalQuantity = quantity;
     if (quantity < priceTier.minQuantity) {
-      throw new ValidationException(
-        `Số lượng tối thiểu là ${priceTier.minQuantity}.`
-      );
+      Logger.warn(`[CartService] Auto-correcting quantity from ${quantity} to ${priceTier.minQuantity}`);
+      finalQuantity = priceTier.minQuantity;
     }
 
     // 4. Lấy giỏ hàng
@@ -190,7 +192,54 @@ export class CartService {
     return await this.cartRepository.getPopulated(savedCart._id);
   }
 
-  // ... (updateCartItem, removeFromCart, clearCart giữ nguyên) ...
+  /**
+   * Cập nhật số lượng item trong giỏ hàng
+   */
+  async updateCartItem(userId, cartItemId, quantity) {
+    Logger.debug(`[CartService] Updating cart item ${cartItemId} for user: ${userId}`);
+    
+    if (!quantity || quantity < 1) {
+      throw new ValidationException("Số lượng phải lớn hơn 0.");
+    }
+
+    const cart = await this.cartRepository.findOrCreate(userId);
+    const itemIndex = cart.items.findIndex(
+      (item) => item._id.toString() === cartItemId
+    );
+
+    if (itemIndex === -1) {
+      throw new NotFoundException("Không tìm thấy sản phẩm trong giỏ hàng.");
+    }
+
+    // Cập nhật số lượng và subtotal
+    const item = cart.items[itemIndex];
+    item.quantity = quantity;
+    item.subtotal = quantity * item.selectedPrice.pricePerUnit;
+
+    const savedCart = await this.cartRepository.save(cart);
+    return await this.cartRepository.getPopulated(savedCart._id);
+  }
+
+  /**
+   * Xóa item khỏi giỏ hàng
+   */
+  async removeFromCart(userId, cartItemId) {
+    Logger.debug(`[CartService] Removing cart item ${cartItemId} for user: ${userId}`);
+    
+    const cart = await this.cartRepository.findOrCreate(userId);
+    const itemIndex = cart.items.findIndex(
+      (item) => item._id.toString() === cartItemId
+    );
+
+    if (itemIndex === -1) {
+      throw new NotFoundException("Không tìm thấy sản phẩm trong giỏ hàng.");
+    }
+
+    cart.items.splice(itemIndex, 1);
+
+    const savedCart = await this.cartRepository.save(cart);
+    return await this.cartRepository.getPopulated(savedCart._id);
+  }
 
   /**
    * Xóa sạch giỏ hàng
@@ -235,7 +284,7 @@ export class CartService {
       Product.find({
         _id: { $in: productIds },
         isActive: true,
-      }).select("_id"),
+      }).select("_id pricing"),
     ]);
 
     // 4. Tạo Map để tra cứu O(1)
@@ -243,7 +292,7 @@ export class CartService {
       printerProfiles.map((p) => [p._id.toString(), p])
     );
     const activeProductMap = new Map(
-      activeProducts.map((p) => [p._id.toString(), true])
+      activeProducts.map((p) => [p._id.toString(), p])
     );
 
     // 5. Duyệt giỏ hàng và kiểm tra
@@ -253,13 +302,49 @@ export class CartService {
       const printerProfileId = item.printerProfileId?.toString();
 
       // Kiểm tra 1: Sản phẩm bị xóa hoặc de-activated
-      if (!activeProductMap.has(productId)) {
+      const productDoc = activeProductMap.get(productId);
+      if (!productDoc) {
         invalidItems.push({
           cartItemId: item._id,
           productId,
           reason: "Sản phẩm này đã bị vô hiệu hóa hoặc không còn tồn tại.",
         });
         continue; // Bỏ qua, không cần check nhà in nữa
+      }
+
+      const selectedPrice = item.selectedPrice || {};
+      const cartUnitPrice = Number(selectedPrice.pricePerUnit);
+      const normalizeMax = (value) =>
+        typeof value === "number" ? value : value ?? null;
+      const latestTier =
+        productDoc.pricing?.find((tier) => {
+          const withinRange =
+            item.quantity >= tier.minQuantity &&
+            (tier.maxQuantity ? item.quantity <= tier.maxQuantity : true);
+          const sameTierSnapshot =
+            tier.minQuantity === selectedPrice.minQuantity &&
+            normalizeMax(tier.maxQuantity) === normalizeMax(selectedPrice.maxQuantity);
+          return withinRange || sameTierSnapshot;
+        }) ?? null;
+
+      if (!latestTier) {
+        invalidItems.push({
+          cartItemId: item._id,
+          productId,
+          reason:
+            "Không tìm thấy mức giá phù hợp cho số lượng hiện tại. Vui lòng cập nhật giỏ hàng.",
+        });
+        continue;
+      }
+
+      const latestUnitPrice = Number(latestTier.pricePerUnit);
+      if (!cartUnitPrice || latestUnitPrice !== cartUnitPrice) {
+        invalidItems.push({
+          cartItemId: item._id,
+          productId,
+          reason: "Price changed, please update cart",
+        });
+        continue;
       }
 
       // Kiểm tra 2: Nhà in

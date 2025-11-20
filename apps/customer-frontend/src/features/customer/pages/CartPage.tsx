@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/stores/useCartStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
 import { ShippingCalculator } from '../components/ShippingCalculator';
 import {
   Card,
@@ -19,6 +20,9 @@ const CartPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const isAuthenticated = !!user;
+  
+  // ✅ Local state để người dùng có thể gõ thoải mái
+  const [editingQuantities, setEditingQuantities] = useState<Record<string, string>>({});
   const [shippingFee, setShippingFee] = useState(0);
   const {
     cart,
@@ -37,7 +41,7 @@ const CartPage = () => {
     if (quantity < 1) return;
     try {
       await updateCartItem(itemId, quantity);
-      toast.success('Cập nhật số lượng thành công');
+      // ✅ Không dùng toast - UI tự động cập nhật
     } catch (error) {
       toast.error('Không thể cập nhật số lượng');
     }
@@ -46,7 +50,7 @@ const CartPage = () => {
   const handleRemoveItem = async (itemId: string) => {
     try {
       await removeFromCart(itemId);
-      toast.success('Đã xóa sản phẩm khỏi giỏ hàng');
+      // ✅ Không dùng toast - UI tự động cập nhật
     } catch (error) {
       toast.error('Không thể xóa sản phẩm');
     }
@@ -56,7 +60,7 @@ const CartPage = () => {
     if (window.confirm('Bạn có chắc muốn xóa toàn bộ giỏ hàng?')) {
       try {
         await clearCart();
-        toast.success('Đã xóa toàn bộ giỏ hàng');
+        // ✅ Không dùng toast - UI tự động cập nhật
       } catch (error) {
         toast.error('Không thể xóa giỏ hàng');
       }
@@ -162,9 +166,38 @@ const CartPage = () => {
                     <Minus className="h-4 w-4" />
                   </Button>
                   
-                  <span className="w-12 text-center font-medium" aria-label={`Số lượng: ${item.quantity}`}>
-                    {item.quantity}
-                  </span>
+                  {/* ✅ Thay span bằng Input để người dùng có thể nhập trực tiếp */}
+                  <Input
+                    type="number"
+                    min="1"
+                    value={editingQuantities[item._id] ?? item.quantity}
+                    onChange={(e) => {
+                      // ✅ Chỉ update local state, không call API
+                      setEditingQuantities(prev => ({
+                        ...prev,
+                        [item._id]: e.target.value
+                      }));
+                    }}
+                    onBlur={(e) => {
+                      const newQty = Math.max(1, parseInt(e.target.value) || 1);
+                      if (newQty !== item.quantity) {
+                        handleUpdateQuantity(item._id, newQty);
+                      }
+                      // Clear local editing state
+                      setEditingQuantities(prev => {
+                        const updated = {...prev};
+                        delete updated[item._id];
+                        return updated;
+                      });
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.currentTarget.blur(); // Trigger onBlur
+                      }
+                    }}
+                    className="w-20 h-10 text-center font-medium"
+                    aria-label={`Số lượng: ${item.quantity}`}
+                  />
                   
                   <Button
                     variant="outline"

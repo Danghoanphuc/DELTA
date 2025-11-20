@@ -62,6 +62,7 @@ const ChatAppView = () => {
   const navigate = useNavigate();
   const hasProcessedSearchRef = React.useRef(false);
 
+  // ✅ FIX: Proper useEffect dependencies
   useEffect(() => {
     const searchTermFromUrl = searchParams.get("search");
     if (searchTermFromUrl && !hasProcessedSearchRef.current) {
@@ -73,7 +74,7 @@ const ChatAppView = () => {
     } else if (!searchTermFromUrl) {
       hasProcessedSearchRef.current = false;
     }
-  }, [searchParams.get("search") || ""]); // Phụ thuộc đã chính xác
+  }, [searchParams, handleSearchSubmit, setSearchParams]);
 
   const openChat = () => {
     navigate("/chat");

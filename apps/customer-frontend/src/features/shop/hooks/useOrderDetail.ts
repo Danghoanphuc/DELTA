@@ -23,11 +23,11 @@ export const useOrderDetail = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ✅ FIX: Detect isPrinter dựa vào activeContext hoặc URL path hoặc printerProfileId
+  // ✅ FIX: Detect isPrinter dựa vào activeContext HOẶC URL path
   const isPrinter =
     activeContext === "printer" ||
-    location.pathname.startsWith("/printer/") ||
-    !!user?.printerProfileId;
+    location.pathname.startsWith("/printer/");
+    // !!user?.printerProfileId; // <-- REMOVE THIS LINE (NGUYÊN NHÂN GÂY LỖI)
 
   useEffect(() => {
     const fetchOrder = async () => {

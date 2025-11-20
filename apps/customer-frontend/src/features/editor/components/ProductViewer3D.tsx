@@ -28,7 +28,7 @@ import {
   SurfaceDefinition,
 } from "../hooks/use3DInteraction";
 import { DecalItem } from "../types/decal.types";
-import { GizmoMode } from "../hooks/useDesignEditor";
+import { GizmoMode } from "@/stores/useEditorStore";
 
 // Ngưỡng kéo (khoảng cách pixel)
 const DRAG_THRESHOLD = 5;

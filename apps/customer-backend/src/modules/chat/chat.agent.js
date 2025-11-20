@@ -1,8 +1,7 @@
-// src/modules/chat/chat.agent.js (UNCHANGED FROM PREVIOUS)
+// src/modules/chat/chat.agent.js
 import { ChatAiService } from "./chat.ai.service.js";
 import { ChatToolService } from "./chat.tools.service.js";
 import { ChatResponseUtil } from "./chat.response.util.js";
-import { ValidationException } from "../../shared/exceptions/index.js";
 import { Logger } from "../../shared/utils/index.js";
 
 export class ChatAgent {
@@ -11,81 +10,32 @@ export class ChatAgent {
     this.toolService = new ChatToolService();
   }
 
-  async run(context, history, body) {
-    const { message, fileUrl, fileName, fileType } = body;
-    const route = this._route(message, fileUrl);
+  /**
+   * Hàm điều phối chính (Main Entry Point)
+   * @param {Object} context - User context
+   * @param {Array} history - Lịch sử chat
+   * @param {String} message - Tin nhắn user
+   * @param {String} systemOverride - (Optional) Chỉ thị hệ thống (ví dụ Vision result)
+   */
+  async run(context, history, message, systemOverride = null) {
+    Logger.debug(
+      `[ChatAgent] 🧠 Processing message: "${message.substring(0, 50)}..."`
+    );
 
-    switch (route.name) {
-      case "HANDLE_FILE":
-        Logger.debug(`[ChatAgent] Routing to: HANDLE_FILE (${fileName})`);
-        return this._handleFileAnalysis(context, history, {
-          fileUrl,
-          fileName,
-          fileType,
-        });
-
-      case "HANDLE_ORCHESTRATION":
-        Logger.debug(`[ChatAgent] Routing to: HANDLE_ORCHESTRATION`);
-        return this._handleOrchestration(context, history, message);
-
-      case "INVALID_INPUT":
-      default:
-        Logger.warn(`[ChatAgent] Routing to: INVALID_INPUT`);
-        throw new ValidationException("Tin nhắn không hợp lệ.");
-    }
-  }
-
-  _route(message, fileUrl) {
-    if (fileUrl) {
-      return { name: "HANDLE_FILE" };
-    }
-    if (message) {
-      return { name: "HANDLE_ORCHESTRATION" };
-    }
-    return { name: "INVALID_INPUT" };
-  }
-
-  async _handleFileAnalysis(context, history, fileInfo) {
-    let analysisResult;
-    const { fileUrl, fileName, fileType } = fileInfo;
-    const isImage = fileType.startsWith("image/");
-    const isPdf = fileType === "application/pdf";
-
-    if (isImage || isPdf) {
-      const analysisPrompt = `
-      Nhiệm vụ: Phân tích file (${fileName}) và xác định (1) Nội dung file (ví dụ: logo, thiết kế card visit, ảnh chụp) 
-      và (2) Sản phẩm in ấn phù hợp nhất (ví dụ: 'áo thun', 'card visit', 'poster').
-      Trả lời ngắn gọn, tập trung vào sản phẩm. Ví dụ: "Đây là thiết kế card visit 2 mặt."
-      `;
-      analysisResult = await this.aiService.getVisionCompletion(
-        fileUrl,
-        analysisPrompt,
-        context
-      );
-    } else {
-      analysisResult = `Đây là một file loại ${fileType} tên là ${fileName}.`;
-    }
-
-    Logger.debug(`[ChatAgent] Vision analysis result: ${analysisResult}`);
-
-    const syntheticMessage = `
-    Ngữ cảnh (User không thấy): Tôi vừa phân tích file user tải lên (${fileName}).
-    Kết quả phân tích: "${analysisResult}".
-
-    Nhiệm vụ của bạn: Hãy trả lời người dùng, xác nhận bạn đã "thấy" file
-    và đưa ra gợi ý THÔNG MINH.
-    `;
-
-    return this._handleOrchestration(context, history, syntheticMessage);
-  }
-
-  async _handleOrchestration(context, history, messageText) {
+    // 1. Chuẩn bị Messages cho OpenAI
     const messages = ChatResponseUtil.prepareHistoryForOpenAI(history);
-    messages.push({ role: "user", content: messageText });
 
+    // Nếu có system override (từ Vision AI), chèn vào đầu
+    if (systemOverride) {
+      messages.push({ role: "system", content: systemOverride });
+    }
+
+    messages.push({ role: "user", content: message });
+
+    // 2. Lấy Tool Definitions
     const toolDefinitions = this.toolService.getToolDefinitions();
 
-    // 🔥 CUỘC GỌI NÀY GIỜ ĐÃ CÓ FALLBACK TÍCH HỢP
+    // 3. Gọi AI lần 1 (Decision making)
     const aiResponse = await this.aiService.getCompletion(
       messages,
       toolDefinitions,
@@ -93,32 +43,45 @@ export class ChatAgent {
     );
     const responseMessage = aiResponse.choices[0].message;
 
-    // Nếu aiResponse là kết quả fallback, responseMessage.tool_calls sẽ KHÔNG TỒN TẠI
+    // 4. Kiểm tra xem AI có muốn dùng Tool không
     if (responseMessage.tool_calls) {
+      Logger.info(
+        `[ChatAgent] 🛠️ Tool usage detected: ${responseMessage.tool_calls[0].function.name}`
+      );
+
+      // Push "intent" của AI vào history ảo
       messages.push(responseMessage);
+
       const toolCall = responseMessage.tool_calls[0];
+
+      // Thực thi Tool
       const { response, isTerminal } = await this.toolService.executeTool(
         toolCall,
         context
       );
 
+      // Nếu Tool là Terminal (kết thúc luôn flow), trả về luôn
       if (isTerminal) {
         return response;
       }
 
-      messages.push(response);
+      // Nếu không, đưa kết quả Tool lại cho AI
+      messages.push(response.response); // response.response là message role='tool'
+
+      // Gọi AI lần 2 (Summarize result)
       const finalAiResponse = await this.aiService.getCompletion(
         messages,
-        toolDefinitions,
+        toolDefinitions, // Vẫn đưa tools vào phòng khi AI muốn gọi tiếp (multi-step)
         context
       );
+
       return ChatResponseUtil.createTextResponse(
         finalAiResponse.choices[0].message.content,
         true
       );
-    } else {
-      // LUỒNG "AI TRẢ LỜI THẲNG" (HOẶC LUỒNG FALLBACK) SẼ ĐI VÀO ĐÂY
-      return ChatResponseUtil.createTextResponse(responseMessage.content, true);
     }
+
+    // 5. Không dùng Tool -> Trả lời thẳng
+    return ChatResponseUtil.createTextResponse(responseMessage.content, true);
   }
 }

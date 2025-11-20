@@ -1,13 +1,14 @@
-// src/features/chat/components/ChatInput.tsx (SMOOTH EXPANSION FIX)
+// src/features/chat/components/ChatInput.tsx (REFACTORED - Dumb Component)
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Send, X, Loader2, Image as ImageIcon, Paperclip } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { LoginPopup } from "@/features/auth/components/LoginPopup";
-import { useDropzone } from "react-dropzone";
-import { toast } from "sonner";
 import { cn } from "@/shared/lib/utils";
+
+// Import custom hook
+import { useFileUpload } from "../hooks/useFileUpload";
 
 interface ChatInputProps {
   isLoading: boolean;
@@ -21,11 +22,26 @@ export function ChatInput({
   onFileUpload,
 }: ChatInputProps) {
   const [message, setMessage] = useState("");
-  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { accessToken } = useAuthStore();
+
+  // Use custom hook for file upload logic
+  const { fileToUpload, isDragActive, clearFile, dropzoneConfig } = useFileUpload({
+    onFileUpload: (file) => {
+        // Optional: Focus textarea after file selection
+        textareaRef.current?.focus();
+    },
+    isLoading,
+  });
+
+  // Enforce auth when file is selected
+  useEffect(() => {
+      if (fileToUpload && !accessToken) {
+          clearFile();
+          setShowLoginPopup(true);
+      }
+  }, [fileToUpload, accessToken, clearFile]);
 
   // ✅ FIX: Smooth Expansion Logic
   useEffect(() => {
@@ -55,7 +71,7 @@ export function ChatInput({
 
     if (fileToUpload) {
       onFileUpload(fileToUpload);
-      setFileToUpload(null);
+      clearFile();
     } 
     
     if (message.trim()) {
@@ -85,39 +101,12 @@ export function ChatInput({
     }
   };
 
-  const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
-      if (!accessToken) {
-        setShowLoginPopup(true);
-        return;
-      }
-      const file = acceptedFiles[0];
-      if (file) {
-        if (file.size > 10 * 1024 * 1024) {
-          toast.error("File quá lớn (Max 10MB).");
-          return;
-        }
-        setFileToUpload(file);
-        textareaRef.current?.focus();
-      }
-    },
-    [accessToken]
-  );
-
-  const { getRootProps, isDragActive } = useDropzone({
-    onDrop,
-    noClick: true,
-    noKeyboard: true,
-    multiple: false,
-    accept: { 'image/*': [], 'application/pdf': [] }
-  });
-
   const handleAttachClick = () => {
     if (!accessToken) {
       setShowLoginPopup(true);
       return;
     }
-    fileInputRef.current?.click();
+    dropzoneConfig.open();
   };
 
   const isReadyToSend = message.trim().length > 0 || fileToUpload !== null;
@@ -130,7 +119,7 @@ export function ChatInput({
         message="Vui lòng đăng nhập để gửi file"
       />
       
-      <div {...getRootProps()} className="relative flex flex-col w-full transition-all duration-300">
+      <div {...dropzoneConfig.getRootProps()} className="relative flex flex-col w-full transition-all duration-300">
         {isDragActive && (
           <div className="absolute inset-0 -top-10 bg-blue-500/90 z-50 rounded-2xl flex items-center justify-center backdrop-blur-sm animate-in fade-in">
             <p className="text-white font-bold text-lg">Thả file vào đây</p>
@@ -143,7 +132,7 @@ export function ChatInput({
             <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm">
               <ImageIcon size={14} />
               <span className="truncate max-w-[200px]">{fileToUpload.name}</span>
-              <button onClick={() => setFileToUpload(null)} className="ml-1 p-0.5 hover:bg-blue-200 rounded-full transition-colors">
+              <button onClick={clearFile} className="ml-1 p-0.5 hover:bg-blue-200 rounded-full transition-colors">
                 <X size={14} />
               </button>
             </div>
@@ -153,11 +142,8 @@ export function ChatInput({
         {/* AREA NHẬP LIỆU CHÍNH */}
         <div className="flex items-end gap-2 w-full">
            <input
-            type="file"
-            ref={fileInputRef}
-            onChange={(e) => { if(e.target.files?.[0]) onDrop([e.target.files[0]]); }}
+            {...dropzoneConfig.getInputProps()}
             className="hidden"
-            accept="image/*,.pdf"
           />
           
           {/* Nút Ghim */}

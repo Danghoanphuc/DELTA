@@ -10,6 +10,11 @@ import { BullAdapter } from "@bull-board/api/bullAdapter";
 import { ExpressAdapter } from "@bull-board/express";
 
 // Khởi tạo queue (dùng Redis)
+const PDF_QUEUE_CONCURRENCY = Math.max(
+  1,
+  Number(process.env.PDF_QUEUE_CONCURRENCY || 1)
+);
+
 export const pdfQueue = new Queue("pdf-rendering", {
   redis: {
     host: process.env.REDIS_HOST || "localhost",
@@ -18,7 +23,7 @@ export const pdfQueue = new Queue("pdf-rendering", {
 });
 
 // Worker process
-pdfQueue.process(async (job) => {
+pdfQueue.process(PDF_QUEUE_CONCURRENCY, async (job) => {
   const { baseProductId, editorData, dielineSvgUrl, specifications } = job.data;
 
   // (Chúng ta sẽ cần import pdfRenderer ở đây nếu nó chưa có)

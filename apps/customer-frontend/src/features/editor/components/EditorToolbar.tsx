@@ -74,7 +74,7 @@ interface EditorToolbarProps {
   onTabChange: (tab: string) => void;
   uploadedImages: UploadedImageVM[];
   onImageUpload: (file: File) => void;
-  onImageFileRead: (file: File, imageUrl: string) => void;
+  onImageFileRead: (file: File, imageUrl: string, qualityStatus?: "good" | "warning" | "bad") => void;
   imageDropQueue: File | null;
   // ❌ Gỡ bỏ: decals, selectedDecalId, onDecalUpdate
   // ❌ Gỡ bỏ: gizmoMode, onGizmoModeChange, isSnapping
@@ -90,16 +90,65 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false);
 
-  // (Các hàm handler file upload giữ nguyên)
+  // Helper function to calculate image quality based on DPI
+  const calculateImageQuality = (
+    imageWidth: number,
+    imageHeight: number
+  ): { status: "good" | "warning" | "bad"; dpi: number } => {
+    // Assume standard print surface size: 300mm x 300mm (~11.8 inches)
+    const PRINT_SIZE_INCHES = 11.8;
+    
+    // Calculate DPI based on the smaller dimension
+    const dpi = Math.min(imageWidth, imageHeight) / PRINT_SIZE_INCHES;
+    
+    // Determine status based on DPI thresholds
+    let status: "good" | "warning" | "bad";
+    if (dpi < 72) {
+      status = "bad";
+    } else if (dpi < 150) {
+      status = "warning";
+    } else {
+      status = "good";
+    }
+    
+    return { status, dpi };
+  };
+
+  // (Các hàm handler file upload giữ nguyên)
   const processFile = (file: File) => {
     if (!file.type.startsWith("image/")) {
-      toast.error("Chỉ hỗ trợ file ảnh (PNG, JPG, WEBP)");
+      toast.error("Chỉ hỗ trợ file ảnh (PNG, JPG, WEBP)");
       return;
     }
     if (imageDropQueue && imageDropQueue.name === file.name) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        onImageFileRead(file, e.target?.result as string);
+        const imageUrl = e.target?.result as string;
+        
+        // Load image to check quality
+        const img = new Image();
+        img.onload = () => {
+          const { status, dpi } = calculateImageQuality(img.naturalWidth, img.naturalHeight);
+          
+          // Show warning toast based on quality status
+          if (status === "bad") {
+            toast.error(
+              `⚠️ Ảnh chất lượng rất thấp (${Math.round(dpi)} DPI)! In sẽ bị mờ và vỡ hạt.`,
+              { duration: 5000 }
+            );
+          } else if (status === "warning") {
+            toast.warning(
+              `⚠️ Ảnh chất lượng thấp (${Math.round(dpi)} DPI). Khuyến nghị tải ảnh có độ phân giải cao hơn.`,
+              { duration: 5000 }
+            );
+          }
+          
+          onImageFileRead(file, imageUrl, status);
+        };
+        img.onerror = () => {
+          toast.error("Không thể tải ảnh");
+        };
+        img.src = imageUrl;
       };
       reader.readAsDataURL(file);
     } else {
@@ -142,7 +191,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           className="flex flex-col w-full py-3 h-auto data-[state=active]:bg-white data-[state=active]:shadow-sm"
         >
           <LayoutTemplate size={18} />
-          <span className="text-[10px] mt-1 font-medium">Mẫu</span>
+          <span className="text-[10px] mt-1 font-medium">Mẫu</span>
         </TabsTrigger>
         <TabsTrigger
           value="ai"
@@ -156,21 +205,21 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           className="flex flex-col w-full py-3 h-auto data-[state=active]:bg-white data-[state=active]:shadow-sm"
         >
           <Library size={18} />
-          <span className="text-[10px] mt-1 font-medium">Thư viện</span>
+          <span className="text-[10px] mt-1 font-medium">Thư viện</span>
         </TabsTrigger>
         <TabsTrigger
           value="text"
           className="flex flex-col w-full py-3 h-auto data-[state=active]:bg-white data-[state=active]:shadow-sm"
         >
           <Type size={18} />
-          <span className="text-[10px] mt-1 font-medium">Văn bản</span>
+          <span className="text-[10px] mt-1 font-medium">Văn bản</span>
         </TabsTrigger>
         <TabsTrigger
           value="shapes"
           className="flex flex-col w-full py-3 h-auto data-[state=active]:bg-white data-[state=active]:shadow-sm"
         >
           <Square size={18} />
-          <span className="text-[10px] mt-1 font-medium">Hình khối</span>
+          <span className="text-[10px] mt-1 font-medium">Hình khối</span>
         </TabsTrigger>
         {/* ❌ Gỡ bỏ Trigger 'properties' */}
       </TabsList>
@@ -181,7 +230,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
         {/* Tab Mẫu */}
         <TabsContent value="templates" className="m-0 p-4">
-          <h3 className="font-semibold text-sm mb-2">Mẫu Thiết kế</h3>
+          <h3 className="font-semibold text-sm mb-2">Mẫu Thiết kế</h3>
           <p className="text-xs text-gray-500">
             (Tính năng đang phát triển...)
           </p>
@@ -189,14 +238,14 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
         {/* Tab AI */}
         <TabsContent value="ai" className="m-0 p-4 space-y-3">
-          <h3 className="font-semibold text-sm">Tạo bằng AI</h3>
+          <h3 className="font-semibold text-sm">Tạo bằng AI</h3>
           <Textarea
-            placeholder="Mô tả hình ảnh bạn muốn..."
+            placeholder="Mô tả hình ảnh bạn muốn..."
             rows={3}
             className="resize-none text-sm"
           />
           <Button className="w-full bg-gradient-to-r from-purple-500 to-blue-500 border-0">
-            <Sparkles size={16} className="mr-2" /> Tạo ngay
+            <Sparkles size={16} className="mr-2" /> Tạo ngay
           </Button>
         </TabsContent>
 
@@ -241,7 +290,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
         {/* Tab Văn bản */}
         <TabsContent value="text" className="m-0 p-4 space-y-3">
-          <h3 className="font-semibold text-sm">Thêm văn bản</h3>
+          <h3 className="font-semibold text-sm">Thêm văn bản</h3>
           <Button
             variant="outline"
             className="w-full justify-start cursor-move hover:border-blue-300 hover:bg-blue-50"
@@ -260,7 +309,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
         {/* Tab Hình khối */}
         <TabsContent value="shapes" className="m-0 p-4 space-y-3">
-          <h3 className="font-semibold text-sm">Hình cơ bản</h3>
+          <h3 className="font-semibold text-sm">Hình cơ bản</h3>
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant="outline"

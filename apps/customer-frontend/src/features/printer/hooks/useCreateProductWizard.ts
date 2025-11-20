@@ -16,6 +16,10 @@ import {
 } from "@/features/printer/schemas/productWizardSchema";
 // ✅ Import hook useMutation
 import { useSubmitProduct } from "@/features/printer/services/productWizardService";
+import {
+  toLegacyCategory,
+  toPrintzCategory,
+} from "@/features/printer/utils/categoryMapping";
 
 // --- Hook chính ---
 export function useCreateProductWizard(
@@ -38,16 +42,18 @@ export function useCreateProductWizard(
       assetId: "",
       name: "",
       description: "",
-      category: "other",
+      tags: [], // ✨ NEW: Tags field
+      category: "",
+      categoryDisplay: "",
+      subcategory: "",
       images: [],
       pricing: [{ minQuantity: 100, pricePerUnit: 1000 }],
       isActive: true,
     },
   });
 
-  const { control, setValue, watch, trigger, getValues, reset } = form;
-  const watchedAssetId = watch("assetId");
-  const watchedImages = watch("images");
+  const { control, setValue, trigger, getValues, reset } = form;
+  const watchedAssetId = form.watch("assetId");
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -71,11 +77,14 @@ export function useCreateProductWizard(
         } else {
           const product = await getProductById(productId);
           const assetId = (product as any).assetId || "unknown";
+          const displayCategory = toPrintzCategory(product.category);
           reset({
             assetId: assetId,
             name: product.name,
             description: product.description || "",
             category: product.category,
+            categoryDisplay: displayCategory,
+            subcategory: (product as any).subcategory || "",
             images: [],
             pricing: product.pricing,
             isActive: product.isActive,
@@ -108,10 +117,13 @@ export function useCreateProductWizard(
       const asset = allAssets.find((a) => a._id === watchedAssetId);
       if (asset) {
         setSelectedAsset(asset);
+        const displayCategory = toPrintzCategory(asset.category);
         if (!getValues("name")) {
           setValue("name", `In ${asset.name} theo yêu cầu`);
         }
-        setValue("category", asset.category as any);
+        setValue("category", asset.category || "");
+        setValue("categoryDisplay", displayCategory);
+        setValue("subcategory", "");
         if (activeStep === 1) {
           setActiveStep(2);
         }
@@ -189,7 +201,7 @@ export function useCreateProductWizard(
     console.error("❌ Form validation errors:", errors);
     toast.error("Dữ liệu nhập chưa hợp lệ, vui lòng kiểm tra lại các bước.");
     if (errors.assetId) setActiveStep(1);
-    else if (errors.name || errors.category) setActiveStep(2);
+    else if (errors.name || errors.categoryDisplay) setActiveStep(2);
     else if (errors.images) setActiveStep(3);
     else if (errors.pricing) setActiveStep(4);
     else setActiveStep(1);
@@ -204,7 +216,6 @@ export function useCreateProductWizard(
     privateAssets,
     publicAssets,
     selectedAsset,
-    watchedImages,
     pricingFields: fields,
     addPricingTier: append,
     removePricingTier: remove,

@@ -1,16 +1,16 @@
 // packages/types/src/printer.types.ts
 import { Types } from "./mongoose.types.js";
-import { IAddress } from "./user.types.js";
+import { IUser } from "./user.types.js";
 
 /**
  * @description Các hạng của Nhà in (Kiểu Type)
- * (Đã thêm lại ở lượt 44)
  */
 export enum PrinterTier {
   BRONZE = "BRONZE",
   SILVER = "SILVER",
   GOLD = "GOLD",
   PLATINUM = "PLATINUM",
+  STANDARD = "STANDARD", // ✅ Added from schema
 }
 
 /**
@@ -22,38 +22,178 @@ export const PRINTER_TIERS_OBJECT = {
   SILVER: "SILVER",
   GOLD: "GOLD",
   PLATINUM: "PLATINUM",
-} as const; // Dùng "as const" để bảo vệ giá trị
+  STANDARD: "STANDARD",
+} as const;
 
 /**
  * @description Trạng thái Onboarding của Nhà in với Stripe.
- * (Type Alias - Đã sửa ở lượt 41)
  */
 export type StripeAccountStatus =
-  | "ONBOARDING_REQUIRED"
-  | "PENDING_VERIFICATION"
+  | "PENDING"
   | "ACTIVE"
   | "RESTRICTED"
-  | "UNKNOWN";
+  | "UNKNOWN"
+  | "ONBOARDING_REQUIRED"
+  | "PENDING_VERIFICATION";
 
 /**
- * @description "Hợp đồng" cho Mongoose Model (Đã vá ở lượt 41)
+ * @description Trạng thái xác minh của Nhà in
+ */
+export type VerificationStatus =
+  | "not_submitted"
+  | "pending_review"
+  | "approved"
+  | "rejected";
+
+/**
+ * @description Phân khúc giá
+ */
+export type PriceTier = "cheap" | "standard" | "premium";
+
+/**
+ * @description Tốc độ sản xuất
+ */
+export type ProductionSpeed = "fast" | "standard";
+
+/**
+ * @description Địa chỉ xưởng in với GeoJSON
+ */
+export interface ShopAddress {
+  street: string;
+  ward?: string;
+  district: string;
+  city: string;
+  location: {
+    type: "Point";
+    coordinates: [number, number]; // [longitude, latitude]
+  };
+}
+
+/**
+ * @description Tài liệu xác minh
+ */
+export interface VerificationDocs {
+  gpkdUrl?: string; // Giấy phép kinh doanh
+  cccdUrl?: string; // CCCD
+}
+
+/**
+ * @description Ảnh xưởng
+ */
+export interface FactoryImage {
+  url: string;
+  caption?: string;
+}
+
+/**
+ * @description Stats
+ */
+export interface PrinterStats {
+  lastDemotionAt?: Date;
+  lastPromotionAt?: Date;
+}
+
+/**
+ * @description Commission Override
+ */
+export interface CommissionOverride {
+  rate: number;
+  expiresAt?: Date;
+}
+
+/**
+ * @description PrinterProfile Interface (Khớp 100% với Backend Schema)
  */
 export interface IPrinterProfile {
-  _id: Types.ObjectId;
-  owner: Types.ObjectId; // Ref: User
-  ownerEmail: string;
+  _id: Types.ObjectId | string;
+  user: Types.ObjectId | string;
+  
+  // Thông tin cơ bản
   businessName: string;
-
-  phoneNumber?: string;
-  businessAddress?: IAddress; // (Import từ File 2)
-  status?: "Pending" | "Approved" | "Rejected";
-
-  tier?: PrinterTier; // (Dùng enum ở trên)
-
-  // (Đã vá ở lượt 41)
+  contactPhone: string;
+  contactEmail?: string;
+  website?: string;
+  description?: string;
+  
+  // Hình ảnh
+  logoUrl?: string;
+  coverImage?: string;
+  
+  // Địa chỉ
+  shopAddress: ShopAddress;
+  
+  // Verification
+  verificationStatus: VerificationStatus;
+  verificationDocs?: VerificationDocs;
+  isVerified: boolean;
+  isActive: boolean;
+  
+  // Tier & Commission
+  tier: string; // Using string to match backend
+  standardCommissionRate: number;
+  commissionOverride?: CommissionOverride;
+  
+  // Health Metrics
+  healthScore?: number;
+  dailyCapacity?: number;
+  currentQueueSize?: number;
+  
+  // Stats
+  stats?: PrinterStats;
+  
+  // Business Info
+  specialties: string[];
+  priceTier: PriceTier;
+  productionSpeed: ProductionSpeed;
+  rating?: number;
+  totalReviews?: number;
+  totalSold?: number;
+  
+  // Stripe
   stripeAccountId?: string;
   stripeAccountStatus?: StripeAccountStatus;
+  
+  // Gallery
+  factoryImages?: FactoryImage[];
+  factoryVideoUrl?: string;
+  
+  // Business License
+  businessLicense?: string;
+  taxCode?: string;
+  
+  // Timestamps
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
 
-  createdAt: Date;
-  updatedAt: Date;
+/**
+ * @description Represents a PrinterProfile where the 'user' field has been populated.
+ */
+export interface IPrinterProfileWithUser extends Omit<IPrinterProfile, 'user'> {
+  user: IUser;
+}
+
+/**
+ * @description DTO cho Update Profile (chỉ các field có thể edit)
+ */
+export interface UpdatePrinterProfileDTO {
+  businessName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  website?: string;
+  description?: string;
+  logoUrl?: string;
+  coverImage?: string;
+  shopAddress?: Omit<ShopAddress, 'location'>; // Không cho edit coordinates
+  specialties?: string[];
+  priceTier?: PriceTier;
+  productionSpeed?: ProductionSpeed;
+}
+
+/**
+ * @description Form data cho Frontend (có thể chứa File objects)
+ */
+export interface PrinterProfileFormData extends Omit<UpdatePrinterProfileDTO, 'logoUrl' | 'coverImage'> {
+  logoUrl?: string | File;
+  coverImage?: string | File;
 }

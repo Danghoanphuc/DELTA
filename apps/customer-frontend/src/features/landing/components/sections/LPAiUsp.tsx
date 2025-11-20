@@ -4,7 +4,7 @@ import { Button } from "@/shared/components/ui/button";
 import { CheckCircle, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom"; // 1. IMPORT useNavigate
 import { Card, CardContent } from "@/shared/components/ui/card";
-import zinAvatar from "@/assets/img/zin-avatar.png";
+import zinAvatar from "@/assets/img/zin-avatar.svg";
 
 export function LPAiUsp() {
   const navigate = useNavigate(); // 2. KHỞI TẠO navigate
@@ -69,14 +69,12 @@ export function LPAiUsp() {
           >
             <div className="bg-white/20 backdrop-blur-lg rounded-3xl p-8 border border-white/20 shadow-2xl">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-white to-blue-100 flex items-center justify-center animate-pulse-slow">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden">
-                    <img
-                      src={zinAvatar}
-                      alt="Zin AI Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden">
+                  <img
+                    src={zinAvatar}
+                    alt="Zin AI Avatar"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div>
                   <h5 className="text-white">AI Zin</h5>

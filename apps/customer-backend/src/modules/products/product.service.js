@@ -10,6 +10,9 @@ import {
   ValidationException,
 } from "../../shared/exceptions/index.js";
 
+// ✅ RAG: Import Embedding Service
+import { embeddingService } from "../../shared/services/embedding.service.js";
+
 /**
  * Service này CHỈ dành cho Nhà in (Printer) đã xác thực
  * để quản lý sản phẩm CỦA HỌ.
@@ -174,6 +177,19 @@ class ProductService {
       printerProfileId: printerProfileId,
     };
 
+    // 4. ✅ RAG: Generate embedding for semantic search
+    if (embeddingService.isAvailable()) {
+      try {
+        const embedding = await embeddingService.generateProductEmbedding(productData);
+        if (embedding) {
+          productData.embedding = embedding;
+        }
+      } catch (error) {
+        // Log error but don't fail product creation
+        console.error("[ProductService] Failed to generate embedding:", error.message);
+      }
+    }
+
     return productRepository.create(productData);
   }
 
@@ -197,6 +213,29 @@ class ProductService {
     const { isPublished, healthStatus, stats, ...safeDto } = dto;
 
     Object.assign(product, safeDto);
+
+    // 4. ✅ RAG: Regenerate embedding if content fields changed
+    // Only regenerate if name, description, category, or specifications changed
+    const contentFieldsChanged =
+      dto.name || dto.description || dto.category || dto.specifications;
+
+    if (contentFieldsChanged && embeddingService.isAvailable()) {
+      try {
+        const embedding = await embeddingService.generateProductEmbedding(
+          product.toObject()
+        );
+        if (embedding) {
+          product.embedding = embedding;
+        }
+      } catch (error) {
+        // Log error but don't fail product update
+        console.error(
+          "[ProductService] Failed to regenerate embedding:",
+          error.message
+        );
+      }
+    }
+
     await product.save();
     return product;
   }
@@ -225,6 +264,164 @@ class ProductService {
       );
     }
     return { isAvailable: true };
+  }
+
+  // ========================================
+  // ✨ SMART PIPELINE: DRAFT SYSTEM
+  // ========================================
+
+  /**
+   * Tạo Draft (Partial validation)
+   * @param {string} printerProfileId
+   * @param {object} draftData - Partial product data
+   * @returns {Promise<Product>}
+   */
+  async createDraft(printerProfileId, draftData) {
+    if (!printerProfileId) {
+      throw new ForbiddenException(
+        "Không tìm thấy thông tin nhà in. Vui lòng đăng nhập lại."
+      );
+    }
+
+    // ✅ FIX: Generate unique slug for draft (add timestamp to avoid duplicates)
+    const baseSlug = draftData.name
+      ? this.generateSlug(draftData.name)
+      : `draft`;
+    const slug = `${baseSlug}-${Date.now()}`;
+
+    const product = new Product({
+      printerProfileId,
+      ...draftData,
+      isDraft: true,
+      slug,
+      draftStep: draftData.draftStep || 1,
+      draftLastSavedAt: new Date(),
+    });
+
+    // ✅ Skip full validation for draft
+    return product.save({ validateBeforeSave: false });
+  }
+
+  /**
+   * Update Draft
+   * @param {string} printerProfileId
+   * @param {string} productId
+   * @param {object} updates
+   * @returns {Promise<Product>}
+   */
+  async updateDraft(printerProfileId, productId, updates) {
+    // ✅ FIX: Use findOneAndUpdate để tránh version conflict khi auto-save nhanh
+    const product = await Product.findOneAndUpdate(
+      {
+        _id: productId,
+        printerProfileId: printerProfileId,
+        isDraft: true,
+      },
+      {
+        $set: {
+          ...updates,
+          draftLastSavedAt: new Date(),
+        },
+      },
+      {
+        new: true, // Return updated document
+        runValidators: false, // Skip validation for draft
+      }
+    );
+
+    if (!product) {
+      throw new NotFoundException("Draft", productId);
+    }
+
+    return product;
+  }
+
+  /**
+   * Publish Draft (Full validation)
+   * @param {string} printerProfileId
+   * @param {string} productId
+   * @returns {Promise<Product>}
+   */
+  async publishDraft(printerProfileId, productId) {
+    const product = await this.getProductAndVerifyOwnership(
+      printerProfileId,
+      productId
+    );
+
+    if (!product.isDraft) {
+      throw new ValidationException("Sản phẩm đã được publish");
+    }
+
+    // ✅ Full validation
+    if (!product.name || product.name.length < 5) {
+      throw new ValidationException("Tên sản phẩm phải có ít nhất 5 ký tự");
+    }
+    if (!product.category) {
+      throw new ValidationException("Vui lòng chọn danh mục sản phẩm");
+    }
+    if (!product.pricing || product.pricing.length === 0) {
+      throw new ValidationException("Phải có ít nhất 1 bậc giá");
+    }
+    if (!product.images || product.images.length === 0) {
+      throw new ValidationException("Phải có ít nhất 1 ảnh sản phẩm");
+    }
+
+    // Update slug if needed
+    if (product.slug.startsWith("draft-")) {
+      product.slug = this.generateSlug(product.name);
+    }
+
+    // Mark as published
+    product.isDraft = false;
+    product.isActive = true;
+    product.draftStep = null;
+    product.uploadStatus = "completed";
+
+    // Generate embedding for RAG search
+    await embeddingService.generateProductEmbedding(product);
+
+    return product.save(); // ✅ Full validation
+  }
+
+  /**
+   * Lấy danh sách Drafts của nhà in
+   * @param {string} printerProfileId
+   * @param {object} options - { page, limit }
+   * @returns {Promise<Array<Product>>}
+   */
+  async getMyDrafts(printerProfileId, options = {}) {
+    if (!printerProfileId) {
+      throw new ForbiddenException(
+        "Không tìm thấy thông tin nhà in. Vui lòng đăng nhập lại."
+      );
+    }
+
+    const { page = 1, limit = 10 } = options;
+
+    return productRepository.find(
+      { printerProfileId, isDraft: true },
+      { page, limit, sort: { draftLastSavedAt: -1 } }
+    );
+  }
+
+  /**
+   * Xóa Draft
+   * @param {string} printerProfileId
+   * @param {string} productId
+   * @returns {Promise<object>}
+   */
+  async deleteDraft(printerProfileId, productId) {
+    const product = await this.getProductAndVerifyOwnership(
+      printerProfileId,
+      productId
+    );
+
+    if (!product.isDraft) {
+      throw new ValidationException("Chỉ có thể xóa draft");
+    }
+
+    await productRepository.deleteById(productId);
+    return { message: "Đã xóa draft thành công." };
   }
 
   /**

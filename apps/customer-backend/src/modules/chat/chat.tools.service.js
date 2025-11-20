@@ -8,6 +8,9 @@ import { productRepository } from "../products/product.repository.js";
 import { OrderRepository } from "../orders/order.repository.js"; // (Import này ĐÚNG vì file đó export Class)
 import { NotFoundException } from "../../shared/exceptions/index.js";
 import { findBestPriceTier } from "../../shared/utils/pricing.util.js";
+// ✅ RAG: Import Embedding Service and Product Model
+import { embeddingService } from "../../shared/services/embedding.service.js";
+import { Product } from "../../shared/models/product.model.js";
 
 // (vasMap giữ nguyên)
 const vasMap = {
@@ -162,29 +165,138 @@ export class ChatToolService {
   // --- LOGIC THỰC THI CÁC TOOL ---
 
   /**
-   * (Tool _find_products giữ nguyên)
+   * ✅ UPGRADED: Semantic Search using MongoDB Atlas Vector Search
+   * Falls back to Regex search if vector search is unavailable
    */
   async _find_products(args, context) {
     const { search_query } = args;
+    
     try {
-      // ✅ SỬA LỖI 3: Dùng this.productRepository (instance)
+      // Step 1: Try Vector Search first (if available)
+      if (embeddingService.isAvailable()) {
+        Logger.info(`[ChatToolSvc] Attempting vector search for: "${search_query}"`);
+        
+        try {
+          // Generate embedding for user's search query
+          const queryVector = await embeddingService.generateEmbedding(search_query);
+          
+          if (queryVector && queryVector.length === 1536) {
+            // Execute MongoDB Atlas Vector Search
+            const vectorResults = await Product.aggregate([
+              {
+                $vectorSearch: {
+                  index: "vector_index", // Atlas Vector Search Index name
+                  path: "embedding",
+                  queryVector: queryVector,
+                  numCandidates: 100, // Candidate pool for ANN search
+                  limit: 5, // Final results
+                  filter: {
+                    isActive: { $ne: false }, // Only active products
+                  },
+                },
+              },
+              {
+                $project: {
+                  name: 1,
+                  pricing: 1,
+                  description: 1,
+                  category: 1,
+                  printerProfileId: 1,
+                  basePrice: 1,
+                  score: { $meta: "vectorSearchScore" }, // Relevance score
+                },
+              },
+            ]);
+
+            if (vectorResults && vectorResults.length > 0) {
+              Logger.info(
+                `[ChatToolSvc] Vector search found ${vectorResults.length} results`
+              );
+
+              // Format results for AI context
+              const simplifiedProducts = vectorResults.map((p) => ({
+                id: p._id.toString(),
+                name: p.name,
+                category: p.category,
+                price: p.pricing[0]?.pricePerUnit || p.basePrice || "N/A",
+                minQuantity: p.pricing[0]?.minQuantity || 1,
+                relevanceScore: p.score ? p.score.toFixed(3) : "N/A",
+                description: p.description
+                  ? p.description.substring(0, 100) + "..."
+                  : "",
+              }));
+
+              const jsonResult = JSON.stringify(simplifiedProducts, null, 2);
+              return ChatResponseUtil.createToolResponse(
+                "find_products",
+                `Kết quả tìm kiếm ngữ nghĩa (Semantic Search) cho "${search_query}":\n${jsonResult}\n\n(Ghi chú: relevanceScore cao hơn = liên quan hơn)`
+              );
+            } else {
+              Logger.info(
+                `[ChatToolSvc] Vector search returned no results, falling back to regex`
+              );
+            }
+          } else {
+            Logger.warn(
+              `[ChatToolSvc] Failed to generate query vector, falling back to regex`
+            );
+          }
+        } catch (vectorError) {
+          Logger.error(
+            `[ChatToolSvc] Vector search error: ${vectorError.message}`,
+            vectorError
+          );
+          // Continue to fallback
+        }
+      }
+
+      // Step 2: Fallback to Regex Search
+      Logger.info(`[ChatToolSvc] Using regex fallback search for: "${search_query}"`);
+      
       const products = await this.productRepository.find(
-        // Giả định hàm .find() tồn tại
-        { name: new RegExp(search_query, "i"), isActive: true }, // (Sửa lại logic search)
+        {
+          $and: [
+            {
+              $or: [
+                { name: new RegExp(search_query, "i") },
+                { description: new RegExp(search_query, "i") },
+                { category: new RegExp(search_query, "i") },
+              ],
+            },
+            {
+              $or: [
+                { isActive: true },
+                { isActive: { $exists: false } },
+                { isActive: null },
+              ],
+            },
+          ],
+        },
         { limit: 5 }
       );
+
+      if (!products || products.length === 0) {
+        return ChatResponseUtil.createToolResponse(
+          "find_products",
+          `Không tìm thấy sản phẩm nào khớp với "${search_query}". Vui lòng thử từ khóa khác.`
+        );
+      }
+
       const simplifiedProducts = products.map((p) => ({
-        id: p._id,
+        id: p._id.toString(),
         name: p.name,
-        price: p.pricing[0]?.pricePerUnit || "N/A",
+        category: p.category,
+        price: p.pricing[0]?.pricePerUnit || p.basePrice || "N/A",
         minQuantity: p.pricing[0]?.minQuantity || 1,
       }));
-      const jsonResult = JSON.stringify(simplifiedProducts);
+
+      const jsonResult = JSON.stringify(simplifiedProducts, null, 2);
       return ChatResponseUtil.createToolResponse(
         "find_products",
-        `Kết quả tìm kiếm cho "${search_query}": ${jsonResult}`
+        `Kết quả tìm kiếm (Regex) cho "${search_query}":\n${jsonResult}`
       );
     } catch (error) {
+      Logger.error(`[ChatToolSvc] Error in _find_products: ${error.message}`, error);
       return ChatResponseUtil.createToolResponse(
         "find_products",
         `Lỗi khi tìm sản phẩm: ${error.message}`
@@ -193,7 +305,7 @@ export class ChatToolService {
   }
 
   /**
-   * (Tool _get_recent_orders giữ nguyên)
+   * ✅ FIX: Tool _get_recent_orders - Transform MasterOrder data
    */
   async _get_recent_orders(args, context) {
     if (context.actorType === "Guest") {
@@ -208,7 +320,24 @@ export class ChatToolService {
     if (!orders || orders.length === 0) {
       return ChatResponseUtil.createTextResponse("Bạn chưa có đơn hàng nào.");
     }
-    return ChatResponseUtil.createOrderCarouselResponse(orders);
+    
+    // ✅ FIX: Transform MasterOrder to SimplifiedOrder format
+    const transformedOrders = orders.map(order => ({
+      _id: order._id.toString(),
+      orderNumber: order.orderNumber,
+      status: order.masterStatus || "pending",
+      total: order.totalAmount || 0,
+      items: (order.printerOrders && order.printerOrders[0]?.items) 
+        ? order.printerOrders[0].items.map(item => ({
+            productId: item.productId?.toString() || "",
+            productName: item.productName || "Sản phẩm",
+            quantity: item.quantity || 1,
+          }))
+        : [],
+      createdAt: order.createdAt || new Date().toISOString(),
+    }));
+    
+    return ChatResponseUtil.createOrderCarouselResponse(transformedOrders);
   }
 
   /**

@@ -10,6 +10,7 @@ import {
   Menu,
   X,
   Library,
+  Wallet,
 } from "lucide-react";
 import {
   Tooltip,
@@ -39,6 +40,7 @@ export function PrinterSidebar({
     { icon: Package, label: "Sản phẩm", id: "products" },
     { icon: Library, label: "Kho Phôi (3D/2D)", id: "assets" },
     { icon: ShoppingCart, label: "Đơn hàng", id: "orders" },
+    { icon: Wallet, label: "Ví của tôi", id: "wallet" },
     { icon: Settings, label: "Cài đặt", id: "settings" },
     { icon: HelpCircle, label: "Hỗ trợ", id: "support" },
     { icon: User, label: "Tài khoản", id: "account" },

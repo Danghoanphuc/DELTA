@@ -157,6 +157,7 @@ const ChatLayout = () => {
                  onSelectConversation={onSelectConversationWrapper}
                  onNewChat={onNewChatWrapper}
                  searchQuery={searchQuery}
+                 isVisible={true}
              />
          </div>
          
@@ -234,6 +235,7 @@ const ChatLayout = () => {
                                 onSelectConversation={onSelectConversationWrapper}
                                 onNewChat={onNewChatWrapper}
                                 searchQuery={searchQuery}
+                                isVisible={isSidebarOpen}
                             />
                         </div>
                     </motion.aside>

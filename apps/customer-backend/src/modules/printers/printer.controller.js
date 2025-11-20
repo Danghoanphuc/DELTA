@@ -161,4 +161,51 @@ export class PrinterController {
       }
     }
   };
+
+  // ============================================
+  // ✅ OBJECTIVE 2: PROOFING WORKFLOW ENDPOINTS
+  // ============================================
+  
+  /**
+   * Upload proof file for printer order
+   */
+  uploadProof = async (req, res, next) => {
+    try {
+      const { orderId } = req.params;
+      const { proofUrl, fileName, fileType } = req.body;
+      const printerId = req.user.printerProfileId;
+      
+      Logger.debug(`[PrinterCtrl] 📤 Upload proof request for order ${orderId}`);
+      
+      if (!proofUrl) {
+        throw new ValidationException("proofUrl là bắt buộc");
+      }
+      
+      const result = await this.printerService.uploadProof(orderId, printerId, {
+        url: proofUrl,
+        fileName,
+        fileType,
+      });
+      
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success(result));
+    } catch (error) {
+      next(error);
+    }
+  };
+  
+  /**
+   * Get order detail (for printer)
+   */
+  getOrderDetail = async (req, res, next) => {
+    try {
+      const { orderId } = req.params;
+      const printerId = req.user.printerProfileId;
+      
+      const order = await this.printerService.getOrderDetail(orderId, printerId);
+      
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ order }));
+    } catch (error) {
+      next(error);
+    }
+  };
 }

@@ -23,7 +23,12 @@ export type AdminAuditAction =
   | "ADMIN_PASSWORD_UPDATED"
   | "ADMIN_CREATED"
   | "ADMIN_ROLE_UPDATED"
-  | "ADMIN_STATUS_CHANGED";
+  | "ADMIN_STATUS_CHANGED"
+  | "ORDER_STATUS_FORCE_UPDATED"
+  | "PAYOUT_APPROVED"
+  | "PAYOUT_CONFIRMED"
+  | "PAYOUT_REJECTED"
+  | "ASSET_FLAGGED";
 
 export interface IAdminAuditLog {
   _id: string;

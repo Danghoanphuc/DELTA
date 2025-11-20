@@ -21,7 +21,7 @@ export const useProductDetail = () => {
   const params = useParams<{ id?: string; slug?: string }>();
   const productId = params.id || params.slug; // Lấy id hoặc slug
   const navigate = useNavigate();
-  const { addToCart, isInCart } = useCartStore();
+  const { addToCart, isInCart, cart } = useCartStore(); // ✅ Thêm cart để track changes
   const { user, accessToken } = useAuthStore();
   const isAuthenticated = !!user && !!accessToken;
 
@@ -48,9 +48,10 @@ export const useProductDetail = () => {
         const fetchedProduct = res.data.data as ProductWithPrinter; // Gán trực tiếp res.data.data
         
         setProduct(fetchedProduct);
-        if (fetchedProduct.pricing && fetchedProduct.pricing.length > 0) {
-          setSelectedQuantity(fetchedProduct.pricing[0].minQuantity || 1);
-        }
+        // ✅ Bắt đầu từ minQuantity để đảm bảo valid, nhưng nếu minQuantity quá lớn thì dùng 1
+        const minQty = fetchedProduct.pricing?.[0]?.minQuantity || 1;
+        const defaultQty = minQty <= 10 ? minQty : 1; // Nếu minQty > 10, cho phép user bắt đầu từ 1
+        setSelectedQuantity(defaultQty);
       } catch (err: any) {
         console.error("❌ Error fetching product:", err);
         toast.error("Không thể tải thông tin sản phẩm");
@@ -90,7 +91,7 @@ export const useProductDetail = () => {
   );
   const inCart = useMemo(
     () => (product ? isInCart(product._id, isAuthenticated) : false),
-    [product, isInCart, isAuthenticated]
+    [product, isInCart, isAuthenticated, cart] // ✅ Thêm cart để re-compute khi cart thay đổi
   );
   const isCustomizable = useMemo(() => {
     return !!(

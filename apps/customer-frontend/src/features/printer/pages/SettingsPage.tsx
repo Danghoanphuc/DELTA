@@ -4,6 +4,7 @@
 import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
 import { SettingsHeader } from "@/features/printer/components/SettingsHeader";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { PrinterProfileForm } from "@/features/printer/components/PrinterProfileForm";
 import {
   Card,
   CardContent,
@@ -166,17 +167,8 @@ export function SettingsPage() {
         {/* ✅ GIAI ĐOẠN 2: Render Card Xác thực */}
         {profile && <VerificationCard profile={profile} />}
 
-        {/* Nội dung cài đặt thông thường (Hồ sơ, Dịch vụ, v.v.) */}
-        <Card className="shadow-sm border border-gray-200">
-          <CardHeader>
-            <CardTitle>Cài đặt Thông tin Xưởng</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-700">
-              (Form cập nhật Logo, Ảnh bìa, Địa chỉ, Mô tả... sẽ nằm ở đây)
-            </p>
-          </CardContent>
-        </Card>
+        {/* ✅ OBJECTIVE 1: Printer Profile Form */}
+        <PrinterProfileForm />
       </div>
     </ScrollArea>
   );

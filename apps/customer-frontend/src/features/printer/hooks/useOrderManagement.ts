@@ -34,13 +34,26 @@ const fetchPaginatedOrders = async ({
       },
     });
 
-    // Backend trả về: { orders: [], page: 1, totalPages: 5, total: 100 }
-    const orders: Order[] = res.data?.orders || res.data?.data?.orders || [];
-    const page = res.data?.page || res.data?.data?.page || pageParam;
-    const totalPages = res.data?.totalPages || res.data?.data?.totalPages || 1;
+    // ✅ DEBUG: Log full response để xem structure
+    console.log("🔍 [useOrderManagement] Full response:", res.data);
+    
+    // ✅ FIX: Backend wraps response in ApiResponse.success({ orders, page, ... })
+    // Structure: { success: true, data: { orders: [], page: 1, totalPages: 5 } }
+    const responseData = res.data?.data || res.data;  // Unwrap ApiResponse first!
+    
+    console.log("🔍 [useOrderManagement] responseData:", responseData);
+    console.log("🔍 [useOrderManagement] responseData.orders type:", typeof responseData?.orders);
+    console.log("🔍 [useOrderManagement] responseData.orders is array?:", Array.isArray(responseData?.orders));
+    
+    const orders: Order[] = Array.isArray(responseData?.orders) 
+      ? responseData.orders 
+      : [];
+    const page = responseData?.page || pageParam;
+    const totalPages = responseData?.totalPages || 1;
 
     console.log(
-      `📊 Found ${orders.length} orders (page ${page}/${totalPages})`
+      `📊 [useOrderManagement] Found ${orders.length} orders (page ${page}/${totalPages})`,
+      orders.length > 0 ? orders.map(o => ({ _id: o._id, orderNumber: o.orderNumber })) : "No orders"
     );
 
     return {

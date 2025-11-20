@@ -7,6 +7,8 @@ import { cn } from "@/shared/lib/utils";
 import { MessageSquare, Clock, SearchX, MoreHorizontal, Pencil, Trash2, Check, X } from "lucide-react";
 import { ChatHistorySkeleton } from "@/shared/components/ui/skeleton";
 import { useChatContext } from "../context/ChatProvider"; // ✅ Import Context
+import { ConfirmDialog } from "@/shared/components/ui/ConfirmDialog";
+import { useConfirmDialog } from "@/shared/hooks/useConfirmDialog";
 
 interface ChatHistorySidebarProps {
   conversations: ChatConversation[];
@@ -15,6 +17,7 @@ interface ChatHistorySidebarProps {
   onNewChat: () => void;
   searchQuery?: string;
   isLoading?: boolean;
+  isVisible: boolean;
 }
 
 export function ChatHistorySidebar({
@@ -26,6 +29,9 @@ export function ChatHistorySidebar({
 }: ChatHistorySidebarProps) {
   // ✅ Lấy handler từ Context
   const { handleRenameConversation, handleDeleteConversation } = useChatContext();
+
+  // ✅ Confirm Dialog
+  const { dialogState, openDialog, closeDialog } = useConfirmDialog();
 
   // ✅ Local State cho UI Menu & Edit
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
@@ -87,10 +93,18 @@ export function ChatHistorySidebar({
       setEditingId(null);
   };
 
-  const deleteChat = (e: React.MouseEvent, id: string) => {
+  const deleteChat = (e: React.MouseEvent, id: string, title: string) => {
       e.stopPropagation();
       setMenuOpenId(null);
-      handleDeleteConversation(id);
+      
+      openDialog({
+        title: "Xóa cuộc trò chuyện?",
+        description: `Bạn có chắc chắn muốn xóa "${title}"? Hành động này không thể hoàn tác.`,
+        confirmText: "Xóa",
+        cancelText: "Hủy",
+        variant: "danger",
+        onConfirm: () => handleDeleteConversation(id),
+      });
   };
 
   return (
@@ -200,7 +214,7 @@ export function ChatHistorySidebar({
                                 </button>
                                 <div className="h-[1px] bg-gray-100 dark:bg-gray-700 my-1"></div>
                                 <button 
-                                    onClick={(e) => deleteChat(e, convo._id)}
+                                    onClick={(e) => deleteChat(e, convo._id, convo.title || "Đoạn chat mới")}
                                     className="w-full text-left px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center gap-2"
                                 >
                                     <Trash2 size={12} />
@@ -215,6 +229,18 @@ export function ChatHistorySidebar({
           )}
         </div>
       </NativeScrollArea>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={dialogState.isOpen}
+        onClose={closeDialog}
+        onConfirm={dialogState.onConfirm}
+        title={dialogState.title}
+        description={dialogState.description}
+        confirmText={dialogState.confirmText}
+        cancelText={dialogState.cancelText}
+        variant={dialogState.variant}
+      />
     </div>
   );
 }

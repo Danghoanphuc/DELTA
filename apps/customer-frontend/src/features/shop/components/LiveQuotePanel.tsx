@@ -125,7 +125,7 @@ export const LiveQuotePanel: React.FC<LiveQuotePanelProps> = ({
           size="lg"
           className="w-full bg-blue-600 hover:bg-blue-700"
           onClick={onSaveAndAddToCart}
-          disabled={isSaving || isQuantityInvalid}
+          disabled={isSaving}
         >
           {isSaving ? (
             <Loader2 size={20} className="mr-2 animate-spin" />

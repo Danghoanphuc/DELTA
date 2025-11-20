@@ -73,6 +73,7 @@ const ChatHistoryView = () => {
             currentConversationId={currentConversationId}
             onSelectConversation={handleConversationSelect}
             onNewChat={handleNewChatClick}
+            isVisible={true}
           />
         </div>
       </div>

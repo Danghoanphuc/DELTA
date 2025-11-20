@@ -7,13 +7,9 @@ import Joi from "joi"; // Import Joi để xác thực
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// ✅ IMPROVEMENT: Load .env silently
 if (process.env.NODE_ENV !== "production") {
-  console.log("Đang chạy ở môi trường DEV, tải file .env...");
   dotenv.config({ path: path.resolve(__dirname, "../../.env") });
-} else {
-  console.log(
-    "Đang chạy ở môi trường PROD, sử dụng biến môi trường của Render."
-  );
 }
 // --- Hết phần logic của Phúc ---
 
@@ -70,6 +66,11 @@ const envVarsSchema = Joi.object()
     MOMO_ENDPOINT: Joi.string().uri().allow("").optional(),
     MOMO_RETURN_URL: Joi.string().uri().allow("").optional(),
     MOMO_IPN_URL: Joi.string().uri().allow("").optional(),
+
+    // --- CẤU HÌNH PAYOS ---
+    PAYOS_CLIENT_ID: Joi.string().required(),
+    PAYOS_API_KEY: Joi.string().required(),
+    PAYOS_CHECKSUM_KEY: Joi.string().required(),
   })
   .unknown(); // Cho phép các biến env khác không được định nghĩa
 
@@ -174,5 +175,12 @@ export const config = {
     endpoint: envVars.MOMO_ENDPOINT,
     returnUrl: envVars.MOMO_RETURN_URL,
     ipnUrl: envVars.MOMO_IPN_URL,
+  },
+
+  // --- PAYOS ---
+  payos: {
+    clientId: envVars.PAYOS_CLIENT_ID,
+    apiKey: envVars.PAYOS_API_KEY,
+    checksumKey: envVars.PAYOS_CHECKSUM_KEY,
   },
 };

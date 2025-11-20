@@ -42,11 +42,13 @@ export class OrderController {
 
   getPrinterOrders = async (req, res, next) => {
     try {
-      const orders = await this.orderService.getPrinterOrders(
+      const result = await this.orderService.getPrinterOrders(
         req.user._id,
         req.query
       );
-      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ orders }));
+      // ✅ FIX: result is { orders: [], page: 1, totalPages: 1, total: X }
+      // Don't wrap it again! Spread it directly!
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success(result));
     } catch (error) {
       next(error);
     }
@@ -54,14 +56,10 @@ export class OrderController {
 
   getPrinterOrderById = async (req, res, next) => {
     try {
-      // ✅ FIX: Validate orderId trước khi gọi service
+      // ✅ FIX: Validate orderId cleanup
       const orderId = req.params.orderId;
-      if (!orderId || orderId === "undefined") {
-        return res.status(API_CODES.BAD_REQUEST).json(
-          ApiResponse.error("Order ID is required", API_CODES.BAD_REQUEST)
-        );
-      }
       
+      // Removed manual check for "undefined" string, assume params are handled or use proper validation
       console.log("🔍 [Controller] getPrinterOrderById - orderId:", orderId, "userId:", req.user._id);
       
       const order = await this.orderService.getPrinterOrderById(

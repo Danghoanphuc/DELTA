@@ -1,7 +1,7 @@
 // src/features/chat/components/ChatWelcome.tsx (FIX GRID MOBILE)
 
 import { Package, Search, PenTool } from "lucide-react";
-import zinAvatar from "@/assets/img/zin-avatar.png";
+import zinAvatar from "@/assets/img/zin-avatar.svg";
 import { cn } from "@/shared/lib/utils";
 
 interface ChatWelcomeProps {
@@ -35,14 +35,11 @@ export const ChatWelcome = ({ onPromptClick }: ChatWelcomeProps) => {
       
       {/* 1. LOGO & INTRO */}
       <div className="text-center space-y-3 px-4 mb-6 w-full max-w-lg mx-auto">
-        <div className="relative inline-block group cursor-pointer">
-          <div className="absolute inset-0 bg-blue-500 dark:bg-blue-400 blur-3xl opacity-20 rounded-full"></div>
-          <img
-            src={zinAvatar}
-            alt="Zin AI Avatar"
-            className="relative w-16 h-16 md:w-20 md:h-20 mx-auto rounded-2xl shadow-2xl object-cover border-4 border-white dark:border-gray-800"
-          />
-        </div>
+        <img
+          src={zinAvatar}
+          alt="Zin AI Avatar"
+          className="w-16 h-16 md:w-20 md:h-20 mx-auto rounded-2xl shadow-2xl object-cover"
+        />
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight mb-1 md:mb-2">
             Xin chào, tôi là <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Zin AI</span>

@@ -12,19 +12,14 @@ import { cn } from "@/shared/lib/utils";
 // ❌ GỠ BỎ: UserAvatarFallback
 import { UserAvatar } from "@/components/UserAvatar"; // ✅ THAY THẾ
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useTheme } from "@/shared/hooks/useTheme";
-import zinAvatar from "@/assets/img/zin-avatar.png";
+import zinAvatar from "@/assets/img/zin-avatar.svg";
 import { ChatProductCarousel } from "@/features/chat/components/ChatProductCarousel";
 import { ChatOrderCarousel } from "@/features/chat/components/ChatOrderCarousel";
 
 // Bot Avatar - Clean like Grok
 const BotAvatar = () => {
-  const { isDark } = useTheme();
   return (
-    <div className={cn(
-      "w-8 h-8 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0",
-      isDark ? "bg-gray-700" : "bg-gray-200"
-    )}>
+    <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
       <img
         src={zinAvatar}
         alt="Zin AI Avatar"
@@ -129,12 +124,13 @@ export function ChatMessages({
     };
   }, [getScrollElement]);
 
+  // ✅ FIX: Use "auto" instead of "smooth" to avoid warning with dynamic virtualizer
   const scrollToBottom = useCallback(
-    (behavior: "auto" | "smooth" = "smooth") => {
+    (behavior: "auto" | "smooth" = "auto") => {
       if (!getScrollElement()) return;
       const lastIndex = totalItems - 1;
       if (lastIndex < 0) return;
-      virtualizer.scrollToIndex(lastIndex, { align: "end", behavior });
+      virtualizer.scrollToIndex(lastIndex, { align: "end", behavior: "auto" });
     },
     [getScrollElement, totalItems, virtualizer]
   );

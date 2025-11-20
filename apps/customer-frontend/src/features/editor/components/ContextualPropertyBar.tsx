@@ -35,7 +35,7 @@ import { Separator } from "@/shared/components/ui/separator";
 import { cn } from "@/shared/lib/utils";
 // ✅ THAY ĐỔI: Import kiểu dữ liệu mới
 import { EditorItem, DecalItem, GroupItem } from "../types/decal.types";
-import { GizmoMode } from "../hooks/useDesignEditor";
+import { GizmoMode } from "@/stores/useEditorStore";
 import { Input } from "@/shared/components/ui/input"; // Import Input
 
 // === PROPS ===

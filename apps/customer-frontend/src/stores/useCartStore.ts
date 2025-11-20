@@ -96,13 +96,30 @@ export const useCartStore = create<CartStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const res = await api.get("/cart");
-      const cart = res.data?.data?.cart || res.data?.cart;
+      const cart = res.data?.data?.cart || res.data?.cart || res.data?.data;
 
       console.log("✅ [CartStore] fetchCart thành công:", cart);
-      set({ cart, isLoading: false });
+      
+      // ✅ FIX: Đảm bảo cart luôn có structure hợp lệ
+      // Nếu backend trả về null/undefined, tạo cart rỗng
+      const validCart = cart || { items: [], totalAmount: 0 };
+      
+      set({ cart: validCart, isLoading: false });
     } catch (err: any) {
       console.error("❌ [CartStore] fetchCart lỗi:", err);
-      set({ error: err.message, isLoading: false });
+      // ✅ Nếu lỗi 404 (chưa có cart), tạo cart rỗng thay vì báo lỗi
+      if (err.response?.status === 404) {
+        const emptyCart: Cart = {
+          _id: "",
+          userId: "",
+          items: [],
+          totalItems: 0,
+          totalAmount: 0,
+        };
+        set({ cart: emptyCart, isLoading: false });
+      } else {
+        set({ error: err.message, isLoading: false });
+      }
     }
   },
 
@@ -128,7 +145,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
         cart: updatedCart,
         isLoading: false,
       });
-      toast.success("Đã thêm vào giỏ hàng!");
+      // ✅ Không dùng toast - UI tự động cập nhật (badge số lượng sẽ tăng)
     } catch (err: any) {
       console.error("❌ [CartStore] addToCart lỗi:", err);
       set({ error: err.message, isLoading: false });
@@ -145,17 +162,24 @@ export const useCartStore = create<CartStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const res = await api.put("/cart/update", { cartItemId, quantity });
-      const updatedCart = res.data?.data?.cart || res.data?.cart;
+      const updatedCart = res.data?.data?.cart || res.data?.cart || res.data?.data;
 
       console.log("✅ [CartStore] updateCartItem thành công:", updatedCart);
-      set({
-        cart: updatedCart,
-        isLoading: false,
-      });
+      
+      // ✅ FIX: Đảm bảo cart không bị undefined
+      if (updatedCart) {
+        set({
+          cart: updatedCart,
+          isLoading: false,
+        });
+      } else {
+        // Fallback: fetch lại cart nếu response không có cart
+        console.warn("⚠️ [CartStore] Response không có cart, fetch lại...");
+        await get().fetchCart();
+      }
     } catch (err: any) {
       console.error("❌ [CartStore] updateCartItem lỗi:", err);
       set({ error: err.message, isLoading: false });
-      toast.error("Cập nhật thất bại");
       throw err;
     }
   },
@@ -168,18 +192,24 @@ export const useCartStore = create<CartStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const res = await api.delete(`/cart/remove/${cartItemId}`);
-      const updatedCart = res.data?.data?.cart || res.data?.cart;
+      const updatedCart = res.data?.data?.cart || res.data?.cart || res.data?.data;
 
       console.log("✅ [CartStore] removeFromCart thành công:", updatedCart);
-      set({
-        cart: updatedCart,
-        isLoading: false,
-      });
-      toast.success("Đã xóa khỏi giỏ hàng");
+      
+      // ✅ FIX: Đảm bảo cart không bị undefined
+      if (updatedCart) {
+        set({
+          cart: updatedCart,
+          isLoading: false,
+        });
+      } else {
+        // Fallback: fetch lại cart nếu response không có cart
+        console.warn("⚠️ [CartStore] Response không có cart, fetch lại...");
+        await get().fetchCart();
+      }
     } catch (err: any) {
       console.error("❌ [CartStore] removeFromCart lỗi:", err);
       set({ error: err.message, isLoading: false });
-      toast.error("Xóa thất bại");
       throw err;
     }
   },
@@ -213,7 +243,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
   mergeGuestCart: async () => {
     const guestCart = getGuestCart();
     if (!guestCart || guestCart.items.length === 0) {
-      console.log("⚠️ [CartStore] Không có guest cart để merge");
+      // ✅ Giảm noise: Không log nếu không có guest cart (trường hợp bình thường)
       return;
     }
     

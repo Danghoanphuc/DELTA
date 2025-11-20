@@ -3,6 +3,8 @@ import { Router } from "express";
 import { UploadController } from "./upload.controller.js";
 import { protect, handleUploadError } from "../../shared/middleware/index.js";
 import { uploadMixed } from "../../infrastructure/storage/multer.config.js";
+// ✅ SECURITY: Import upload rate limiter
+import { uploadRateLimiter } from "../../shared/middleware/rate-limit.middleware.js";
 
 const router = Router();
 const uploadController = new UploadController();
@@ -11,9 +13,11 @@ const uploadController = new UploadController();
  * @route   POST /api/uploads/file
  * @desc    Uploads a single file (GLB, SVG, Image)
  * @access  Private
+ * @rateLimit 20 uploads per hour per user/IP
  */
 router.post(
   "/file",
+  uploadRateLimiter, // ✅ SECURITY: Rate limit to protect Cloudinary storage
   protect,
   uploadMixed.single("file"),
   handleUploadError,

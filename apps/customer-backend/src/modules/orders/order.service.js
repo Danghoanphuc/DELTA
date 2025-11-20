@@ -1,6 +1,7 @@
 // src/modules/orders/order.service.js
 // ✅ GĐ 5.R2: Đại phẫu thuật - Tách lõi Ghi sổ để hỗ trợ nhiều cổng (Stripe + MoMo)
 
+import crypto from "crypto";
 import { OrderRepository } from "./order.repository.js";
 import { productRepository } from "../products/product.repository.js";
 import { PrinterProfile } from "../../shared/models/printer-profile.model.js";
@@ -17,6 +18,7 @@ import {
 import {
   MASTER_ORDER_STATUS,
   PAYMENT_STATUS,
+  SUB_ORDER_STATUS,
   BalanceLedgerStatus,
   BalanceTransactionType,
 } from "@printz/types";
@@ -24,9 +26,13 @@ import mongoose from "mongoose";
 import { Logger } from "../../shared/utils/index.js";
 import { getStripeClient } from "../../shared/utils/stripe.js";
 import BalanceLedgerModel from "../../shared/models/balance-ledger.model.js";
+import { getRedisClient } from "../../infrastructure/cache/redis.js";
 
 // === DỊCH VỤ MỚI ===
 import { CartService } from "../cart/cart.service.js";
+
+const ORDER_LOCK_KEY_PREFIX = "order_lock:";
+const ORDER_LOCK_TTL_SECONDS = 10;
 
 export class OrderService {
   constructor() {
@@ -34,6 +40,7 @@ export class OrderService {
     this.productRepository = productRepository;
     this.stripe = getStripeClient();
     this.cartService = new CartService();
+    this.redis = getRedisClient();
   }
 
   // (Hàm getEffectiveCommissionRate giữ nguyên)
@@ -139,6 +146,18 @@ export class OrderService {
         const subtotal = unitPrice * item.quantity;
         totalItems += item.quantity;
 
+        // === Atomic stock reservation ===
+        const reservedProduct = await this.productRepository.reserveStock(
+          product._id,
+          item.quantity,
+          session
+        );
+        if (!reservedProduct) {
+          throw new ValidationException(
+            `Sản phẩm ${product.name} vừa hết hàng hoặc không đủ số lượng.`
+          );
+        }
+
         const groupKey = printerProfileId.toString();
         if (!printerGroups.has(groupKey)) {
           printerGroups.set(groupKey, {
@@ -192,6 +211,8 @@ export class OrderService {
 
       const masterOrderData = {
         orderNumber: await this.orderRepository.generateOrderNumber(),
+        // --- PayOS Integration ---
+        orderCode: Number(String(Date.now()).slice(-6) + Math.floor(Math.random() * 1000)),
         customerId: user._id,
         customerName: user.displayName,
         customerEmail: user.email,
@@ -225,6 +246,77 @@ export class OrderService {
     }
   };
 
+  async _acquireOrderLock(orderId) {
+    if (!orderId) {
+      return { acquired: true };
+    }
+
+    if (!this.redis || this.redis.status !== "ready") {
+      this.redis = getRedisClient();
+    }
+
+    if (!this.redis || this.redis.status !== "ready") {
+      Logger.warn(
+        `[OrderSvc] Redis lock không khả dụng, tiếp tục không khóa cho order ${orderId}.`
+      );
+      return { acquired: true };
+    }
+
+    const lockKey = `${ORDER_LOCK_KEY_PREFIX}${orderId.toString()}`;
+    const lockToken = crypto.randomUUID();
+
+    try {
+      const result = await this.redis.set(
+        lockKey,
+        lockToken,
+        "NX",
+        "EX",
+        ORDER_LOCK_TTL_SECONDS
+      );
+      return {
+        acquired: result === "OK",
+        lockKey,
+        lockToken,
+      };
+    } catch (error) {
+      Logger.error(
+        `[OrderSvc] Không thể tạo lock Redis cho order ${orderId}:`,
+        error
+      );
+      return { acquired: true };
+    }
+  }
+
+  async _releaseOrderLock(lock) {
+    if (!lock || !lock.lockKey || !lock.lockToken) {
+      return;
+    }
+    if (!this.redis || this.redis.status !== "ready") {
+      this.redis = getRedisClient();
+    }
+    if (!this.redis || this.redis.status !== "ready") {
+      Logger.warn(
+        `[OrderSvc] Redis lock không khả dụng để giải phóng ${lock.lockKey}.`
+      );
+      return;
+    }
+    try {
+      const releaseScript =
+        'if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end';
+      await this.redis.eval(
+        releaseScript,
+        1,
+        lock.lockKey,
+        lock.lockToken
+      );
+    } catch (error) {
+      Logger.error(
+        `[OrderSvc] Không thể giải phóng lock Redis ${lock.lockKey}:`,
+        error
+      );
+    }
+  }
+
   // --- HÀM (CŨ) GĐ 5.R1 - ĐƯỢC ĐỔI TÊN ---
   /**
    * Xử lý Webhook TỪ STRIPE
@@ -245,16 +337,28 @@ export class OrderService {
       );
     }
 
-    // 2. Kiểm tra Idempotency
-    if (order.paymentStatus === PAYMENT_STATUS.PAID) {
+    const lock = await this._acquireOrderLock(order._id);
+    if (!lock.acquired) {
       Logger.warn(
-        `[OrderSvc] MasterOrder ${order.orderNumber} (Stripe) đã được thanh toán. Bỏ qua (idempotency).`
+        `[OrderSvc] Stripe webhook bị từ chối do lock đang tồn tại cho order ${order.orderNumber}.`
       );
       return order;
     }
 
-    // 3. Gọi hàm lõi
-    return await this._finalizeOrderAndRecordLedger(order, "STRIPE");
+    try {
+      // 2. Kiểm tra Idempotency
+      if (order.paymentStatus === PAYMENT_STATUS.PAID) {
+        Logger.warn(
+          `[OrderSvc] MasterOrder ${order.orderNumber} (Stripe) đã được thanh toán. Bỏ qua (idempotency).`
+        );
+        return order;
+      }
+
+      // 3. Gọi hàm lõi
+      return await this._finalizeOrderAndRecordLedger(order, "STRIPE");
+    } finally {
+      await this._releaseOrderLock(lock);
+    }
   };
 
   // --- HÀM MỚI: xử lý webhook từ MoMo ---
@@ -275,23 +379,68 @@ export class OrderService {
       throw new NotFoundException(`Không tìm thấy MasterOrder: ${masterOrderId}`);
     }
 
-    if (order.paymentStatus === PAYMENT_STATUS.PAID) {
-      Logger.warn(`[OrderSvc] MasterOrder ${order.orderNumber} (MOMO) đã được thanh toán. Bỏ qua.`);
-      return { resultCode: 0, message: "Order already confirmed" };
+    const lock = await this._acquireOrderLock(order._id);
+    if (!lock.acquired) {
+      Logger.warn(
+        `[OrderSvc] MoMo webhook bị từ chối do lock đang tồn tại cho order ${order.orderNumber}.`
+      );
+      return { resultCode: 0, message: "Order is being finalized" };
     }
 
-    if (resultCode !== "0") {
-      Logger.warn(`[OrderSvc] MoMo IPN thất bại (code=${resultCode}) cho ${order.orderNumber}`);
-      return { resultCode: 0, message: "Received" };
-    }
+    try {
+      if (order.paymentStatus === PAYMENT_STATUS.PAID) {
+        Logger.warn(
+          `[OrderSvc] MasterOrder ${order.orderNumber} (MOMO) đã được thanh toán. Bỏ qua.`
+        );
+        return { resultCode: 0, message: "Order already confirmed" };
+      }
 
-    await this._finalizeOrderAndRecordLedger(order, "MOMO");
-    return { resultCode: 0, message: "Success" };
+      if (resultCode !== "0") {
+        Logger.warn(
+          `[OrderSvc] MoMo IPN thất bại (code=${resultCode}) cho ${order.orderNumber}`
+        );
+        return { resultCode: 0, message: "Received" };
+      }
+
+      await this._finalizeOrderAndRecordLedger(order, "MOMO");
+      return { resultCode: 0, message: "Success" };
+    } finally {
+      await this._releaseOrderLock(lock);
+    }
   };
 
   // helper for backward compat
   maybeFindOrder = async (id) => {
     return await this.orderRepository.findMasterOrderById(id);
+  };
+
+  /**
+   * Restore inventory for every product referenced by the given master order.
+   * Should be called inside the same transaction that marks a payment as failed/cancelled.
+   */
+  restoreStockForOrder = async (order, session) => {
+    if (!order || !order.printerOrders || order.printerOrders.length === 0) {
+      return;
+    }
+
+    const quantityMap = new Map();
+    for (const printerOrder of order.printerOrders) {
+      for (const item of printerOrder.items || []) {
+        if (!item?.productId || !item?.quantity) continue;
+        const key = item.productId.toString();
+        quantityMap.set(key, (quantityMap.get(key) || 0) + item.quantity);
+      }
+    }
+
+    if (quantityMap.size === 0) {
+      return;
+    }
+
+    await Promise.all(
+      [...quantityMap.entries()].map(([productId, qty]) =>
+        this.productRepository.restoreStock(productId, qty, session)
+      )
+    );
   };
 
   // --- HÀM LÕI (PRIVATE) MỚI (GĐ 5.R2) ---
@@ -306,41 +455,67 @@ export class OrderService {
       `[OrderSvc] Bắt đầu _finalizeOrderAndRecordLedger cho Order: ${order.orderNumber} từ ${paymentGatewayType}`
     );
 
-    // 1. Cập nhật trạng thái MasterOrder
-    order.paymentStatus = PAYMENT_STATUS.PAID;
-    order.status = MASTER_ORDER_STATUS.PROCESSING;
-    order.masterStatus = MASTER_ORDER_STATUS.PROCESSING;
-    order.paidAt = new Date();
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    // 2. Logic Ghi Sổ Kế toán (GĐ 5.R1)
-    const ledgerEntries = [];
-    for (const subOrder of order.printerOrders) {
-      const newLedgerEntry = {
-        printer: subOrder.printerProfileId,
-        masterOrder: order._id,
-        subOrder: subOrder._id,
-        amount: subOrder.printerPayout ?? 0,
-        transactionType: BalanceTransactionType.SALE,
-        status: BalanceLedgerStatus.UNPAID,
-        paymentGateway: paymentGatewayType,
-        notes: `Ghi nợ tự động từ ${paymentGatewayType} cho đơn hàng ${order.orderNumber}.`,
-      };
-      ledgerEntries.push(newLedgerEntry);
-
-      // (TODO GĐ 6: Cập nhật 'OrderModel' thật)
-    }
-
-    // 3. GHI SỔ KẾ TOÁN (Ghi đồng loạt)
     try {
-      await BalanceLedgerModel.insertMany(ledgerEntries);
+      // 1. Cập nhật trạng thái MasterOrder
+      order.paymentStatus = PAYMENT_STATUS.PAID;
+      order.status = MASTER_ORDER_STATUS.PAID_WAITING_FOR_PRINTER;
+      order.masterStatus = MASTER_ORDER_STATUS.PAID_WAITING_FOR_PRINTER;
+      order.paidAt = new Date();
+
+      // ✅ FIX: Cập nhật trạng thái SubOrders (PrinterOrders)
+      // Map "Processing" của hệ thống -> SUB_ORDER_STATUS.CONFIRMED
+      if (order.printerOrders && order.printerOrders.length > 0) {
+        order.printerOrders.forEach((po) => {
+          if (po.printerStatus === SUB_ORDER_STATUS.PENDING) {
+            po.printerStatus = SUB_ORDER_STATUS.PAID_WAITING_FOR_PRINTER;
+          }
+        });
+      }
+
+      // 2. Logic Ghi Sổ Kế toán (GĐ 5.R1)
+      const ledgerEntries = [];
+      for (const subOrder of order.printerOrders) {
+        const newLedgerEntry = {
+          printer: subOrder.printerProfileId,
+          masterOrder: order._id,
+          subOrder: subOrder._id,
+          amount: subOrder.printerPayout ?? 0,
+          transactionType: BalanceTransactionType.SALE,
+          status: BalanceLedgerStatus.UNPAID,
+          paymentGateway: paymentGatewayType,
+          notes: `Ghi nợ tự động từ ${paymentGatewayType} cho đơn hàng ${order.orderNumber}.`,
+        };
+        ledgerEntries.push(newLedgerEntry);
+      }
+
+      // 3. GHI SỔ KẾ TOÁN (Ghi đồng loạt)
+      // ✅ FIX: Sử dụng session transaction
+      await BalanceLedgerModel.insertMany(ledgerEntries, { session });
       Logger.info(
         `[Ledger] Ghi sổ thành công cho MasterOrder: ${order._id}. Bút toán: ${ledgerEntries.length}`
       );
+
+      // 4. Lưu thay đổi của MasterOrder
+      // ✅ FIX: Sử dụng session transaction
+      await order.save({ session });
+      
+      // Commit transaction
+      await session.commitTransaction();
+      
     } catch (error) {
+      await session.abortTransaction();
+      
       if (error.code === 11000) {
         Logger.warn(
           `[Ledger] Bút toán đã tồn tại cho MasterOrder: ${order._id}. Bỏ qua (idempotency).`
         );
+        // Nếu lỗi do duplicate key (đã xử lý), ta có thể coi là thành công hoặc bỏ qua
+        // Tuy nhiên vì đã abort transaction, order update cũng bị rollback.
+        // Trong trường hợp này, giả sử là retry, ta cần check trạng thái ở đầu hàm webhook.
+        // Nếu rơi vào đây nghĩa là race condition cực gắt.
       } else {
         Logger.error(
           `[Ledger] LỖI NGHIÊM TRỌNG khi ghi Sổ cái cho MasterOrder: ${order._id}`,
@@ -348,10 +523,11 @@ export class OrderService {
         );
         throw new Error(`[Ledger] Ghi sổ thất bại: ${error.message}`);
       }
+    } finally {
+      session.endSession();
     }
 
-    // 4. Lưu thay đổi của MasterOrder
-    await order.save();
+    // 5. Xử lý Side-effects (Không nằm trong transaction DB)
     try {
       await this.cartService.clearCart(order.customerId);
     } catch (clearError) {
@@ -360,7 +536,7 @@ export class OrderService {
       );
     }
 
-    // 5. Gửi email
+    // 6. Gửi email
     try {
       // ✅ Gửi email xác nhận cho Customer
       await sendOrderConfirmationEmail(order.customerEmail, order);
@@ -377,7 +553,7 @@ export class OrderService {
           ).populate("user", "email displayName");
           
           if (printerProfile?.user?.email) {
-            // Tạo order object cho email (chỉ chứa thông tin của printer này)
+            // ✅ FIX: Tạo order object cho email (CHỈ chứa thông tin của printer này)
             const printerOrderForEmail = {
               ...printerOrder.toObject(),
               orderNumber: order.orderNumber,
@@ -386,14 +562,13 @@ export class OrderService {
               customerNotes: order.customerNotes,
               paymentStatus: order.paymentStatus,
               createdAt: order.createdAt,
+              printerProfileId: printerOrder.printerProfileId,
             };
 
+            // ✅ FIX: Gửi PRINTERORDERFOREMAIL, không phải toàn bộ order!
             await sendNewOrderNotification(
               printerProfile.user.email,
-              {
-                ...order.toObject(),
-                printerProfileId: printerOrder.printerProfileId,
-              },
+              printerOrderForEmail,  // ✅ Chỉ gửi items của printer này!
               {
                 name: order.customerName,
                 email: order.customerEmail,
@@ -475,6 +650,31 @@ export class OrderService {
           }))
         ) || [];
 
+      // ✅ NEW: Get printer info
+      let printerInfo = null;
+      if (mo.printerOrders && mo.printerOrders.length > 0) {
+        const firstPrinterOrder = mo.printerOrders[0];
+        if (firstPrinterOrder.printerBusinessName) {
+          printerInfo = {
+            _id: firstPrinterOrder.printerProfileId?.toString?.() || "",
+            displayName: firstPrinterOrder.printerBusinessName || "Nhà in",
+          };
+        }
+      }
+
+      // ✅ FIX: Determine payment method based on order data
+      let paymentMethod = "cod"; // default
+      if (mo.paymentIntentId) {
+        // Has Stripe PaymentIntent → Stripe
+        paymentMethod = "stripe";
+      } else if (mo.paymentStatus === PAYMENT_STATUS.UNPAID) {
+        // No paymentIntentId + UNPAID → COD
+        paymentMethod = "cod";
+      } else {
+        // No paymentIntentId + (PENDING or PAID) → PayOS
+        paymentMethod = "payos";
+      }
+
       return {
         _id: mo._id.toString(),
         orderNumber: mo.orderNumber,
@@ -492,11 +692,12 @@ export class OrderService {
         // Map trạng thái
         status: mo.masterStatus, // FE dùng order.status
         paymentStatus: mo.paymentStatus,
-        paymentMethod: "cod", // tạm thời không có cổng -> để FE không crash
+        paymentMethod: paymentMethod, // ✅ FIX: Dynamic payment method
         payment: {
           paidAt: mo.paidAt,
         },
         customerNotes: mo.customerNotes,
+        printerId: printerInfo, // ✅ NEW: Add printer info
         createdAt: mo.createdAt,
         updatedAt: mo.updatedAt,
       };
@@ -565,27 +766,54 @@ export class OrderService {
       }
     }
 
-    return {
-      _id: mo._id.toString(),
-      orderNumber: mo.orderNumber,
-      customerId: mo.customerId?.toString?.() || "",
-      customerName: mo.customerName,
-      customerEmail: mo.customerEmail,
-      items: flatItems,
-      shippingAddress: mo.shippingAddress,
-      total: mo.totalAmount,
-      subtotal: mo.totalAmount,
-      shippingFee: 0,
-      tax: 0,
-      discount: 0,
-      status: mo.masterStatus,
-      paymentStatus: mo.paymentStatus,
-      paymentMethod: "cod",
-      payment: { paidAt: mo.paidAt },
-      customerNotes: mo.customerNotes,
-      createdAt: mo.createdAt,
-      updatedAt: mo.updatedAt,
-    };
+    // ✅ NEW: Get printer info from printerOrders
+    let printerInfo = null;
+    if (mo.printerOrders && mo.printerOrders.length > 0) {
+      // If single printer, get full info
+      const firstPrinterOrder = mo.printerOrders[0];
+      if (firstPrinterOrder.printerBusinessName) {
+        printerInfo = {
+          _id: firstPrinterOrder.printerProfileId?.toString?.() || "",
+          displayName: firstPrinterOrder.printerBusinessName || "Nhà in",
+        };
+      }
+    }
+
+      // ✅ FIX: Determine payment method based on order data
+      let paymentMethod = "cod"; // default
+      if (mo.paymentIntentId) {
+        // Has Stripe PaymentIntent → Stripe
+        paymentMethod = "stripe";
+      } else if (mo.paymentStatus === PAYMENT_STATUS.UNPAID) {
+        // No paymentIntentId + UNPAID → COD
+        paymentMethod = "cod";
+      } else {
+        // No paymentIntentId + (PENDING or PAID) → PayOS
+        paymentMethod = "payos";
+      }
+
+      return {
+        _id: mo._id.toString(),
+        orderNumber: mo.orderNumber,
+        customerId: mo.customerId?.toString?.() || "",
+        customerName: mo.customerName,
+        customerEmail: mo.customerEmail,
+        items: flatItems,
+        shippingAddress: mo.shippingAddress,
+        total: mo.totalAmount,
+        subtotal: mo.totalAmount,
+        shippingFee: 0,
+        tax: 0,
+        discount: 0,
+        status: mo.masterStatus,
+        paymentStatus: mo.paymentStatus,
+        paymentMethod: paymentMethod, // ✅ FIX: Dynamic payment method
+        payment: { paidAt: mo.paidAt },
+        customerNotes: mo.customerNotes,
+        printerId: printerInfo, // ✅ NEW: Add printer info
+        createdAt: mo.createdAt,
+        updatedAt: mo.updatedAt,
+      };
   };
   getPrinterOrders = async (printerUserId, queryParams) => {
     Logger.debug(`[OrderSvc] Lấy đơn hàng cho Printer: ${printerUserId}`);
@@ -638,9 +866,113 @@ export class OrderService {
   };
   updateOrderStatusByPrinter = async (printerUserId, orderId, statusUpdate) => {
     Logger.debug(`[OrderSvc] Printer ${printerUserId} cập nhật đơn ${orderId}`);
-    const printerProfileId = "TODO";
-    throw new Error(
-      "Chưa triển khai: updateOrderStatusByPrinter với MasterOrder"
+    
+    // 1. Lấy printerProfileId từ User
+    const user = await User.findById(printerUserId).select("printerProfileId");
+    if (!user || !user.printerProfileId) {
+      throw new NotFoundException("Không tìm thấy hồ sơ nhà in.");
+    }
+    
+    const printerProfileId = user.printerProfileId;
+    
+    // 2. Validate orderId
+    if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
+      throw new ValidationException("Order ID không hợp lệ.");
+    }
+    
+    // 3. Tìm MasterOrder
+    const masterOrder = await MasterOrder.findOne({
+      _id: orderId,
+      "printerOrders.printerProfileId": printerProfileId,
+    });
+    
+    if (!masterOrder) {
+      throw new NotFoundException("Không tìm thấy đơn hàng.");
+    }
+    
+    // 4. Tìm printerOrder tương ứng
+    const printerOrder = masterOrder.printerOrders.find(
+      (po) => po.printerProfileId.toString() === printerProfileId.toString()
     );
+    
+    if (!printerOrder) {
+      throw new NotFoundException("Không tìm thấy đơn hàng của bạn.");
+    }
+    
+    // 5. Update printerStatus with State Machine Check
+    const { status } = statusUpdate;
+    if (!status) {
+      throw new ValidationException("Thiếu thông tin status để cập nhật.");
+    }
+
+    // ✅ FIX: State Machine Validation
+    const currentStatus = printerOrder.printerStatus;
+    
+    // Map các chuyển đổi hợp lệ
+    const VALID_TRANSITIONS = {
+      [SUB_ORDER_STATUS.PENDING]: [
+        SUB_ORDER_STATUS.PAID_WAITING_FOR_PRINTER,
+        SUB_ORDER_STATUS.CONFIRMED,
+        SUB_ORDER_STATUS.CANCELLED,
+      ],
+      [SUB_ORDER_STATUS.PAID_WAITING_FOR_PRINTER]: [
+        SUB_ORDER_STATUS.CONFIRMED,
+        SUB_ORDER_STATUS.CANCELLED,
+      ],
+      [SUB_ORDER_STATUS.CONFIRMED]: [SUB_ORDER_STATUS.PRINTING, SUB_ORDER_STATUS.SHIPPING],
+      [SUB_ORDER_STATUS.DESIGNING]: [SUB_ORDER_STATUS.PRINTING, SUB_ORDER_STATUS.READY],
+      [SUB_ORDER_STATUS.PRINTING]: [SUB_ORDER_STATUS.READY, SUB_ORDER_STATUS.SHIPPING],
+      [SUB_ORDER_STATUS.READY]: [SUB_ORDER_STATUS.SHIPPING],
+      [SUB_ORDER_STATUS.SHIPPING]: [SUB_ORDER_STATUS.COMPLETED],
+      [SUB_ORDER_STATUS.COMPLETED]: [], // Terminal
+      [SUB_ORDER_STATUS.CANCELLED]: [], // Terminal
+    };
+
+    const allowedTransitions = VALID_TRANSITIONS[currentStatus] || [];
+    
+    // Allow same status update (idempotency) or valid transition
+    if (status !== currentStatus && !allowedTransitions.includes(status)) {
+       throw new ValidationException(
+        `Không thể chuyển trạng thái từ ${currentStatus} sang ${status}.`
+      );
+    }
+
+    printerOrder.printerStatus = status;
+    Logger.info(`[OrderSvc] Updated printerOrder status to: ${status}`);
+    
+    // 6. Update timestamps nếu cần
+    if (status === SUB_ORDER_STATUS.SHIPPING) {
+      printerOrder.shippedAt = new Date();
+    } else if (status === SUB_ORDER_STATUS.COMPLETED) {
+      printerOrder.completedAt = new Date();
+    }
+    
+    // 7. Update masterStatus nếu TẤT CẢ printerOrders cùng status
+    const allStatuses = masterOrder.printerOrders.map(po => po.printerStatus);
+    const allSameStatus = allStatuses.every(s => s === status);
+    
+    if (allSameStatus) {
+      // Map SUB_ORDER_STATUS back to MASTER_ORDER_STATUS if needed
+      // Assuming they share common values like 'shipping', 'completed'
+      masterOrder.masterStatus = status;
+      masterOrder.status = status;
+      Logger.info(`[OrderSvc] Updated masterOrder status to: ${status}`);
+    }
+    
+    // 8. Save
+    await masterOrder.save();
+    
+    Logger.info(
+      `[OrderSvc] Printer ${printerUserId} đã cập nhật đơn ${orderId} thành công`
+    );
+    
+    // 9. Return formatted order
+    return {
+      _id: masterOrder._id.toString(),
+      orderNumber: masterOrder.orderNumber,
+      printerStatus: printerOrder.printerStatus,
+      masterStatus: masterOrder.masterStatus,
+      updatedAt: masterOrder.updatedAt,
+    };
   };
 }

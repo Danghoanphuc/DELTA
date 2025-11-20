@@ -1,0 +1,71 @@
+feat(socket): upgrade to Redis Adapter for horizontal scaling
+
+## 🎯 Objectives
+- Enable horizontal scaling by integrating Redis Adapter
+- Remove anti-pattern of storing socketId in memory Map
+- Implement room-based strategy for connection management
+
+## 📝 Changes
+
+### Dependencies
+- **package.json**: Added `@socket.io/redis-adapter: ^8.3.0`
+
+### SocketService Refactor
+- **src/infrastructure/realtime/socket.service.js**:
+  - Integrated Redis Adapter with Pub/Sub clients
+  - Removed `this.userSockets` Map (anti-pattern for clustering)
+  - Updated `handleConnection()`: Added role-based rooms (`role:admin`)
+  - Updated `handleDisconnection()`: Simplified (rooms auto-cleanup)
+  - Updated `emitToUser()` / `emitToPrinter()`: Now works cross-instance
+  - Added `emitToRole()`: New method for role-based broadcasts
+  - Updated `getStats()`: Now async, queries all instances via Redis
+  - Updated `isUserConnected()`: Now async, checks all instances
+
+## 🔒 Context Retention (UNCHANGED)
+- ✅ JWT Authentication Middleware (100% intact)
+- ✅ Public method names (backward compatible)
+- ✅ Printer profile verification logic
+- ✅ All logger statements
+
+## 🏗️ Architecture
+
+### Before:
+```
+Single Instance → Memory Map → Can't scale
+```
+
+### After:
+```
+Multiple Instances ←→ Redis Adapter (Pub/Sub) ←→ All Instances
+```
+
+## 🚀 Benefits
+- **Scalability**: Can run multiple backend instances behind load balancer
+- **Reliability**: High availability, one instance down doesn't affect others
+- **Performance**: Distribute load across multiple instances
+- **Best Practices**: Follows Socket.IO official recommendations
+
+## ⚠️ Breaking Changes
+MINOR - `getStats()` and `isUserConnected()` are now async:
+```javascript
+// Before:
+const connected = socketService.isUserConnected(userId);
+
+// After:
+const connected = await socketService.isUserConnected(userId);
+```
+
+## 🧪 Testing
+- [x] No linter errors
+- [x] JWT middleware unchanged
+- [x] All public methods retained
+- [ ] End-to-end testing with 2+ instances
+- [ ] Load testing with Redis Adapter
+
+## 📚 Documentation
+- Added `SOCKET_SERVICE_UPGRADE.md` - Comprehensive upgrade guide
+
+## 🔗 Related
+- Prepares infrastructure for high-traffic scenarios
+- Enables future deployment strategies (blue-green, canary)
+

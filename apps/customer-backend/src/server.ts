@@ -43,6 +43,24 @@ async function startServer() {
     // await initQueues();
     Logger.info("✅ Đã kết nối Database & Redis thành công.");
 
+    // ✅ Import Real-time Services (dynamic import after DB connection)
+    const { socketService } = await import(
+      "./infrastructure/realtime/socket.service.js"
+    );
+    const { initChangeStreams } = await import(
+      "./infrastructure/database/change-streams.js"
+    );
+
+    // ✅ SECURITY: Import Rate Limiting
+    const { initRateLimiters, generalRateLimiter } = await import(
+      "./shared/middleware/rate-limit.middleware.js"
+    );
+
+    // ✅ MAINTENANCE: Import Cron Jobs
+    const { initCronJobs } = await import(
+      "./infrastructure/cron/cron.service.js"
+    );
+
     const allowedOrigins = config.clientUrls;
 
     // --- 2. IMPORT ROUTES (DYNAMIC IMPORT) ---
@@ -51,6 +69,7 @@ async function startServer() {
     const oauthRoutes = (await import("./modules/auth/auth-oauth.routes.js"))
       .default;
     const userRoutes = (await import("./modules/users/user.routes.js")).default;
+    const connectionRoutes = (await import("./modules/connections/connection.routes.js")).default;
     const printerRoutes = (await import("./modules/printers/printer.routes.js"))
       .default;
     const productRoutes = (await import("./modules/products/product.routes.js"))
@@ -80,14 +99,26 @@ async function startServer() {
     const checkoutRoutes = (
       await import("./modules/checkout/checkout.routes.js")
     ).default;
-    const printerStripeRoutes = (
-      await import("./routes/printer.stripe.routes.js")
+    const stripeOnboardingRoutes = (
+      await import("./modules/payments/stripe.onboarding.routes.js")
     ).default;
-    const webhookStripeRoutes = (
-      await import("./routes/webhook.stripe.routes.js")
+    const stripeWebhookRoutes = (
+      await import("./modules/payments/stripe.webhook.routes.js")
     ).default;
-    const momoWebhookRoutes = (
-      await import("./modules/webhooks/momo.webhook.routes.js")
+    const momoRoutes = (
+      await import("./modules/payments/momo/momo.routes.js")
+    ).default;
+    const payosRoutes = (await import("./modules/payments/payos/payos.routes.js"))
+      .default;
+    const notificationRoutes = (
+      await import("./modules/notifications/notification.routes.js")
+    ).default;
+    // ✨ SMART PIPELINE: AI routes
+    const aiRoutes = (await import("./modules/ai/ai.routes.js")).default;
+    const walletRoutes = (await import("./modules/wallet/wallet.routes.js"))
+      .default;
+    const printerDashboardRoutes = (
+      await import("./modules/printer-studio/printer-dashboard.routes.js")
     ).default;
 
     Logger.info("✅ Đã tải (import) routes động thành công.");
@@ -95,6 +126,11 @@ async function startServer() {
     // --- 3. KHỞI TẠO APP VÀ MIDDLEWARE ---
     const app = express();
     const server = http.createServer(app);
+
+    // ✅ Tăng timeout cho upload ảnh (3 phút)
+    server.timeout = 180000; // 3 minutes = 180,000ms
+    server.keepAliveTimeout = 185000; // Slightly higher than timeout
+    server.headersTimeout = 186000; // Slightly higher than keepAliveTimeout
 
     app.set("trust proxy", 1);
     const corsOptions: CorsOptions = {
@@ -121,34 +157,60 @@ async function startServer() {
     };
 
     app.use(cors(corsOptions));
-    // ✅ FIX: Cấu hình helmet để không chặn popup và postMessage
+    // ✅ SECURITY FIX: Cấu hình helmet an toàn hơn - loại bỏ unsafe-inline và unsafe-eval
     app.use(
       helmet({
         contentSecurityPolicy: {
           directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Cho phép inline script trong OAuth callback
-            frameAncestors: ["'self'", "*"], // Cho phép popup
+            scriptSrc: ["'self'"], // ✅ Loại bỏ unsafe-inline và unsafe-eval để tránh XSS
+            styleSrc: ["'self'", "'unsafe-inline'"], // Chỉ cho phép inline CSS (ít nguy hiểm hơn)
+            imgSrc: ["'self'", "data:", "https:", "blob:"], // Cho phép images từ CDN
+            connectSrc: ["'self'", config.clientUrl], // Cho phép API calls
+            fontSrc: ["'self'", "data:"],
+            objectSrc: ["'none'"],
+            mediaSrc: ["'self'"],
+            frameSrc: ["'self'"],
+            frameAncestors: ["'self'"], // ✅ Chỉ cho phép same-origin, không dùng "*" wildcard
           },
         },
-        crossOriginEmbedderPolicy: false, // Tắt để không chặn postMessage
-        crossOriginOpenerPolicy: false, // Tắt để cho phép popup communication
+        crossOriginEmbedderPolicy: false, // Giữ false cho OAuth popup
+        crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }, // ✅ Cải thiện: cho phép popup nhưng vẫn bảo mật
       })
     );
     app.use(morgan("dev"));
-    app.use(express.urlencoded({ extended: true }));
+
+    // ✅ SECURITY: Initialize rate limiters after Redis connection
+    initRateLimiters();
+
+    // ✅ SECURITY: Apply general rate limiting globally (before routes)
+    app.use(generalRateLimiter);
+    
+    // ✅ Tăng limit cho body parser (50MB) vì upload nhiều ảnh
+    app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
     app.use(
       "/api/webhooks/stripe",
       express.raw({ type: "application/json" }),
-      webhookStripeRoutes
+      stripeWebhookRoutes
     );
 
-    app.use(express.json());
+    // ✅ Tăng limit cho JSON body (50MB)
+    app.use(express.json({ limit: "50mb" }));
 
     // ✅ GIẢI PHÁP: Thêm cookieParser() tại đây
     // (Phải đứng trước 'session' và 'routes' để req.cookies hoạt động)
     app.use(cookieParser());
+
+    // ✅ Middleware timeout handler cho các request upload
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      // Chỉ áp dụng timeout dài cho các route upload
+      if (req.path.includes("/products") && req.method === "POST") {
+        // Không set timeout - để server.timeout xử lý
+        req.setTimeout(180000); // 3 minutes
+      }
+      next();
+    });
 
     // --- 4. CẤU HÌNH SESSION (SAU MIDDLEWARE, TRƯỚC ROUTE) ---
     app.use(
@@ -177,6 +239,7 @@ async function startServer() {
     const apiRouter = express.Router();
     apiRouter.use("/auth", authRoutes, oauthRoutes);
     apiRouter.use("/users", protect, userRoutes);
+    apiRouter.use("/connections", protect, connectionRoutes); // ✅ SOCIAL: Connection routes
     apiRouter.use("/printers", printerRoutes);
     apiRouter.use("/products", productRoutes);
     apiRouter.use("/assets", protect, assetRoutes);
@@ -190,8 +253,14 @@ async function startServer() {
     apiRouter.use("/uploads", protect, uploadRoutes);
     apiRouter.use("/customer", protect, customerRoutes);
     apiRouter.use("/checkout", protect, checkoutRoutes);
-    apiRouter.use("/printer-stripe", protect, isPrinter, printerStripeRoutes);
-    apiRouter.use("/webhooks/momo", momoWebhookRoutes);
+    apiRouter.use("/printer-stripe", protect, isPrinter, stripeOnboardingRoutes);
+    apiRouter.use("/payments/momo", momoRoutes);
+    apiRouter.use("/payments/payos", payosRoutes);
+    apiRouter.use("/notifications", notificationRoutes);
+    apiRouter.use("/wallet", protect, isPrinter, walletRoutes);
+    apiRouter.use("/printer", protect, isPrinter, printerDashboardRoutes);
+    // ✨ SMART PIPELINE: AI routes
+    apiRouter.use("/ai", aiRoutes);
 
     app.use("/api", apiRouter);
 
@@ -213,10 +282,41 @@ async function startServer() {
 
     app.use(errorHandler);
 
-    // --- 7. LẮNG NGHE ---
+    // --- 7. KHỞI TẠO REAL-TIME SERVICES ---
+    // Initialize Socket.io (before listening)
+    socketService.initialize(server);
+    Logger.success("✅ Socket.io initialized");
+
+    // Initialize MongoDB Change Streams
+    initChangeStreams();
+    Logger.success("✅ Change Streams initialized");
+
+    // ✅ MAINTENANCE: Initialize Cron Jobs
+    initCronJobs();
+    Logger.success("✅ Cron jobs initialized");
+
+    // --- 8. LẮNG NGHE ---
     const PORT = process.env.PORT || 8000;
     server.listen(PORT, () => {
       Logger.info(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+      Logger.info(`🔌 Socket.io ready at ws://localhost:${PORT}`);
+    });
+
+    // ✅ Health check endpoint for real-time services
+    app.get("/api/realtime/health", async (req: Request, res: Response) => {
+      const { io } = await import(
+        "./infrastructure/realtime/socket.service.js"
+      );
+      const clientsCount = io.engine.clientsCount;
+      res.status(200).json({
+        status: "ok",
+        socketio: {
+          connected: clientsCount > 0,
+          connectedClients: clientsCount,
+        },
+        changeStreams: "active",
+        timestamp: new Date().toISOString(),
+      });
     });
 
     return server;

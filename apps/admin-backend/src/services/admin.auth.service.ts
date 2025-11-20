@@ -1,13 +1,15 @@
 // apps/admin-backend/src/services/admin.auth.service.ts
 import crypto from "crypto";
-import { Admin, type IAdmin } from "../models/admin.model.js"; // <-- SỬA
-import jwt from "jsonwebtoken";
+import { Admin, type IAdmin } from "../models/admin.model.js";
+import jwt, { type Secret, type SignOptions } from "jsonwebtoken";
+import type { StringValue } from "ms";
 import {
   ValidationException,
   UnauthorizedException,
 } from "../shared/exceptions.js";
 import { sendAdminPasswordResetEmail } from "./email.service.js";
 import { recordAdminAuditLog } from "./admin.audit-log.service.js";
+import { config } from "../config/env.config.js";
 
 const sanitizeAdmin = (admin: IAdmin) => {
   const adminInfo = admin.toObject();
@@ -17,19 +19,26 @@ const sanitizeAdmin = (admin: IAdmin) => {
   return adminInfo;
 };
 
+// ✅ SECURITY FIX: Use config for JWT secret
 const signAdminToken = (admin: IAdmin) => {
-  const secret = process.env.ADMIN_JWT_SECRET;
-  if (!secret) {
-    console.error("Lỗi nghiêm trọng: ADMIN_JWT_SECRET chưa được cấu hình");
-    throw new Error("Lỗi cấu hình máy chủ");
-  }
-
+  const secret: Secret = config.auth.jwtSecret;
   const payload = {
     id: admin._id,
     role: admin.role,
   };
 
-  return jwt.sign(payload, secret, { expiresIn: "8h" });
+  const expiresIn: StringValue | number | undefined = config.auth.jwtExpiresIn as
+    | StringValue
+    | number
+    | undefined;
+
+  const signOptions: SignOptions = expiresIn
+    ? {
+        expiresIn,
+      }
+    : {};
+
+  return jwt.sign(payload, secret, signOptions);
 };
 
 // Tách biệt hoàn toàn với service của User

@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Input } from "@/shared/components/ui/input";
-import { Search, Bell, ShoppingCart, Wand2, Building2, Timer, CalendarDays } from "lucide-react";
+import { Search, Bell, ShoppingCart, Wand2, Building2, Timer, CalendarDays, MessageCircle } from "lucide-react";
+import { useUnreadCount } from "@/features/notifications/hooks/useNotifications";
+import { useSocialChatStore } from "@/features/social/hooks/useSocialChatStore";
 
 interface MobileHomeHeaderProps {
   onSearch: (term: string) => void;
@@ -16,6 +18,10 @@ const quickUtilityItems = [
 
 export const MobileHomeHeader = ({ onSearch }: MobileHomeHeaderProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // ✅ Get unread counts
+  const { unreadCount } = useUnreadCount();
+  const totalUnreadMessages = useSocialChatStore((state) => state.totalUnread);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -46,13 +52,35 @@ export const MobileHomeHeader = ({ onSearch }: MobileHomeHeaderProps) => {
               />
             </div>
             <div className="flex items-center gap-2">
+              {/* ✅ SOCIAL CHAT: Messages Icon */}
+              <Link
+                to="/messages"
+                className="relative h-10 w-10 rounded-2xl border border-gray-200 bg-white/90 flex items-center justify-center text-gray-700 hover:text-blue-600"
+                aria-label="Tin nhắn"
+              >
+                <MessageCircle size={18} />
+                {totalUnreadMessages > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1.5 flex items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold leading-none">
+                    {totalUnreadMessages > 99 ? "99+" : totalUnreadMessages}
+                  </span>
+                )}
+              </Link>
+              
+              {/* Notifications */}
               <Link
                 to="/notifications"
-                className="h-10 w-10 rounded-2xl border border-gray-200 bg-white/90 flex items-center justify-center text-gray-700 hover:text-blue-600"
+                className="relative h-10 w-10 rounded-2xl border border-gray-200 bg-white/90 flex items-center justify-center text-gray-700 hover:text-blue-600"
                 aria-label="Thông báo"
               >
                 <Bell size={18} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1.5 flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold leading-none">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
               </Link>
+              
+              {/* Cart */}
               <Link
                 to="/cart"
                 className="h-10 w-10 rounded-2xl border border-gray-200 bg-white/90 flex items-center justify-center text-gray-700 hover:text-blue-600"

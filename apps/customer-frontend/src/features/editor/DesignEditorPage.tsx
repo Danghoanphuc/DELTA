@@ -93,9 +93,9 @@ function DesignEditorPageContent() {
     [addItem] // ✅ SỬA
   );
 
-  const handleImageFileRead = (file: File, imageUrl: string) => {
+  const handleImageFileRead = (file: File, imageUrl: string, qualityStatus?: "good" | "warning" | "bad") => {
     if (imageDropQueue && imageDropQueue.file === file) {
-      const dropData = { type: "image", imageUrl: imageUrl };
+      const dropData = { type: "image", imageUrl: imageUrl, qualityStatus };
       addItem("decal", dropData, imageDropQueue.interactionResult); // ✅ SỬA
       setImageDropQueue(null);
     } else {

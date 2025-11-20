@@ -34,7 +34,7 @@ import { cn } from "@/shared/lib/utils";
 import { NativeScrollArea } from "@/shared/components/ui/NativeScrollArea"; // ✅ Sửa casing
 
 import { UploadedImageVM } from "@/services/mediaAssetService";
-import { GizmoMode } from "@/features/editor/hooks/useDesignEditor";
+import { GizmoMode } from "@/stores/useEditorStore";
 import { EditorItem, DecalItem } from "@/features/editor/types/decal.types";
 
 // Props

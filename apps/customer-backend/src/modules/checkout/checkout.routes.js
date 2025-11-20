@@ -24,4 +24,7 @@ router.post("/momo/create-payment-url", checkoutController.createMomoUrl);
 // --- COD confirm order ---
 router.post("/cod/confirm", checkoutController.confirmCodOrder);
 
+// --- ✅ NEW: Unified process checkout endpoint ---
+router.post("/process", checkoutController.processCheckout);
+
 export default router;

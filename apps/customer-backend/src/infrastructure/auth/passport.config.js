@@ -3,12 +3,10 @@
 
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import dotenv from "dotenv";
 import { User } from "../../shared/models/user.model.js";
 import { CustomerProfile } from "../../shared/models/customer-profile.model.js";
 import { generateUniqueUsername } from "../../shared/utils/username.util.js";
-
-dotenv.config();
+import { config } from "../../config/env.config.js";
 
 /**
  * Find or create user from Google profile
@@ -157,11 +155,9 @@ const findOrCreateUser = async (profile) => {
 passport.use(
   new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: `${
-        process.env.SERVER_URL || "http://localhost:8000"
-      }/api/auth/google/callback`,
+      clientID: config.oauth.google.clientId,
+      clientSecret: config.oauth.google.clientSecret,
+      callbackURL: `${config.serverUrl}/api/auth/google/callback`,
       passReqToCallback: true,
     },
     async (req, accessToken, refreshToken, profile, done) => {

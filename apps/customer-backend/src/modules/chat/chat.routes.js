@@ -1,58 +1,85 @@
-// src/modules/chat/chat.routes.js (✅ REFACTORED - MULTI-CONVERSATION)
+// apps/customer-backend/src/modules/chat/chat.routes.js
 import { Router } from "express";
 import { ChatController } from "./chat.controller.js";
+import { ChatConversationController } from "./chat-conversation.controller.js";
 import {
   protect,
   optionalAuth,
   handleUploadError,
 } from "../../shared/middleware/index.js";
 import { uploadMixed } from "../../infrastructure/storage/multer.config.js";
+import { chatRateLimiter } from "../../shared/middleware/rate-limit.middleware.js";
 
 const router = Router();
 const chatController = new ChatController();
+const conversationController = new ChatConversationController();
 
-/**
- * @route   POST /api/chat/message
- * @desc    Gửi tin nhắn (text, file)
- * @access  Public with optionalAuth (Controller sẽ xử lý guest/auth)
- */
-router.post("/message", optionalAuth, chatController.handleChatMessage);
-
-/**
- * @route   POST /api/chat/upload
- * @desc    Tải file lên cho chat (dùng cho frontend)
- * @access  Private (Yêu cầu đăng nhập)
- */
+// --- MESSAGING ROUTES ---
+router.post(
+  "/message",
+  chatRateLimiter,
+  optionalAuth,
+  chatController.handleChatMessage
+);
 router.post(
   "/upload",
-  protect, // Yêu cầu đăng nhập để upload
-  uploadMixed.single("file"), // Sử dụng multer config
+  optionalAuth,
+  uploadMixed.single("file"),
   handleUploadError,
-  chatController.handleChatUpload // Dùng controller handler riêng
+  chatController.handleChatUpload
 );
 
-/**
- * @route   GET /api/chat/conversations
- * @desc    Lấy danh sách (metadata) của tất cả cuộc trò chuyện
- * @access  Private
- */
+// --- CONVERSATION MANAGEMENT ---
 router.get("/conversations", protect, chatController.getConversations);
 
-/**
- * @route   GET /api/chat/history/:conversationId
- * @desc    Lấy lịch sử tin nhắn của MỘT cuộc trò chuyện
- * @access  Private
- */
+// ✅ ROUTE MỚI: Lấy chi tiết 1 conversation (Quan trọng cho F5 Recovery)
+router.get(
+  "/conversations/:conversationId",
+  protect,
+  chatController.getConversationById
+);
+
+// Social Chat Creators
+router.post(
+  "/conversations/printer/:printerId",
+  protect,
+  conversationController.createOrGetPrinterConversation
+);
+router.post(
+  "/conversations/peer/:userId",
+  protect,
+  conversationController.createOrGetPeerConversation
+);
+
+// --- UTILS ---
 router.get(
   "/history/:conversationId",
   protect,
   chatController.getMessagesForConversation
 );
+router.patch(
+  "/conversations/:conversationId",
+  protect,
+  chatController.renameConversation
+);
+router.delete(
+  "/conversations/:conversationId",
+  protect,
+  chatController.deleteConversation
+);
 
-/**
- * @route   GET /api/chat/history (DEPRECATED by /conversations)
- * @desc    (Route cũ - không còn dùng)
- */
-// router.get("/history", optionalAuth, chatController.getChatHistory);
+// Merge Guest History
+router.post("/conversations/merge", protect, async (req, res, next) => {
+  try {
+    const { guestConversationId } = req.body;
+    await chatController.botService.mergeGuestConversation(
+      guestConversationId,
+      req.user._id
+    );
+    res.json({ success: true, message: "Merged successfully" });
+  } catch (error) {
+    next(error);
+  }
+});
 
 export default router;

@@ -16,18 +16,32 @@ router.post("/onboarding", protect, printerController.createMyProfile);
 // Note: /my-profile and /profile are defined here now.
 
 /**
- * @route   GET /api/printers/my-profile  <-- UNIFIED ENDPOINT
+ * @route   GET /api/printers/my-profile  <-- LEGACY ENDPOINT
  * @desc    Get my printer profile
  * @access  Private (Printer only)
  */
 router.get("/my-profile", protect, isPrinter, printerController.getMyProfile);
 
 /**
+ * @route   GET /api/printers/profile/me  <-- NEW RESTFUL ENDPOINT
+ * @desc    Get my printer profile
+ * @access  Private (Printer only)
+ */
+router.get("/profile/me", protect, isPrinter, printerController.getMyProfile);
+
+/**
  * @route   PUT /api/printers/profile
- * @desc    Update my printer profile
+ * @desc    Update my printer profile (legacy)
  * @access  Private (Printer only)
  */
 router.put("/profile", protect, isPrinter, printerController.updateMyProfile);
+
+/**
+ * @route   PUT /api/printers/profile/me  <-- NEW RESTFUL ENDPOINT
+ * @desc    Update my printer profile
+ * @access  Private (Printer only)
+ */
+router.put("/profile/me", protect, isPrinter, printerController.updateMyProfile);
 
 /**
  * @route   PUT /api/printers/submit-verification
@@ -52,6 +66,34 @@ router.get(
   protect,
   isPrinter,
   printerController.checkProfileExists
+);
+
+// ============================================
+// ✅ OBJECTIVE 2: PROOFING WORKFLOW ROUTES
+// ============================================
+
+/**
+ * @route   PUT /api/printers/orders/:orderId/proof
+ * @desc    Upload proof file for order
+ * @access  Private (Printer only)
+ */
+router.put(
+  "/orders/:orderId/proof",
+  protect,
+  isPrinter,
+  printerController.uploadProof
+);
+
+/**
+ * @route   GET /api/printers/orders/:orderId
+ * @desc    Get order detail
+ * @access  Private (Printer only)
+ */
+router.get(
+  "/orders/:orderId",
+  protect,
+  isPrinter,
+  printerController.getOrderDetail
 );
 
 export default router;

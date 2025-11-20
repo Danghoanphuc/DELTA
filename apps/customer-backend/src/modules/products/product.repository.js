@@ -56,6 +56,54 @@ class ProductRepository {
   async deleteById(id) {
     return Product.findByIdAndDelete(id);
   }
+
+  /**
+   * Atomic stock reservation using MongoDB findOneAndUpdate (within transaction session)
+   * Ensures we only decrement when sufficient inventory is available.
+   */
+  async reserveStock(productId, quantity, session) {
+    if (!quantity || quantity <= 0) {
+      return null;
+    }
+
+    return Product.findOneAndUpdate(
+      {
+        _id: productId,
+        isActive: true,
+        stock: { $gte: quantity },
+      },
+      {
+        $inc: {
+          stock: -quantity,
+          totalSold: quantity,
+        },
+      },
+      {
+        new: true,
+        session,
+      }
+    );
+  }
+
+  /**
+   * Restore stock + roll back totalSold when an order fails.
+   */
+  async restoreStock(productId, quantity, session) {
+    if (!quantity || quantity <= 0) {
+      return;
+    }
+
+    await Product.updateOne(
+      { _id: productId },
+      {
+        $inc: {
+          stock: quantity,
+          totalSold: -quantity,
+        },
+      },
+      { session }
+    );
+  }
 }
 
 export const productRepository = new ProductRepository();

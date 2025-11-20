@@ -6,13 +6,14 @@ import {
   isAuthenticatedAdmin,
   hasRole,
 } from "../middleware/admin.auth.middleware.js";
+import { authRateLimiter } from "../middleware/rate-limit.middleware.js";
 
 const router = Router();
 
-// === Auth Routes (Public) - ĐẶT LÊN TRÊN CÙNG ===
-router.post("/signin", authController.signIn);
-router.post("/forgot-password", authController.requestPasswordReset);
-router.post("/reset-password", authController.resetPassword);
+// === Auth Routes (Public) - ✅ SECURITY: Rate limited to prevent brute force ===
+router.post("/signin", authRateLimiter, authController.signIn);
+router.post("/forgot-password", authRateLimiter, authController.requestPasswordReset);
+router.post("/reset-password", authRateLimiter, authController.resetPassword);
 
 // === Protected Routes (Yêu cầu đăng nhập) ===
 // Giờ middleware mới được áp dụng

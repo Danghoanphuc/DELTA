@@ -7,9 +7,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import api from "@/shared/lib/axios"; // ✅ Use configured axios instance with auth interceptor
 
 // Components
 import { PaymentForm } from "../components/PaymentForm";
+import { CheckoutLoadingOverlay } from "../components/CheckoutLoadingOverlay";
 import { Button } from "@/shared/components/ui/button";
 import {
   Card,
@@ -37,12 +39,12 @@ import { CreditCard, Truck } from "lucide-react";
 import { AddressForm } from "../components/AddressForm";
 import { Loader } from "lucide-react";
 import { config } from "@/config/env.config";
-import { checkoutService, codCheckoutService } from "@/services/checkoutService";
+import { checkoutService } from "@/services/checkoutService";
 
 // Schema
 const checkoutSchema = z.object({
   shippingAddress: z.any(), // will be validated by zod schema elsewhere
-  paymentMethod: z.enum(["stripe", "momo", "cod"]),
+  paymentMethod: z.enum(["stripe", "momo", "cod", "payos"]),
   billingSameAs: z.boolean().optional(),
   billingAddress: z.any().optional(),
 });
@@ -66,9 +68,19 @@ const CheckoutPage = () => {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [masterOrderId, setMasterOrderId] = useState<string | null>(null);
   const [isStripeLoading, setIsStripeLoading] = useState(false);
+  
+  // State cho loading overlay
+  const [loadingState, setLoadingState] = useState<{
+    isVisible: boolean;
+    message: string;
+    submessage?: string;
+  }>({
+    isVisible: false,
+    message: '',
+  });
 
   // Hook checkout
-  const { createOrderAndPaymentIntent, isProcessing } = useCheckout();
+  const { createOrderAndPaymentIntent, processCheckout, isProcessing } = useCheckout();
 
   // Form
   const form = useForm<CheckoutFormValues>({
@@ -80,8 +92,8 @@ const CheckoutPage = () => {
         phone: user?.phone || "",
         street: "",
         city: "",
-        state: "",
-        postalCode: "",
+        district: "", // ✅ Updated: district thay vì state
+        ward: "", // ✅ Updated: ward thay vì postalCode
         country: "Việt Nam",
       },
       billingSameAs: true,
@@ -101,7 +113,7 @@ const CheckoutPage = () => {
   }, [isFormValid, showPaymentMethods]);
 
   // Xử lý khi đổi phương thức thanh toán
-  const onPaymentMethodChange = async (value: "stripe" | "momo" | "cod") => {
+  const onPaymentMethodChange = async (value: "stripe" | "momo" | "cod" | "payos") => {
     // ✅ Luôn cập nhật form value trước
     form.setValue("paymentMethod", value);
     
@@ -154,9 +166,9 @@ const CheckoutPage = () => {
         recipientName: data.shippingAddress.fullName?.trim() || "", // fullName -> recipientName
         phone: data.shippingAddress.phone?.trim() || "",
         street: data.shippingAddress.street?.trim() || "",
-        district: data.shippingAddress.state?.trim() || "", // state -> district
+        district: data.shippingAddress.district?.trim() || "", // ✅ Updated: district field
         city: data.shippingAddress.city?.trim() || "",
-        ward: data.shippingAddress.postalCode?.trim() || "", // Optional
+        ward: data.shippingAddress.ward?.trim() || "", // ✅ Updated: ward field
         notes: "", // Optional
       };
 
@@ -165,38 +177,100 @@ const CheckoutPage = () => {
       console.log("[CheckoutPage] Dữ liệu đã map:", mappedShippingAddress);
 
       // ✅ Validate dữ liệu trước khi gửi
-      if (!mappedShippingAddress.recipientName || !mappedShippingAddress.district) {
+      if (!mappedShippingAddress.recipientName || !mappedShippingAddress.district || !mappedShippingAddress.ward) {
         console.error("[CheckoutPage] Validation failed:", {
           recipientName: mappedShippingAddress.recipientName,
           district: mappedShippingAddress.district,
+          ward: mappedShippingAddress.ward,
           originalData: data.shippingAddress,
         });
-        toast.error("Vui lòng điền đầy đủ thông tin địa chỉ giao hàng (Họ tên và Quận/Huyện)");
+        toast.error("Vui lòng điền đầy đủ thông tin địa chỉ giao hàng");
         return;
       }
 
       if (data.paymentMethod === "momo") {
         // ✅ Backend tự động lấy cart từ user, không cần truyền cartId
+        setLoadingState({
+          isVisible: true,
+          message: 'Đang tạo link thanh toán MoMo...',
+          submessage: 'Vui lòng chờ trong giây lát',
+        });
+        
         const { paymentUrl } = await checkoutService.createMomoUrl({
           shippingAddress: mappedShippingAddress,
         });
-        toast.info("Đang mở MoMo để thanh toán...");
-        // Debug: log FULL URL để đảm bảo không bị cắt/truncate
+        
         console.log("[MoMo] paymentUrl:", paymentUrl, "length=", paymentUrl?.length);
-        // Mở VNPay ở tab mới để không mất log/Network của tab hiện tại
+        
+        setLoadingState({
+          isVisible: true,
+          message: 'Đang chuyển đến trang thanh toán...',
+          submessage: 'Bạn sẽ được chuyển hướng trong giây lát',
+        });
+        
+        // Mở MoMo ở tab mới
         window.open(paymentUrl, "_blank", "noopener");
+        
+        // Ẩn loading sau 2 giây
+        setTimeout(() => {
+          setLoadingState({ isVisible: false, message: '' });
+        }, 2000);
+        
+      } else if (data.paymentMethod === "payos") {
+        // --- PAYOS INTEGRATION ---
+        try {
+          setLoadingState({
+            isVisible: true,
+            message: 'Đang tạo đơn hàng...',
+            submessage: 'Vui lòng chờ trong giây lát',
+          });
+          
+          const response = await api.post('/payos/create-payment', {
+            shippingAddress: mappedShippingAddress,
+          });
+          
+          if (response.data && response.data.checkoutUrl) {
+            setLoadingState({
+              isVisible: true,
+              message: 'Đang chuyển đến trang thanh toán...',
+              submessage: 'Bạn sẽ được chuyển hướng ngay bây giờ',
+            });
+            
+            // Redirect to PayOS checkout page
+            setTimeout(() => {
+              window.location.href = response.data.checkoutUrl;
+            }, 500);
+          } else {
+            setLoadingState({ isVisible: false, message: '' });
+            toast.error("Không nhận được link thanh toán từ PayOS");
+          }
+        } catch (err: any) {
+          console.error("PayOS Error:", err);
+          setLoadingState({ isVisible: false, message: '' });
+          toast.error(err.response?.data?.error || "Lỗi khi tạo thanh toán PayOS");
+        }
       } else if (data.paymentMethod === "stripe") {
         toast.info(
           "Vui lòng hoàn tất thông tin thẻ thanh toán (Stripe) bên dưới."
         );
       } else {
-        const { masterOrderId } = await codCheckoutService.createCodOrder({
-          shippingAddress: mappedShippingAddress,
+        // ✅ COD flow - Use new unified processCheckout hook
+        setLoadingState({
+          isVisible: true,
+          message: 'Đang tạo đơn hàng COD...',
+          submessage: 'Vui lòng chờ trong giây lát',
         });
-        toast.success("Đặt hàng COD thành công!");
-        navigate(`/checkout/confirmation/${masterOrderId}`);
+        
+        await processCheckout({
+          shippingAddress: mappedShippingAddress,
+          paymentMethod: 'cod',
+        });
+        
+        // processCheckout will handle navigation and cart clearing
+        setLoadingState({ isVisible: false, message: '' });
       }
     } catch (error: any) {
+      setLoadingState({ isVisible: false, message: '' });
       toast.error("Đặt hàng thất bại", { description: error.message });
     }
   };
@@ -232,11 +306,20 @@ const CheckoutPage = () => {
     : undefined;
 
   return (
-    <div className="container mx-auto max-w-7xl px-4 py-8">
+    <>
+      {/* Loading Overlay */}
+      <CheckoutLoadingOverlay
+        isVisible={loadingState.isVisible}
+        message={loadingState.message}
+        submessage={loadingState.submessage}
+      />
+      
+      {/* Main Content */}
+      <div className="container mx-auto max-w-7xl px-4 py-8">
       <h1 className="mb-6 text-3xl font-bold tracking-tight">Thanh toán</h1>
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        {/* === CỘT TRÁI: FORM ĐỊA CHỈ VÀ THANH TOÁN === */}
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+        {/* === CỘT TRÁI: FORM ĐỊA CHỈ VÀ THANH TOÁN (7/12) === */}
+        <div className="lg:col-span-7">
           <FormProvider {...form}>
             <form
               id="checkout-address-form"
@@ -277,7 +360,7 @@ const CheckoutPage = () => {
                 <RadioGroup
                   value={paymentMethod}
                   onValueChange={(val) => {
-                    onPaymentMethodChange(val as "stripe" | "momo" | "cod");
+                    onPaymentMethodChange(val as "stripe" | "momo" | "cod" | "payos");
                   }}
                   className="space-y-4"
                 >
@@ -292,6 +375,20 @@ const CheckoutPage = () => {
                       className="flex-1 cursor-pointer font-normal text-sm"
                     >
                       Thanh toán MoMo (QR/Thẻ nội địa)
+                    </label>
+                  </div>
+                  
+                  {/* (Radio PayOS) */}
+                  <div 
+                    className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => onPaymentMethodChange("payos")}
+                  >
+                    <RadioGroupItem value="payos" id="payos" />
+                    <label
+                      htmlFor="payos"
+                      className="flex-1 cursor-pointer font-normal text-sm"
+                    >
+                      Thanh toán qua PayOS (QR Code)
                     </label>
                   </div>
                   
@@ -353,7 +450,7 @@ const CheckoutPage = () => {
 
                 {/* Nút submit cho VNPay và COD */}
                 {paymentMethod !== "stripe" && (
-                  <div className="mt-6">
+                  <div className="mt-6 space-y-4">
                     <Button
                       type="button"
                       onClick={() => {
@@ -368,8 +465,32 @@ const CheckoutPage = () => {
                       )}
                       {paymentMethod === "momo"
                         ? "Thanh toán MoMo"
+                        : paymentMethod === "payos"
+                        ? "Thanh toán PayOS"
                         : "Hoàn tất đơn hàng (COD)"}
                     </Button>
+                    
+                    {/* Trust Signals */}
+                    <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span>Bảo mật SSL</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Hoàn tiền 100% nếu lỗi</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                        </svg>
+                        <span>Kiểm hàng trước khi nhận</span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -378,12 +499,15 @@ const CheckoutPage = () => {
           </FormProvider>
         </div>
 
-        {/* === CỘT PHẢI: TÓM TẮT ĐƠN HÀNG === */}
-        <div className="lg:col-span-1">
-          <OrderSummaryCard cart={cart || undefined} />
+        {/* === CỘT PHẢI: TÓM TẮT ĐƠN HÀNG (5/12) - STICKY === */}
+        <div className="lg:col-span-5">
+          <div className="lg:sticky lg:top-4">
+            <OrderSummaryCard cart={cart || undefined} />
+          </div>
         </div>
       </div>
     </div>
+    </>
   );
 };
 

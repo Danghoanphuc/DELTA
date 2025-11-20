@@ -16,6 +16,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from "../../shared/exceptions/index.js";
+import { config } from "../../config/env.config.js";
 
 const ACCESS_TOKEN_TTL = "30m";
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 days
@@ -29,7 +30,7 @@ export class AuthService {
    * Generate JWT access token
    */
   generateAccessToken(userId) {
-    return jwt.sign({ userId: userId }, process.env.ACCESS_TOKEN_SECRET, {
+    return jwt.sign({ userId: userId }, config.auth.accessTokenSecret, {
       expiresIn: ACCESS_TOKEN_TTL,
     });
   }

@@ -1,11 +1,12 @@
 // apps/admin-backend/src/services/email.service.ts
 import { Resend } from "resend";
+import { config } from "../config/env.config.js";
 
 // === GIẢI PHÁP SỬA LỖI ===
 // 1. Khai báo client là 'null'. Chúng ta sẽ không khởi tạo nó ngay lập tức.
 let resend: Resend | null = null;
 
-const FROM_EMAIL = process.env.FROM_EMAIL || "admin@printz.vn";
+const FROM_EMAIL = config.email.fromEmail;
 
 /**
  * Hàm helper để "khởi tạo lười" (lazy initialize) Resend client.
@@ -17,7 +18,7 @@ const getResendClient = (): Resend | null => {
     return resend;
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = config.email.resendApiKey;
 
   // 3. Nếu có API key, khởi tạo và lưu lại
   if (apiKey) {
@@ -110,6 +111,51 @@ export const sendAdminPasswordResetEmail = async (
   } catch (error) {
     console.error(
       `[Email Service] Lỗi khi gửi email đặt lại mật khẩu đến ${toEmail}:`,
+      error
+    );
+  }
+};
+
+export const sendAssetFlagNotification = async (
+  toEmail: string,
+  assetName: string,
+  assetType: "product" | "template",
+  reason: string
+) => {
+  const client = getResendClient();
+
+  if (!client) {
+    console.warn(
+      "!!! CẢNH BÁO: Thiếu RESEND_API_KEY. Không thể gửi email cảnh báo nội dung."
+    );
+    return;
+  }
+
+  const subjectAsset =
+    assetType === "product" ? "sản phẩm" : "mẫu thiết kế (template)";
+
+  try {
+    await client.emails.send({
+      from: `PrintZ Content Review <${FROM_EMAIL}>`,
+      to: [toEmail],
+      subject: `[PrintZ] ${subjectAsset} "${assetName}" đã bị gắn cờ`,
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+          <h2>Xin chào,</h2>
+          <p>Sau khi rà soát, chúng tôi đã gắn cờ ${subjectAsset} <strong>${assetName}</strong>.</p>
+          <p><strong>Lý do:</strong></p>
+          <p style="padding: 10px; border-left: 4px solid #f87171; background-color: #fef2f2;">
+            ${reason}
+          </p>
+          <p>Vui lòng cập nhật lại nội dung theo chính sách của PrintZ trước khi gửi lại để xét duyệt.</p>
+          <p>Nếu bạn cần hỗ trợ, hãy phản hồi lại email này.</p>
+          <p>Trân trọng,<br/>Đội ngũ Moderation - PrintZ</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error(
+      `[Email Service] Lỗi khi gửi email cảnh báo nội dung đến ${toEmail}:`,
       error
     );
   }

@@ -1,47 +1,75 @@
-// src/modules/chat/chat.controller.js
-// ✅ BÀN GIAO: Truyền req.query vào service
-
+// apps/customer-backend/src/modules/chat/chat.controller.js
 import { ChatService } from "./chat.service.js";
-import { ApiResponse } from "../../shared/utils/index.js";
+import { SocialChatService } from "./social-chat.service.js";
+import { Conversation } from "../../shared/models/conversation.model.js";
+import { ApiResponse, Logger } from "../../shared/utils/index.js";
 import { API_CODES } from "../../shared/constants/index.js";
-import { Logger } from "../../shared/utils/index.js";
+import { NotFoundException } from "../../shared/exceptions/index.js";
 
 export class ChatController {
   constructor() {
-    this.chatService = new ChatService();
+    this.botService = new ChatService();
+    this.socialService = new SocialChatService();
   }
 
   /**
-   * Xử lý tin nhắn (text)
+   * ✅ ROUTER THÔNG MINH: Điều phối tin nhắn (Bot hoặc Social)
    */
   handleChatMessage = async (req, res, next) => {
     try {
+      const { conversationId } = req.body;
       const isGuest = !req.user;
-      Logger.debug(
-        `[ChatCtrl] 💬 Message from ${
-          isGuest ? "GUEST" : "USER " + req.user?._id
-        }`
-      );
 
-      const response = await this.chatService.handleMessage(
-        req.user,
-        req.body, // body giờ chứa { message, conversationId, latitude, longitude }
-        isGuest
-      );
+      // 1. Parse Metadata (JSON string fix)
+      let body = { ...req.body };
+      if (body.metadata && typeof body.metadata === "string") {
+        try {
+          body.metadata = JSON.parse(body.metadata);
+        } catch (e) {
+          /* Ignore */
+        }
+      }
 
-      res.status(API_CODES.SUCCESS).json(
-        ApiResponse.success({
-          ...response,
-          isGuest,
-        })
-      );
+      // 2. Xác định loại hội thoại để chọn Service
+      let isSocialChat = false;
+
+      if (conversationId) {
+        const conversation = await Conversation.findById(conversationId).select(
+          "type"
+        );
+        // Nếu là P2P hoặc Chat với Nhà in -> Dùng Social Service
+        if (
+          conversation &&
+          (conversation.type === "peer-to-peer" ||
+            conversation.type === "customer-printer")
+        ) {
+          isSocialChat = true;
+        }
+      }
+
+      // 3. Gọi Service tương ứng
+      let response;
+      if (isSocialChat) {
+        if (isGuest) throw new Error("Bạn phải đăng nhập để chat P2P.");
+        response = await this.socialService.handleSocialMessage(req.user, body);
+      } else {
+        response = await this.botService.handleBotMessage(
+          req.user,
+          body,
+          isGuest
+        );
+      }
+
+      res
+        .status(API_CODES.SUCCESS)
+        .json(ApiResponse.success({ ...response, isGuest }));
     } catch (error) {
       next(error);
     }
   };
 
   /**
-   * Xử lý tin nhắn (file upload)
+   * Xử lý upload file (Router tương tự)
    */
   handleChatUpload = async (req, res, next) => {
     try {
@@ -51,43 +79,32 @@ export class ChatController {
           .json(ApiResponse.error("Không có file nào được tải lên."));
       }
 
-      Logger.debug(
-        `[ChatCtrl] 📁 File upload from USER ${req.user._id}: ${req.file.path}`
-      );
-
-      // Tạo payload đặc biệt cho service
+      // Giả lập body để tái sử dụng logic router
       const body = {
         fileUrl: req.file.path,
         fileName: req.file.originalname,
         fileType: req.file.mimetype,
-        conversationId: req.body.conversationId || null, // Lấy conversationId từ form-data
+        conversationId: req.body.conversationId || null,
       };
 
-      const response = await this.chatService.handleMessage(
-        req.user,
-        body,
-        false // Không phải guest
-      );
-
-      res.status(API_CODES.SUCCESS).json(
-        ApiResponse.success({
-          ...response,
-          isGuest: false,
-        })
-      );
+      // Gán lại body cho request và gọi handleChatMessage
+      req.body = body;
+      return this.handleChatMessage(req, res, next);
     } catch (error) {
       next(error);
     }
   };
 
   /**
-   * Lấy danh sách metadata các cuộc trò chuyện
+   * Lấy danh sách conversations
    */
   getConversations = async (req, res, next) => {
     try {
-      const conversations = await this.chatService.getConversations(
-        req.user._id
-      );
+      // Dùng chung repo của botService (vì repo này lấy chung bảng Conversation)
+      const conversations =
+        await this.botService.chatRepository.findConversationsByUserId(
+          req.user._id
+        );
       res
         .status(API_CODES.SUCCESS)
         .json(ApiResponse.success({ conversations }));
@@ -96,21 +113,92 @@ export class ChatController {
     }
   };
 
-  // ============================================
-  // ✅ THAY ĐỔI CONTROLLER LẤY TIN NHẮN
-  // ============================================
   /**
-   * Lấy tin nhắn của một cuộc trò chuyện cụ thể (có phân trang)
-   * Sẽ nhận query params: /api/chat/history/:id?page=1&limit=30
+   * ✅ API MỚI: Lấy chi tiết 1 cuộc hội thoại (Để fix lỗi F5 mất chat)
+   */
+  getConversationById = async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const userId = req.user._id;
+
+      // Sử dụng hàm có sẵn trong Repo để lấy metadata và check quyền
+      const conversation =
+        await this.botService.chatRepository.getConversationMetadata(
+          conversationId,
+          userId
+        );
+
+      if (!conversation) {
+        throw new NotFoundException(
+          "Không tìm thấy cuộc trò chuyện hoặc bạn không có quyền."
+        );
+      }
+
+      // Populate thông tin user để hiển thị Avatar/Tên
+      await conversation.populate(
+        "participants.userId",
+        "username displayName avatarUrl"
+      );
+
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ conversation }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Lấy tin nhắn (phân trang)
    */
   getMessagesForConversation = async (req, res, next) => {
     try {
-      const messagesData = await this.chatService.getMessages(
+      const messagesData = await this.botService.getMessages(
         req.params.conversationId,
         req.user._id,
-        req.query // ✅ Truyền query (chứa page, limit) vào service
+        req.query
       );
       res.status(API_CODES.SUCCESS).json(ApiResponse.success(messagesData));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Đổi tên conversation
+   */
+  renameConversation = async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const { title } = req.body;
+
+      if (!title || title.trim().length === 0) {
+        return res
+          .status(API_CODES.BAD_REQUEST)
+          .json(ApiResponse.error("Tiêu đề không hợp lệ."));
+      }
+
+      await this.botService.renameConversation(
+        conversationId,
+        req.user._id,
+        title.trim()
+      );
+      res
+        .status(API_CODES.SUCCESS)
+        .json(ApiResponse.success({ message: "Đổi tên thành công" }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Xóa conversation
+   */
+  deleteConversation = async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      await this.botService.deleteConversation(conversationId, req.user._id);
+      res
+        .status(API_CODES.SUCCESS)
+        .json(ApiResponse.success({ message: "Xóa thành công" }));
     } catch (error) {
       next(error);
     }

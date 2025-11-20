@@ -1,4 +1,4 @@
-// src/features/printer/components/product-wizard/steps/Step1_SelectAsset.tsx (ĐÃ CẬP NHẬT)
+// src/features/printer/components/product-wizard/steps/Step1_SelectAsset.tsx (✅ OBJECTIVE 3: Visual Grid)
 import { Control } from "react-hook-form";
 import {
   Card,
@@ -13,19 +13,10 @@ import {
   FormLabel,
   FormMessage,
 } from "@/shared/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  // ✅ MỚI: Import 2 component để tạo nhóm
-  SelectGroup,
-  SelectLabel,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/components/ui/select";
 import { ProductWizardFormValues } from "@/features/printer/schemas/productWizardSchema";
 import { Asset } from "@/types/asset";
-import { Package } from "lucide-react";
+import { Package, Inbox } from "lucide-react";
+import { AssetCard } from "@/features/printer/components/AssetCard";
 
 interface StepProps {
   control: Control<ProductWizardFormValues>;
@@ -45,9 +36,10 @@ export function Step1_SelectAsset({
 }: StepProps) {
   const hasPrivateAssets = privateAssets.length > 0;
   const hasPublicAssets = publicAssets.length > 0;
+  const allAssets = [...privateAssets, ...publicAssets];
 
   return (
-    <Card onClick={onExpand} className="cursor-pointer">
+    <Card onClick={!isExpanded ? onExpand : undefined} className={!isExpanded ? "cursor-pointer" : ""}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Package className="text-blue-600" />
@@ -61,57 +53,73 @@ export function Step1_SelectAsset({
             name="assetId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Phôi có sẵn</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Chọn một phôi 3D/2D đã được duyệt" />
-                    </SelectTrigger>
-                  </FormControl>
-                  {/* ✅ SỬA: Dùng SelectGroup để phân loại UI */}
-                  <SelectContent>
-                    {/* Nhóm 1: Phôi riêng tư */}
+                <FormLabel className="text-base font-semibold">
+                  Chọn phôi 3D/2D
+                </FormLabel>
+                <FormControl>
+                  <div className="space-y-6">
+                    {/* Empty State */}
+                    {allAssets.length === 0 && (
+                      <div className="text-center py-12 bg-gray-50 dark:bg-gray-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
+                        <Inbox className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                          Chưa có phôi nào
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                          Hãy vào <strong className="text-orange-600">Kho Phôi (3D/2D)</strong> để tải lên phôi của bạn
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Private Assets Section */}
                     {hasPrivateAssets && (
-                      <SelectGroup>
-                        <SelectLabel>Kho Phôi Của Tôi</SelectLabel>
-                        {privateAssets.map((asset) => (
-                          <SelectItem key={asset._id} value={asset._id}>
-                            {asset.name} (Riêng tư)
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                          Kho Phôi Của Tôi ({privateAssets.length})
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {privateAssets.map((asset) => (
+                            <AssetCard
+                              key={asset._id}
+                              asset={asset}
+                              isSelected={field.value === asset._id}
+                              onClick={() => field.onChange(asset._id)}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     )}
-                    {/* Nhóm 2: Phôi công khai */}
+
+                    {/* Public Assets Section */}
                     {hasPublicAssets && (
-                      <SelectGroup>
-                        <SelectLabel>Kho Phôi Chung (PrintZ)</SelectLabel>
-                        {publicAssets.map((asset) => (
-                          <SelectItem key={asset._id} value={asset._id}>
-                            {asset.name} (Chung)
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                          Kho Phôi Chung - PrintZ ({publicAssets.length})
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {publicAssets.map((asset) => (
+                            <AssetCard
+                              key={asset._id}
+                              asset={asset}
+                              isSelected={field.value === asset._id}
+                              onClick={() => field.onChange(asset._id)}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     )}
-                    {/* Trường hợp không có phôi nào */}
-                    {!hasPrivateAssets && !hasPublicAssets && (
-                      <SelectItem value="no-asset" disabled>
-                        Không tìm thấy phôi nào.
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+                  </div>
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-          <p className="text-xs text-gray-500 mt-2">
-            Không tìm thấy phôi? Hãy vào{" "}
-            <strong className="text-orange-600">Kho Phôi (3D/2D)</strong> để tải
-            lên phôi của riêng bạn.
-          </p>
+          
+          {allAssets.length > 0 && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              💡 <strong>Mẹo:</strong> Nhấp vào phôi để chọn. Phôi có hình ảnh preview giúp bạn dễ dàng nhận biết.
+            </p>
+          )}
         </CardContent>
       )}
     </Card>

@@ -30,6 +30,9 @@ export interface DecalItem {
   // === Trạng thái ===
   isVisible: boolean;
   isLocked: boolean;
+
+  // === Chất lượng ảnh (Pre-flight Check) ===
+  qualityStatus?: "good" | "warning" | "bad";
 }
 
 /**

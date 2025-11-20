@@ -5,24 +5,17 @@
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary"; // Import v2
 import { CloudinaryStorage } from "multer-storage-cloudinary";
+import { config } from "../../config/env.config.js";
 // ❌ Đã loại bỏ import Logger
 
 // === BƯỚC 1: CẤU HÌNH CLOUDINARY ===
-// (Đảm bảo các biến ENV này đã có trong file .env)
-if (
-  !process.env.CLOUDINARY_CLOUD_NAME ||
-  !process.env.CLOUDINARY_API_KEY ||
-  !process.env.CLOUDINARY_API_SECRET
-) {
-  console.error("❌ FATAL: Missing Cloudinary environment variables!"); // Dùng console.error
-  throw new Error("Missing Cloudinary configuration variables!");
-}
-
+// (Sử dụng config đã được validate)
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: config.cloudinary.cloudName,
+  api_key: config.cloudinary.apiKey,
+  api_secret: config.cloudinary.apiSecret,
   secure: true,
+  timeout: 180000, // ✅ Tăng timeout lên 3 phút cho Cloudinary upload
 });
 
 console.log("✅ Cloudinary configured successfully."); // Dùng console.log
@@ -193,7 +186,7 @@ export const uploadMixed = createMulter(
 
 // 2. Dùng cho API chỉ upload ảnh (VD: /api/products)
 export const uploadImage = createMulter(imageStorage, {
-  fileSize: 10 * 1024 * 1024, // 10MB
+  fileSize: 50 * 1024 * 1024, // ✅ Tăng lên 50MB (cho phép upload nhiều ảnh 5MB)
 });
 
 // 3. Dùng cho API chỉ upload model 3D (GLB)

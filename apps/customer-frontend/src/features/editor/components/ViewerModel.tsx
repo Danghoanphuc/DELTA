@@ -8,7 +8,7 @@ import { useCameraAutoFit } from "../hooks/useCameraAutoFit";
 import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { DecalItem } from "../types/decal.types";
 import { DecalRenderer } from "./DecalRenderer";
-import { GizmoMode } from "../hooks/useDesignEditor";
+import { GizmoMode } from "@/stores/useEditorStore";
 
 interface ViewerModelProps {
   modelUrl: string;

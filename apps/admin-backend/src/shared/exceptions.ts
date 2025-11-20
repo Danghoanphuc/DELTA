@@ -42,3 +42,13 @@ export class NotFoundException extends Error {
     this.statusCode = 404;
   }
 }
+
+export class BadRequestException extends Error {
+  public statusCode: number;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "BadRequestException";
+    this.statusCode = 400;
+  }
+}

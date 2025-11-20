@@ -7,7 +7,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { toast } from "sonner";
 
 export const useProductQuickShop = () => {
-  const { addToCart, isInCart } = useCartStore();
+  const { addToCart, isInCart, cart } = useCartStore(); // ✅ Thêm cart để track changes
   // ✅ SỬA LỖI: Lấy đúng state từ useAuthStore
   const isAuthenticated = useAuthStore((state) => !!state.accessToken);
 
@@ -40,7 +40,7 @@ export const useProductQuickShop = () => {
       quickShopProduct
         ? isInCart(quickShopProduct._id, isAuthenticated)
         : false,
-    [quickShopProduct, isInCart, isAuthenticated]
+    [quickShopProduct, isInCart, isAuthenticated, cart] // ✅ Thêm cart để re-compute khi cart thay đổi
   );
 
   // Tự động chọn bậc giá khi số lượng thay đổi

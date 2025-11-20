@@ -27,6 +27,70 @@ export class UploadController {
   };
 
   /**
+   * ✨ SMART PIPELINE: Generate signed URL for direct upload to Cloudinary
+   * @desc    Client sẽ upload trực tiếp lên Cloudinary (không qua server)
+   */
+  generateUploadSignature = async (req, res, next) => {
+    try {
+      const { folder = "printz/products" } = req.body;
+
+      const timestamp = Math.round(new Date().getTime() / 1000);
+      const signature = cloudinary.utils.api_sign_request(
+        {
+          timestamp,
+          folder,
+          upload_preset: "printz_products", // ⚠️ Cần tạo preset trong Cloudinary dashboard
+        },
+        process.env.CLOUDINARY_API_SECRET
+      );
+
+      res
+        .status(API_CODES.SUCCESS)
+        .json(
+          ApiResponse.success({
+            signature,
+            timestamp,
+            cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+            apiKey: process.env.CLOUDINARY_API_KEY,
+            uploadPreset: "printz_products",
+            folder,
+          }, "Signed URL generated")
+        );
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * ✨ SMART PIPELINE: Upload ảnh async (trả về URL ngay lập tức)
+   * @desc    Alternative cho signed URL - server upload lên Cloudinary
+   */
+  uploadImageAsync = async (req, res, next) => {
+    try {
+      if (!req.file) {
+        throw new ValidationException("No file uploaded");
+      }
+
+      // Multer đã upload lên Cloudinary
+      const imageUrl = req.file.path;
+      const publicId = req.file.filename;
+
+      res
+        .status(API_CODES.SUCCESS)
+        .json(
+          ApiResponse.success({
+            url: imageUrl,
+            publicId,
+            width: req.file.width,
+            height: req.file.height,
+          }, "Image uploaded successfully")
+        );
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * ✅ BƯỚC 2: Thêm hàm dọn dẹp file rác (orphan)
    * @desc    Xóa file trên cloud nếu lưu DB thất bại
    */

@@ -44,6 +44,27 @@ export class OrderRepository {
     });
   }
 
+  /**
+   * ✅ FIX: Alias for findMyMasterOrders (for chat tool compatibility)
+   * @param {string} customerId - ID của khách hàng
+   * @param {object} options - Options như limit, sort
+   * @returns {Promise<Array>} Danh sách đơn hàng
+   */
+  async findByCustomerId(customerId, options = {}) {
+    const { limit = 10, sort = "-createdAt" } = options;
+    const query = MasterOrder.find({ customerId: customerId });
+    
+    if (sort) {
+      query.sort(sort);
+    }
+    
+    if (limit) {
+      query.limit(limit);
+    }
+    
+    return await query.lean();
+  }
+
   async findMasterOrderByIdForCustomer(orderId, customerId) {
     return await MasterOrder.findOne({
       _id: orderId,
@@ -126,8 +147,9 @@ export class OrderRepository {
       if (printerOrder) {
         // Tạo đối tượng order đơn giản hóa cho frontend
         printerOrders.push({
-          _id: printerOrder._id.toString(),
+          _id: masterOrder._id.toString(),  // ✅ FIX: Dùng MasterOrder._id để match với findOrderByIdForPrinter
           masterOrderId: masterOrder._id.toString(),
+          printerOrderId: printerOrder._id.toString(),  // ✅ Thêm printerOrderId nếu cần
           orderNumber: masterOrder.orderNumber,
           customerName: masterOrder.customerName,
           customerEmail: masterOrder.customerEmail,
@@ -186,9 +208,10 @@ export class OrderRepository {
     
     const orderObjectId = new mongoose.Types.ObjectId(orderId);
 
-    // Tìm MasterOrder có printerOrder với ID này
+    // ✅ FIX: Tìm MasterOrder bằng MasterOrder._id (không phải printerOrders._id)
+    // Printer cần xem MasterOrder chứa printerOrder của họ
     const masterOrder = await MasterOrder.findOne({
-      "printerOrders._id": orderObjectId,
+      _id: orderObjectId,  // ✅ Tìm bằng MasterOrder ID!
       "printerOrders.printerProfileId": printerProfileObjectId,
     });
 
@@ -196,13 +219,13 @@ export class OrderRepository {
       return null;
     }
 
+    // ✅ FIX: Tìm printerOrder bằng printerProfileId (không dùng orderId nữa vì orderId là MasterOrder._id)
     const printerOrder = masterOrder.printerOrders.find(
-      (po) =>
-        po._id.toString() === orderId &&
-        po.printerProfileId.toString() === printerProfileId.toString()
+      (po) => po.printerProfileId.toString() === printerProfileId.toString()
     );
 
     if (!printerOrder) {
+      console.error("❌ [OrderRepo] Printer order not found for printerProfileId:", printerProfileId);
       return null;
     }
 

@@ -1,7 +1,8 @@
 // src/features/printer/pages/CreateProductWizard.tsx
-// ✅ ĐÃ SỬA: Thêm Bước 3 (Ảnh) và đổi số các bước 4, 5
+// ✨ SMART PIPELINE: Using useSmartWizard with auto-save + new components
 
-import { useCreateProductWizard } from "@/features/printer/hooks/useCreateProductWizard";
+// ✨ CHANGED: useCreateProductWizard -> useSmartWizard
+import { useSmartWizard } from "@/features/printer/hooks/useSmartWizard";
 import { Form } from "@/shared/components/ui/form";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -10,17 +11,17 @@ import {
   CardTitle,
   CardContent,
 } from "@/shared/components/ui/card";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Loader2, Save, CheckCircle2 } from "lucide-react";
 import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
 
 // Import các component con
 import { ProductWizardStepper } from "@/features/printer/components/product-wizard/ProductWizardStepper";
 import { ProductWizardPreview } from "@/features/printer/components/product-wizard/ProductWizardPreview";
-import { Step1_SelectAsset } from "@/features/printer/components/product-wizard/steps/Step1_SelectAsset";
+// ✨ CHANGED: Step1_SelectAsset -> Step1_SelectAsset_New (infinite scroll)
+import { Step1_SelectAsset_New } from "@/features/printer/components/product-wizard/steps/Step1_SelectAsset_New";
 import { Step2_GeneralInfo } from "@/features/printer/components/product-wizard/steps/Step2_GeneralInfo";
-// ✅ MỚI: Import bước 3
-import { Step3_Images } from "@/features/printer/components/product-wizard/steps/Step3_Images";
-// ✅ SỬA: Đổi tên (trước đây là Step3, 4)
+// ✨ CHANGED: Step3_Images -> Step3_Images_New (async upload with URLs)
+import { Step3_Images_New } from "@/features/printer/components/product-wizard/steps/Step3_Images_New";
 import { Step4_Pricing } from "@/features/printer/components/product-wizard/steps/Step4_Pricing";
 import { Step5_Publish } from "@/features/printer/components/product-wizard/steps/Step5_Publish";
 
@@ -35,25 +36,29 @@ export function CreateProductWizard({
   onFormClose,
   onSuccess,
 }: CreateProductWizardProps) {
+  // ✨ SMART PIPELINE: Using useSmartWizard instead of useCreateProductWizard
   const {
     form,
     isLoading,
     isSubmitting,
+    draftStatus, // ✨ NEW: Draft status indicator
     activeStep,
     setActiveStep,
     privateAssets,
     publicAssets,
     selectedAsset,
-    watchedImages, // ✅ Lấy state ảnh
     pricingFields,
     addPricingTier,
     removePricingTier,
     validateAndGoToStep,
     onSubmit,
     onError,
-  } = useCreateProductWizard(productId);
+  } = useSmartWizard(productId, onSuccess);
 
   const { handleSubmit, control } = form;
+  // Keep watching images to avoid stale references during render cycles
+  const watchedImages = form.watch("images");
+  void watchedImages;
 
   if (isLoading) {
     return (
@@ -70,7 +75,7 @@ export function CreateProductWizard({
         onSubmit={handleSubmit(onSubmit, onError)}
         className="flex flex-col h-full"
       >
-        {/* (Header giữ nguyên) */}
+        {/* ✨ SMART PIPELINE: Header with draft status */}
         <Card className="rounded-none border-t-0 border-x-0 sticky top-0 z-30 bg-white">
           <CardHeader className="flex flex-row items-center gap-2 space-y-0 p-4 border-b">
             <Button variant="ghost" size="icon" onClick={onFormClose}>
@@ -82,6 +87,26 @@ export function CreateProductWizard({
             <CardTitle className="text-lg font-semibold ml-4">
               {productId ? "Chỉnh sửa sản phẩm" : "Đăng bán sản phẩm mới"}
             </CardTitle>
+            {/* ✨ Draft Status Indicator */}
+            <div className="ml-auto flex items-center gap-2">
+              {draftStatus === "saving" && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Đang lưu...</span>
+                </div>
+              )}
+              {draftStatus === "saved" && (
+                <div className="flex items-center gap-2 text-sm text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Đã lưu nháp</span>
+                </div>
+              )}
+              {draftStatus === "error" && (
+                <div className="flex items-center gap-2 text-sm text-red-600">
+                  <span>Lỗi lưu nháp</span>
+                </div>
+              )}
+            </div>
           </CardHeader>
         </Card>
 
@@ -97,10 +122,9 @@ export function CreateProductWizard({
             {/* Form Steps (Scrollable) */}
             <ScrollArea className="flex-1 h-full pr-4">
               <div className="space-y-6">
-                <Step1_SelectAsset
+                {/* ✨ SMART PIPELINE: Using Step1_SelectAsset_New with infinite scroll */}
+                <Step1_SelectAsset_New
                   control={control}
-                  privateAssets={privateAssets}
-                  publicAssets={publicAssets}
                   isExpanded={activeStep === 1}
                   onExpand={() => setActiveStep(1)}
                 />
@@ -110,14 +134,13 @@ export function CreateProductWizard({
                   isExpanded={activeStep === 2}
                   onExpand={() => setActiveStep(2)}
                   onValidate={() =>
-                    validateAndGoToStep(3, ["name", "category"])
+                    validateAndGoToStep(3, ["name", "categoryDisplay"])
                   }
                 />
 
-                {/* ✅ MỚI: Thêm Bước 3 - Upload Ảnh */}
-                <Step3_Images
+                {/* ✨ SMART PIPELINE: Using Step3_Images_New with async upload */}
+                <Step3_Images_New
                   control={control}
-                  watchedImages={watchedImages} // Truyền state ảnh
                   isExpanded={activeStep === 3}
                   onExpand={() => setActiveStep(3)}
                   onValidate={() => validateAndGoToStep(4, ["images"])}

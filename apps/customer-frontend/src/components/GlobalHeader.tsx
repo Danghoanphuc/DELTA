@@ -7,12 +7,18 @@ import {
   LayoutGrid, // Cửa hàng
   ShoppingCart,
   Bell,
+  MessageCircle, // ✅ SOCIAL CHAT
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { UserContextSwitcher } from "./UserContextSwitcher";
 import { SearchAutocomplete } from "./SearchAutocomplete";
 import printzLogo from "@/assets/img/logo-printz.png";
 import { cn } from "@/shared/lib/utils";
+// ✅ NOTIFICATION: Import unread count hook
+import { useUnreadCount } from "@/features/notifications/hooks/useNotifications";
+import { useAuthStore } from "@/stores/useAuthStore";
+// ✅ SOCIAL CHAT: Import unread count for social chat
+import { useSocialChatStore } from "@/features/social/hooks/useSocialChatStore";
 
 // Props (như đã thống nhất)
 interface GlobalHeaderProps {
@@ -28,6 +34,15 @@ export function GlobalHeader({
 }: GlobalHeaderProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // ✅ NOTIFICATION: Get unread count
+  const isAuthenticated = useAuthStore((state) => !!state.accessToken);
+  const { unreadCount } = useUnreadCount();
+  const showBadge = isAuthenticated && unreadCount > 0;
+  
+  // ✅ SOCIAL CHAT: Get unread messages count
+  const totalUnreadMessages = useSocialChatStore((state) => state.totalUnread);
+  const showChatBadge = isAuthenticated && totalUnreadMessages > 0;
 
   // ✅ ĐIỀU HƯỚNG CẤP 1 (TRÊN HEADER)
   const navItems = [
@@ -87,10 +102,31 @@ export function GlobalHeader({
             variant="ghost"
             size="icon"
             className="relative"
-            aria-label="Thông báo"
+            aria-label={`Thông báo${showBadge ? ` - ${unreadCount} chưa đọc` : ""}`}
             onClick={() => navigate("/notifications")}
           >
             <Bell size={20} />
+            {showBadge && (
+              <span className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1.5 flex items-center justify-center rounded-full bg-red-600 text-white text-[10px] font-bold leading-none">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </Button>
+          
+          {/* ✅ SOCIAL CHAT: Messages Icon */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative"
+            aria-label={`Tin nhắn${showChatBadge ? ` - ${totalUnreadMessages} chưa đọc` : ""}`}
+            onClick={() => navigate("/messages")}
+          >
+            <MessageCircle size={20} />
+            {showChatBadge && (
+              <span className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1.5 flex items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold leading-none">
+                {totalUnreadMessages > 99 ? "99+" : totalUnreadMessages}
+              </span>
+            )}
           </Button>
           {/* Cart Icon - Always Visible */}
           <Button

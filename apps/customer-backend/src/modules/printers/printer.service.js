@@ -206,4 +206,102 @@ export class PrinterService {
     }
     return gallery;
   }
+
+  // ============================================
+  // ✅ OBJECTIVE 2: PROOFING WORKFLOW
+  // ============================================
+  
+  /**
+   * Upload proof file cho printer order
+   */
+  async uploadProof(orderId, printerId, proofData) {
+    Logger.debug(`[PrinterSvc] 📤 Uploading proof for order ${orderId}`);
+    
+    // 1. Import MasterOrder model (cần thêm ở đầu file)
+    const { MasterOrder } = await import("../../shared/models/master-order.model.js");
+    
+    // 2. Find order and validate ownership
+    const order = await MasterOrder.findById(orderId);
+    if (!order) {
+      throw new NotFoundException("Không tìm thấy đơn hàng", orderId);
+    }
+    
+    // 3. Find printer's sub-order
+    const printerOrder = order.printerOrders.find(
+      (po) => po.printerProfileId.toString() === printerId.toString()
+    );
+    
+    if (!printerOrder) {
+      throw new ForbiddenException("Đây không phải đơn hàng của bạn");
+    }
+    
+    // 4. Validate current status
+    if (printerOrder.artworkStatus === "approved") {
+      throw new ValidationException("Proof đã được duyệt, không thể upload lại");
+    }
+    
+    // 5. Mark old proofs as superseded
+    if (printerOrder.proofFiles) {
+      printerOrder.proofFiles.forEach((pf) => {
+        if (pf.status === "current") {
+          pf.status = "superseded";
+        }
+      });
+    } else {
+      printerOrder.proofFiles = [];
+    }
+    
+    // 6. Add new proof
+    const version = printerOrder.proofFiles.length + 1;
+    printerOrder.proofFiles.push({
+      url: proofData.url,
+      version,
+      fileName: proofData.fileName,
+      fileType: proofData.fileType,
+      uploadedBy: printerId,
+      status: "current",
+      uploadedAt: new Date(),
+    });
+    
+    // 7. Update artwork status
+    printerOrder.artworkStatus = "pending_approval";
+    
+    // 8. Save order
+    await order.save();
+    
+    // 9. Invalidate cache (nếu có)
+    if (this.cacheService) {
+      await this.cacheService.del(`order:${orderId}`);
+    }
+    
+    Logger.success(`[PrinterSvc] ✅ Proof v${version} uploaded for order ${orderId}`);
+    
+    return {
+      order,
+      message: "Proof uploaded successfully. Waiting for customer approval.",
+    };
+  }
+  
+  /**
+   * Get order detail for printer
+   */
+  async getOrderDetail(orderId, printerId) {
+    const { MasterOrder } = await import("../../shared/models/master-order.model.js");
+    
+    const order = await MasterOrder.findById(orderId);
+    if (!order) {
+      throw new NotFoundException("Không tìm thấy đơn hàng", orderId);
+    }
+    
+    // Validate ownership
+    const printerOrder = order.printerOrders.find(
+      (po) => po.printerProfileId.toString() === printerId.toString()
+    );
+    
+    if (!printerOrder) {
+      throw new ForbiddenException("Đây không phải đơn hàng của bạn");
+    }
+    
+    return order;
+  }
 }

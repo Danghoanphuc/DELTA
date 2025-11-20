@@ -4,7 +4,6 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "baseUrl": ".",
-    "rootDir": "./src",
     "paths": {
       "@/*": ["src/*"]
     },
@@ -15,13 +14,12 @@
     "skipLibCheck": true,
     "outDir": "dist",
     "allowJs": false,
+    "noEmit": false,
     "noEmitOnError": false
   },
   "include": ["src/**/*.ts"],
   "exclude": [
     "node_modules",
-    "dist",
-    "../customer-backend",
-    "../../apps/customer-backend"
+    "dist"
   ]
 }

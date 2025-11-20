@@ -86,7 +86,7 @@ export const ProductCustomization = ({
                 : "border-blue-600 text-blue-600 hover:bg-blue-50"
             )}
             onClick={onAddToCart}
-            disabled={isAddingToCart || isQuantityInvalid}
+            disabled={isAddingToCart}
           >
             <ShoppingCart size={20} className="mr-2" />
             {isAddingToCart

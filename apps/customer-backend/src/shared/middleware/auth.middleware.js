@@ -4,6 +4,7 @@
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
 import { ensureCustomerProfile } from "./ensure-customer-profile.middleware.js";
+import { config } from "../../config/env.config.js";
 
 /**
  * (Hàm 'protect' giữ nguyên)
@@ -22,7 +23,7 @@ const protect = async (req, res, next) => {
     }
 
     try {
-      const decodedUser = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+      const decodedUser = jwt.verify(token, config.auth.accessTokenSecret);
       const user = await User.findById(decodedUser.userId).select(
         "-hashedPassword -verificationToken -verificationTokenExpiresAt"
       );
@@ -84,7 +85,7 @@ const optionalAuth = async (req, res, next) => {
 
     try {
       // 2. Có token, xác thực
-      const decodedUser = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+      const decodedUser = jwt.verify(token, config.auth.accessTokenSecret);
       const user = await User.findById(decodedUser.userId).select(
         "-hashedPassword -verificationToken -verificationTokenExpiresAt"
       );

@@ -12,8 +12,14 @@ const conversationSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["customer-bot", "customer-printer"],
+      enum: ["customer-bot", "customer-printer", "peer-to-peer", "group"],
       required: true,
+    },
+
+    // ✅ Tiêu đề cuộc trò chuyện (AI auto-generated hoặc user-edited)
+    title: {
+      type: String,
+      default: "Cuộc trò chuyện mới",
     },
 
     // --- Context cho chatbot ---
@@ -28,13 +34,9 @@ const conversationSchema = new mongoose.Schema(
         { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       ],
     },
-    // *** THÊM TRƯỜNG MỚI NÀY VÀO ***
-    messages: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Message", // Tham chiếu đến model 'Message'
-      },
-    ],
+    
+    // ✅ REFACTOR: ĐÃ XÓA trường 'messages' array (anti-pattern gây lỗi MongoDB 16MB limit)
+    // Messages giờ được lưu riêng trong collection Message với conversationId
 
     lastMessageAt: Date,
     isActive: { type: Boolean, default: true },

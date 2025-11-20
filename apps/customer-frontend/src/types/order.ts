@@ -85,6 +85,8 @@ export interface OrderPrinterInfo {
 export interface Order {
   _id: string;
   orderNumber: string; // Mã đơn hàng dễ đọc (VD: ORD-2024-001)
+  masterOrderId?: string; // Thêm trường này
+  printerOrderId?: string; // Thêm trường này
   customerId: string;
   customerName: string;
   customerEmail: string;

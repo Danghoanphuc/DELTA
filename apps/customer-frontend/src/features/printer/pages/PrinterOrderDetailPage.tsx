@@ -31,6 +31,10 @@ import { getStatusActions, getStatusBadge } from "@/features/printer/utils/order
 import api from "@/shared/lib/axios";
 import { toast } from "sonner";
 import { Badge } from "@/shared/components/ui/badge";
+import { ArtworkStatusBadge } from "@/features/printer/components/ArtworkStatusBadge";
+import { ProofHistory } from "@/features/printer/components/ProofHistory";
+import { UploadProofModal } from "@/features/printer/components/UploadProofModal";
+import { Alert, AlertDescription, AlertTitle } from "@/shared/components/ui/alert";
 
 export function PrinterOrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -71,6 +75,7 @@ export function PrinterOrderDetailPage() {
   const [printerNotes, setPrinterNotes] = useState("");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isProofModalOpen, setIsProofModalOpen] = useState(false);
 
   // ✅ FIX: Update printerNotes khi order được load
   useEffect(() => {
@@ -322,6 +327,68 @@ export function PrinterOrderDetailPage() {
 
           {/* Cột 2: Sản xuất & File In (50%) - QUAN TRỌNG NHẤT */}
           <div className="lg:col-span-2 space-y-6">
+            {/* ✅ OBJECTIVE 2: Proofing Workflow Section */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FileText size={18} />
+                    Trạng thái File In
+                  </CardTitle>
+                  <ArtworkStatusBadge status={artworkStatus} />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Proof History */}
+                {(order as any).proofFiles && (order as any).proofFiles.length > 0 && (
+                  <ProofHistory proofs={(order as any).proofFiles} />
+                )}
+
+                {/* Upload Button */}
+                {artworkStatus !== "approved" && (
+                  <div className="pt-4 border-t">
+                    <Button
+                      onClick={() => setIsProofModalOpen(true)}
+                      className="w-full"
+                      variant={artworkStatus === "rejected" ? "destructive" : "default"}
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      {artworkStatus === "rejected"
+                        ? "Tải lên Proof mới"
+                        : (order as any).proofFiles?.length > 0
+                        ? "Cập nhật Proof"
+                        : "Tải lên Proof"}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Rejection Reason */}
+                {artworkStatus === "rejected" &&
+                  (order as any).rejectionHistory &&
+                  (order as any).rejectionHistory.length > 0 && (
+                    <Alert variant="destructive">
+                      <XCircle className="h-4 w-4" />
+                      <AlertTitle>Lý do từ chối</AlertTitle>
+                      <AlertDescription>
+                        {(order as any).rejectionHistory[0].reason}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                {/* Approval Info */}
+                {artworkStatus === "approved" && (order as any).approvedAt && (
+                  <Alert>
+                    <CheckCircle className="h-4 w-4" />
+                    <AlertTitle>Proof đã được duyệt</AlertTitle>
+                    <AlertDescription>
+                      Khách hàng đã duyệt proof vào{" "}
+                      {formatDate((order as any).approvedAt)}. Bạn có thể bắt đầu sản xuất.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Quản lý File In (Artwork) */}
             <Card>
               <CardHeader>
@@ -563,6 +630,16 @@ export function PrinterOrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* ✅ OBJECTIVE 2: Upload Proof Modal */}
+      {orderId && (
+        <UploadProofModal
+          isOpen={isProofModalOpen}
+          onClose={() => setIsProofModalOpen(false)}
+          orderId={orderId}
+          currentVersion={(order as any).proofFiles?.length || 0}
+        />
+      )}
     </div>
   );
 }

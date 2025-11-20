@@ -11,6 +11,7 @@ export enum BalanceLedgerStatus {
   UNPAID = "UNPAID",
   PAID = "PAID",
   PENDING = "PENDING",
+  PROCESSING = "PROCESSING",
   CANCELLED = "CANCELLED",
 }
 

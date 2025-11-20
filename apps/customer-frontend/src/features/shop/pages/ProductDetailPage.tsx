@@ -17,6 +17,7 @@ import { ProductPurchase } from "../components/ProductPurchase";
 import { ProductImageGallery } from "../components/ProductImageGallery";
 import { ProductDetailFooter } from "../components/ProductDetailFooter";
 import { ProductPurchaseSheet } from "../components/details/ProductPurchaseSheet";
+import { DesignMethodModal } from "../components/DesignMethodModal";
 // ✅ SỬA LỖI TS2307: Sửa lại đường dẫn import cho SectionSkeleton
 import { SectionSkeleton } from "../components/details/SectionSkeleton";
 import { ProductDetailSkeleton } from "@/shared/components/ui/skeleton";
@@ -52,6 +53,7 @@ const ProductDetailPage = () => {
   const navigate = useNavigate();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [sheetMode, setSheetMode] = useState<"cart" | "buy">("buy");
+  const [isDesignModalOpen, setIsDesignModalOpen] = useState(false);
   const productDetailResult = useProductDetail();
   const product = productDetailResult.product;
   const isLoading = productDetailResult.loading;
@@ -61,6 +63,7 @@ const ProductDetailPage = () => {
   const isAddingToCart = useCartStore((state) => state.isLoading);
   const addToCart = useCartStore((state) => state.addToCart);
   const isInCart = useCartStore((state) => state.isInCart);
+  const cart = useCartStore((state) => state.cart); // ✅ Thêm cart để track changes
   
   const { user } = useAuthStore();
   const isAuthenticated = !!user;
@@ -96,14 +99,17 @@ const ProductDetailPage = () => {
 
   useEffect(() => {
     if (product) {
-      setSelectedQuantity(product.pricing?.[0]?.minQuantity || 1);
+      // ✅ Bắt đầu từ minQuantity để đảm bảo valid, nhưng nếu minQuantity quá lớn thì dùng 1
+      const minQty = product.pricing?.[0]?.minQuantity || 1;
+      const defaultQty = minQty <= 10 ? minQty : 1; // Nếu minQty > 10, cho phép user bắt đầu từ 1
+      setSelectedQuantity(defaultQty);
     }
   }, [product]);
 
   const inCart = useMemo(() => {
     if (!product) return false;
     return isInCart(product._id, isAuthenticated);
-  }, [product, isInCart, isAuthenticated]);
+  }, [product, isInCart, isAuthenticated, cart]); // ✅ Thêm cart để re-compute khi cart thay đổi
 
   const isCustomizable =
     product?.customization?.allowFileUpload ||
@@ -145,7 +151,28 @@ const ProductDetailPage = () => {
       return;
     }
 
-    // Tất cả điều kiện đều OK → Navigate đến editor
+    // Tất cả điều kiện đều OK → Mở modal chọn phương thức thiết kế
+    setIsDesignModalOpen(true);
+  };
+
+  // Handler khi người dùng chọn upload thiết kế
+  const handleUploadDesign = (file: File) => {
+    console.log("Upload clicked, file:", file);
+    // TODO: Implement file upload logic with useMyDesigns hook
+    toast.info(`Đã chọn file: ${file.name}. Tính năng đang được phát triển.`);
+    // Future: Navigate to editor with uploaded file
+    // navigate(`/design-editor?productId=${product._id}`, { state: { uploadedFile: file } });
+  };
+
+  // Handler khi người dùng chọn duyệt mẫu
+  const handleBrowseTemplates = () => {
+    if (!product) return;
+    navigate(`/inspiration?category=${product.category}`);
+  };
+
+  // Handler khi người dùng chọn tự thiết kế
+  const handleDesignFromScratch = () => {
+    if (!product) return;
     navigate(`/design-editor?productId=${product._id}`);
   };
 
@@ -305,6 +332,15 @@ const ProductDetailPage = () => {
         onQuantityChange={setSelectedQuantity}
         formatPrice={formatPrice}
         currentPricePerUnit={pricePerUnit}
+      />
+
+      {/* Design Method Selection Modal */}
+      <DesignMethodModal
+        isOpen={isDesignModalOpen}
+        onClose={() => setIsDesignModalOpen(false)}
+        onUploadDesign={handleUploadDesign}
+        onBrowseTemplates={handleBrowseTemplates}
+        onDesignFromScratch={handleDesignFromScratch}
       />
     </div>
   );

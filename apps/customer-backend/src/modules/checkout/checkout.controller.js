@@ -37,4 +37,32 @@ export class CheckoutController {
       next(error);
     }
   };
+
+  // --- ✅ NEW: Unified process checkout endpoint ---
+  processCheckout = async (req, res, next) => {
+    try {
+      const { paymentMethod } = req.body;
+
+      let result;
+      switch (paymentMethod) {
+        case 'cod':
+          result = await this.checkoutService.confirmCodOrder(req);
+          break;
+        case 'momo':
+          result = await this.checkoutService.createMomoPaymentUrl(req);
+          break;
+        case 'stripe':
+          result = await this.checkoutService.createStripePaymentIntent(req);
+          break;
+        default:
+          return res.status(API_CODES.BAD_REQUEST).json(
+            ApiResponse.error(`Invalid payment method: ${paymentMethod}`, API_CODES.BAD_REQUEST)
+          );
+      }
+
+      res.status(API_CODES.CREATED).json(ApiResponse.success(result));
+    } catch (error) {
+      next(error);
+    }
+  };
 }

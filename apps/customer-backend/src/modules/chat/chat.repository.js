@@ -1,19 +1,12 @@
-// src/modules/chat/chat.repository.js
-// ✅ BÀN GIAO: Triển khai Pagination, bỏ populate
+// apps/customer-backend/src/modules/chat/chat.repository.js
+// ✅ FIXED: Lấy đủ Type và Participants để Frontend hiển thị
 
 import { Conversation } from "../../shared/models/conversation.model.js";
-import { Message } from "../../shared/models/message.model.js"; // ✅ Import Message
-// ❌ KHÔNG DÙNG USER NỮA
-// import { User } from "../../shared/models/user.model.js";
-// ✅ DÙNG PRINTERPROFILE
+import { Message } from "../../shared/models/message.model.js";
 import { PrinterProfile } from "../../shared/models/printer-profile.model.js";
 
 export class ChatRepository {
-  // === LOGIC CONVERSATION MỚI ===
-
-  /**
-   * Tìm 1 conversation bằng ID và xác thực chủ sở hữu
-   */
+  // ... (Giữ nguyên các hàm findConversationById...)
   async findConversationById(conversationId, userId) {
     return await Conversation.findOne({
       _id: conversationId,
@@ -22,121 +15,106 @@ export class ChatRepository {
   }
 
   /**
-   * Lấy danh sách (metadata) các cuộc trò chuyện
+   * ✅ FIXED: Lấy danh sách cuộc trò chuyện ĐẦY ĐỦ thông tin
+   * - Thêm 'type', 'participants', 'updatedAt'
+   * - Populate user để hiển thị Avatar/Tên ở danh sách
    */
   async findConversationsByUserId(userId) {
     return await Conversation.find({
       "participants.userId": userId,
+      isActive: true, // Chỉ lấy cuộc trò chuyện còn hoạt động (chưa bị xóa)
     })
-      .sort({ lastMessageAt: -1 })
-      .select("_id title lastMessageAt createdAt"); // Chỉ lấy metadata
+      .sort({ lastMessageAt: -1, updatedAt: -1 })
+      // ✅ Quan trọng: Select đủ field
+      .select("_id title lastMessageAt createdAt updatedAt type participants")
+      // ✅ Populate để lấy Avatar/Tên người chat cùng
+      .populate("participants.userId", "username displayName avatarUrl role");
   }
 
-  /**
-   * Tạo một cuộc trò chuyện mới
-   */
+  // ... (Các hàm createConversation, createMessage giữ nguyên logic cũ) ...
   async createConversation(userId) {
     return await Conversation.create({
       type: "customer-bot",
-      title: "Cuộc trò chuyện mới", // Title tạm thời
+      title: "Cuộc trò chuyện mới",
       participants: [{ userId: userId, role: "customer" }],
-      messages: [],
     });
   }
 
   async createMessage(messageData) {
-    return await Message.create(messageData);
+    const message = await Message.create(messageData);
+    await Conversation.findByIdAndUpdate(messageData.conversationId, {
+      lastMessageAt: new Date(),
+    });
+    return message;
   }
 
   async saveConversation(conversation) {
     return await conversation.save();
   }
 
-  // ============================================
-  // ✅ THAY ĐỔI LOGIC LẤY TIN NHẮN
-  // ============================================
-
-  /**
-   * ✅ MỚI: Chỉ lấy thông tin (metadata) của Conversation
-   * Xác thực user có quyền xem convo này không
-   */
+  // ... (Giữ nguyên getConversationMetadata, getPaginatedMessages...) ...
   async getConversationMetadata(conversationId, userId) {
     return await Conversation.findOne({
       _id: conversationId,
       "participants.userId": userId,
-    }).select("-messages"); // QUAN TRỌNG: Loại bỏ mảng 'messages'
+    });
   }
 
-  /**
-   * ✅ MỚI: Lấy tin nhắn phân trang (Sắp xếp MỚI NHẤT lên đầu)
-   * Client sẽ nhận (page 1) là các tin nhắn mới nhất
-   */
   async getPaginatedMessages(conversationId, page = 1, limit = 30) {
     const skip = (page - 1) * limit;
-
-    // Lấy tổng số tin nhắn (để client biết tổng số trang)
     const totalMessages = await Message.countDocuments({ conversationId });
-
     const messages = await Message.find({ conversationId })
-      .sort({ createdAt: -1 }) // Sắp xếp MỚI NHẤT lên đầu
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
     return {
-      messages: messages.reverse(), // Đảo ngược lại để client hiển thị (Cũ -> Mới)
+      messages: messages.reverse(),
       totalMessages,
       currentPage: page,
       totalPages: Math.ceil(totalMessages / limit),
     };
   }
 
-  /**
-   * ❌ BỎ HÀM CŨ: getMessagesByConversationId (hàm gây lỗi populate)
-   */
-  // async getMessagesByConversationId(conversationId, userId) { ... }
-
-  /**
-   * (Hàm getHistory(userId) cũ đã bị thay thế)
-   */
-
-  // === SỬA LỖI A: FIND PRINTERS ===
-  /**
-   * Sửa lỗi: Query trên PrinterProfile thay vì User
-   */
+  // ... (Giữ nguyên findPrinters, updateConversationTitle, deleteConversation...) ...
   async findPrinters(searchContext) {
     const { entities, coordinates } = searchContext;
-    let printers = [];
     let baseQuery = { isActive: true };
-
-    // Xây dựng bộ lọc thuộc tính
     if (entities.product_type)
       baseQuery.specialties = { $in: [entities.product_type] };
     if (entities.criteria.includes("cheap")) baseQuery.priceTier = "cheap";
     if (entities.criteria.includes("fast")) baseQuery.productionSpeed = "fast";
 
     if (entities.criteria.includes("nearby") && coordinates) {
-      // Logic tìm kiếm GeoJSON
-      printers = await PrinterProfile.find({
+      return await PrinterProfile.find({
         ...baseQuery,
         "shopAddress.location": {
           $nearSphere: {
-            $geometry: { type: "Point", coordinates: coordinates }, // [long, lat]
-            $maxDistance: 10000, // 10km
+            $geometry: { type: "Point", coordinates: coordinates },
+            $maxDistance: 10000,
           },
         },
       })
         .limit(5)
-        .populate("userId", "displayName avatarUrl"); // Populate thông tin User
+        .populate("userId", "displayName avatarUrl");
     } else {
-      // Logic tìm kiếm $text
-      if (entities.location) {
-        baseQuery.$text = { $search: entities.location };
-      }
-
-      printers = await PrinterProfile.find(baseQuery)
+      if (entities.location) baseQuery.$text = { $search: entities.location };
+      return await PrinterProfile.find(baseQuery)
         .limit(5)
-        .populate("userId", "displayName avatarUrl"); // Populate thông tin User
+        .populate("userId", "displayName avatarUrl");
     }
-    return printers;
+  }
+
+  async updateConversationTitle(conversationId, newTitle) {
+    return await Conversation.findByIdAndUpdate(
+      conversationId,
+      { title: newTitle },
+      { new: true }
+    );
+  }
+
+  async deleteConversation(conversationId) {
+    await Message.deleteMany({ conversationId });
+    return await Conversation.findByIdAndDelete(conversationId);
   }
 }

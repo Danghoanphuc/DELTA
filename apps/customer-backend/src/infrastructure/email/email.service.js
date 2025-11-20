@@ -1,11 +1,12 @@
 // backend/src/infrastructure/email/email.service.js
 import { Resend } from "resend";
+import { config } from "../../config/env.config.js";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(config.apiKeys.resend);
 
-const clientUrl = process.env.CLIENT_URL || "https://www.printz.vn";
+const clientUrl = config.clientUrl;
 const appName = "PrintZ";
-const resendDomain = process.env.RESEND_DOMAIN || "printz.vn";
+const resendDomain = "printz.vn"; // Using hardcoded domain as fallback
 const fromEmail = `PrintZ team <support@${resendDomain}>`;
 
 // ============================================

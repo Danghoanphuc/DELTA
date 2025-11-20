@@ -1,13 +1,14 @@
 // src/features/printer/hooks/useAddProductForm.ts
 import { useState } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
 import {
-  productTaxonomyDB,
-  ProductTaxonomyNode,
-} from "@/data/productTaxonomy.data";
+  printzCategories,
+  type PrintZCategory,
+  type SubCategory,
+} from "@/data/categories.data";
 // Giả sử bạn tạo service này
 // import * as productService from "@/services/productService";
 
@@ -20,7 +21,8 @@ const pricingSchema = z.object({
 const productFormSchema = z.object({
   name: z.string().min(5, "Tên sản phẩm phải có ít nhất 5 ký tự"),
   description: z.string().optional(),
-  taxonomyId: z.string(),
+  categoryValue: z.string().min(1, "Vui lòng chọn danh mục"),
+  subcategoryValue: z.string().optional(),
   metadata: z.object({
     dimensions: z.object({
       length: z.number(),
@@ -34,20 +36,72 @@ const productFormSchema = z.object({
 
 export type ProductFormValues = z.infer<typeof productFormSchema>;
 
+type CategoryMetadataPreset = {
+  dimensions: { length: number; width: number; height: number };
+  material: string;
+};
+
+const FALLBACK_METADATA: CategoryMetadataPreset = {
+  dimensions: { length: 10, width: 10, height: 1 },
+  material: "custom",
+};
+
+const categoryMetadataPresets: Record<string, CategoryMetadataPreset> = {
+  tshirts: {
+    dimensions: { length: 72, width: 52, height: 1 },
+    material: "cotton_240gsm",
+  },
+  "tet-holiday-cards": {
+    dimensions: { length: 20, width: 9, height: 0.1 },
+    material: "artpaper_300gsm",
+  },
+  "business-cards": {
+    dimensions: { length: 9, width: 5.5, height: 0.05 },
+    material: "artpaper_350gsm",
+  },
+  "promotional-products": {
+    dimensions: { length: 12, width: 12, height: 20 },
+    material: "merch_mix",
+  },
+  packaging: {
+    dimensions: { length: 25, width: 15, height: 10 },
+    material: "ivory_350gsm",
+  },
+  "signage-banners": {
+    dimensions: { length: 80, width: 200, height: 0.2 },
+    material: "pp_backlit",
+  },
+  "labels-stickers": {
+    dimensions: { length: 10, width: 10, height: 0.05 },
+    material: "decal_art",
+  },
+  "postcards-marketing": {
+    dimensions: { length: 21, width: 10, height: 0.05 },
+    material: "fort_250gsm",
+  },
+  "calendar-gifts": {
+    dimensions: { length: 30, width: 20, height: 2 },
+    material: "couch_210gsm",
+  },
+};
+
 export function useAddProductForm(onSuccess: () => void) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedTaxonomy, setSelectedTaxonomy] =
-    useState<ProductTaxonomyNode | null>(null);
+  const [selectedCategory, setSelectedCategory] =
+    useState<PrintZCategory | null>(null);
+  const [selectedSubcategory, setSelectedSubcategory] =
+    useState<SubCategory | null>(null);
 
   // (Giả lập, bạn nên dùng API để tải taxonomy)
-  const rootCategories = Object.values(productTaxonomyDB);
+  const rootCategories = printzCategories;
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
       name: "",
       description: "",
-      taxonomyId: "",
+      categoryValue: "",
+      subcategoryValue: "",
       metadata: {
         dimensions: { length: 0, width: 0, height: 0 },
         material: "",
@@ -58,27 +112,55 @@ export function useAddProductForm(onSuccess: () => void) {
 
   const { setValue } = form;
 
-  const handleTaxonomyChange = (taxonomyId: string) => {
-    const node = productTaxonomyDB[taxonomyId];
-    if (!node) {
-      toast.error("Lỗi: Không tìm thấy phôi.");
+  const handleCategoryChange = (categoryValue: string) => {
+    const category = printzCategories.find(
+      (cat) => cat.value === categoryValue
+    );
+    if (!category) {
+      toast.error("Lỗi: Không tìm thấy danh mục.");
       return;
     }
-    setSelectedTaxonomy(node);
-    setValue("taxonomyId", node.id);
-    setValue("metadata.dimensions", node.metadataSchema.dimensions.default);
-    setValue(
-      "metadata.material",
-      node.metadataSchema.materials[0]?.options[0]?.value || ""
-    );
+    setSelectedCategory(category);
+    setSelectedSubcategory(null);
+    setValue("categoryValue", category.value);
+    setValue("subcategoryValue", "");
+
+    const preset = categoryMetadataPresets[category.value] ?? FALLBACK_METADATA;
+    setValue("metadata.dimensions", preset.dimensions);
+    setValue("metadata.material", preset.material);
+
     if (!form.getValues("name")) {
-      setValue("name", `In ${node.name} theo yêu cầu`);
+      setValue("name", `In ${category.label} theo yêu cầu`);
+    }
+  };
+
+  const handleSubcategoryChange = (subcategoryValue: string) => {
+    if (!selectedCategory) {
+      toast.error("Vui lòng chọn danh mục trước.");
+      return;
+    }
+
+    const subcategory = selectedCategory.subcategories.find(
+      (sub) => sub.value === subcategoryValue
+    );
+
+    if (!subcategory) {
+      toast.error("Không tìm thấy phân loại.");
+      return;
+    }
+
+    setSelectedSubcategory(subcategory);
+    setValue("subcategoryValue", subcategory.value);
+
+    const currentName = form.getValues("name");
+    if (!currentName || currentName.startsWith("In ")) {
+      setValue("name", `${subcategory.label} theo yêu cầu`);
     }
   };
 
   const onSubmit = async (data: ProductFormValues) => {
-    if (!selectedTaxonomy) {
-      toast.error("Vui lòng chọn một loại sản phẩm (phôi) trước.");
+    if (!selectedCategory) {
+      toast.error("Vui lòng chọn danh mục sản phẩm trước.");
       return;
     }
     setIsSubmitting(true);
@@ -107,9 +189,11 @@ export function useAddProductForm(onSuccess: () => void) {
   return {
     form,
     isSubmitting,
-    selectedTaxonomy,
+    selectedCategory,
+    selectedSubcategory,
     rootCategories,
-    handleTaxonomyChange,
+    handleCategoryChange,
+    handleSubcategoryChange,
     onSubmit,
     onError,
   };

@@ -4,9 +4,7 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { User } from "../models/User.js";
 import { PrinterProfile } from "../models/PrinterProfile.js";
-import dotenv from "dotenv";
-
-dotenv.config();
+import { config } from "./env.config.js";
 
 /**
  * Hàm tìm hoặc tạo user mới từ Google profile
@@ -78,11 +76,9 @@ const findOrCreateUser = async (profile, role = "customer") => {
 passport.use(
   new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: `${
-        process.env.SERVER_URL || "http://localhost:8000"
-      }/api/auth/google/callback`,
+      clientID: config.oauth.google.clientId,
+      clientSecret: config.oauth.google.clientSecret,
+      callbackURL: `${config.serverUrl}/api/auth/google/callback`,
       passReqToCallback: true, // Để truy cập req trong callback
     },
     async (req, accessToken, refreshToken, profile, done) => {

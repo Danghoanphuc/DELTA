@@ -9,7 +9,12 @@ import {
   checkSlugAvailability,
   getAllProducts,
   getProductById,
-} from "./product.controller.js"; // (File này của anh đã đúng)
+  // ✨ SMART PIPELINE: Draft API
+  saveDraft,
+  getMyDrafts,
+  publishDraft,
+  deleteDraft,
+} from "./product.controller.js";
 
 // ✅ SỬA ĐƯỜNG DẪN VÀ TÊN MIDDLEWARE
 import { protect, isPrinter, optionalAuth } from "../../shared/middleware/index.js";
@@ -45,8 +50,28 @@ protectedRouter.use(protect, isPrinter);
 // Nếu không, Express sẽ match "/my-products" với "/:id" và coi "my-products" là ID
 protectedRouter.get("/my-products", getMyProducts); // Lấy danh sách SP của tôi
 
+// ✨ SMART PIPELINE: Draft routes (phải đặt TRƯỚC route "/:id")
+protectedRouter.post("/draft", saveDraft); // Tạo/cập nhật draft
+protectedRouter.get("/drafts", getMyDrafts); // Lấy danh sách drafts
+protectedRouter.post("/draft/:id/publish", publishDraft); // Publish draft
+protectedRouter.delete("/draft/:id", deleteDraft); // Xóa draft
+
 // ✅ Thêm multer middleware để parse FormData
-protectedRouter.post("/", uploadImage.any(), createProduct); // Tạo SP mới
+// Thêm error handler cho multer
+protectedRouter.post("/", (req, res, next) => {
+  console.log("🔍 [POST /products] Request received");
+  uploadImage.any()(req, res, (err) => {
+    if (err) {
+      console.error("❌ [Multer Error]:", err);
+      return res.status(400).json({
+        success: false,
+        message: `Upload error: ${err.message}`,
+      });
+    }
+    console.log("✅ [Multer] Files processed successfully");
+    next();
+  });
+}, createProduct); // Tạo SP mới
 
 // ✅ Route protected cho quản lý sản phẩm của printer
 protectedRouter

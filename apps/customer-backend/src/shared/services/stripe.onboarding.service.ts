@@ -17,6 +17,7 @@ import { Logger } from "../utils/index.js";
 import {
   StripeAccountStatus, // Đây là Type Alias (File 1)
   IPrinterProfile,
+  IPrinterProfileWithUser,
 } from "@printz/types";
 
 export class StripeOnboardingService {
@@ -32,10 +33,10 @@ export class StripeOnboardingService {
   // Hàm private: Ép kiểu Mongoose Document sang IPrinterProfile
   private async getPrinter(
     printerProfileId: string
-  ): Promise<IPrinterProfile & mongoose.Document> {
+  ): Promise<IPrinterProfileWithUser & mongoose.Document> {
     const printer = (await PrinterProfile.findById(
       printerProfileId
-    )) as IPrinterProfile & mongoose.Document;
+    ).populate("user")) as unknown as IPrinterProfileWithUser & mongoose.Document;
     if (!printer) {
       throw new NotFoundException("Không tìm thấy hồ sơ nhà in.");
     }
@@ -69,7 +70,7 @@ export class StripeOnboardingService {
     const account = await this.stripe.accounts.create({
       type: "express",
       country: "VN",
-      email: printer.ownerEmail,
+      email: printer.user.email,
       business_type: "individual",
       business_profile: {
         name: printer.businessName,
@@ -117,7 +118,7 @@ export class StripeOnboardingService {
   ): Promise<void> => {
     const printer = (await PrinterProfile.findOne({
       stripeAccountId: account.id,
-    })) as IPrinterProfile & mongoose.Document;
+    })) as unknown as IPrinterProfile & mongoose.Document;
 
     if (!printer) {
       Logger.warn(

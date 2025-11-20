@@ -1,4 +1,11 @@
 {
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    }
+  ],
   "buildCommand": "pnpm --filter @printz/types build && pnpm --filter admin-frontend build",
   "outputDirectory": "dist",
   "installCommand": "pnpm install --frozen-lockfile",
