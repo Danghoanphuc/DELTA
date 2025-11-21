@@ -21,7 +21,7 @@ export const useChatWithUser = () => {
     },
     onSuccess: (data) => {
       const conversation = data.data?.conversation;
-      
+
       if (!conversation) {
         toast.error("Không thể tạo cuộc trò chuyện");
         return;
@@ -36,7 +36,9 @@ export const useChatWithUser = () => {
     },
     onError: (error: any) => {
       toast.error(
-        error.response?.data?.message || error.message || "Không thể tạo cuộc trò chuyện"
+        error.response?.data?.message ||
+          error.message ||
+          "Không thể tạo cuộc trò chuyện"
       );
     },
   });
@@ -47,4 +49,3 @@ export const useChatWithUser = () => {
     error: mutation.error,
   };
 };
-

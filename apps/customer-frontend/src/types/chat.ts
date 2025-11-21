@@ -102,6 +102,14 @@ export type MessageStatus =
 interface BaseMessage {
   _id: string;
   senderType: "User" | "AI";
+  sender?:
+    | string
+    | {
+        _id: string;
+        username?: string;
+        displayName?: string;
+        avatarUrl?: string;
+      };
   createdAt?: string;
 
   // ✅ THÊM: Liên kết tin nhắn với cuộc trò chuyện

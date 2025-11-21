@@ -90,7 +90,27 @@ export const postChatMessage = async (
   type?: ChatMessage["type"],
   metadata?: any
 ): Promise<AiApiResponse> => {
-  const payload = { message, conversationId, latitude, longitude, type, metadata };
+  const payload = {
+    message,
+    conversationId,
+    latitude,
+    longitude,
+    type,
+    metadata,
+  };
+  const res = await api.post("/chat/message", payload);
+  return res.data?.data;
+};
+
+/**
+ * Social chat cũng dùng endpoint /chat/message nhưng backend trả về ChatMessage thuần.
+ * Hàm helper riêng để tránh phá vỡ type hiện tại của postChatMessage.
+ */
+export const postSocialChatMessage = async (
+  message: string,
+  conversationId: string
+): Promise<ChatMessage> => {
+  const payload = { message, conversationId };
   const res = await api.post("/chat/message", payload);
   return res.data?.data;
 };

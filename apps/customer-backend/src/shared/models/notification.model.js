@@ -1,4 +1,6 @@
 // apps/customer-backend/src/shared/models/notification.model.js
+// ✅ FIXED: Thêm 'message' vào enum type để sửa lỗi ValidatorError
+
 import mongoose from "mongoose";
 
 const NotificationSchema = new mongoose.Schema(
@@ -9,48 +11,56 @@ const NotificationSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    
+
     type: {
       type: String,
       enum: [
+        // Nhóm Order
         "order_created",
         "order_update",
         "payment_confirmed",
         "order_shipped",
         "order_completed",
         "order_cancelled",
+
+        // Nhóm Social (Đã có sẵn)
         "connection_request",
         "connection_accepted",
+
+        // ✅ FIX: THÊM DÒNG NÀY (Tin nhắn mới)
+        "message",
+
+        // Nhóm Hệ thống
         "promotion",
         "system",
       ],
       required: true,
     },
-    
+
     title: {
       type: String,
       required: true,
       maxlength: 200,
     },
-    
+
     message: {
       type: String,
       required: true,
       maxlength: 500,
     },
-    
-    // Additional data for the notification (e.g., orderId, link)
+
+    // Additional data for the notification (e.g., orderId, link, conversationId)
     data: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
-    
+
     isRead: {
       type: Boolean,
       default: false,
       index: true,
     },
-    
+
     readAt: {
       type: Date,
     },
@@ -70,4 +80,3 @@ NotificationSchema.index(
 );
 
 export const Notification = mongoose.model("Notification", NotificationSchema);
-

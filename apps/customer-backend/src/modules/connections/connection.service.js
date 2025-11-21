@@ -1,7 +1,9 @@
+// apps/customer-backend/src/modules/connections/connection.service.js
+import mongoose from "mongoose";
 import { ConnectionRepository } from "./connection.repository.js";
 import { Notification } from "../../shared/models/notification.model.js";
 import { Logger } from "../../shared/utils/index.js";
-import { SocialChatService } from "../chat/social-chat.service.js"; // ✅ Dùng Social Service
+import { SocialChatService } from "../chat/social-chat.service.js";
 import {
   ValidationException,
   NotFoundException,
@@ -11,46 +13,65 @@ import {
 export class ConnectionService {
   constructor() {
     this.connectionRepository = new ConnectionRepository();
-    this.socialChatService = new SocialChatService(); // ✅ Init Social Service
+    this.socialChatService = new SocialChatService();
+  }
+
+  // Helper lấy socket an toàn
+  async getSocketService() {
+    try {
+      const { socketService } = await import(
+        "../../infrastructure/realtime/socket.service.js"
+      );
+      return socketService;
+    } catch (e) {
+      Logger.error("Socket service import failed", e);
+      return null;
+    }
   }
 
   /**
-   * Gửi lời mời kết bạn
+   * ✅ FIX: Send Request - Idempotency (Gửi lại không báo lỗi)
    */
   async sendConnectionRequest(requesterId, recipientId, message) {
-    Logger.debug(
-      `[ConnectionSvc] User ${requesterId} sending request to ${recipientId}`
-    );
-
     if (requesterId.toString() === recipientId.toString()) {
       throw new ValidationException("Không thể kết bạn với chính mình");
     }
 
-    const existingConnection = await this.connectionRepository.findConnection(
+    const existing = await this.connectionRepository.findConnection(
       requesterId,
       recipientId
     );
 
-    if (existingConnection) {
-      const isRequester =
-        existingConnection.requester.toString() === requesterId.toString();
-      if (existingConnection.status === "pending") {
-        if (isRequester)
-          throw new ConflictException("Lời mời kết bạn đã được gửi trước đó");
-        else throw new ConflictException("Người này đã gửi lời mời cho bạn.");
+    if (existing) {
+      // ✅ LOGIC MỚI: Xử lý trường hợp đã tồn tại
+      if (existing.status === "pending") {
+        // Nếu MÌNH là người gửi -> Coi như thành công (để UI không báo lỗi đỏ)
+        if (existing.requester.toString() === requesterId.toString()) {
+          return existing;
+        }
+        // Nếu NGƯỜI KIA gửi -> Báo lỗi để mình chấp nhận
+        else {
+          throw new ConflictException(
+            "Người này đã gửi lời mời cho bạn. Hãy kiểm tra tab Lời mời."
+          );
+        }
       }
-      if (existingConnection.status === "accepted")
-        throw new ConflictException("Hai người đã là bạn bè");
-      if (existingConnection.status === "blocked")
-        throw new ConflictException("Không thể gửi lời mời kết bạn");
 
-      // Nếu bị từ chối, cho phép gửi lại
-      if (existingConnection.status === "declined") {
-        existingConnection.status = "pending";
-        existingConnection.message = message;
-        existingConnection.declinedAt = null;
-        await existingConnection.save();
-        return existingConnection;
+      if (existing.status === "accepted")
+        throw new ConflictException("Hai người đã là bạn bè");
+      if (existing.status === "blocked")
+        throw new ConflictException("Không thể kết bạn");
+
+      // Nếu bị từ chối -> Gửi lại (Reset status)
+      if (existing.status === "declined") {
+        existing.status = "pending";
+        existing.requester = requesterId;
+        existing.recipient = recipientId;
+        existing.message = message;
+        existing.declinedAt = null;
+        await existing.save();
+        this._notifyRequest(existing, requesterId, recipientId);
+        return existing;
       }
     }
 
@@ -60,198 +81,175 @@ export class ConnectionService {
       message
     );
 
-    // Socket & Notification
     this._notifyRequest(connection, requesterId, recipientId);
-
     return connection;
   }
 
   /**
-   * Chấp nhận lời mời -> TỰ ĐỘNG TẠO CHAT
+   * ✅ TRANSACTION: Đảm bảo Kết bạn & Tạo Chat luôn thành công cùng nhau
    */
   async acceptConnection(connectionId, userId) {
-    Logger.debug(
-      `[ConnectionSvc] User ${userId} accepting connection ${connectionId}`
-    );
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    const connection = await this.connectionRepository.acceptConnection(
-      connectionId,
-      userId
-    );
-    if (!connection)
-      throw new NotFoundException("Không tìm thấy lời mời kết bạn");
-
-    Logger.info(`[ConnectionSvc] Connection accepted: ${connectionId}`);
-
-    // ============================================================
-    // ✅ ZERO-LATENCY CHAT: TỰ ĐỘNG TẠO HỘI THOẠI NGAY LẬP TỨC
-    // ============================================================
-    let conversationId = null;
     try {
+      // 1. Cập nhật trạng thái Connection
+      const connection = await this.connectionRepository.acceptConnection(
+        connectionId,
+        userId,
+        session
+      );
+
+      if (!connection) throw new NotFoundException("Lời mời không tồn tại");
+
+      // 2. Tự động tạo hội thoại Chat (Kèm session để rollback nếu lỗi)
       const chatResult = await this.socialChatService.createPeerConversation(
         connection.requester._id,
-        connection.recipient._id
+        connection.recipient._id,
+        session
       );
-      conversationId = chatResult.conversation._id;
-      Logger.info(`[ConnectionSvc] ✅ Auto-activated chat: ${conversationId}`);
+
+      await session.commitTransaction();
+
+      // 3. Gửi Socket & Notification (Sau khi commit thành công)
+      this._notifyAccept(connection, chatResult.conversation._id);
+
+      return {
+        ...connection.toObject(),
+        conversationId: chatResult.conversation._id,
+      };
     } catch (error) {
-      Logger.warn(`[ConnectionSvc] ⚠️ Failed to auto-create chat:`, error);
+      await session.abortTransaction();
+      Logger.error(`[ConnectionSvc] Accept Transaction Failed:`, error);
+      throw error;
+    } finally {
+      session.endSession();
     }
-
-    // Socket & Notification (KÈM CONVERSATION ID)
-    this._notifyAccept(connection, conversationId);
-
-    // Trả về kèm conversationId để frontend dùng ngay
-    return { ...connection.toObject(), conversationId };
   }
 
-  // --- HELPER FUNCTIONS CHO NOTIFICATION/SOCKET ---
+  // --- NOTIFICATION HELPERS ---
 
   async _notifyRequest(connection, requesterId, recipientId) {
     try {
-      const { socketService } = await import(
-        "../../infrastructure/realtime/socket.service.js"
-      );
       await connection.populate([
         { path: "requester", select: "_id username displayName avatarUrl" },
         { path: "recipient", select: "_id username displayName avatarUrl" },
       ]);
 
-      socketService.emitToUser(recipientId.toString(), "connection:request", {
-        connection,
-        requester: connection.requester,
-      });
-
+      // Notification DB
       await Notification.create({
         userId: recipientId,
-        type: "connection_request",
+        type: "connection_request", // Type chuẩn để FE redirect
         title: "Lời mời kết bạn mới",
         message: `${
           connection.requester.displayName || connection.requester.username
-        } muốn kết bạn`,
+        } muốn kết bạn với bạn.`,
         data: {
           connectionId: connection._id,
-          requesterId,
-          requesterName: connection.requester.displayName,
+          requesterId: requesterId,
+          requesterAvatar: connection.requester.avatarUrl,
         },
       });
+
+      // Socket Realtime
+      const socket = await this.getSocketService();
+      if (socket) {
+        socket.emitToUser(recipientId.toString(), "notification", {
+          type: "connection_request",
+          title: "Lời mời kết bạn",
+          body: `${connection.requester.displayName} đã gửi lời mời kết bạn`,
+          data: { connectionId: connection._id },
+        });
+        // Refresh list pending
+        socket.emitToUser(recipientId.toString(), "connection:update", {
+          action: "new_request",
+        });
+      }
     } catch (e) {
-      Logger.error("Notify request failed", e);
+      Logger.warn("Notify request failed", e);
     }
   }
 
   async _notifyAccept(connection, conversationId) {
     try {
-      const { socketService } = await import(
-        "../../infrastructure/realtime/socket.service.js"
-      );
-      socketService.emitToUser(
-        connection.requester._id.toString(),
-        "connection:accepted",
-        {
-          connection,
-          acceptedBy: connection.recipient,
-          conversationId, // ✅ Gửi ID hội thoại
-        }
-      );
+      if (!connection.requester.displayName)
+        await connection.populate("requester recipient");
+
+      const friendName =
+        connection.recipient.displayName || connection.recipient.username;
+      const targetUserId = connection.requester._id;
 
       await Notification.create({
-        userId: connection.requester._id,
+        userId: targetUserId,
         type: "connection_accepted",
-        title: "Kết bạn thành công",
-        message: `${
-          connection.recipient.displayName || connection.recipient.username
-        } đã chấp nhận lời mời`,
+        title: "Đã chấp nhận kết bạn",
+        message: `${friendName} đã chấp nhận lời mời kết bạn.`,
         data: {
           connectionId: connection._id,
+          conversationId: conversationId, // ID chat để redirect
           friendId: connection.recipient._id,
-          conversationId,
-        }, // ✅ Gửi ID hội thoại
+        },
       });
+
+      const socket = await this.getSocketService();
+      if (socket) {
+        socket.emitToUser(targetUserId.toString(), "notification", {
+          type: "connection_accepted",
+          title: "Bạn mới",
+          body: `${friendName} đã chấp nhận kết bạn!`,
+          data: { conversationId },
+        });
+        // Refresh list friend
+        socket.emitToUser(targetUserId.toString(), "connection:update", {
+          action: "friend_added",
+        });
+        socket.emitToUser(
+          connection.recipient._id.toString(),
+          "connection:update",
+          { action: "friend_added" }
+        );
+      }
     } catch (e) {
-      Logger.error("Notify accept failed", e);
+      Logger.warn("Notify accept failed", e);
     }
   }
 
-  // --- CÁC HÀM CÒN LẠI GIỮ NGUYÊN LOGIC ---
-
+  // Pass-through methods
   async getFriends(userId) {
-    return await this.connectionRepository.getFriends(userId);
+    return this.connectionRepository.getFriends(userId);
   }
   async getPendingRequests(userId) {
-    return await this.connectionRepository.getPendingRequests(userId);
+    return this.connectionRepository.getPendingRequests(userId);
   }
   async getSentRequests(userId) {
-    return await this.connectionRepository.getSentRequests(userId);
+    return this.connectionRepository.getSentRequests(userId);
   }
-
-  async declineConnection(connectionId, userId) {
-    const connection = await this.connectionRepository.declineConnection(
-      connectionId,
-      userId
-    );
-    if (!connection) throw new NotFoundException("Không tìm thấy");
-    return connection;
+  async declineConnection(id, userId) {
+    return this.connectionRepository.declineConnection(id, userId);
   }
-
-  async unfriend(connectionId, userId) {
-    const connection = await this.connectionRepository.deleteConnection(
-      connectionId,
-      userId
-    );
-    if (!connection) throw new NotFoundException("Không tìm thấy");
-    return connection;
+  async unfriend(id, userId) {
+    return this.connectionRepository.deleteConnection(id, userId);
   }
-
-  async blockUser(requesterId, recipientId) {
-    if (requesterId.toString() === recipientId.toString())
-      throw new ValidationException("Lỗi");
-    return await this.connectionRepository.blockUser(requesterId, recipientId);
+  async blockUser(reqId, recId) {
+    return this.connectionRepository.blockUser(reqId, recId);
   }
-
-  async unblockUser(connectionId, userId) {
-    const connection = await this.connectionRepository.unblockUser(
-      connectionId,
-      userId
-    );
-    if (!connection) throw new NotFoundException("Không tìm thấy");
-    return connection;
+  async unblockUser(id, userId) {
+    return this.connectionRepository.unblockUser(id, userId);
   }
-
-  async searchUsers(query, currentUserId, limit = 20) {
-    if (!query || query.length < 2)
-      throw new ValidationException("Nhập ít nhất 2 ký tự");
-    return await this.connectionRepository.searchUsers(
-      query,
-      currentUserId,
-      limit
-    );
+  async searchUsers(q, uid, limit) {
+    return this.connectionRepository.searchUsers(q, uid, limit);
   }
-
-  async getConnectionStatus(userId1, userId2) {
-    const connection = await this.connectionRepository.findConnection(
-      userId1,
-      userId2
-    );
-    if (!connection) return { status: "none", connection: null };
-
-    await connection.populate([
-      { path: "requester", select: "_id username displayName avatarUrl" },
-      { path: "recipient", select: "_id username displayName avatarUrl" },
-    ]);
-
+  async getConnectionStatus(uid1, uid2) {
+    const conn = await this.connectionRepository.findConnection(uid1, uid2);
+    if (!conn) return { status: "none", connection: null };
     return {
-      status: connection.status,
-      connection,
-      isSender: connection.requester._id.toString() === userId1.toString(),
+      status: conn.status,
+      connection: conn,
+      isSender: conn.requester.toString() === uid1.toString(),
     };
   }
-
-  async debugClearConnection(userId1, userId2) {
-    const connection = await this.connectionRepository.findConnection(
-      userId1,
-      userId2
-    );
-    if (connection) await connection.deleteOne();
+  async debugClearConnection(u1, u2) {
+    const c = await this.connectionRepository.findConnection(u1, u2);
+    if (c) await c.deleteOne();
   }
 }

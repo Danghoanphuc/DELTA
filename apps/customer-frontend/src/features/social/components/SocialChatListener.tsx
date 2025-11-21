@@ -1,90 +1,144 @@
 // apps/customer-frontend/src/features/social/components/SocialChatListener.tsx
-// ✅ GLOBAL LISTENER: Tai mắt của ứng dụng - Luôn lắng nghe tin nhắn
+// ✅ CHUYÊN GIA FIX: Rich Toast UI, Sound Policy Unlock
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useSocket } from "@/contexts/SocketProvider";
-import { useSocialChatStore } from "../hooks/useSocialChatStore";
-import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import type { ChatMessage } from "@/types/chat";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useSocialChatStore } from "../hooks/useSocialChatStore";
 
-export function SocialChatListener() {
+// Sound effect
+const NOTIFICATION_SOUND = "/sounds/message-pop.mp3";
+
+export const SocialChatListener = () => {
   const { socket } = useSocket();
-  const { handleSocketMessage, conversations } = useSocialChatStore();
-  const queryClient = useQueryClient();
-  const currentUser = useAuthStore((s) => s.user);
-  const location = useLocation();
+  const { user } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { handleSocketMessage } = useSocialChatStore();
+
+  // 1. Init Audio
+  useEffect(() => {
+    audioRef.current = new Audio(NOTIFICATION_SOUND);
+    audioRef.current.volume = 0.6; // Âm lượng vừa phải
+
+    // Mẹo: Unlock audio context khi user click bất kỳ đâu lần đầu
+    const unlockAudio = () => {
+      if (audioRef.current) {
+        audioRef.current
+          .play()
+          .then(() => {
+            audioRef.current!.pause();
+            audioRef.current!.currentTime = 0;
+          })
+          .catch(() => {});
+      }
+      document.removeEventListener("click", unlockAudio);
+    };
+    document.addEventListener("click", unlockAudio);
+
+    return () => document.removeEventListener("click", unlockAudio);
+  }, []);
+
+  // 2. Request Permission Notification
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
 
   useEffect(() => {
-    if (!socket || !currentUser) return;
+    if (!socket || !user) return;
 
-    const handleNewMessage = (message: ChatMessage) => {
-      console.log("[Listener] New message received:", message);
+    // Xử lý tin nhắn đến (để cập nhật badge số lượng tin chưa đọc)
+    const handleNewMessage = (data: any) => {
+      handleSocketMessage(data);
+    };
 
-      // 1. Cập nhật Store (Quan trọng nhất)
-      handleSocketMessage(message);
+    // ✅ LẮNG NGHE EVENT "notification" TỪ BACKEND (Payload chuẩn cho thông báo)
+    const handleNotification = (data: any) => {
+      // Data structure từ backend: { type, title, body, data: { conversationId, senderId } }
 
-      // 2. Invalidate Cache để lần tới fetch sẽ có dữ liệu mới
-      queryClient.invalidateQueries({ queryKey: ["socialConversations"] });
-      queryClient.invalidateQueries({
-        queryKey: ["socialMessages", message.conversationId],
-      });
+      // Kiểm tra: Nếu đang ở đúng trang chat của hội thoại này thì KHÔNG báo
+      const currentPath = location.pathname;
+      const currentParams = new URLSearchParams(location.search);
+      const activeConvId = currentParams.get("conversationId");
 
-      // 3. Check xem user có đang ở trong cuộc chat đó không
-      // Lấy conversationId từ URL hiện tại
-      const params = new URLSearchParams(location.search);
-      const currentConversationId = params.get("conversationId");
-      const isChattingWithSender =
-        currentConversationId === message.conversationId;
-
-      // 4. Nếu KHÔNG đang chat với người đó -> Hiện thông báo
-      // ChatMessage không có sender property, chỉ có senderType
-      // Nếu senderType là "User" và không phải currentUser thì hiện thông báo
-      const isFromOtherUser = message.senderType === "User" && message.conversationId;
-
-      if (!isChattingWithSender && isFromOtherUser) {
-        // Play sound (tùy chọn)
-        // new Audio('/assets/sounds/notification.mp3').play().catch(() => {});
-
-        const messageText = message.type === "text" && "text" in message.content
-          ? message.content.text
-          : message.type === "image" 
-          ? "Đã gửi một ảnh"
-          : message.type === "file"
-          ? "Đã gửi một file"
-          : "Tin nhắn mới";
-
-        toast.info(
-          `Tin nhắn mới: ${messageText}`,
-          {
-            description: "Nhấn để xem ngay",
-            duration: 5000,
-            action: {
-              label: "Xem",
-              onClick: () => {
-                navigate(`/messages?conversationId=${message.conversationId}`);
-              },
-            },
-          }
-        );
+      if (
+        currentPath.includes("/messages") &&
+        activeConvId === data.data.conversationId
+      ) {
+        return; // Đang chat với người này thì thôi, không hiện popup
       }
+
+      // 1. Phát âm thanh
+      try {
+        audioRef.current
+          ?.play()
+          .catch((e) => console.warn("Audio blocked:", e));
+      } catch (e) {}
+
+      // 2. Browser Notification (Nếu tab ẩn)
+      if (document.hidden && Notification.permission === "granted") {
+        const n = new Notification(data.title, {
+          body: data.body,
+          icon: "/logo-printz.png",
+          tag: "chat-msg",
+        });
+        n.onclick = () => {
+          window.focus();
+          navigate(`/messages?conversationId=${data.data.conversationId}`);
+        };
+      }
+
+      // 3. ✅ RICH TOAST (Menu nổi xịn xò)
+      toast.custom(
+        (t) => (
+          <div
+            className="flex w-full max-w-md bg-white shadow-xl rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors"
+            onClick={() => {
+              toast.dismiss(t);
+              navigate(`/messages?conversationId=${data.data.conversationId}`);
+            }}
+          >
+            <div className="flex-1 w-0 p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 pt-0.5">
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                    <span className="text-sm">MSG</span>
+                  </div>
+                </div>
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-medium text-gray-900">
+                    {data.title}
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+                    {data.body}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex border-l border-gray-200">
+              <button className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-blue-600 hover:text-blue-500 focus:outline-none">
+                Trả lời
+              </button>
+            </div>
+          </div>
+        ),
+        { duration: 5000, position: "top-right" }
+      );
     };
 
     socket.on("new_message", handleNewMessage);
+    socket.on("notification", handleNotification); // Backend bạn có emit cái này trong social-chat.service.js
+
     return () => {
       socket.off("new_message", handleNewMessage);
+      socket.off("notification", handleNotification);
     };
-  }, [
-    socket,
-    currentUser,
-    handleSocketMessage,
-    queryClient,
-    location.search,
-    navigate,
-  ]);
+  }, [socket, user, location, navigate, handleSocketMessage]);
 
   return null;
-}
+};

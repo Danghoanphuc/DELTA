@@ -26,14 +26,28 @@ export interface ConnectionRequest {
   recipientId: string;
 }
 
+export type ConnectionStatus =
+  | "none"
+  | "pending"
+  | "accepted"
+  | "declined"
+  | "blocked";
+
+export interface ConnectionResponseData {
+  connection?: Connection;
+  connections?: Connection[];
+  friends?: Connection[];
+  requests?: Connection[];
+  sentRequests?: Connection[];
+  count?: number;
+  status?: ConnectionStatus;
+  isSender?: boolean;
+}
+
 export interface ConnectionResponse {
   success: boolean;
   message?: string;
-  data?: {
-    connection?: Connection;
-    connections?: Connection[];
-    count?: number;
-  };
+  data?: ConnectionResponseData;
 }
 
 /**

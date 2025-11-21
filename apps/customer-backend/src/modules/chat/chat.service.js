@@ -196,6 +196,7 @@ export class ChatService {
   ) {
     const session = await mongoose.startSession();
     session.startTransaction();
+    let transactionCommitted = false;
 
     try {
       // 1. Save User Message
@@ -255,16 +256,26 @@ export class ChatService {
         session
       );
       await session.commitTransaction();
+      transactionCommitted = true;
 
       // 4. Side Effects (Socket) - Chỉ gửi lại cho chính user (Sync tab)
+      // ✅ FIX: Socket emit ngoài transaction để tránh lỗi abort sau commit
       if (userId) {
-        socketService.emitToUser(userId.toString(), "new_message", {
-          ...aiMsg.toObject(),
-          conversationId: conversation._id,
-        });
+        try {
+          socketService.emitToUser(userId.toString(), "new_message", {
+            ...aiMsg.toObject(),
+            conversationId: conversation._id,
+          });
+        } catch (socketError) {
+          Logger.warn("[ChatSvc] Socket emit failed (non-critical):", socketError);
+          // Không throw error vì transaction đã commit thành công
+        }
       }
     } catch (error) {
-      await session.abortTransaction();
+      // ✅ FIX: Chỉ abort nếu transaction chưa commit
+      if (!transactionCommitted && session.inTransaction()) {
+        await session.abortTransaction();
+      }
       Logger.error("[ChatSvc] Transaction failed:", error);
       throw error;
     } finally {

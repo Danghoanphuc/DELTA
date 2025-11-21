@@ -1,4 +1,5 @@
-// apps/customer-frontend/src/App.tsx (ĐÃ BỌC LISTENER)
+// apps/customer-frontend/src/App.tsx
+// ✅ FIXED: Added SocialChatSync (Icon Badge) & Toaster (Popup Display)
 
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, Suspense, lazy, ComponentType } from "react";
@@ -7,42 +8,41 @@ import { useCartStore } from "./stores/useCartStore";
 
 import { AppLayout } from "./components/AppLayout";
 import ProtectedRoute from "./features/auth/components/ProtectedRoute";
-// ✅ FIX: Import GlobalModalProvider và các modals
 import { GlobalModalProvider } from "@/contexts/GlobalModalProvider";
 import { ProductQuickViewModal } from "@/components/ProductQuickViewModal";
 import { OrderQuickViewModal } from "@/features/shop/components/modals/OrderQuickViewModal";
 
-// ✅ REAL-TIME: Import Socket.io Provider và NotificationListener
+// ✅ REAL-TIME COMPONENTS
 import { SocketProvider } from "@/contexts/SocketProvider";
 import { NotificationListener } from "@/components/NotificationListener";
+import { Toaster } from "sonner"; // Import Toaster
 
-// ✅ SOCIAL CHAT: Import Global Listener (Cơ quan thường trú)
-import { SocialChatListener } from "@/features/social/components/SocialChatListener";
+// 🔥 MỚI: Import Sync Component để đồng bộ tin nhắn nền
+import { SocialChatSync } from "@/features/social/components/SocialChatSync";
 
 // ==================== PAGE IMPORTS ====================
 
-// ✅ SỬA LỖI: Import PageLoader từ file mới
 import PageLoader from "@/components/PageLoader";
 
-// --- Public Pages (NGOÀI APP) ---
+// --- Public Pages ---
 import SmartLanding from "@/features/landing/SmartLanding";
 import PolicyPage from "@/features/landing/PolicyPage";
 import ContactPage from "@/features/landing/ContactPage";
 import ProcessPage from "@/features/landing/ProcessPage";
 
-// --- Auth Pages (NGOÀI APP) ---
+// --- Auth Pages ---
 import SignInPage from "@/features/auth/pages/SignInPage";
 import SignUpPage from "@/features/customer/pages/SignUpPage";
 import VerifyEmailPage from "@/features/auth/components/VerifyEmailPage";
 import ResetPasswordPage from "@/features/auth/components/ResetPasswordPage";
 import CheckEmailPage from "@/features/auth/pages/CheckEmailPage";
 
+// Helper for lazy loading
 function lazyWorkaround<T extends ComponentType<any>>(
   importer: () => Promise<{ [key: string]: T }>
 ): React.LazyExoticComponent<T> {
   return lazy(async () => {
     const module = await importer();
-    // ✅ SỬA: Hỗ trợ cả default export và named export
     if (module.default) {
       return { default: module.default as T };
     }
@@ -53,29 +53,24 @@ function lazyWorkaround<T extends ComponentType<any>>(
     return { default: module[componentName] as T };
   });
 }
+
+// --- Lazy Loaded Pages ---
 const AuthCallbackPage = lazyWorkaround(
   () => import("@/features/auth/pages/AuthCallbackPage")
 );
 const CartPage = lazyWorkaround(
   () => import("@/features/customer/pages/CartPage")
 );
-
-// --- Printer App (Lazy) ---
 const PrinterOnboardingPage = lazyWorkaround(
   () => import("@/features/printer/pages/PrinterOnboardingPage")
 );
-// ✅ SỬA: PrinterApp export default nên dùng lazy thông thường
 const PrinterApp = lazy(() => import("@/features/printer/pages/PrinterApp"));
-// ✅ THÊM: PrinterStudio cho route /printer/studio/:productId
 const PrinterStudio = lazyWorkaround(
   () => import("@/features/printer/printer-studio/PrinterStudio")
 );
-
-// --- Customer App (Lazy) ---
 const ShopPortalPage = lazyWorkaround(
   () => import("@/features/shop/pages/ShopPortalPage")
 );
-// ✅ SỬA: ProductDetailPage export default nên dùng lazy thông thường
 const ProductDetailPage = lazy(
   () => import("@/features/shop/pages/ProductDetailPage")
 );
@@ -97,7 +92,6 @@ const CustomerOrdersPage = lazyWorkaround(
 const OrderDetailPage = lazyWorkaround(
   () => import("@/features/shop/pages/OrderDetailPage")
 );
-// ✅ NEW: PrinterOrderDetailPage cho Printer
 const PrinterOrderDetailPage = lazyWorkaround(
   () => import("@/features/printer/pages/PrinterOrderDetailPage")
 );
@@ -110,28 +104,21 @@ const CustomerSettingsPage = lazyWorkaround(
 const DesignEditorPage = lazyWorkaround(
   () => import("@/features/editor/DesignEditorPage")
 );
-// ✅ SỬA LỖI: Import trang InspirationPage wrapper mới
 const InspirationPage = lazy(
   () => import("@/features/customer/pages/InspirationPage")
 );
-// ✅ THÊM: Import ChatAppPage cho route /app (export default nên dùng lazy thông thường)
 const ChatAppPage = lazy(() => import("@/features/chat/pages/ChatAppPage"));
-// ✅ THÊM: Import ChatPage và ChatHistoryPage
 const ChatPage = lazy(() => import("@/features/chat/pages/ChatPage"));
 const ChatHistoryPage = lazy(
   () => import("@/features/chat/pages/ChatHistoryPage")
 );
-// ✅ NOTIFICATION: Import NotificationsPage
 const NotificationsPage = lazy(
   () => import("@/features/notifications/pages/NotificationsPage")
 );
-// ✅ SOCIAL CHAT: Import MessagesPage
 const MessagesPage = lazy(() => import("@/features/social/pages/MessagesPage"));
-// ✅ SOCIAL: Import FriendsPage
 const FriendsPage = lazy(() => import("@/features/social/pages/FriendsPage"));
 
 function App() {
-  // (Nội dung hàm App... giữ nguyên)
   const isAuthenticated = useAuthStore((state) => !!state.accessToken);
   const authLoading = useAuthStore((state) => state.loading);
   const fetchMe = useAuthStore((state) => state.fetchMe);
@@ -139,7 +126,6 @@ function App() {
   const fetchCart = useCartStore((state) => state.fetchCart);
 
   useEffect(() => {
-    // Chỉ gọi fetchMe khi có accessToken để tránh redirect không mong muốn
     if (isAuthenticated) {
       fetchMe(true);
     }
@@ -150,10 +136,8 @@ function App() {
       (async () => {
         try {
           await mergeGuestCart();
-          // ✅ FIX: Fetch cart sau khi merge để đảm bảo cart được load
           await fetchCart();
         } catch (err: unknown) {
-          // ✅ Silent error - cart will be fetched on next page load
           console.error("[App] Error merging cart:", err);
         }
       })();
@@ -162,44 +146,44 @@ function App() {
 
   return (
     <BrowserRouter>
-      {/* ✅ FIX: Wrap toàn bộ app với GlobalModalProvider */}
       <GlobalModalProvider>
-        {/* ✅ REAL-TIME: Wrap app với SocketProvider */}
         <SocketProvider>
-          {/* ✅ GLOBAL LISTENERS: Luôn lắng nghe sự kiện */}
-          <NotificationListener />
-          <SocialChatListener /> {/* <--- ĐÃ THÊM VÀO ĐÂY */}
+          {/* 🔥 QUAN TRỌNG 1: Toaster để hiển thị thông báo nổi (Sonner) */}
+          <Toaster position="top-right" richColors closeButton />
+          {/* --- GLOBAL LISTENERS --- */}
+          <NotificationListener /> {/* Nghe thông báo chung */}
+          {/* 🔥 QUAN TRỌNG 2: Sync Component để icon Chat nhảy số ngầm */}
+          <SocialChatSync />
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              {/* ==================== 1. LANDING LAYOUT ==================== */}
+              {/* 1. LANDING */}
               <Route path="/" element={<SmartLanding />} />
               <Route path="/policy" element={<PolicyPage />} />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/process" element={<ProcessPage />} />
 
-              {/* ==================== 2. CHAT LAYOUT (STANDALONE) ==================== */}
-              {/* ✅ FIX QUAN TRỌNG: Đưa Chat ra ngoài AppLayout để chiếm trọn màn hình */}
+              {/* 2. CHAT STANDALONE */}
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/chat/history" element={<ChatHistoryPage />} />
 
-              {/* ==================== 3. APP LAYOUT (BÁN HÀNG) ==================== */}
+              {/* 3. MAIN APP */}
               <Route element={<AppLayout />}>
-                {/* --- Auth Pages --- */}
+                {/* Auth */}
                 <Route path="/signin" element={<SignInPage />} />
                 <Route path="/signup" element={<SignUpPage />} />
                 <Route path="/check-email" element={<CheckEmailPage />} />
                 <Route path="/verify-email" element={<VerifyEmailPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/auth/callback" element={<AuthCallbackPage />} />
-                {/* --- Shop Pages --- */}
+
+                {/* Shop & Customer */}
                 <Route path="/shop" element={<ShopPortalPage />} />
-                <Route path="/app" element={<ChatAppPage />} />{" "}
-                {/* Trang này vẫn cần Header/Footer nên giữ lại */}
+                <Route path="/app" element={<ChatAppPage />} />
                 <Route path="/product/:slug" element={<ProductDetailPage />} />
                 <Route path="/products/:id" element={<ProductDetailPage />} />
                 <Route path="/cart" element={<CartPage />} />
                 <Route path="/inspiration" element={<InspirationPage />} />
-                {/* --- Protected Customer Routes --- */}
+
                 <Route element={<ProtectedRoute />}>
                   <Route path="/checkout" element={<CheckoutPage />} />
                   <Route
@@ -226,21 +210,19 @@ function App() {
                   <Route path="/designs" element={<CustomerDesignsPage />} />
                   <Route path="/settings" element={<CustomerSettingsPage />} />
                   <Route path="/design-editor" element={<DesignEditorPage />} />
-                  {/* ✅ NOTIFICATION: Notifications page */}
+
+                  {/* Social & Notification */}
                   <Route
                     path="/notifications"
                     element={<NotificationsPage />}
                   />
-                  {/* ✅ SOCIAL CHAT: Messages page */}
                   <Route path="/messages" element={<MessagesPage />} />
-                  {/* ✅ SOCIAL: Friends page */}
                   <Route path="/friends" element={<FriendsPage />} />
                 </Route>
               </Route>
 
-              {/* ==================== 4. PRINTER APP ==================== */}
+              {/* 4. PRINTER APP */}
               <Route element={<ProtectedRoute />}>
-                {/* ... Giữ nguyên ... */}
                 <Route
                   path="/printer/onboarding"
                   element={<PrinterOnboardingPage />}
@@ -256,11 +238,11 @@ function App() {
                 />
               </Route>
 
-              {/* ==================== 404 ==================== */}
+              {/* 404 */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
-          {/* ✅ FIX: Modals toàn cục - có thể dùng ở mọi nơi */}
+          {/* Global Modals */}
           <ProductQuickViewModal />
           <OrderQuickViewModal />
         </SocketProvider>

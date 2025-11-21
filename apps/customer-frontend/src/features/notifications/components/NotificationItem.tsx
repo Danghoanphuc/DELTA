@@ -18,7 +18,7 @@ interface NotificationItemProps {
     type: string;
     title: string;
     message: string;
-    data: {
+    data?: {
       orderId?: string;
       orderNumber?: string;
       link?: string;

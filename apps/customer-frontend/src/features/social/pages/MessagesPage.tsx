@@ -1,245 +1,150 @@
 // apps/customer-frontend/src/features/social/pages/MessagesPage.tsx
-// ✅ FIXED: Auto-open latest conversation on fresh login
+// ✅ CHUYÊN GIA FIX: Layout Calculation & Container Sizing
 
 import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   fetchChatConversations,
-  createPeerConversation,
   fetchConversationById,
+  createPeerConversation,
 } from "../../chat/services/chat.api.service";
 import { useSocialChatStore } from "../hooks/useSocialChatStore";
 import { ConversationList } from "../components/ConversationList";
 import { SocialChatWindow } from "../components/SocialChatWindow";
 import { MessageCircle, Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { useSocket } from "@/contexts/SocketProvider";
 
 export default function MessagesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const queryClient = useQueryClient();
-
   const targetUserId = searchParams.get("userId");
   const urlConversationId = searchParams.get("conversationId");
 
-  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
-  const [isRecovering, setIsRecovering] = useState(false);
   const { socket } = useSocket();
-
   const {
     conversations,
     setConversations,
     activeConversationId,
     setActiveConversation,
   } = useSocialChatStore();
+  const [isCreating, setIsCreating] = useState(false);
 
-  // 1. Load danh sách chat
+  // 1. Fetch Conversations
   const { data, isLoading } = useQuery({
     queryKey: ["socialConversations"],
     queryFn: async () => {
-      const allConversations = await fetchChatConversations();
-      return allConversations.filter((conv) =>
-        conv.type && ["individual", "group", "ai"].includes(conv.type)
+      const res = await fetchChatConversations();
+      return res.filter((c: any) =>
+        ["peer-to-peer", "customer-printer", "group"].includes(c.type)
       );
     },
-    refetchInterval: 10000,
+    // Giữ data fresh lâu hơn vì đã có socket update
+    staleTime: 60000,
   });
 
-  // 2. Sync danh sách vào Store
   useEffect(() => {
-    if (data) {
-      if (
-        activeConversationId &&
-        !data.find((c) => c._id === activeConversationId)
-      ) {
-        const current = conversations.find(
-          (c) => c._id === activeConversationId
-        );
-        if (current) {
-          setConversations([current, ...data]);
-          return;
-        }
-      }
-      setConversations(data);
-    }
-  }, [data, setConversations, activeConversationId]);
+    if (data) setConversations(data);
+  }, [data, setConversations]);
 
-  // 3. Lắng nghe socket
-  useEffect(() => {
-    if (!socket) return;
-    const handleUpdate = () =>
-      queryClient.invalidateQueries({ queryKey: ["socialConversations"] });
-    socket.on("new_message", handleUpdate);
-    return () => {
-      socket.off("new_message", handleUpdate);
-    };
-  }, [socket, queryClient]);
-
-  // 4. ✅ LOGIC ĐIỀU HƯỚNG & AUTO-SELECT
+  // 2. Logic chọn hội thoại (URL hoặc auto select)
   useEffect(() => {
     if (isLoading) return;
 
-    // CASE 1: URL có ID -> Ưu tiên cao nhất
+    // CASE A: Có Conversation ID trên URL
     if (urlConversationId) {
-      const existsInStore = conversations.some(
-        (c) => c._id === urlConversationId
-      );
-      if (existsInStore) {
-        if (activeConversationId !== urlConversationId) {
+      const exists = conversations.find((c) => c._id === urlConversationId);
+      if (exists) {
+        if (activeConversationId !== urlConversationId)
           setActiveConversation(urlConversationId);
-        }
       } else {
-        // Gọi API cứu hộ
-        if (!isRecovering) {
-          setIsRecovering(true);
-          fetchConversationById(urlConversationId)
-            .then((conv) => {
-              if (conv) {
-                setConversations([conv, ...conversations]);
-                setActiveConversation(conv._id);
-              } else {
-                setSearchParams({});
-              }
-            })
-            .catch(() => setSearchParams({}))
-            .finally(() => setIsRecovering(false));
-        }
+        // Fetch lẻ nếu chưa có trong list (ví dụ click từ noti)
+        fetchConversationById(urlConversationId)
+          .then((conv) => {
+            if (conv) {
+              setConversations([conv, ...conversations]);
+              setActiveConversation(conv._id);
+            }
+          })
+          .catch(() => setSearchParams({}));
       }
       return;
     }
 
-    // CASE 2: Bấm nút Nhắn tin (UserId)
-    if (targetUserId && !isCreatingConversation) {
-      handleUserIdParam();
-      return;
-    }
-
-    // CASE 3 (MỚI): Tự động mở hội thoại gần nhất nếu chưa chọn gì
-    // Điều kiện: Không có URL ID, không có Target User, Store chưa Active, và Danh sách có dữ liệu
-    if (
-      !urlConversationId &&
-      !targetUserId &&
-      !activeConversationId &&
-      conversations.length > 0
-    ) {
-      const mostRecent = conversations[0]; // Phần tử đầu tiên là mới nhất (do Backend sort)
-      selectConversation(mostRecent._id);
-    }
-  }, [
-    urlConversationId,
-    targetUserId,
-    isLoading,
-    conversations,
-    activeConversationId,
-    isRecovering,
-  ]);
-
-  const handleUserIdParam = async () => {
-    if (!targetUserId) return;
-    
-    const existingConv = conversations.find((conv) => {
-      if ((conv.type === "individual" || conv.type === "group") && conv.participants) {
-        return conv.participants.some(
-          (p: any) =>
-            p.userId?._id === targetUserId || p.userId === targetUserId
-        );
-      }
-      return false;
-    });
-
-    if (existingConv) {
-      selectConversation(existingConv._id);
-    } else {
-      setIsCreatingConversation(true);
-      try {
-        const response = await createPeerConversation(targetUserId!);
-        if (response.success && response.data?.conversation) {
-          const conv = response.data.conversation;
-          if (!conversations.some((c) => c._id === conv._id)) {
-            setConversations([conv, ...conversations]);
-          }
-          selectConversation(conv._id);
-        }
-      } catch (e) {
-        toast.error("Lỗi tạo chat");
-      } finally {
-        setIsCreatingConversation(false);
+    // CASE B: Có User ID (bấm nút Chat từ profile)
+    if (targetUserId && !isCreating) {
+      const existing = conversations.find((c) =>
+        c.participants?.some?.(
+          (p: any) => (p.userId?._id || p.userId) === targetUserId
+        )
+      );
+      if (existing) {
+        selectConv(existing._id);
+      } else {
+        setIsCreating(true);
+        createPeerConversation(targetUserId)
+          .then((res) => {
+            if (res.data?.conversation) {
+              setConversations([res.data.conversation, ...conversations]);
+              selectConv(res.data.conversation._id);
+            }
+          })
+          .finally(() => setIsCreating(false));
       }
     }
-  };
+  }, [urlConversationId, targetUserId, isLoading, conversations]);
 
-  const selectConversation = (id: string) => {
+  const selectConv = (id: string) => {
     setActiveConversation(id);
-    setSearchParams((prev) => {
-      const newParams = new URLSearchParams(prev);
-      newParams.set("conversationId", id);
-      newParams.delete("userId");
-      return newParams;
-    });
+    setSearchParams({ conversationId: id }); // Clear userId param cho sạch URL
   };
 
-  const handleBack = () => {
-    setActiveConversation(null);
-    setSearchParams({});
-  };
+  const activeConv = conversations.find((c) => c._id === activeConversationId);
 
-  const activeConversation = conversations.find(
-    (c) => c._id === activeConversationId
-  );
-  const showLoading = isLoading || isCreatingConversation || isRecovering;
-
+  // ✅ FIX LAYOUT:
+  // h-[calc(100vh-4rem-1px)]:
+  // - 100vh: Full chiều cao
+  // - 4rem (64px): Chiều cao Header (GlobalHeader)
+  // - 1px: Border top nếu có
   return (
-    <div className="h-screen w-full flex flex-col lg:flex-row overflow-hidden">
+    <div className="flex w-full bg-white lg:h-[calc(100vh-4.5rem)] h-[calc(100vh-4rem)] overflow-hidden relative">
+      {/* Sidebar */}
       <div
         className={`${
           activeConversationId ? "hidden lg:flex" : "flex"
-        } lg:w-80 xl:w-96 flex-shrink-0 border-r border-gray-200 bg-white flex-col h-full`}
+        } w-full lg:w-80 xl:w-96 flex-col border-r border-gray-200 h-full`}
       >
         <ConversationList
           conversations={conversations}
           activeId={activeConversationId}
-          onSelect={selectConversation}
+          onSelect={selectConv}
           isLoading={isLoading}
         />
       </div>
 
+      {/* Main Chat Window */}
       <div
         className={`${
           activeConversationId ? "flex" : "hidden lg:flex"
-        } flex-1 w-full min-w-0 bg-gray-50 h-full flex-col`}
+        } flex-1 flex-col bg-gray-50 h-full min-w-0`}
       >
-        {showLoading ? (
-          <LoadingState />
-        ) : activeConversation ? (
+        {isCreating ? (
+          <div className="flex-1 flex items-center justify-center">
+            <Loader2 className="animate-spin text-blue-600" />
+          </div>
+        ) : activeConv ? (
           <SocialChatWindow
-            conversation={activeConversation}
-            onBack={handleBack}
+            conversation={activeConv}
+            onBack={() => {
+              setActiveConversation(null);
+              setSearchParams({});
+            }}
           />
         ) : (
-          // Nếu danh sách rỗng thật sự thì mới hiện Empty State
-          <EmptyState />
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+            <MessageCircle size={64} className="opacity-20 mb-4" />
+            <p>Chọn một cuộc trò chuyện để bắt đầu</p>
+          </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function LoadingState() {
-  return (
-    <div className="flex-1 flex items-center justify-center p-6 text-center h-full w-full">
-      <Loader2 size={40} className="animate-spin text-blue-600" />
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="flex-1 flex items-center justify-center p-6 text-center h-full w-full">
-      <div className="text-gray-400">
-        <MessageCircle size={64} className="mx-auto mb-4 opacity-50" />
-        <p>Bạn chưa có cuộc trò chuyện nào.</p>
-        <p className="text-sm">Hãy kết bạn để bắt đầu nhắn tin!</p>
       </div>
     </div>
   );

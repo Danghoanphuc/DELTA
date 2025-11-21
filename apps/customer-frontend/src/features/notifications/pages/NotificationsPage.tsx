@@ -1,6 +1,12 @@
 // apps/customer-frontend/src/features/notifications/pages/NotificationsPage.tsx
 import { useState } from "react";
-import { useNotifications } from "../hooks/useNotifications";
+// ✅ Import đầy đủ các hooks riêng biệt
+import {
+  useNotifications,
+  useMarkAsRead,
+  useMarkAllAsRead,
+  type Notification,
+} from "../hooks/useNotifications";
 import { NotificationItem } from "../components/NotificationItem";
 import { Button } from "@/shared/components/ui/button";
 import { Bell, CheckCheck, Loader2 } from "lucide-react";
@@ -10,23 +16,35 @@ export function NotificationsPage() {
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<"all" | "unread">("all");
 
-  const {
-    notifications,
-    pagination,
-    unreadCount,
-    isLoading,
-    markAsRead,
-    markAllAsRead,
-    isMarkingAllAsRead,
-  } = useNotifications(
-    page,
-    20,
-    filter === "unread" ? false : undefined
+  // ✅ 1. Gọi Hook lấy dữ liệu (Truyền object param chuẩn)
+  const { data, isLoading } = useNotifications(
+    {
+      page,
+      limit: 20,
+      // Lưu ý: Hook hiện tại chưa hỗ trợ filter isRead,
+      // nhưng ta cứ truyền đúng cấu trúc để sau này update hook là chạy được ngay.
+      // isRead: filter === "unread" ? false : undefined
+    },
+    true // Enabled
   );
+
+  // ✅ 2. Trích xuất dữ liệu an toàn (Safety Check)
+  // Dùng toán tử ?. và || [] để đảm bảo không bao giờ bị undefined
+  const notifications = (data?.data ?? []) as Notification[];
+  const pagination = data?.pagination;
+  const unreadCount = data?.unreadCount || 0;
+
+  // ✅ 3. Gọi Hook Mutation riêng biệt
+  const markAsReadMutation = useMarkAsRead();
+  const markAllAsReadMutation = useMarkAllAsRead();
 
   const handleMarkAllAsRead = () => {
     if (unreadCount === 0) return;
-    markAllAsRead();
+    markAllAsReadMutation.mutate();
+  };
+
+  const handleMarkOneAsRead = (id: string) => {
+    markAsReadMutation.mutate(id);
   };
 
   return (
@@ -39,7 +57,7 @@ export function NotificationsPage() {
               <Bell className="h-6 w-6 text-gray-700" />
               <h1 className="text-2xl font-bold text-gray-900">Thông báo</h1>
               {unreadCount > 0 && (
-                <span className="px-2 py-1 text-xs font-semibold text-white bg-red-500 rounded-full">
+                <span className="px-2 py-1 text-xs font-semibold text-white bg-red-500 rounded-full animate-in zoom-in">
                   {unreadCount}
                 </span>
               )}
@@ -49,10 +67,10 @@ export function NotificationsPage() {
               variant="outline"
               size="sm"
               onClick={handleMarkAllAsRead}
-              disabled={unreadCount === 0 || isMarkingAllAsRead}
+              disabled={unreadCount === 0 || markAllAsReadMutation.isPending}
               className="gap-2"
             >
-              {isMarkingAllAsRead ? (
+              {markAllAsReadMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <CheckCheck className="h-4 w-4" />
@@ -77,7 +95,9 @@ export function NotificationsPage() {
             >
               Tất cả
               {pagination && (
-                <span className="ml-1.5">({pagination.total})</span>
+                <span className="ml-1.5 text-xs opacity-80">
+                  ({pagination.total})
+                </span>
               )}
             </button>
             <button
@@ -93,7 +113,11 @@ export function NotificationsPage() {
               )}
             >
               Chưa đọc
-              {unreadCount > 0 && <span className="ml-1.5">({unreadCount})</span>}
+              {unreadCount > 0 && (
+                <span className="ml-1.5 text-xs opacity-80">
+                  ({unreadCount})
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -101,18 +125,21 @@ export function NotificationsPage() {
 
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden min-h-[400px]">
           {/* Loading State */}
           {isLoading && (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 className="h-10 w-10 animate-spin text-blue-600 mb-4" />
+              <p className="text-gray-500 text-sm">Đang tải thông báo...</p>
             </div>
           )}
 
           {/* Empty State */}
           {!isLoading && notifications.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12">
-              <Bell className="h-16 w-16 text-gray-300 mb-4" />
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="h-20 w-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <Bell className="h-10 w-10 text-gray-400" />
+              </div>
               <h3 className="text-lg font-medium text-gray-900 mb-1">
                 {filter === "unread"
                   ? "Không có thông báo chưa đọc"
@@ -121,27 +148,33 @@ export function NotificationsPage() {
               <p className="text-sm text-gray-500">
                 {filter === "unread"
                   ? "Tất cả thông báo của bạn đã được đọc"
-                  : "Thông báo của bạn sẽ xuất hiện ở đây"}
+                  : "Thông báo đơn hàng và tin nhắn sẽ xuất hiện ở đây"}
               </p>
             </div>
           )}
 
           {/* Notification List */}
           {!isLoading && notifications.length > 0 && (
-            <div>
-              {notifications.map((notification) => (
-                <NotificationItem
-                  key={notification._id}
-                  notification={notification}
-                  onMarkAsRead={markAsRead}
-                />
-              ))}
+            <div className="divide-y divide-gray-100">
+              {notifications.map((notification) => {
+                const safeNotification: Notification = {
+                  ...notification,
+                  data: notification.data ?? {},
+                };
+                return (
+                  <NotificationItem
+                    key={notification._id}
+                    notification={safeNotification}
+                    onMarkAsRead={() => handleMarkOneAsRead(notification._id)}
+                  />
+                );
+              })}
             </div>
           )}
 
           {/* Pagination */}
           {!isLoading && pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
               <p className="text-sm text-gray-600">
                 Trang {pagination.page} / {pagination.totalPages}
               </p>
@@ -151,6 +184,7 @@ export function NotificationsPage() {
                   size="sm"
                   onClick={() => setPage(page - 1)}
                   disabled={page === 1}
+                  className="bg-white"
                 >
                   Trước
                 </Button>
@@ -159,6 +193,7 @@ export function NotificationsPage() {
                   size="sm"
                   onClick={() => setPage(page + 1)}
                   disabled={page >= pagination.totalPages}
+                  className="bg-white"
                 >
                   Sau
                 </Button>
@@ -172,4 +207,3 @@ export function NotificationsPage() {
 }
 
 export default NotificationsPage;
-

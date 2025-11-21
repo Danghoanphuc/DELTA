@@ -1,28 +1,32 @@
+// apps/customer-backend/src/modules/chat/social-chat.service.js
+// ✅ FIXED: Logic tách biệt - Tin nhắn không lưu vào Chuông thông báo
+
 import { Conversation } from "../../shared/models/conversation.model.js";
 import { Message } from "../../shared/models/message.model.js";
 import { Logger } from "../../shared/utils/index.js";
 import { socketService } from "../../infrastructure/realtime/socket.service.js";
+// import { notificationService } from "../notifications/notification.service.js"; // ❌ KHÔNG CẦN DÙNG NỮA
 
 export class SocialChatService {
-  /**
-   * ✅ ZERO-LATENCY: Tạo hoặc lấy hội thoại P2P
-   * Hàm này được gọi bởi ConnectionService ngay khi Accept Friend
-   */
-  async createPeerConversation(userId1, userId2) {
+  // ... (Giữ nguyên hàm createPeerConversation)
+  async createPeerConversation(userId1, userId2, session = null) {
     try {
-      // 1. Kiểm tra đã tồn tại chưa
       let conversation = await Conversation.findOne({
         type: "peer-to-peer",
         "participants.userId": { $all: [userId1, userId2] },
-      }).populate("participants.userId", "username displayName avatarUrl");
+      }).session(session);
 
       if (conversation) {
+        if (!session) {
+          await conversation.populate(
+            "participants.userId",
+            "username displayName avatarUrl"
+          );
+        }
         return { conversation, isNew: false };
       }
 
-      // 2. Tạo mới ngay lập tức
-      // Title sẽ được Frontend hiển thị dynamic dựa trên tên người kia
-      conversation = await Conversation.create({
+      const newConv = new Conversation({
         type: "peer-to-peer",
         title: "Cuộc trò chuyện",
         participants: [
@@ -33,34 +37,35 @@ export class SocialChatService {
         isActive: true,
       });
 
-      await conversation.populate(
-        "participants.userId",
-        "username displayName avatarUrl"
-      );
-
-      Logger.info(`[SocialChatSvc] ✅ Created P2P chat: ${conversation._id}`);
-      return { conversation, isNew: true };
+      await newConv.save({ session });
+      Logger.info(`[SocialChatSvc] ✅ Created P2P chat: ${newConv._id}`);
+      return { conversation: newConv, isNew: true };
     } catch (error) {
       Logger.error(`[SocialChatSvc] Error creating P2P chat:`, error);
       throw error;
     }
   }
 
-  /**
-   * ✅ Xử lý tin nhắn Social (Text/File) - Không qua AI Agent
-   */
+  // ... (Giữ nguyên hàm handleSocialMessage)
   async handleSocialMessage(user, body) {
     const { message, fileUrl, conversationId, type, metadata } = body;
 
-    // 1. Validate Conversation
     const conversation = await Conversation.findById(conversationId).populate(
       "participants.userId",
-      "_id"
+      "_id username displayName avatarUrl"
     );
 
     if (!conversation) throw new Error("Cuộc trò chuyện không tồn tại");
 
-    // 2. Tạo Message
+    const isParticipant = conversation.participants.some((p) => {
+      const uId = p.userId?._id || p.userId;
+      return uId.toString() === user._id.toString();
+    });
+
+    if (!isParticipant) {
+      throw new Error("Bạn không có quyền gửi tin nhắn");
+    }
+
     const newMessage = await Message.create({
       conversationId: conversation._id,
       sender: user._id,
@@ -73,13 +78,13 @@ export class SocialChatService {
       metadata: metadata,
     });
 
-    // 3. Cập nhật Last Message cho Conversation (để nhảy lên đầu list)
-    await Conversation.findByIdAndUpdate(conversationId, {
+    Conversation.findByIdAndUpdate(conversationId, {
       lastMessageAt: new Date(),
-    });
+    }).exec();
 
-    // 4. Bắn Socket cho người nhận (Realtime)
-    this.emitSocketToRecipient(conversation, newMessage, user._id);
+    this.notifyRecipient(conversation, newMessage, user).catch((err) =>
+      Logger.error("[SocialChatSvc] Notify failed:", err)
+    );
 
     return {
       ...newMessage.toObject(),
@@ -88,34 +93,53 @@ export class SocialChatService {
   }
 
   /**
-   * Helper: Bắn socket cho người còn lại
+   * ✅ FIXED: Chỉ bắn Socket, KHÔNG lưu vào Notification DB
    */
-  emitSocketToRecipient(conversation, message, senderId) {
+  async notifyRecipient(conversation, message, sender) {
     try {
-      // Tìm người nhận (người không phải là sender)
-      const recipient = conversation.participants.find(
-        (p) => p.userId._id.toString() !== senderId.toString()
-      );
+      const recipient = conversation.participants.find((p) => {
+        const uId = p.userId?._id || p.userId;
+        return uId && uId.toString() !== sender._id.toString();
+      });
 
-      if (recipient && recipient.userId) {
-        const recipientId = recipient.userId._id.toString();
+      if (recipient) {
+        const recipientId = (
+          recipient.userId?._id || recipient.userId
+        ).toString();
+        const senderName = sender.displayName || sender.username || "Ai đó";
+        const previewText = message.content?.text || "Đã gửi một file đính kèm";
 
-        // Emit tin nhắn mới
+        // 1. BẮN SOCKET CHAT (Hiện tin nhắn trong khung chat & Badge Icon Message)
         socketService.emitToUser(recipientId, "new_message", {
           ...message.toObject(),
           conversationId: conversation._id,
         });
 
-        // Emit thông báo (để hiện badge đỏ nếu đang ở màn hình khác)
+        // 2. BẮN SOCKET TOAST (Hiện Popup góc màn hình)
+        // Vẫn giữ cái này để user biết có tin mới nếu đang ở trang khác
         socketService.emitToUser(recipientId, "notification", {
-          type: "new_message",
-          title: "Tin nhắn mới",
-          body: message.content.text || "Đã gửi một file",
-          data: { conversationId: conversation._id },
+          userId: recipientId,
+          type: "message", // Frontend Listener sẽ hiện Toast + Sound
+          title: `Tin nhắn mới từ ${senderName}`,
+          message: previewText,
+          data: {
+            conversationId: conversation._id,
+            senderId: sender._id.toString(),
+            avatarUrl: sender.avatarUrl,
+          },
+          // isRead: false -> Không cần thiết vì không lưu DB
         });
+
+        // ❌ ĐÃ XÓA: await notificationService.createNotification(...)
+        // Việc xóa dòng này sẽ khiến API /notifications/unread-count KHÔNG ĐẾM tin nhắn này nữa
+        // -> Icon Chuông sẽ KHÔNG sáng.
+
+        Logger.info(
+          `[SocialChatSvc] Notified user ${recipientId} (Socket only)`
+        );
       }
     } catch (error) {
-      Logger.warn("[SocialChatSvc] Socket emit failed:", error);
+      Logger.warn("[SocialChatSvc] Error in notifyRecipient:", error);
     }
   }
 }

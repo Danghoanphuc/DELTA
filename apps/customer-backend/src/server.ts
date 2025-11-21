@@ -303,20 +303,27 @@ async function startServer() {
     });
 
     // ✅ Health check endpoint for real-time services
-    app.get("/api/realtime/health", async (req: Request, res: Response) => {
-      const { io } = await import(
-        "./infrastructure/realtime/socket.service.js"
-      );
-      const clientsCount = io.engine.clientsCount;
-      res.status(200).json({
-        status: "ok",
-        socketio: {
-          connected: clientsCount > 0,
-          connectedClients: clientsCount,
-        },
-        changeStreams: "active",
-        timestamp: new Date().toISOString(),
-      });
+    app.get("/api/realtime/health", (req: Request, res: Response) => {
+      try {
+        const io = socketService.getIO();
+        const clientsCount = io.engine.clientsCount;
+        res.status(200).json({
+          status: "ok",
+          socketio: {
+            connected: clientsCount > 0,
+            connectedClients: clientsCount,
+          },
+          changeStreams: "active",
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error) {
+        Logger.error("[Health] Socket.io not initialized", error);
+        res.status(503).json({
+          status: "error",
+          message: "Socket.io not initialized",
+          timestamp: new Date().toISOString(),
+        });
+      }
     });
 
     return server;

@@ -1,257 +1,171 @@
 // apps/customer-frontend/src/components/NotificationListener.tsx
-import { useEffect, useRef } from "react";
+// ✅ FIXED: Centralized Notification Handler (Toast + Audio + Refresh)
+
+import { useEffect, useRef, useCallback } from "react";
 import { useSocket } from "@/contexts/SocketProvider";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useLocation } from "react-router-dom";
+import { UserPlus, MessageCircle, Package, Bell } from "lucide-react";
 
-/**
- * NotificationListener - Global component to handle real-time notifications
- * 
- * Features:
- * - Listens for printer:new_order events (for printers)
- * - Listens for customer:order_update events (for customers)
- * - Plays notification sound (optional)
- * - Shows toast notifications
- * - Can be extended to update global state/cache
- */
 export function NotificationListener() {
   const { socket, isConnected } = useSocket();
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const audioContextRef = useRef<AudioContext | null>(null);
 
-  // Initialize notification sound
+  // 1. Init Audio Context (Giữ nguyên logic của bạn)
   useEffect(() => {
-    // Create a simple beep sound using Web Audio API instead of loading a file
-    // This avoids the "no supported sources" error
-    audioRef.current = null; // We'll use Web Audio API instead
+    try {
+      const AudioContextClass =
+        window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        audioContextRef.current = new AudioContextClass();
+      }
+    } catch (e) {
+      console.error("AudioContext not supported");
+    }
   }, []);
 
-  const playNotificationSound = () => {
+  // 2. Hàm phát âm thanh (Unlock Audio Context khi cần)
+  const playNotificationSound = useCallback(async () => {
     try {
-      // Use Web Audio API to generate a simple notification beep
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
+      if (!audioContextRef.current) return;
+      const ctx = audioContextRef.current;
+      if (ctx.state === "suspended") await ctx.resume();
+
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
 
       oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
+      gainNode.connect(ctx.destination);
 
-      oscillator.frequency.value = 800; // Frequency in Hz
-      oscillator.type = 'sine';
+      // Âm thanh 'Ding' dễ chịu hơn (Sine wave)
+      oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+      oscillator.type = "sine";
 
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+      gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
 
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.5);
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 0.5);
     } catch (err) {
-      console.error("Error playing sound:", err);
+      console.warn("Audio play failed", err);
     }
-  };
+  }, []);
+
+  // 3. Hàm Refresh dữ liệu toàn cục
+  const forceRefresh = useCallback(() => {
+    console.log("🔄 Refreshing App Data...");
+    // Invalidate tất cả các query liên quan
+    queryClient.invalidateQueries({ queryKey: ["notifications"] }); // Cập nhật chuông & list
+    queryClient.invalidateQueries({ queryKey: ["pendingRequests"] });
+    queryClient.invalidateQueries({ queryKey: ["friends"] });
+    queryClient.invalidateQueries({ queryKey: ["connectionStatus"] });
+    queryClient.invalidateQueries({ queryKey: ["socialConversations"] }); // Cập nhật list chat bên trái
+  }, [queryClient]);
+
+  // 4. Xử lý điều hướng khi click vào Toast
+  const handleToastClick = useCallback(
+    (data: any) => {
+      const { type, data: payload } = data;
+
+      if (type === "message") {
+        navigate(`/messages?conversationId=${payload.conversationId}`);
+      } else if (type === "connection_request") {
+        navigate("/friends?tab=pending");
+      } else if (type.includes("order")) {
+        navigate(
+          payload.orderId ? `/customer/orders/${payload.orderId}` : "/orders"
+        );
+      } else {
+        navigate("/notifications");
+      }
+    },
+    [navigate]
+  );
 
   useEffect(() => {
-    if (!socket || !isConnected) {
-      console.log("[NotificationListener] Socket not connected, skipping setup");
-      return;
-    }
+    if (!socket || !isConnected) return;
 
-    console.log("[NotificationListener] Setting up event listeners...");
+    // ✅ HANDLER CHUNG CHO SỰ KIỆN 'notification' TỪ BACKEND
+    const handleGeneralNotification = (data: any) => {
+      // data structure: { title, message, type, data: {...} }
 
-    // ============================================
-    // PRINTER NOTIFICATIONS
-    // ============================================
-
-    /**
-     * Event: printer:new_order
-     * Trigger: New order created that includes this printer
-     */
-    const handleNewOrder = (data: any) => {
-      console.log("[NotificationListener] 🔔 New Order:", data);
-
-      // Play sound
-      playNotificationSound();
-
-      // Show toast notification
-      toast.success(`🔔 Ting! Đơn hàng mới #${data.orderNumber}`, {
-        description: `${data.customerName} • ${data.itemsCount} sản phẩm • ${data.totalQuantity} chiếc • 💰 ${data.printerPayout?.toLocaleString("vi-VN")} đ`,
-        duration: 8000,
-      });
-
-      // Optional: Trigger data refetch or update global state
-      // queryClient.invalidateQueries(['printer-orders']);
-    };
-
-    /**
-     * Event: printer:order_update
-     * Trigger: Order status changed (payment confirmed, cancelled, etc.)
-     */
-    const handlePrinterOrderUpdate = (data: any) => {
-      console.log("[NotificationListener] 📝 Order Update (Printer):", data);
-
-      let title = "Đơn hàng cập nhật";
-      let description = `Đơn hàng #${data.orderNumber} đã được cập nhật`;
-
-      if (data.paymentStatus === "paid") {
-        title = "✅ Thanh toán thành công";
-        description = `Đơn hàng #${data.orderNumber} đã được thanh toán. Bắt đầu xử lý!`;
-        playNotificationSound();
-        toast.success(title, { description, duration: 6000 });
-      } else if (data.masterStatus === "cancelled") {
-        title = "❌ Đơn hàng bị hủy";
-        description = `Đơn hàng #${data.orderNumber} đã bị hủy bởi khách hàng`;
-        toast.error(title, { description, duration: 6000 });
-      } else {
-        toast.info(title, { description, duration: 6000 });
-      }
-    };
-
-    // ============================================
-    // SOCIAL / CONNECTION NOTIFICATIONS
-    // ============================================
-
-    /**
-     * Event: connection:request
-     * Trigger: Someone sent you a friend request
-     */
-    const handleConnectionRequest = (data: any) => {
-      console.log("[NotificationListener] 🤝 Connection Request:", data);
-      
-      playNotificationSound();
-      
-      toast.info(`🤝 Lời mời kết bạn mới`, {
-        description: `${data.requester?.displayName || data.requester?.username} muốn kết bạn với bạn`,
-        duration: 8000,
-      });
-
-      // Invalidate queries to refresh UI
-      queryClient.invalidateQueries({ queryKey: ["pendingRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
-    };
-
-    /**
-     * Event: connection:accepted
-     * Trigger: Someone accepted your friend request
-     */
-    const handleConnectionAccepted = (data: any) => {
-      console.log("[NotificationListener] ✅ Connection Accepted:", data);
-      
-      playNotificationSound();
-      
-      toast.success(`✅ Kết bạn thành công`, {
-        description: `${data.acceptedBy?.displayName || data.acceptedBy?.username} đã chấp nhận lời mời kết bạn của bạn`,
-        duration: 6000,
-      });
-
-      // Invalidate queries to refresh UI
-      queryClient.invalidateQueries({ queryKey: ["friends"] });
-      queryClient.invalidateQueries({ queryKey: ["sentRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["connectionStatus"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
-    };
-
-    // ============================================
-    // CUSTOMER NOTIFICATIONS
-    // ============================================
-
-    /**
-     * Event: customer:order_created
-     * Trigger: Customer's order was successfully created
-     */
-    const handleOrderCreated = (data: any) => {
-      console.log("[NotificationListener] 🎉 Order Created:", data);
-
-      toast.success("🎉 Đơn hàng đã được tạo", {
-        description: `#${data.orderNumber} • ${data.totalItems} sản phẩm • ${data.totalAmount?.toLocaleString("vi-VN")} đ • Chờ xác nhận thanh toán...`,
-        duration: 6000,
-      });
-
-      // ✅ Refetch notification count (notification was saved to DB)
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    };
-
-    /**
-     * Event: customer:order_update
-     * Trigger: Order status changed (confirmed, shipped, completed, etc.)
-     */
-    const handleOrderUpdate = (data: any) => {
-      console.log("[NotificationListener] 📦 Order Update:", data);
-
-      let title = "Đơn hàng cập nhật";
-      let description = `Đơn hàng #${data.orderNumber}`;
-
-      // Determine notification content based on status
-      if (data.changes?.paymentStatus?.newValue === "paid") {
-        title = "✅ Thanh toán thành công";
-        description = `Đơn hàng #${data.orderNumber} đã được thanh toán`;
-        playNotificationSound();
-        toast.success(title, { description, duration: 6000 });
-      } else if (data.changes?.masterStatus?.newValue === "processing") {
-        title = "⚙️ Đang xử lý";
-        description = `Đơn hàng #${data.orderNumber} đang được xử lý`;
-        toast.info(title, { description, duration: 6000 });
-      } else if (data.changes?.masterStatus?.newValue === "shipping") {
-        title = "🚚 Đang giao hàng";
-        description = `Đơn hàng #${data.orderNumber} đang trên đường giao đến bạn`;
-        playNotificationSound();
-        toast.info(title, { description, duration: 6000 });
-      } else if (data.changes?.masterStatus?.newValue === "completed") {
-        title = "🎉 Hoàn thành";
-        description = `Đơn hàng #${data.orderNumber} đã được giao thành công`;
-        playNotificationSound();
-        toast.success(title, { description, duration: 6000 });
-      } else if (data.changes?.masterStatus?.newValue === "cancelled") {
-        title = "❌ Đã hủy";
-        description = `Đơn hàng #${data.orderNumber} đã bị hủy`;
-        toast.error(title, { description, duration: 6000 });
-      } else {
-        // Show printer status changes if available
-        if (data.changes?.printerStatuses && data.changes.printerStatuses.length > 0) {
-          const printerStatus = data.changes.printerStatuses[0];
-          description += ` • 📋 ${printerStatus.printerBusinessName}: ${printerStatus.status}`;
+      // Case đặc biệt: Nếu đang ở trang chat với đúng người gửi -> Không hiện Toast, chỉ play sound nhẹ
+      if (data.type === "message" && location.pathname.includes("/messages")) {
+        const currentParams = new URLSearchParams(location.search);
+        if (currentParams.get("conversationId") === data.data?.conversationId) {
+          return; // Đang chat thì thôi
         }
-        toast.info(title, { description, duration: 6000 });
       }
 
-      // ✅ Refetch notification count (notification was saved to DB)
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      
-      // Optional: Trigger data refetch
-      // queryClient.invalidateQueries(['customer-orders']);
+      playNotificationSound();
+      forceRefresh();
+
+      // Render Rich Toast tùy theo loại
+      const Icon = getIconByType(data.type);
+
+      toast(data.title, {
+        description: data.message,
+        icon: <Icon className="w-5 h-5 text-blue-600" />,
+        action: {
+          label: "Xem",
+          onClick: () => handleToastClick(data),
+        },
+        duration: 4000,
+      });
     };
 
-    // ============================================
-    // REGISTER EVENT LISTENERS
-    // ============================================
+    // Các handler legacy (nếu backend còn bắn events cũ)
+    const handleConnectionRequest = (data: any) => {
+      handleGeneralNotification({
+        type: "connection_request",
+        title: "🤝 Lời mời kết bạn",
+        message: `${data.requester?.displayName || "Ai đó"} muốn kết bạn`,
+        data: {},
+      });
+    };
 
-    // Printer events
-    socket.on("printer:new_order", handleNewOrder);
-    socket.on("printer:order_update", handlePrinterOrderUpdate);
+    const handleConnectionAccepted = (data: any) => {
+      handleGeneralNotification({
+        type: "connection_accepted",
+        title: "✅ Đã là bạn bè!",
+        message: `${data.acceptedBy?.displayName} đã đồng ý.`,
+        data: { conversationId: data.conversationId },
+      });
+    };
 
-    // Customer events
-    socket.on("customer:order_created", handleOrderCreated);
-    socket.on("customer:order_update", handleOrderUpdate);
-
-    // Social / Connection events
+    // Lắng nghe sự kiện
+    socket.on("notification", handleGeneralNotification); // 🔥 QUAN TRỌNG NHẤT
     socket.on("connection:request", handleConnectionRequest);
     socket.on("connection:accepted", handleConnectionAccepted);
 
-    console.log("[NotificationListener] ✅ Event listeners registered");
-
-    // Cleanup on unmount
     return () => {
-      console.log("[NotificationListener] Cleaning up event listeners...");
-      socket.off("printer:new_order", handleNewOrder);
-      socket.off("printer:order_update", handlePrinterOrderUpdate);
-      socket.off("customer:order_created", handleOrderCreated);
-      socket.off("customer:order_update", handleOrderUpdate);
+      socket.off("notification", handleGeneralNotification);
       socket.off("connection:request", handleConnectionRequest);
       socket.off("connection:accepted", handleConnectionAccepted);
     };
-  }, [socket, isConnected, toast, user]);
+  }, [
+    socket,
+    isConnected,
+    user,
+    location,
+    playNotificationSound,
+    forceRefresh,
+    handleToastClick,
+  ]);
 
-  // This component doesn't render anything
   return null;
 }
 
+// Helper chọn icon
+function getIconByType(type: string) {
+  if (type === "message") return MessageCircle;
+  if (type.includes("connection")) return UserPlus;
+  if (type.includes("order")) return Package;
+  return Bell;
+}
