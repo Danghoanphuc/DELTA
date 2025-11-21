@@ -1,5 +1,5 @@
 // apps/admin-backend/src/models/tier-rule.model.ts
-import { Schema, model, Document, Types } from "mongoose"; // <-- Thêm Types
+import mongoose, { Schema, model, Document, Types, Model } from "mongoose"; // <-- Thêm Types
 import {
   type PrinterTier,
   PRINTER_TIERS_OBJECT,
@@ -40,4 +40,6 @@ const tierRuleSchema = new Schema<ITierRule>({
   commissionPercent: { type: Number, required: true },
 });
 
-export const TierRule = model<ITierRule>("TierRule", tierRuleSchema);
+export const TierRule =
+  (mongoose.models.TierRule as Model<ITierRule>) ||
+  model<ITierRule>("TierRule", tierRuleSchema);

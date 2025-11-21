@@ -1,5 +1,5 @@
 // apps/admin-backend/src/models/admin.model.ts
-import { Schema, model, Document, Types } from "mongoose"; // <-- Thêm Types
+import mongoose, { Schema, model, Document, Types, Model } from "mongoose"; // <-- Thêm Types
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { type IAdmin as IAdminContract } from "@printz/types"; // Import "Hợp đồng"
@@ -117,4 +117,6 @@ adminSchema.methods.clearPasswordReset = function () {
   this.passwordResetExpires = undefined;
 };
 
-export const Admin = model<IAdmin>("Admin", adminSchema);
+export const Admin =
+  (mongoose.models.Admin as Model<IAdmin>) ||
+  model<IAdmin>("Admin", adminSchema);

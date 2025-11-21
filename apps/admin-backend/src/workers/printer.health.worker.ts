@@ -3,9 +3,10 @@ import { Infraction } from "../models/infraction.model.js";
 import { TierRule } from "../models/tier-rule.model.js";
 import { PrinterTier } from "@printz/types";
 
-// --- Shared models from customer-backend ---
-// @ts-ignore - shared JS model without type declarations
-import { MasterOrder as MasterOrderModelJS } from "../../../customer-backend/src/shared/models/master-order.model.js";
+import {
+  MasterOrder as MasterOrderModel,
+  type MasterOrderDocument,
+} from "../models/master-order.model.js";
 // @ts-ignore
 import { PrinterProfile as PrinterProfileModelJS } from "../../../customer-backend/src/shared/models/printer-profile.model.js";
 
@@ -39,12 +40,6 @@ interface PrinterProfileDocument extends Document {
   healthScore?: number;
 }
 
-interface MasterOrderDocument extends Document {
-  createdAt: Date;
-}
-
-const MasterOrderModel =
-  MasterOrderModelJS as Model<MasterOrderDocument>;
 const PrinterProfileModel =
   PrinterProfileModelJS as Model<PrinterProfileDocument>;
 

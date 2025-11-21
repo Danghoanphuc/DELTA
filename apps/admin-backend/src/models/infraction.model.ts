@@ -1,5 +1,5 @@
 // apps/admin-backend/src/models/infraction.model.ts
-import { Schema, model, Document, Types } from "mongoose"; // <-- Thêm Types
+import mongoose, { Schema, model, Document, Types, Model } from "mongoose"; // <-- Thêm Types
 import {
   type InfractionType,
   type IInfraction as IInfractionContract,
@@ -64,4 +64,6 @@ const infractionSchema = new Schema<IInfraction>(
   { timestamps: true } // Vẫn giữ timestamps
 );
 
-export const Infraction = model<IInfraction>("Infraction", infractionSchema);
+export const Infraction =
+  (mongoose.models.Infraction as Model<IInfraction>) ||
+  model<IInfraction>("Infraction", infractionSchema);

@@ -1,4 +1,4 @@
-import { Schema, model, Document, Types } from "mongoose";
+import mongoose, { Schema, model, Document, Types, Model } from "mongoose";
 import {
   type AdminRole,
   type AdminAuditAction,
@@ -64,8 +64,7 @@ const AdminAuditLogSchema = new Schema<IAdminAuditLogDocument>(
 
 AdminAuditLogSchema.index({ createdAt: -1 });
 
-export const AdminAuditLog = model<IAdminAuditLogDocument>(
-  "AdminAuditLog",
-  AdminAuditLogSchema
-);
+export const AdminAuditLog =
+  (mongoose.models.AdminAuditLog as Model<IAdminAuditLogDocument>) ||
+  model<IAdminAuditLogDocument>("AdminAuditLog", AdminAuditLogSchema);
 

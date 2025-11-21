@@ -19,15 +19,10 @@ import {
 } from "../interfaces/order.interface.js";
 import { type IAdmin } from "../models/admin.model.js";
 import { recordAdminAuditLog } from "./admin.audit-log.service.js";
-
-// --- Import shared MasterOrder model (JavaScript) ---
-// @ts-ignore - Customer backend .js files, no type declarations
-import { MasterOrder as MasterOrderModelJS } from "../../../customer-backend/src/shared/models/master-order.model.js";
-
-type MasterOrderDocument = IMasterOrder & Document;
-
-const MasterOrderModel =
-  MasterOrderModelJS as unknown as Model<MasterOrderDocument>;
+import {
+  MasterOrder as MasterOrderModel,
+  type MasterOrderDocument,
+} from "../models/master-order.model.js";
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
@@ -139,7 +134,7 @@ export const getAllOrders = async (
   ]);
 
   return {
-    data: orders as IMasterOrder[],
+    data: orders as unknown as IMasterOrder[],
     page,
     limit,
     total,
@@ -160,7 +155,7 @@ export const getOrderDetails = async (
     throw new NotFoundException("Đơn hàng", orderId);
   }
 
-  return order as IMasterOrder;
+  return order as unknown as IMasterOrder;
 };
 
 export const forceUpdateStatus = async (
@@ -200,11 +195,13 @@ export const forceUpdateStatus = async (
   order.masterStatus = nextStatus;
   await order.save();
 
+  const orderIdStr = String(order._id);
+  
   void recordAdminAuditLog({
     action: "ORDER_STATUS_FORCE_UPDATED",
     actor: admin,
     targetType: "MasterOrder",
-    targetId: order._id.toString(),
+    targetId: orderIdStr,
     metadata: {
       orderNumber: order.orderNumber,
       previousStatus,
@@ -215,6 +212,6 @@ export const forceUpdateStatus = async (
     userAgent: context.userAgent ?? undefined,
   });
 
-  return await getOrderDetails(order._id.toString());
+  return await getOrderDetails(orderIdStr);
 };
 

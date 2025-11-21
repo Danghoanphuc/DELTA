@@ -23,8 +23,7 @@
     /* Path Aliases */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@printz/types": ["../../packages/types/src"]
+      "@/*": ["src/*"]
     }
   },
   "include": ["src"],

@@ -9,7 +9,9 @@ import {
 } from "@printz/types";
 
 // Interfaces to ensure type safety
-interface IPrinterOrderSchema extends Omit<IOrder, '_id' | 'items' | 'status'>, Document {
+export interface IPrinterOrderSchema
+  extends Omit<IOrder, "_id" | "items" | "status">,
+    Document {
   items: {
     productId?: mongoose.Types.ObjectId;
     productName: string;
@@ -45,7 +47,9 @@ interface IPrinterOrderSchema extends Omit<IOrder, '_id' | 'items' | 'status'>, 
   completedAt?: Date;
 }
 
-interface IMasterOrderSchema extends Omit<IMasterOrder, '_id' | 'orders' | 'status'>, Document {
+export interface IMasterOrderSchema
+  extends Omit<IMasterOrder, "_id" | "orders" | "status">,
+    Document {
   printerOrders: IPrinterOrderSchema[];
   customerName: string;
   customerNotes?: string;
@@ -53,6 +57,8 @@ interface IMasterOrderSchema extends Omit<IMasterOrder, '_id' | 'orders' | 'stat
   orderCode?: number;
   paidAt?: Date;
 }
+
+export type MasterOrderDocument = IMasterOrderSchema;
 
 
 // === ĐƠN HÀNG CON (LỒNG GHÉP) ===
@@ -172,5 +178,5 @@ const MasterOrderSchema = new Schema<IMasterOrderSchema>(
 );
 
 export const MasterOrder =
-  (mongoose.models.MasterOrder as Model<IMasterOrderSchema>) ||
-  mongoose.model<IMasterOrderSchema>("MasterOrder", MasterOrderSchema);
+  (mongoose.models.MasterOrder as Model<MasterOrderDocument>) ||
+  mongoose.model<MasterOrderDocument>("MasterOrder", MasterOrderSchema);
