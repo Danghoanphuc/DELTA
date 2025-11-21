@@ -8,13 +8,17 @@ import { Order } from "./order";
 // ===================================
 export interface ChatConversation {
   _id: string;
-  userId: string;
+  userId?: string; // Optional vì có thể có nhiều participants
   title: string; // Tên do AI tự động đặt (hoặc do người dùng sửa)
   createdAt: string;
   updatedAt: string;
   lastMessageAt?: string; // ✅ NEW: Timestamp of the last message
-  type?: "individual" | "group" | "ai"; // ✅ NEW: Type of conversation
-  participants?: { userId: string; username: string; avatarUrl?: string }[]; // ✅ NEW: Participants in the conversation
+  type?: "customer-bot" | "peer-to-peer" | "customer-printer" | "group"; // ✅ FIXED: Đúng với backend enum
+  participants?: Array<{
+    userId: string | { _id: string; username?: string; displayName?: string; avatarUrl?: string };
+    role?: string;
+  }>; // ✅ FIXED: Đúng với backend structure
+  isActive?: boolean; // ✅ NEW: Trạng thái active
 }
 
 // ===================================

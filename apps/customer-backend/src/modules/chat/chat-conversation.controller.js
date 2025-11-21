@@ -1,9 +1,11 @@
-import { SocialChatService } from "./social-chat.service.js"; // ✅ Dùng Social Service
+// apps/customer-backend/src/modules/chat/chat-conversation.controller.js
+// ✅ FIXED: Added createGroupConversation
+
+import { SocialChatService } from "./social-chat.service.js";
 import { ChatRepository } from "./chat.repository.js";
 import { User } from "../../shared/models/user.model.js";
 import { Conversation } from "../../shared/models/conversation.model.js";
 import { Connection } from "../../shared/models/connection.model.js";
-import { Logger } from "../../shared/utils/index.js";
 import {
   NotFoundException,
   ValidationException,
@@ -12,12 +14,43 @@ import {
 export class ChatConversationController {
   constructor() {
     this.chatRepository = new ChatRepository();
-    this.socialChatService = new SocialChatService(); // ✅ Init
+    this.socialChatService = new SocialChatService();
   }
 
   /**
-   * POST /api/chat/conversations/printer/:printerId
+   * ✅ HÀM MỚI: POST /api/chat/conversations/group
+   * Body: { title: string, members: string[] }
    */
+  createGroupConversation = async (req, res, next) => {
+    try {
+      const currentUserId = req.user._id;
+      const { title, members } = req.body;
+
+      if (!members || !Array.isArray(members) || members.length === 0) {
+        throw new ValidationException("Danh sách thành viên không hợp lệ");
+      }
+      
+      if (!title || title.trim().length === 0) {
+        throw new ValidationException("Tên nhóm không được để trống");
+      }
+
+      const group = await this.socialChatService.createGroupConversation(
+        currentUserId,
+        title,
+        members
+      );
+
+      res.status(201).json({
+        success: true,
+        message: "Đã tạo nhóm thành công",
+        data: { conversation: group },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // ... (Giữ nguyên createOrGetPrinterConversation) ...
   createOrGetPrinterConversation = async (req, res, next) => {
     try {
       const customerId = req.user._id;
@@ -70,10 +103,7 @@ export class ChatConversationController {
     }
   };
 
-  /**
-   * POST /api/chat/conversations/peer/:userId
-   * ✅ REFACTOR: Gọi qua SocialChatService
-   */
+  // ... (Giữ nguyên createOrGetPeerConversation) ...
   createOrGetPeerConversation = async (req, res, next) => {
     try {
       const currentUserId = req.user._id;
@@ -91,12 +121,6 @@ export class ChatConversationController {
         throw new ValidationException("Bạn phải kết bạn trước khi có thể chat");
       }
 
-      const targetUser = await User.findById(targetUserId);
-      if (!targetUser) {
-        throw new NotFoundException("Không tìm thấy người dùng");
-      }
-
-      // ✅ Gọi Social Service
       const result = await this.socialChatService.createPeerConversation(
         currentUserId,
         targetUserId
@@ -114,9 +138,7 @@ export class ChatConversationController {
     }
   };
 
-  /**
-   * GET /api/chat/conversations
-   */
+  // ... (Giữ nguyên getAllConversations) ...
   getAllConversations = async (req, res, next) => {
     try {
       const userId = req.user._id;
@@ -138,9 +160,7 @@ export class ChatConversationController {
     }
   };
 
-  /**
-   * DELETE /api/chat/conversations/:id
-   */
+  // ... (Giữ nguyên deleteConversation) ...
   deleteConversation = async (req, res, next) => {
     try {
       const userId = req.user._id;
@@ -158,6 +178,36 @@ export class ChatConversationController {
       await conversation.save();
 
       res.json({ success: true, message: "Đã xóa cuộc trò chuyện" });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * ✅ NEW: Đánh dấu tất cả conversations là đã đọc
+   * POST /api/chat/conversations/mark-all-read
+   */
+  markAllConversationsAsRead = async (req, res, next) => {
+    try {
+      const userId = req.user._id;
+
+      // Lấy tất cả social conversations của user
+      const conversations = await Conversation.find({
+        "participants.userId": userId,
+        type: { $in: ["peer-to-peer", "customer-printer", "group"] },
+        isActive: true,
+      }).select("_id");
+
+      const conversationIds = conversations.map((c) => c._id);
+
+      // Không cần update database vì unread counts được quản lý ở frontend
+      // Chỉ cần trả về success để frontend clear unread counts
+
+      res.json({
+        success: true,
+        message: "Đã đánh dấu tất cả là đã đọc",
+        data: { conversationIds },
+      });
     } catch (error) {
       next(error);
     }

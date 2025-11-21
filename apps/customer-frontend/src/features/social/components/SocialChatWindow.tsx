@@ -1,9 +1,9 @@
 // apps/customer-frontend/src/features/social/components/SocialChatWindow.tsx
-// ✅ FIXED: Scroll Glitch & Real-time Update (Passive Mode)
+// ✅ FIXED: Header mới, nút Info toggle sidebar
 
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Send, Paperclip, Loader2 } from "lucide-react";
+import { ArrowLeft, Send, Paperclip, Loader2, Info, Phone, Video } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import {
   fetchChatHistory,
@@ -26,10 +26,11 @@ export function SocialChatWindow({
 }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const [isReady, setIsReady] = useState(false); // ✅ Trạng thái sẵn sàng hiển thị
+  const [isReady, setIsReady] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const currentUser = useAuthStore((s) => s.user);
 
@@ -39,54 +40,86 @@ export function SocialChatWindow({
     addMessage,
     updateMessageId,
     markAsRead,
+    toggleInfoSidebar, // ✅ Lấy hàm toggle
+    isInfoSidebarOpen,
+    scrollToMessageId,
+    setScrollToMessageId, // ✅ Lấy hàm để clear scrollToMessageId sau khi scroll
   } = useSocialChatStore();
 
-  // 1. Lấy tin nhắn từ Store (Đã được Sync cập nhật realtime)
+  // 1. Lấy tin nhắn
   const messages: ChatMessage[] =
     messagesByConversation[conversation._id] || [];
 
-  // 2. Fetch lịch sử (Fetch ngầm để backfill dữ liệu cũ)
-  const { data } = useQuery({
+  // 2. Fetch lịch sử
+  const { data, isLoading: isLoadingHistory, refetch } = useQuery({
     queryKey: ["socialMsg", conversation._id],
     queryFn: () => fetchChatHistory(conversation._id, 1, 50),
-    staleTime: Infinity, // Không bao giờ tự refetch cũ đè mới
-    refetchOnWindowFocus: false,
+    staleTime: 0, // ✅ FIXED: Set về 0 để luôn refetch khi conversation thay đổi
+    refetchOnWindowFocus: true, // ✅ FIXED: Refetch khi focus lại tab
+    refetchOnMount: true, // ✅ FIXED: Refetch khi component mount
+    enabled: !!conversation._id, // ✅ FIXED: Chỉ fetch khi có conversationId
   });
+  
+  // ✅ FIXED: Refetch messages khi conversation thay đổi
+  // Sử dụng ref để tránh refetch liên tục
+  const lastConversationIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (conversation._id && lastConversationIdRef.current !== conversation._id) {
+      lastConversationIdRef.current = conversation._id;
+      // ✅ FIXED: Luôn refetch khi conversation thay đổi để đảm bảo có data mới nhất
+      refetch();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversation._id]); // ✅ Loại bỏ refetch khỏi dependencies để tránh loop
 
-  // Merge lịch sử vào Store
   useEffect(() => {
     if (data?.messages) {
       setMessages(conversation._id, data.messages);
     }
   }, [data, conversation._id, setMessages]);
 
-  // 3. XỬ LÝ CUỘN THÔNG MINH (FIX LỖI NHẢY)
-
-  // A. Khi mới vào hoặc đổi conversation: Cuộn xuống đáy NGAY LẬP TỨC (không animation)
+  // 3. Scroll Logic
   useLayoutEffect(() => {
-    setIsReady(false); // Tạm ẩn để tính toán
+    setIsReady(false);
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "auto" });
     }
-    // Sau 50ms mới hiện ra để user thấy là đã ở đáy rồi -> Cảm giác mượt
     const t = setTimeout(() => setIsReady(true), 50);
     return () => clearTimeout(t);
   }, [conversation._id]);
 
-  // B. Khi có tin nhắn mới: Cuộn mượt (Smooth)
   useEffect(() => {
     if (isReady && messages.length > 0) {
-      // Chỉ cuộn nếu user đang ở gần đáy (tránh user đang đọc tin cũ bị kéo xuống)
-      // Hoặc đơn giản là luôn cuộn khi có tin mới (như Messenger)
       setTimeout(() => {
         scrollRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 100);
     }
-    // Mark read luôn chạy khi list thay đổi
     markAsRead(conversation._id);
   }, [messages.length, conversation._id, markAsRead, isReady]);
 
-  // --- Logic Gửi tin (Giữ nguyên) ---
+  // ✅ NEW: Scroll to message khi scrollToMessageId thay đổi
+  useEffect(() => {
+    if (scrollToMessageId && messageRefs.current[scrollToMessageId]) {
+      const messageElement = messageRefs.current[scrollToMessageId];
+      if (messageElement) {
+        setTimeout(() => {
+          messageElement.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+          // Highlight message briefly
+          messageElement.classList.add("ring-2", "ring-blue-500", "ring-offset-2");
+          setTimeout(() => {
+            messageElement.classList.remove("ring-2", "ring-blue-500", "ring-offset-2");
+          }, 2000);
+        }, 100);
+        // Clear scrollToMessageId sau khi scroll
+        setScrollToMessageId(null);
+      }
+    }
+  }, [scrollToMessageId, setScrollToMessageId]);
+
+  // Handle Send
   const handleSend = async () => {
     if (!text.trim() || sending) return;
     const content = text.trim();
@@ -106,8 +139,6 @@ export function SocialChatWindow({
     };
 
     addMessage(conversation._id, tempMsg);
-
-    // Force scroll khi mình gửi
     setTimeout(
       () => scrollRef.current?.scrollIntoView({ behavior: "smooth" }),
       50
@@ -131,52 +162,100 @@ export function SocialChatWindow({
     }
   };
 
-  const partner =
-    conversation.participants.find(
-      (p: any) => (p.userId?._id || p.userId) !== currentUser?._id
-    )?.userId || {};
+  // ✅ FIXED: Xử lý cả group chat và peer-to-peer
+  const isGroup = conversation.type === "group";
+  const partner = isGroup
+    ? null // Group không có partner duy nhất
+    : conversation.participants.find(
+        (p: any) => (p.userId?._id || p.userId) !== currentUser?._id
+      )?.userId || {};
 
   return (
-    <div className="flex flex-col h-full w-full bg-white">
-      {/* Header */}
-      <div className="flex-shrink-0 h-16 px-4 border-b flex items-center gap-3 bg-white shadow-sm z-10">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="lg:hidden"
-          onClick={onBack}
-        >
-          <ArrowLeft />
-        </Button>
-        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
-          {partner.avatarUrl ? (
-            <img
-              src={partner.avatarUrl}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <span className="font-bold text-blue-600">
-              {partner.username?.[0]}
-            </span>
-          )}
-        </div>
-        <div>
-          <h3 className="font-bold text-gray-900">
-            {partner.displayName || partner.username}
-          </h3>
-          <div className="flex items-center gap-1.5 text-xs text-green-600">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />{" "}
-            Đang hoạt động
+    <div className="flex flex-col h-full w-full bg-white relative">
+      {/* Header Cải tiến */}
+      <div className="flex-shrink-0 h-16 px-4 border-b flex items-center justify-between bg-white shadow-sm z-20">
+        <div className="flex items-center gap-3">
+          {/* Nút Back (Mobile) */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden -ml-2 text-gray-600"
+            onClick={onBack}
+          >
+            <ArrowLeft />
+          </Button>
+          
+          {/* ✅ FIXED: Avatar cho group hoặc peer */}
+          <div className={cn(
+            "w-10 h-10 rounded-full flex items-center justify-center overflow-hidden ring-2",
+            isGroup 
+              ? "bg-gradient-to-br from-orange-400 to-pink-500 ring-orange-100" 
+              : "bg-blue-100 ring-blue-50"
+          )}>
+            {isGroup ? (
+              <span className="text-white font-bold text-sm">
+                {conversation.title?.[0]?.toUpperCase() || "G"}
+              </span>
+            ) : partner?.avatarUrl ? (
+              <img
+                src={partner.avatarUrl}
+                className="w-full h-full object-cover"
+                alt="Avatar"
+              />
+            ) : (
+              <span className="font-bold text-blue-600">
+                {partner?.username?.[0] || "?"}
+              </span>
+            )}
           </div>
+          <div>
+            <h3 className="font-bold text-gray-900 text-sm sm:text-base">
+              {isGroup 
+                ? conversation.title || "Nhóm chat"
+                : partner?.displayName || partner?.username || "Người dùng"}
+            </h3>
+            {!isGroup && (
+              <div className="flex items-center gap-1.5 text-xs text-green-600">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />{" "}
+                Đang hoạt động
+              </div>
+            )}
+            {isGroup && (
+              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                {conversation.participants?.length || 0} thành viên
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Header Actions */}
+        <div className="flex items-center gap-1">
+           <Button variant="ghost" size="icon" className="text-blue-600 hidden sm:flex hover:bg-blue-50">
+               <Phone size={20} />
+           </Button>
+           <Button variant="ghost" size="icon" className="text-blue-600 hidden sm:flex hover:bg-blue-50">
+               <Video size={20} />
+           </Button>
+           <div className="w-px h-6 bg-gray-200 mx-1 hidden sm:block"/>
+           
+           {/* ✅ Toggle Info Sidebar */}
+           <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleInfoSidebar}
+              className={cn("text-gray-500 hover:bg-blue-50 hover:text-blue-600", isInfoSidebarOpen && "bg-blue-50 text-blue-600")}
+            >
+               <Info size={20} />
+           </Button>
         </div>
       </div>
 
-      {/* Message List - Thêm ref container */}
+      {/* Message List */}
       <div
         ref={containerRef}
         className={cn(
           "flex-1 min-h-0 overflow-y-auto p-4 space-y-4 bg-gray-50/50 transition-opacity duration-200",
-          isReady ? "opacity-100" : "opacity-0" // ✅ FIX: Ẩn khi đang tính toán cuộn
+          isReady ? "opacity-100" : "opacity-0"
         )}
       >
         {messages.map((msg: any) => {
@@ -184,8 +263,13 @@ export function SocialChatWindow({
           return (
             <div
               key={msg._id}
+              ref={(el) => {
+                if (msg._id) {
+                  messageRefs.current[msg._id] = el;
+                }
+              }}
               className={cn(
-                "flex w-full",
+                "flex w-full transition-all duration-300",
                 isMe ? "justify-end" : "justify-start"
               )}
             >
@@ -218,7 +302,6 @@ export function SocialChatWindow({
             </div>
           );
         })}
-        {/* Ref để cuộn xuống đáy */}
         <div ref={scrollRef} className="h-px w-full" />
       </div>
 

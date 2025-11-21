@@ -1,5 +1,5 @@
 // apps/customer-backend/src/modules/wallet/wallet.repository.js
-import BalanceLedgerModel from "../../shared/models/balance-ledger.model.ts";
+import BalanceLedgerModel from "../../shared/models/balance-ledger.model.js";
 import { MasterOrder } from "../../shared/models/master-order.model.js";
 import mongoose from "mongoose";
 

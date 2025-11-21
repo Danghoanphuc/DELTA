@@ -1,14 +1,62 @@
 // apps/customer-backend/src/modules/chat/social-chat.service.js
-// ✅ FIXED: Logic tách biệt - Tin nhắn không lưu vào Chuông thông báo
+// ✅ FIXED: Added createGroupConversation logic
 
 import { Conversation } from "../../shared/models/conversation.model.js";
 import { Message } from "../../shared/models/message.model.js";
 import { Logger } from "../../shared/utils/index.js";
 import { socketService } from "../../infrastructure/realtime/socket.service.js";
-// import { notificationService } from "../notifications/notification.service.js"; // ❌ KHÔNG CẦN DÙNG NỮA
+import { ChatRepository } from "./chat.repository.js";
 
 export class SocialChatService {
-  // ... (Giữ nguyên hàm createPeerConversation)
+  constructor() {
+    this.chatRepository = new ChatRepository();
+  }
+  
+  /**
+   * ✅ HÀM MỚI: Tạo nhóm chat
+   */
+  async createGroupConversation(creatorId, title, memberIds) {
+    try {
+      // 1. Validate input
+      if (!memberIds || memberIds.length === 0) {
+        throw new Error("Nhóm phải có ít nhất 1 thành viên khác");
+      }
+
+      // 2. Chuẩn bị participants
+      // Creator là admin, các người khác là member
+      const participants = [
+        { userId: creatorId, role: "admin" },
+        ...memberIds.map(id => ({ userId: id, role: "member" }))
+      ];
+
+      // 3. Tạo Conversation
+      const newGroup = new Conversation({
+        type: "group",
+        title: title || "Nhóm mới",
+        participants: participants,
+        lastMessageAt: new Date(),
+        isActive: true,
+        // Có thể thêm logic avatar mặc định cho nhóm ở đây nếu cần
+      });
+
+      await newGroup.save();
+
+      // 4. Populate để trả về đầy đủ thông tin
+      await newGroup.populate("participants.userId", "username displayName avatarUrl");
+
+      Logger.info(`[SocialChatSvc] ✅ Created GROUP chat: ${newGroup._id} with ${participants.length} members`);
+      
+      // 5. Bắn Socket thông báo cho các thành viên mới (Optional - để họ thấy nhóm ngay lập tức)
+      // memberIds.forEach(memberId => { ... socketService.emit ... })
+
+      return newGroup;
+    } catch (error) {
+      Logger.error(`[SocialChatSvc] Error creating GROUP chat:`, error);
+      throw error;
+    }
+  }
+
+  // ... (Giữ nguyên createPeerConversation) ...
   async createPeerConversation(userId1, userId2, session = null) {
     try {
       let conversation = await Conversation.findOne({
@@ -46,7 +94,7 @@ export class SocialChatService {
     }
   }
 
-  // ... (Giữ nguyên hàm handleSocialMessage)
+  // ... (Giữ nguyên handleSocialMessage & notifyRecipient) ...
   async handleSocialMessage(user, body) {
     const { message, fileUrl, conversationId, type, metadata } = body;
 
@@ -92,52 +140,39 @@ export class SocialChatService {
     };
   }
 
-  /**
-   * ✅ FIXED: Chỉ bắn Socket, KHÔNG lưu vào Notification DB
-   */
   async notifyRecipient(conversation, message, sender) {
     try {
-      const recipient = conversation.participants.find((p) => {
+      // Với nhóm, gửi cho tất cả trừ người gửi
+      const recipients = conversation.participants.filter((p) => {
         const uId = p.userId?._id || p.userId;
         return uId && uId.toString() !== sender._id.toString();
       });
 
-      if (recipient) {
-        const recipientId = (
-          recipient.userId?._id || recipient.userId
-        ).toString();
-        const senderName = sender.displayName || sender.username || "Ai đó";
-        const previewText = message.content?.text || "Đã gửi một file đính kèm";
+      recipients.forEach(recipient => {
+          const recipientId = (recipient.userId?._id || recipient.userId).toString();
+          const senderName = sender.displayName || sender.username || "Ai đó";
+          const previewText = message.content?.text || "Đã gửi một file đính kèm";
 
-        // 1. BẮN SOCKET CHAT (Hiện tin nhắn trong khung chat & Badge Icon Message)
-        socketService.emitToUser(recipientId, "new_message", {
-          ...message.toObject(),
-          conversationId: conversation._id,
-        });
-
-        // 2. BẮN SOCKET TOAST (Hiện Popup góc màn hình)
-        // Vẫn giữ cái này để user biết có tin mới nếu đang ở trang khác
-        socketService.emitToUser(recipientId, "notification", {
-          userId: recipientId,
-          type: "message", // Frontend Listener sẽ hiện Toast + Sound
-          title: `Tin nhắn mới từ ${senderName}`,
-          message: previewText,
-          data: {
+          // 1. Socket Chat
+          socketService.emitToUser(recipientId, "new_message", {
+            ...message.toObject(),
             conversationId: conversation._id,
-            senderId: sender._id.toString(),
-            avatarUrl: sender.avatarUrl,
-          },
-          // isRead: false -> Không cần thiết vì không lưu DB
-        });
+          });
 
-        // ❌ ĐÃ XÓA: await notificationService.createNotification(...)
-        // Việc xóa dòng này sẽ khiến API /notifications/unread-count KHÔNG ĐẾM tin nhắn này nữa
-        // -> Icon Chuông sẽ KHÔNG sáng.
-
-        Logger.info(
-          `[SocialChatSvc] Notified user ${recipientId} (Socket only)`
-        );
-      }
+          // 2. Socket Notification
+          socketService.emitToUser(recipientId, "notification", {
+            userId: recipientId,
+            type: "message",
+            title: conversation.type === 'group' ? `${conversation.title}` : `Tin nhắn mới từ ${senderName}`,
+            message: conversation.type === 'group' ? `${senderName}: ${previewText}` : previewText,
+            data: {
+              conversationId: conversation._id,
+              senderId: sender._id.toString(),
+              avatarUrl: sender.avatarUrl,
+            },
+          });
+      });
+      
     } catch (error) {
       Logger.warn("[SocialChatSvc] Error in notifyRecipient:", error);
     }

@@ -357,7 +357,7 @@ html {
   body {
     overflow-x: hidden;
     /* ✅ SỬA LỖI: THÊM DÒNG NÀY ĐỂ TẠO KHOẢNG ĐỆM CHO BOTTOM NAV */
-    padding-bottom: 4rem; /* 64px - tương đương h-16 */
+  
   }
 
   /* Fix iOS input zoom */

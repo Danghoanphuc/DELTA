@@ -7,6 +7,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSocialChatStore } from "../hooks/useSocialChatStore";
+import { fetchConversationById } from "../../chat/services/chat.api.service";
 
 // Sound effect
 const NOTIFICATION_SOUND = "/sounds/message-pop.mp3";
@@ -17,7 +18,7 @@ export const SocialChatListener = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const { handleSocketMessage } = useSocialChatStore();
+  const { handleSocketMessage, conversations, addConversation } = useSocialChatStore();
 
   // 1. Init Audio
   useEffect(() => {
@@ -53,13 +54,37 @@ export const SocialChatListener = () => {
     if (!socket || !user) return;
 
     // Xử lý tin nhắn đến (để cập nhật badge số lượng tin chưa đọc)
-    const handleNewMessage = (data: any) => {
+    // ✅ FIXED: Chỉ xử lý messages từ social chat (không phải bot chat)
+    const handleNewMessage = async (data: any) => {
+      // Bỏ qua messages từ AI bot
+      if (data.senderType === "AI") {
+        return;
+      }
+
+      // ✅ FIXED: Nếu conversation chưa có trong list, fetch từ API
+      const conversationExists = conversations.find(
+        (c) => c._id === data.conversationId
+      );
+      
+      if (!conversationExists) {
+        try {
+          const conv = await fetchConversationById(data.conversationId);
+          if (conv) {
+            addConversation(conv);
+          }
+        } catch (error) {
+          console.warn("[Listener] Failed to fetch conversation:", error);
+        }
+      }
+
       handleSocketMessage(data);
     };
 
     // ✅ LẮNG NGHE EVENT "notification" TỪ BACKEND (Payload chuẩn cho thông báo)
+    // ✅ FIXED: Chỉ social chat mới emit "notification", bot chat không emit
     const handleNotification = (data: any) => {
       // Data structure từ backend: { type, title, body, data: { conversationId, senderId } }
+      // ✅ Đảm bảo chỉ xử lý notification từ social chat (không phải bot chat)
 
       // Kiểm tra: Nếu đang ở đúng trang chat của hội thoại này thì KHÔNG báo
       const currentPath = location.pathname;
@@ -138,7 +163,7 @@ export const SocialChatListener = () => {
       socket.off("new_message", handleNewMessage);
       socket.off("notification", handleNotification);
     };
-  }, [socket, user, location, navigate, handleSocketMessage]);
+  }, [socket, user, location, navigate, handleSocketMessage, conversations, addConversation]);
 
   return null;
 };

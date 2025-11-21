@@ -12,8 +12,12 @@ export const useConversationState = () => {
   const loadConversations = useCallback(async () => {
     try {
       const convos = await chatApi.fetchChatConversations();
-      setConversations(convos.reverse());
-      return convos;
+      // ✅ FIXED: Chỉ lấy conversations của chat bot (customer-bot)
+      const botConversations = convos.filter(
+        (c) => c.type === "customer-bot" || !c.type // Fallback cho conversations cũ chưa có type
+      );
+      setConversations(botConversations.reverse());
+      return botConversations;
     } catch (error) {
       console.error("Failed to load conversations:", error);
       return [];

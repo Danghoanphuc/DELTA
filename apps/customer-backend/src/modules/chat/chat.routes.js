@@ -1,4 +1,6 @@
 // apps/customer-backend/src/modules/chat/chat.routes.js
+// ✅ FIXED: Added /conversations/group route
+
 import { Router } from "express";
 import { ChatController } from "./chat.controller.js";
 import { ChatConversationController } from "./chat-conversation.controller.js";
@@ -32,14 +34,20 @@ router.post(
 // --- CONVERSATION MANAGEMENT ---
 router.get("/conversations", protect, chatController.getConversations);
 
-// ✅ ROUTE MỚI: Lấy chi tiết 1 conversation (Quan trọng cho F5 Recovery)
 router.get(
   "/conversations/:conversationId",
   protect,
   chatController.getConversationById
 );
 
-// Social Chat Creators
+// ✅ ROUTE MỚI: Tạo nhóm
+router.post(
+  "/conversations/group",
+  protect,
+  conversationController.createGroupConversation
+);
+
+// Social Chat Creators (Single)
 router.post(
   "/conversations/printer/:printerId",
   protect,
@@ -51,11 +59,40 @@ router.post(
   conversationController.createOrGetPeerConversation
 );
 
+// ✅ NEW: Đánh dấu tất cả conversations là đã đọc
+router.post(
+  "/conversations/mark-all-read",
+  protect,
+  conversationController.markAllConversationsAsRead
+);
+
 // --- UTILS ---
 router.get(
   "/history/:conversationId",
   protect,
   chatController.getMessagesForConversation
+);
+
+// ✅ NEW: Lấy media và files của conversation
+router.get(
+  "/conversations/:conversationId/media",
+  protect,
+  chatController.getConversationMedia
+);
+router.get(
+  "/conversations/:conversationId/files",
+  protect,
+  chatController.getConversationFiles
+);
+router.get(
+  "/conversations/:conversationId/search",
+  protect,
+  chatController.searchMessages
+);
+router.patch(
+  "/conversations/:conversationId/mute",
+  protect,
+  chatController.muteConversation
 );
 router.patch(
   "/conversations/:conversationId",

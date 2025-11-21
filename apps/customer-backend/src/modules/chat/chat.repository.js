@@ -18,12 +18,20 @@ export class ChatRepository {
    * ✅ FIXED: Lấy danh sách cuộc trò chuyện ĐẦY ĐỦ thông tin
    * - Thêm 'type', 'participants', 'updatedAt'
    * - Populate user để hiển thị Avatar/Tên ở danh sách
+   * - ✅ FIXED: Filter theo type để tách bạch bot chat và social chat
    */
-  async findConversationsByUserId(userId) {
-    return await Conversation.find({
+  async findConversationsByUserId(userId, type = null) {
+    const query = {
       "participants.userId": userId,
       isActive: true, // Chỉ lấy cuộc trò chuyện còn hoạt động (chưa bị xóa)
-    })
+    };
+    
+    // ✅ FIXED: Filter theo type nếu được chỉ định
+    if (type) {
+      query.type = type;
+    }
+    
+    return await Conversation.find(query)
       .sort({ lastMessageAt: -1, updatedAt: -1 })
       // ✅ Quan trọng: Select đủ field
       .select("_id title lastMessageAt createdAt updatedAt type participants")
@@ -116,5 +124,72 @@ export class ChatRepository {
   async deleteConversation(conversationId) {
     await Message.deleteMany({ conversationId });
     return await Conversation.findByIdAndDelete(conversationId);
+  }
+
+  /**
+   * ✅ NEW: Lấy danh sách media (ảnh/video) từ messages của conversation
+   */
+  async getMediaFiles(conversationId, limit = 50) {
+    return await Message.find({
+      conversationId,
+      $and: [
+        {
+          $or: [
+            { type: "image" },
+            { 
+              type: "file", 
+              "content.fileType": { $regex: /^image\//i } 
+            },
+          ],
+        },
+        {
+          $or: [
+            { "content.fileUrl": { $exists: true, $ne: null } },
+            { "content.imageUrl": { $exists: true, $ne: null } },
+          ],
+        },
+      ],
+    })
+      .select("_id content.fileUrl content.imageUrl content.fileName createdAt type metadata")
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+  }
+
+  /**
+   * ✅ NEW: Lấy danh sách files đã chia sẻ từ messages (không bao gồm ảnh)
+   */
+  async getSharedFiles(conversationId, limit = 50) {
+    return await Message.find({
+      conversationId,
+      type: "file",
+      "content.fileUrl": { $exists: true, $ne: null },
+      $or: [
+        { "content.fileType": { $not: { $regex: /^image\//i } } },
+        { "content.fileType": { $exists: false } },
+      ],
+    })
+      .select("_id content.fileUrl content.fileName content.fileSize createdAt sender senderType")
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+  }
+
+  /**
+   * ✅ NEW: Tìm kiếm tin nhắn trong conversation
+   */
+  async searchMessages(conversationId, query, limit = 50) {
+    const searchRegex = new RegExp(query, "i");
+    return await Message.find({
+      conversationId,
+      $or: [
+        { "content.text": { $regex: searchRegex } },
+        { "content.description": { $regex: searchRegex } },
+      ],
+    })
+      .select("_id content type sender senderType createdAt")
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
   }
 }

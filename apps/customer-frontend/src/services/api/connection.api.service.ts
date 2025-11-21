@@ -95,7 +95,29 @@ export const blockUser = async (
 ): Promise<ConnectionResponse> => {
   const response = await api.post<ConnectionResponse>(
     "/connections/block",
-    { userId }
+    { recipientId: userId } // ✅ FIXED: Backend expect recipientId
+  );
+  return response.data;
+};
+
+/**
+ * Unblock a user
+ * Note: Backend route is DELETE /api/connections/:id/unblock
+ * We need to find connectionId first, or use a helper endpoint
+ */
+export const unblockUser = async (
+  userId: string
+): Promise<ConnectionResponse> => {
+  // ✅ FIXED: Tìm connectionId trước, sau đó unblock
+  const statusRes = await getConnectionStatus(userId);
+  const connectionId = statusRes.data?.connection?._id;
+  
+  if (!connectionId) {
+    throw new Error("Không tìm thấy connection để bỏ chặn");
+  }
+
+  const response = await api.delete<ConnectionResponse>(
+    `/connections/${connectionId}/unblock`
   );
   return response.data;
 };

@@ -1,4 +1,6 @@
 // apps/customer-frontend/src/features/chat/services/chat.api.service.ts
+// ✅ FIXED: Added createGroupConversation API call
+
 import api from "@/shared/lib/axios";
 import { AiApiResponse, ChatMessage, ChatConversation } from "@/types/chat";
 import { Order } from "@/types/order";
@@ -15,7 +17,6 @@ export const fetchChatConversations = async (): Promise<ChatConversation[]> => {
   }
 };
 
-// ✅ HÀM MỚI: Lấy chi tiết 1 hội thoại theo ID
 export const fetchConversationById = async (
   conversationId: string
 ): Promise<ChatConversation | null> => {
@@ -28,7 +29,6 @@ export const fetchConversationById = async (
   }
 };
 
-// ✅ REFACTOR: Fetch chat history với pagination
 export const fetchChatHistory = async (
   conversationId: string,
   page: number = 1,
@@ -102,10 +102,6 @@ export const postChatMessage = async (
   return res.data?.data;
 };
 
-/**
- * Social chat cũng dùng endpoint /chat/message nhưng backend trả về ChatMessage thuần.
- * Hàm helper riêng để tránh phá vỡ type hiện tại của postChatMessage.
- */
 export const postSocialChatMessage = async (
   message: string,
   conversationId: string
@@ -160,7 +156,6 @@ export const deleteConversation = async (
   }
 };
 
-// Social APIs
 export const createPrinterConversation = async (printerId: string) => {
   const res = await api.post(`/chat/conversations/printer/${printerId}`);
   return res.data;
@@ -169,4 +164,60 @@ export const createPrinterConversation = async (printerId: string) => {
 export const createPeerConversation = async (userId: string) => {
   const res = await api.post(`/chat/conversations/peer/${userId}`);
   return res.data;
+};
+
+// ✅ HÀM MỚI: Tạo nhóm
+export const createGroupConversation = async (title: string, members: string[]) => {
+  const res = await api.post("/chat/conversations/group", { title, members });
+  return res.data;
+};
+
+// ✅ NEW: Lấy media (ảnh/video) của conversation
+export const getConversationMedia = async (conversationId: string) => {
+  const res = await api.get(`/chat/conversations/${conversationId}/media`);
+  return res.data?.data?.media || [];
+};
+
+// ✅ NEW: Lấy files đã chia sẻ của conversation
+export const getConversationFiles = async (conversationId: string) => {
+  const res = await api.get(`/chat/conversations/${conversationId}/files`);
+  return res.data?.data?.files || [];
+};
+
+// ✅ NEW: Đánh dấu tất cả conversations là đã đọc
+export const markAllConversationsAsRead = async () => {
+  const res = await api.post("/chat/conversations/mark-all-read");
+  return res.data;
+};
+
+// ✅ NEW: Tắt/Bật thông báo cuộc trò chuyện
+export const muteConversation = async (
+  conversationId: string,
+  isMuted: boolean
+): Promise<boolean> => {
+  try {
+    await api.patch(`/chat/conversations/${conversationId}/mute`, {
+      isMuted,
+    });
+    return true;
+  } catch (err) {
+    console.error("Error muting conversation:", err);
+    return false;
+  }
+};
+
+// ✅ NEW: Tìm kiếm tin nhắn trong hội thoại
+export const searchMessages = async (
+  conversationId: string,
+  query: string
+): Promise<any[]> => {
+  try {
+    const res = await api.get(`/chat/conversations/${conversationId}/search`, {
+      params: { q: query },
+    });
+    return res.data?.data?.messages || [];
+  } catch (err) {
+    console.error("Error searching messages:", err);
+    return [];
+  }
 };

@@ -7,6 +7,7 @@ const conversationSchema = new mongoose.Schema(
       {
         userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         role: String, // 'customer', 'printer', 'bot'
+        isMuted: { type: Boolean, default: false }, // ✅ NEW: Tắt thông báo cho participant này
       },
     ],
 
