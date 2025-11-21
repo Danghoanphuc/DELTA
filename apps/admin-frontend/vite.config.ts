@@ -18,6 +18,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@printz/types": path.resolve(
+        __dirname,
+        "../../packages/types/src/index.ts"
+      ),
     },
   },
 });

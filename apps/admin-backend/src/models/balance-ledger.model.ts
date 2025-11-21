@@ -1,4 +1,4 @@
-import mongoose, { Schema, Types } from "mongoose";
+import mongoose, { Schema, Types, Model } from "mongoose";
 import {
   IBalanceLedger,
   BalanceLedgerStatus,
@@ -99,9 +99,8 @@ BalanceLedgerSchema.index(
 // Điều này cho phép chúng ta thêm các bút toán REFUND hoặc ADJUSTMENT sau này
 // mà không vi phạm unique index.
 
-const BalanceLedgerModel = mongoose.model<BalanceLedgerDocument>(
-  "BalanceLedger",
-  BalanceLedgerSchema
-);
+const BalanceLedgerModel =
+  (mongoose.models.BalanceLedger as Model<BalanceLedgerDocument>) ||
+  mongoose.model<BalanceLedgerDocument>("BalanceLedger", BalanceLedgerSchema);
 
 export default BalanceLedgerModel;

@@ -1,5 +1,5 @@
 
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Model } from "mongoose";
 import {
   MASTER_ORDER_STATUS,
   SUB_ORDER_STATUS,
@@ -171,4 +171,6 @@ const MasterOrderSchema = new Schema<IMasterOrderSchema>(
   { timestamps: true }
 );
 
-export const MasterOrder = mongoose.model<IMasterOrderSchema>("MasterOrder", MasterOrderSchema);
+export const MasterOrder =
+  (mongoose.models.MasterOrder as Model<IMasterOrderSchema>) ||
+  mongoose.model<IMasterOrderSchema>("MasterOrder", MasterOrderSchema);

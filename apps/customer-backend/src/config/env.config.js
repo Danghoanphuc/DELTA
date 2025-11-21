@@ -68,9 +68,9 @@ const envVarsSchema = Joi.object()
     MOMO_IPN_URL: Joi.string().uri().allow("").optional(),
 
     // --- CẤU HÌNH PAYOS ---
-    PAYOS_CLIENT_ID: Joi.string().required(),
-    PAYOS_API_KEY: Joi.string().required(),
-    PAYOS_CHECKSUM_KEY: Joi.string().required(),
+    PAYOS_CLIENT_ID: Joi.string().allow("").optional(),
+    PAYOS_API_KEY: Joi.string().allow("").optional(),
+    PAYOS_CHECKSUM_KEY: Joi.string().allow("").optional(),
   })
   .unknown(); // Cho phép các biến env khác không được định nghĩa
 
