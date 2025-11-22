@@ -1,9 +1,8 @@
 // features/chat/components/CategorySidebar.tsx
-// ✅ MAJOR UPDATE: Mega menu with comprehensive Vietnamese category data
 import { useRef, useState, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
-import { ChevronLeft, ChevronRight, Users, TrendingUp, Flame, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, TrendingUp, Flame, ChevronRight as ChevronRightIcon, LayoutGrid } from "lucide-react";
 import { printzCategories, type PrintZCategory } from "@/data/categories.data";
 
 type CategorySidebarProps = {
@@ -368,59 +367,61 @@ export const CategorySidebar = ({
             </div>
           ))}
         </div>
-
-        {/* ✅ CTA: Chat với AI */}
-        <div className="mt-6 p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-100">
-          <p className="text-sm font-medium text-gray-700 mb-2">
-            Không tìm thấy danh mục phù hợp?
-          </p>
-          <a
-            href="/chat"
-            className="text-sm text-blue-600 hover:text-blue-700 font-semibold inline-flex items-center gap-1"
-          >
-            💬 Chat với AI để được tư vấn
-            <ChevronRightIcon className="w-3.5 h-3.5" />
-          </a>
-        </div>
       </aside>
     );
   }
 
-  // --- MODE MOBILE GRID ---
+  // --- MODE MOBILE GRID (Updated) ---
   const displayCategories = categories.slice(0, 9);
 
   return (
-    <aside className={cn("bg-transparent border-none p-0 space-y-3", className)}>
-      <div className="grid grid-cols-3 gap-x-2 gap-y-4 pt-2">
+    <aside className={cn("bg-transparent border-none p-0 space-y-4", className)}>
+        {/* ✅ HEADER MỚI CHO MOBILE */}
+        <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-2">
+                <LayoutGrid size={18} className="text-blue-600" />
+                <h3 className="font-bold text-gray-800 text-sm uppercase tracking-wide">
+                    Danh mục nổi bật
+                </h3>
+            </div>
+            {categories.length > 9 && (
+                 <a href="/shop" className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                    Xem tất cả
+                    <ChevronRight size={14} />
+                 </a>
+            )}
+        </div>
+
+      <div className="grid grid-cols-3 gap-x-3 gap-y-6 pt-1">
         {displayCategories.map((c) => (
           <Button
             key={c.value}
             asChild
             variant="ghost"
-            className="flex-col justify-start px-0 py-0 w-full whitespace-normal gap-2 bg-transparent hover:bg-transparent border-none shadow-none h-auto"
+            className="flex-col justify-start px-0 py-0 w-full whitespace-normal gap-2.5 bg-transparent hover:bg-transparent border-none shadow-none h-auto group"
           >
             <a href={`/shop?category=${encodeURIComponent(c.value)}`}>
               <div className="flex flex-col items-center gap-2 w-full">
-                {/* Icon/Image */}
-                <div className="w-16 h-16 rounded-2xl bg-gray-50/50 flex items-center justify-center flex-shrink-0 relative">
+                {/* Icon/Image - ✅ BIGGER SIZE (w-20 h-20 = 80px) */}
+                <div className="w-20 h-20 rounded-[20px] bg-white border border-gray-100 shadow-sm flex items-center justify-center flex-shrink-0 relative transition-transform duration-300 group-hover:scale-105 group-hover:shadow-md group-hover:border-blue-100">
                   {c.image && (
                     <img
                       src={c.image}
                       alt={c.label}
-                      className="w-full h-full p-1 object-contain mix-blend-multiply"
+                      className="w-full h-full p-2 object-contain mix-blend-multiply" // Tăng padding một chút để logo không bị sát viền
                       loading="lazy"
                     />
                   )}
                   {(c.trending || c.seasonal) && (
-                    <span className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
-                      {c.trending && <TrendingUp className="w-3 h-3 text-orange-500" />}
-                      {c.seasonal && <Flame className="w-3 h-3 text-red-500" />}
+                    <span className="absolute -top-1.5 -right-1.5 bg-white rounded-full p-1 shadow-sm border border-gray-100 z-10">
+                      {c.trending && <TrendingUp className="w-3.5 h-3.5 text-orange-500" />}
+                      {c.seasonal && <Flame className="w-3.5 h-3.5 text-red-500" />}
                     </span>
                   )}
                 </div>
 
                 {/* Text */}
-                <span className="text-center text-[11px] w-full line-clamp-2 min-h-[2.5em] flex items-start justify-center text-gray-700 tracking-tight px-1 font-medium">
+                <span className="text-center text-[11px] w-full line-clamp-2 min-h-[2.5em] flex items-start justify-center text-gray-700 tracking-tight px-1 font-medium group-hover:text-blue-700 transition-colors leading-tight">
                   {c.label}
                 </span>
               </div>

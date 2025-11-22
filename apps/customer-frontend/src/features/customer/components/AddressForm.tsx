@@ -126,7 +126,8 @@ export const AddressForm = () => {
         setAvailableWards([]);
       }
     }
-  }, [watchedCity, form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedCity]);
 
   // Khi chọn District -> Load Wards
   useEffect(() => {
@@ -140,7 +141,8 @@ export const AddressForm = () => {
         form.setValue('shippingAddress.ward', '');
       }
     }
-  }, [watchedDistrict, selectedCityCode, availableDistricts, form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedDistrict, selectedCityCode, availableDistricts]);
 
   return (
     <div className="space-y-6">

@@ -1,5 +1,5 @@
 // apps/customer-backend/src/modules/chat/social-chat.service.js
-// ✅ FIXED: Added createGroupConversation logic
+// ✅ FIXED: Auto send "System Message" & Socket trigger on Group Create
 
 import { Conversation } from "../../shared/models/conversation.model.js";
 import { Message } from "../../shared/models/message.model.js";
@@ -25,8 +25,8 @@ export class SocialChatService {
       // 2. Chuẩn bị participants
       // Creator là admin, các người khác là member
       const participants = [
-        { userId: creatorId, role: "admin" },
-        ...memberIds.map(id => ({ userId: id, role: "member" }))
+        { userId: creatorId, role: "admin", isVisible: true },
+        ...memberIds.map(id => ({ userId: id, role: "member", isVisible: true }))
       ];
 
       // 3. Tạo Conversation
@@ -36,18 +36,45 @@ export class SocialChatService {
         participants: participants,
         lastMessageAt: new Date(),
         isActive: true,
-        // Có thể thêm logic avatar mặc định cho nhóm ở đây nếu cần
       });
 
       await newGroup.save();
-
-      // 4. Populate để trả về đầy đủ thông tin
       await newGroup.populate("participants.userId", "username displayName avatarUrl");
 
       Logger.info(`[SocialChatSvc] ✅ Created GROUP chat: ${newGroup._id} with ${participants.length} members`);
+
+      // 4. ✅ QUAN TRỌNG: Tạo tin nhắn hệ thống đầu tiên
+      // Việc này giúp kích hoạt logic "New Message" ở Client -> Client sẽ tự fetch conversation mới về
+      const systemMsg = await Message.create({
+        conversationId: newGroup._id,
+        sender: creatorId, // Người tạo là người gửi
+        senderType: "User",
+        content: { text: `Đã tạo nhóm "${title}"` },
+        type: "text", // Hoặc 'system' nếu frontend hỗ trợ render type này
+      });
+
+      // 5. ✅ Bắn Socket cho TẤT CẢ thành viên (Bao gồm cả người tạo để sync message)
+      // Frontend (SocialChatSync) sẽ nhận sự kiện 'new_message', 
+      // thấy conversationId lạ -> tự động gọi API fetchConversationById -> Hiển thị nhóm lên
+      const allMembers = [creatorId, ...memberIds];
       
-      // 5. Bắn Socket thông báo cho các thành viên mới (Optional - để họ thấy nhóm ngay lập tức)
-      // memberIds.forEach(memberId => { ... socketService.emit ... })
+      allMembers.forEach(memberId => {
+        socketService.emitToUser(memberId.toString(), "new_message", {
+           ...systemMsg.toObject(),
+           conversationId: newGroup._id
+        });
+
+        // (Optional) Bắn thêm noti
+        if (memberId.toString() !== creatorId.toString()) {
+           socketService.emitToUser(memberId.toString(), "notification", {
+              userId: memberId.toString(),
+              type: "message",
+              title: "Bạn được thêm vào nhóm mới",
+              message: `${title}`,
+              data: { conversationId: newGroup._id }
+           });
+        }
+      });
 
       return newGroup;
     } catch (error) {
@@ -56,7 +83,7 @@ export class SocialChatService {
     }
   }
 
-  // ... (Giữ nguyên createPeerConversation) ...
+  // ... (Các hàm createPeerConversation, handleSocialMessage giữ nguyên như cũ) ...
   async createPeerConversation(userId1, userId2, session = null) {
     try {
       let conversation = await Conversation.findOne({
@@ -65,11 +92,15 @@ export class SocialChatService {
       }).session(session);
 
       if (conversation) {
+        // Revive logic
+        let needSave = false;
+        conversation.participants.forEach(p => {
+            if (!p.isVisible) { p.isVisible = true; needSave = true; }
+        });
+        if (needSave) await conversation.save({ session });
+
         if (!session) {
-          await conversation.populate(
-            "participants.userId",
-            "username displayName avatarUrl"
-          );
+          await conversation.populate("participants.userId", "username displayName avatarUrl");
         }
         return { conversation, isNew: false };
       }
@@ -78,15 +109,14 @@ export class SocialChatService {
         type: "peer-to-peer",
         title: "Cuộc trò chuyện",
         participants: [
-          { userId: userId1, role: "member" },
-          { userId: userId2, role: "member" },
+          { userId: userId1, role: "member", isVisible: true },
+          { userId: userId2, role: "member", isVisible: true },
         ],
         lastMessageAt: new Date(),
         isActive: true,
       });
 
       await newConv.save({ session });
-      Logger.info(`[SocialChatSvc] ✅ Created P2P chat: ${newConv._id}`);
       return { conversation: newConv, isNew: true };
     } catch (error) {
       Logger.error(`[SocialChatSvc] Error creating P2P chat:`, error);
@@ -94,7 +124,6 @@ export class SocialChatService {
     }
   }
 
-  // ... (Giữ nguyên handleSocialMessage & notifyRecipient) ...
   async handleSocialMessage(user, body) {
     const { message, fileUrl, conversationId, type, metadata } = body;
 
@@ -110,25 +139,27 @@ export class SocialChatService {
       return uId.toString() === user._id.toString();
     });
 
-    if (!isParticipant) {
-      throw new Error("Bạn không có quyền gửi tin nhắn");
-    }
+    if (!isParticipant) throw new Error("Bạn không có quyền gửi tin nhắn");
 
     const newMessage = await Message.create({
       conversationId: conversation._id,
       sender: user._id,
       senderType: "User",
-      content: {
-        text: message,
-        fileUrl: fileUrl,
-      },
+      content: { text: message, fileUrl: fileUrl },
       type: type || "text",
       metadata: metadata,
     });
 
-    Conversation.findByIdAndUpdate(conversationId, {
-      lastMessageAt: new Date(),
-    }).exec();
+    // Revive & Update
+    await Conversation.updateOne(
+      { _id: conversation._id },
+      { 
+        $set: { 
+          lastMessageAt: new Date(),
+          "participants.$[].isVisible": true 
+        } 
+      }
+    ).exec();
 
     this.notifyRecipient(conversation, newMessage, user).catch((err) =>
       Logger.error("[SocialChatSvc] Notify failed:", err)
@@ -142,7 +173,6 @@ export class SocialChatService {
 
   async notifyRecipient(conversation, message, sender) {
     try {
-      // Với nhóm, gửi cho tất cả trừ người gửi
       const recipients = conversation.participants.filter((p) => {
         const uId = p.userId?._id || p.userId;
         return uId && uId.toString() !== sender._id.toString();
@@ -153,13 +183,11 @@ export class SocialChatService {
           const senderName = sender.displayName || sender.username || "Ai đó";
           const previewText = message.content?.text || "Đã gửi một file đính kèm";
 
-          // 1. Socket Chat
           socketService.emitToUser(recipientId, "new_message", {
             ...message.toObject(),
             conversationId: conversation._id,
           });
 
-          // 2. Socket Notification
           socketService.emitToUser(recipientId, "notification", {
             userId: recipientId,
             type: "message",

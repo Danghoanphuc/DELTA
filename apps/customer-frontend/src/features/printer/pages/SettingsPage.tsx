@@ -1,153 +1,130 @@
 // src/features/printer/pages/SettingsPage.tsx
-// Bàn giao: Đã thêm Card Xác thực (VerificationCard)
-
-import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
-import { SettingsHeader } from "@/features/printer/components/SettingsHeader";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { PrinterProfileForm } from "@/features/printer/components/PrinterProfileForm";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/components/ui/card";
-import { Label } from "@/shared/components/ui/label";
-import { Input } from "@/shared/components/ui/input";
-import { Button } from "@/shared/components/ui/button";
-import { Loader2, ShieldCheck, FileCheck, AlertTriangle } from "lucide-react";
 import { useState } from "react";
+import { 
+  User, Lock, Store, ShieldCheck, 
+  CreditCard, Bell, ChevronRight, 
+  FileCheck, AlertTriangle, Loader2 
+} from "lucide-react";
+import { PrinterProfileForm } from "@/features/printer/components/PrinterProfileForm";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { cn } from "@/shared/lib/utils";
+import { ScrollArea } from "@/shared/components/ui/scroll-area";
+import { motion, AnimatePresence } from "framer-motion";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Label } from "@/shared/components/ui/label";
 import { toast } from "sonner";
 import api from "@/shared/lib/axios";
 
-/**
- * ✅ GIAI ĐOẠN 2: Form Upload Hồ sơ Xác thực
- */
-const VerificationCard = ({ profile }: { profile: any }) => {
+const SETTINGS_TABS = [
+  { id: "profile", label: "Thông tin Xưởng", icon: Store, color: "text-blue-600", bg: "bg-blue-50", desc: "Tên, địa chỉ, logo, mô tả" },
+  { id: "verification", label: "Xác thực", icon: ShieldCheck, color: "text-green-600", bg: "bg-green-50", desc: "Giấy phép KD, CCCD" },
+  { id: "payment", label: "Thanh toán", icon: CreditCard, color: "text-purple-600", bg: "bg-purple-50", desc: "Tài khoản ngân hàng" },
+  { id: "account", label: "Tài khoản", icon: User, color: "text-orange-600", bg: "bg-orange-50", desc: "Email, mật khẩu" },
+];
+
+// --- Verification Component (Tách ra cho gọn) ---
+const VerificationSection = ({ profile }: { profile: any }) => {
   const [gpkdFile, setGpkdFile] = useState<File | null>(null);
   const [cccdFile, setCccdFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { fetchMe } = useAuthStore(); // Để cập nhật lại store
+  const { fetchMe } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!gpkdFile && !cccdFile) {
-      toast.error("Vui lòng tải lên ít nhất 1 loại tài liệu (GPKD hoặc CCCD).");
-      return;
-    }
+    if (!gpkdFile && !cccdFile) return toast.error("Vui lòng tải lên ít nhất 1 tài liệu.");
 
     setIsSubmitting(true);
-    const toastId = toast.loading("Đang nộp hồ sơ, vui lòng chờ...");
+    const toastId = toast.loading("Đang nộp hồ sơ...");
 
     try {
       const formData = new FormData();
       if (gpkdFile) formData.append("gpkdFile", gpkdFile);
       if (cccdFile) formData.append("cccdFile", cccdFile);
 
-      // Gọi API (đã tạo ở Backend bước 2)
       await api.put("/printers/submit-verification", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-
-      // Cập nhật lại thông tin user (để profile có status mới)
       await fetchMe();
-
-      toast.success("Nộp hồ sơ thành công! Chúng tôi sẽ duyệt sớm.", {
-        id: toastId,
-      });
+      toast.success("Nộp hồ sơ thành công!", { id: toastId });
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Nộp hồ sơ thất bại", {
-        id: toastId,
-      });
+      toast.error(err.response?.data?.message || "Thất bại", { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Trạng thái "Đã duyệt"
-  if (profile.isVerified) {
+  if (profile?.isVerified) {
     return (
-      <Card className="bg-green-50 border-green-200 shadow-md mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-green-700">
-            <ShieldCheck />
-            Tài khoản đã được xác thực
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-green-600">
-            Tài khoản của bạn đã được duyệt. Bạn có toàn quyền truy cập các tính
-            năng của nhà in.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="p-6 bg-green-50 border border-green-200 rounded-xl text-center">
+        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+           <ShieldCheck className="w-8 h-8 text-green-600" />
+        </div>
+        <h3 className="text-lg font-bold text-green-800">Tài khoản đã xác thực</h3>
+        <p className="text-green-700 mt-1">Bạn có toàn quyền truy cập các tính năng cao cấp.</p>
+      </div>
     );
   }
 
-  // Trạng thái "Chờ duyệt"
-  if (profile.verificationStatus === "pending_review") {
+  if (profile?.verificationStatus === "pending_review") {
     return (
-      <Card className="bg-yellow-50 border-yellow-200 shadow-md mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-yellow-700">
-            <FileCheck />
-            Hồ sơ đang chờ duyệt
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-yellow-600">
-            Chúng tôi đã nhận được hồ sơ của bạn và sẽ phản hồi trong 24-48 giờ.
-            Cảm ơn bạn đã kiên nhẫn!
-          </p>
-        </CardContent>
-      </Card>
+      <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-xl text-center">
+        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+           <FileCheck className="w-8 h-8 text-yellow-600" />
+        </div>
+        <h3 className="text-lg font-bold text-yellow-800">Đang chờ duyệt</h3>
+        <p className="text-yellow-700 mt-1">Chúng tôi đang xem xét hồ sơ của bạn. Vui lòng chờ 24-48h.</p>
+      </div>
     );
   }
 
-  // Trạng thái "Chưa nộp" hoặc "Bị từ chối"
   return (
-    <Card className="bg-red-50 border-red-200 shadow-md mb-6">
+    <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-red-700">
-          <AlertTriangle />
-          Yêu cầu xác thực tài khoản
+        <CardTitle className="flex items-center gap-2 text-red-600">
+          <AlertTriangle /> Yêu cầu xác thực
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-red-600 mb-4">
-          {profile.verificationStatus === "rejected"
-            ? "Hồ sơ trước đó của bạn đã bị từ chối. Vui lòng nộp lại tài liệu rõ ràng hơn."
-            : "Để đăng bán sản phẩm và nhận đơn hàng, vui lòng tải lên hồ sơ pháp lý của bạn."}
+        <p className="text-gray-600 mb-6">
+          Vui lòng tải lên giấy phép kinh doanh hoặc CCCD để kích hoạt tính năng bán hàng.
         </p>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="gpkd">
-              Giấy phép kinh doanh (hoặc CCCD nếu là cá nhân)
-            </Label>
-            <Input
-              id="gpkd"
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={(e) => setGpkdFile(e.target.files?.[0] || null)}
-            />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid gap-2">
+            <Label>Giấy phép kinh doanh / CCCD</Label>
+            <div className="flex items-center gap-4 p-4 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+               <Input 
+                  type="file" 
+                  accept="image/*,.pdf" 
+                  className="hidden" 
+                  id="gpkd-upload"
+                  onChange={(e) => setGpkdFile(e.target.files?.[0] || null)}
+               />
+               <label htmlFor="gpkd-upload" className="cursor-pointer flex-1 text-sm text-gray-500">
+                  {gpkdFile ? <span className="text-blue-600 font-medium">{gpkdFile.name}</span> : "Click để tải lên file"}
+               </label>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="cccd">CCCD/CMND của người đại diện</Label>
-            <Input
-              id="cccd"
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={(e) => setCccdFile(e.target.files?.[0] || null)}
-            />
+          
+          <div className="grid gap-2">
+            <Label>CCCD người đại diện (Mặt trước)</Label>
+            <div className="flex items-center gap-4 p-4 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+               <Input 
+                  type="file" 
+                  accept="image/*,.pdf" 
+                  className="hidden" 
+                  id="cccd-upload"
+                  onChange={(e) => setCccdFile(e.target.files?.[0] || null)}
+               />
+               <label htmlFor="cccd-upload" className="cursor-pointer flex-1 text-sm text-gray-500">
+                  {cccdFile ? <span className="text-blue-600 font-medium">{cccdFile.name}</span> : "Click để tải lên file"}
+               </label>
+            </div>
           </div>
-          <Button
-            type="submit"
-            className="bg-gradient-to-r from-orange-400 to-red-500"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <Loader2 className="w-5 h-5 animate-spin mr-2" />
-            ) : null}
-            {isSubmitting ? "Đang nộp..." : "Nộp hồ sơ xác thực"}
+
+          <Button type="submit" disabled={isSubmitting} className="w-full bg-red-600 hover:bg-red-700">
+            {isSubmitting ? <Loader2 className="animate-spin mr-2 h-4 w-4"/> : null} Nộp hồ sơ
           </Button>
         </form>
       </CardContent>
@@ -155,21 +132,85 @@ const VerificationCard = ({ profile }: { profile: any }) => {
   );
 };
 
+// --- Main Page ---
 export function SettingsPage() {
-  // ✅ GIAI ĐOẠN 2: Lấy thông tin nhà in
+  const [activeTab, setActiveTab] = useState("profile");
   const profile = useAuthStore((s) => s.activePrinterProfile);
 
+  const renderContent = () => {
+    switch (activeTab) {
+      case "profile":
+        return <PrinterProfileForm />;
+      case "verification":
+        return <VerificationSection profile={profile} />;
+      case "payment":
+      case "account":
+        return (
+           <div className="flex flex-col items-center justify-center h-64 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">
+              <Loader2 className="w-8 h-8 mb-2 animate-spin opacity-20" />
+              <p>Tính năng đang phát triển...</p>
+           </div>
+        );
+      default: return null;
+    }
+  };
+
   return (
-    <ScrollArea className="h-full flex-1 bg-gray-50">
-      <div className="p-8 max-w-6xl mx-auto">
-        <SettingsHeader />
-
-        {/* ✅ GIAI ĐOẠN 2: Render Card Xác thực */}
-        {profile && <VerificationCard profile={profile} />}
-
-        {/* ✅ OBJECTIVE 1: Printer Profile Form */}
-        <PrinterProfileForm />
+    <div className="flex flex-1 h-full bg-gray-50/50 overflow-hidden">
+      {/* Sidebar */}
+      <div className="w-72 border-r border-gray-200 bg-white p-6 flex-shrink-0 hidden lg:block overflow-y-auto">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Cài đặt</h2>
+        <div className="space-y-2">
+          {SETTINGS_TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "w-full flex items-center p-3 rounded-xl transition-all duration-200 group text-left",
+                  isActive 
+                    ? "bg-gray-100 ring-1 ring-gray-200 shadow-sm" 
+                    : "hover:bg-gray-50"
+                )}
+              >
+                <div className={cn(
+                  "w-10 h-10 rounded-lg flex items-center justify-center mr-3 transition-colors shrink-0",
+                  tab.bg, tab.color
+                )}>
+                  <tab.icon size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={cn("text-sm font-semibold truncate", isActive ? "text-gray-900" : "text-gray-700")}>
+                    {tab.label}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">{tab.desc}</p>
+                </div>
+                {isActive && <ChevronRight size={16} className="text-gray-400" />}
+              </button>
+            );
+          })}
+        </div>
       </div>
-    </ScrollArea>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="p-6 lg:p-10 overflow-y-auto h-full">
+           <div className="max-w-4xl mx-auto">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {renderContent()}
+                </motion.div>
+              </AnimatePresence>
+           </div>
+        </div>
+      </div>
+    </div>
   );
 }

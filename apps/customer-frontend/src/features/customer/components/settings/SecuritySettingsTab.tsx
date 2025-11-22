@@ -18,7 +18,7 @@ import {
   FormMessage,
 } from "@/shared/components/ui/form";
 import { Loader2 } from "lucide-react";
-import { useCustomerSettings } from "../../hooks/useCustomerSettings";
+import { useCustomerSettings } from "@/features/customer/hooks/useCustomerSettings";
 
 export function SecuritySettingsTab() {
   const { passwordForm, isPasswordSubmitting, onChangePassword } =

@@ -8,7 +8,7 @@ import {
 } from "@/shared/components/ui/card";
 import { PrinterProfile } from "@/types/printerProfile";
 import { Button } from "@/shared/components/ui/button";
-import { usePrinterProfileDetails } from "../../hooks/usePrinterProfileDetails";
+import { usePrinterProfileDetails } from "@/features/shop/hooks/usePrinterProfileDetails";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { ImageWithFallback } from "@/features/figma/ImageWithFallback";
 import { MapPin, Star } from "lucide-react"; // Thêm icon

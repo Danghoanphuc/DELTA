@@ -2,7 +2,7 @@
 // ✅ FIXED: Route Structure for Social & AI
 
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect, Suspense, lazy, ComponentType } from "react";
+import { useEffect, useRef, Suspense, lazy, ComponentType } from "react";
 import { useAuthStore } from "./stores/useAuthStore";
 import { useCartStore } from "./stores/useCartStore";
 
@@ -69,7 +69,7 @@ const CustomerDesignsPage = lazyWorkaround(() => import("@/features/customer/pag
 const CustomerSettingsPage = lazyWorkaround(() => import("@/features/customer/pages/CustomerSettingsPage"));
 const DesignEditorPage = lazyWorkaround(() => import("@/features/editor/DesignEditorPage"));
 const InspirationPage = lazy(() => import("@/features/customer/pages/InspirationPage"));
-const ChatAppPage = lazy(() => import("@/features/chat/pages/ChatAppPage")); // /app (Dashboard)
+const ChatAppPage = lazy(() => import("@/features/chat/pages/AppPage")); // /app (Dashboard)
 const ChatPage = lazy(() => import("@/features/chat/pages/ChatPage")); // /chat (AI Fullscreen)
 const ChatHistoryPage = lazy(() => import("@/features/chat/pages/ChatHistoryPage"));
 const NotificationsPage = lazy(() => import("@/features/notifications/pages/NotificationsPage"));
@@ -82,13 +82,39 @@ function App() {
   const fetchMe = useAuthStore((state) => state.fetchMe);
   const mergeGuestCart = useCartStore((state) => state.mergeGuestCart);
   const fetchCart = useCartStore((state) => state.fetchCart);
+  const user = useAuthStore((state) => state.user);
+  
+  // ✅ FIX: Thêm ref để tránh gọi fetchMe nhiều lần trong một khoảng thời gian ngắn
+  const lastFetchTimeRef = useRef<number>(0);
+  const hasFetchedRef = useRef<boolean>(false);
+  const FETCH_COOLDOWN = 10000; // ✅ Tăng lên 10 giây
 
+  // ✅ FIX: Loại bỏ fetchMe khỏi dependency array để tránh vòng lặp vô hạn
+  // fetchMe là function từ zustand store, reference có thể thay đổi
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchMe(true);
+    // ✅ FIX: Chỉ fetch một lần khi mount và authenticated, không fetch lại khi user thay đổi
+    if (isAuthenticated && !user && !hasFetchedRef.current) {
+      const now = Date.now();
+      // Chỉ fetch nếu đã qua cooldown
+      if (now - lastFetchTimeRef.current > FETCH_COOLDOWN) {
+        lastFetchTimeRef.current = now;
+        hasFetchedRef.current = true;
+        fetchMe(true).catch((err) => {
+          // Nếu lỗi, reset flag để có thể retry sau
+          console.error("[App] fetchMe error:", err);
+          hasFetchedRef.current = false;
+        });
+      }
     }
-  }, [fetchMe, isAuthenticated]);
+    
+    // ✅ FIX: Reset flag khi logout
+    if (!isAuthenticated) {
+      hasFetchedRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]); // ✅ CHỈ depend on isAuthenticated, không depend on user
 
+  // ✅ FIX: Loại bỏ function references khỏi dependency array
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
       (async () => {
@@ -100,7 +126,8 @@ function App() {
         }
       })();
     }
-  }, [isAuthenticated, authLoading, mergeGuestCart, fetchCart]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, authLoading]); // Chỉ depend on state values, không phải functions
 
   return (
     <BrowserRouter>

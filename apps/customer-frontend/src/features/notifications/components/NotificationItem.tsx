@@ -9,24 +9,15 @@ import {
   XCircle,
   Bell,
   Gift,
+  Truck,
+  Info
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { motion } from "framer-motion";
+import type { Notification } from "../hooks/useNotifications";
 
 interface NotificationItemProps {
-  notification: {
-    _id: string;
-    type: string;
-    title: string;
-    message: string;
-    data?: {
-      orderId?: string;
-      orderNumber?: string;
-      link?: string;
-      [key: string]: any;
-    };
-    isRead: boolean;
-    createdAt: string;
-  };
+  notification: Notification;
   onMarkAsRead: (id: string) => void;
 }
 
@@ -37,83 +28,89 @@ export function NotificationItem({
   const navigate = useNavigate();
 
   const handleClick = () => {
-    // Mark as read
     if (!notification.isRead) {
       onMarkAsRead(notification._id);
     }
-
-    // Navigate to link if available
+    // Navigate logic
     if (notification.data?.link) {
       navigate(notification.data.link);
+    } else if (notification.data?.orderId) {
+        navigate(`/orders/${notification.data.orderId}`);
     }
   };
 
-  // Get icon based on notification type
-  const getIcon = () => {
+  // Config Icon & Color based on Type
+  const getConfig = () => {
     switch (notification.type) {
       case "order_created":
-        return <Package className="h-5 w-5 text-blue-600" />;
+        return { icon: Package, color: "text-blue-600", bg: "bg-blue-100" };
       case "payment_confirmed":
-        return <DollarSign className="h-5 w-5 text-green-600" />;
+        return { icon: DollarSign, color: "text-green-600", bg: "bg-green-100" };
       case "order_shipped":
-        return <Package className="h-5 w-5 text-purple-600" />;
+        return { icon: Truck, color: "text-indigo-600", bg: "bg-indigo-100" };
       case "order_completed":
-        return <CheckCircle className="h-5 w-5 text-green-600" />;
+        return { icon: CheckCircle, color: "text-teal-600", bg: "bg-teal-100" };
       case "order_cancelled":
-        return <XCircle className="h-5 w-5 text-red-600" />;
+        return { icon: XCircle, color: "text-red-600", bg: "bg-red-100" };
       case "promotion":
-        return <Gift className="h-5 w-5 text-orange-600" />;
+        return { icon: Gift, color: "text-orange-600", bg: "bg-orange-100" };
       default:
-        return <Bell className="h-5 w-5 text-gray-600" />;
+        return { icon: Bell, color: "text-gray-600", bg: "bg-gray-100" };
     }
   };
 
-  // Get background color based on type
-  const getBgColor = () => {
-    if (notification.isRead) {
-      return "bg-white hover:bg-gray-50";
-    }
-    return "bg-blue-50 hover:bg-blue-100";
-  };
+  const { icon: Icon, color, bg } = getConfig();
 
-  // Format time ago
   const timeAgo = formatDistanceToNow(new Date(notification.createdAt), {
     addSuffix: true,
     locale: vi,
   });
 
   return (
-    <div
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      whileHover={{ scale: 1.01, backgroundColor: "rgba(249, 250, 251, 0.8)" }} // Hover effect nhẹ
+      whileTap={{ scale: 0.99 }}
       onClick={handleClick}
       className={cn(
-        "flex items-start gap-3 p-4 border-b border-gray-200 cursor-pointer transition-colors",
-        getBgColor()
+        "relative flex items-start gap-4 p-4 border-b border-gray-100 cursor-pointer transition-all duration-200 last:border-0",
+        !notification.isRead ? "bg-blue-50/60" : "bg-white"
       )}
     >
-      {/* Icon */}
-      <div className="flex-shrink-0 mt-1">{getIcon()}</div>
+      {/* Unread Indicator */}
+      {!notification.isRead && (
+        <div className="absolute top-4 right-4 h-2.5 w-2.5 bg-blue-600 rounded-full shadow-sm animate-pulse" />
+      )}
+
+      {/* Icon Box */}
+      <div className={cn("flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center shadow-sm", bg)}>
+        <Icon className={cn("h-5 w-5", color)} />
+      </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2">
-          <h4
-            className={cn(
-              "text-sm font-medium text-gray-900",
-              !notification.isRead && "font-semibold"
-            )}
-          >
+      <div className="flex-1 min-w-0 pt-0.5">
+        <div className="flex flex-col gap-1">
+          <h4 className={cn("text-sm text-gray-900 leading-snug pr-6", !notification.isRead ? "font-bold" : "font-medium")}>
             {notification.title}
           </h4>
-          {!notification.isRead && (
-            <div className="flex-shrink-0 h-2 w-2 bg-blue-600 rounded-full mt-1" />
-          )}
+          <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
+            {notification.message}
+          </p>
+          <p className="text-xs text-gray-400 mt-1 font-medium">
+            {timeAgo}
+          </p>
         </div>
-
-        <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
-
-        <p className="text-xs text-gray-400 mt-2">{timeAgo}</p>
+        
+        {/* Optional: Action Link Preview (nếu có) */}
+        {/* {notification.data?.link && (
+            <div className="mt-2 text-xs font-semibold text-blue-600 flex items-center gap-1">
+                Xem chi tiết <ChevronRight size={12} />
+            </div>
+        )} */}
       </div>
-    </div>
+    </motion.div>
   );
 }
-

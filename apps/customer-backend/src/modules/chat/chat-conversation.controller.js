@@ -1,6 +1,4 @@
 // apps/customer-backend/src/modules/chat/chat-conversation.controller.js
-// ✅ FIXED: Added createGroupConversation
-
 import { SocialChatService } from "./social-chat.service.js";
 import { ChatRepository } from "./chat.repository.js";
 import { User } from "../../shared/models/user.model.js";
@@ -17,10 +15,6 @@ export class ChatConversationController {
     this.socialChatService = new SocialChatService();
   }
 
-  /**
-   * ✅ HÀM MỚI: POST /api/chat/conversations/group
-   * Body: { title: string, members: string[] }
-   */
   createGroupConversation = async (req, res, next) => {
     try {
       const currentUserId = req.user._id;
@@ -50,7 +44,6 @@ export class ChatConversationController {
     }
   };
 
-  // ... (Giữ nguyên createOrGetPrinterConversation) ...
   createOrGetPrinterConversation = async (req, res, next) => {
     try {
       const customerId = req.user._id;
@@ -83,8 +76,8 @@ export class ChatConversationController {
         type: "customer-printer",
         title: `Chat với ${printer.printerProfileId.businessName}`,
         participants: [
-          { userId: customerId, role: "customer" },
-          { userId: printerId, role: "printer" },
+          { userId: customerId, role: "customer", isVisible: true },
+          { userId: printerId, role: "printer", isVisible: true },
         ],
       });
 
@@ -103,7 +96,6 @@ export class ChatConversationController {
     }
   };
 
-  // ... (Giữ nguyên createOrGetPeerConversation) ...
   createOrGetPeerConversation = async (req, res, next) => {
     try {
       const currentUserId = req.user._id;
@@ -138,12 +130,17 @@ export class ChatConversationController {
     }
   };
 
-  // ... (Giữ nguyên getAllConversations) ...
   getAllConversations = async (req, res, next) => {
     try {
       const userId = req.user._id;
       const { type } = req.query;
-      const query = { "participants.userId": userId, isActive: true };
+      
+      // ✅ FIXED: Chỉ lấy những cuộc trò chuyện mà user chưa xóa (isVisible: true)
+      const query = { 
+        "participants": { $elemMatch: { userId: userId, isVisible: true } },
+        isActive: true 
+      };
+      
       if (type) query.type = type;
 
       const conversations = await Conversation.find(query)
@@ -160,7 +157,9 @@ export class ChatConversationController {
     }
   };
 
-  // ... (Giữ nguyên deleteConversation) ...
+  /**
+   * ✅ FIXED: Chỉ ẩn cuộc trò chuyện với user hiện tại (Soft Delete)
+   */
   deleteConversation = async (req, res, next) => {
     try {
       const userId = req.user._id;
@@ -174,8 +173,13 @@ export class ChatConversationController {
       if (!conversation)
         throw new NotFoundException("Không tìm thấy cuộc trò chuyện");
 
-      conversation.isActive = false;
-      await conversation.save();
+      // ✅ FIX: Chỉ set isVisible = false cho user này, KHÔNG set isActive=false
+      await Conversation.updateOne(
+        { _id: conversationId, "participants.userId": userId },
+        { 
+          $set: { "participants.$.isVisible": false } 
+        }
+      );
 
       res.json({ success: true, message: "Đã xóa cuộc trò chuyện" });
     } catch (error) {
@@ -183,15 +187,10 @@ export class ChatConversationController {
     }
   };
 
-  /**
-   * ✅ NEW: Đánh dấu tất cả conversations là đã đọc
-   * POST /api/chat/conversations/mark-all-read
-   */
   markAllConversationsAsRead = async (req, res, next) => {
     try {
       const userId = req.user._id;
 
-      // Lấy tất cả social conversations của user
       const conversations = await Conversation.find({
         "participants.userId": userId,
         type: { $in: ["peer-to-peer", "customer-printer", "group"] },
@@ -199,9 +198,6 @@ export class ChatConversationController {
       }).select("_id");
 
       const conversationIds = conversations.map((c) => c._id);
-
-      // Không cần update database vì unread counts được quản lý ở frontend
-      // Chỉ cần trả về success để frontend clear unread counts
 
       res.json({
         success: true,

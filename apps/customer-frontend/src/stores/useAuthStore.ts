@@ -229,49 +229,69 @@ export const useAuthStore = create<AuthState>()(
       // --- HÀNH ĐỘNG CHUYỂN BỐI CẢNH ---
       setActiveContext: async (context, navigate) => {
         const { user, activePrinterProfile } = get();
-        if (!user) return; // Chưa đăng nhập
-
-        set({ isContextLoading: true });
-
-        if (context === "customer") {
-          set({ activeContext: "customer", isContextLoading: false });
-          navigate("/app"); // Điều hướng về trang chat
-          return;
+        if (!user) {
+          console.warn("⚠️ [setActiveContext] User chưa đăng nhập");
+          return; // Chưa đăng nhập
         }
 
-        if (context === "printer") {
-          // 1. Kiểm tra xem user có hồ sơ nhà in không
-          if (!user.printerProfileId) {
-            // 1a. Không có -> Đưa đến trang onboarding
-            toast.info("Vui lòng hoàn tất hồ sơ nhà in của bạn.");
-            set({ isContextLoading: false });
-            navigate("/printer/onboarding");
-            return;
-          }
+        // ✅ FIX: Đảm bảo set loading state trước khi xử lý
+        set({ isContextLoading: true });
 
-          // 2. Kiểm tra xem đã fetch profile nhà in chưa (thường là chưa)
-          if (activePrinterProfile) {
-            // 2a. Đã có (hiếm) -> Đặt làm active và điều hướng
-            set({ activeContext: "printer", isContextLoading: false });
-            navigate("/printer/dashboard");
-            return;
-          }
-
-          // 3. Chưa có -> Fetch profile
-          try {
-            const profile = await printerService.getMyProfile();
-            set({
-              activePrinterProfile: profile,
-              activeContext: "printer",
+        try {
+          if (context === "customer") {
+            // ✅ FIX: Chuyển sang customer context - đơn giản và nhanh
+            set({ 
+              activeContext: "customer", 
               isContextLoading: false,
+              // Không cần clear activePrinterProfile, giữ lại để cache
             });
-            navigate("/printer/dashboard");
-          } catch (err) {
-            toast.error(
-              "Không thể tải hồ sơ nhà in của bạn. Vui lòng thử lại."
-            );
-            set({ isContextLoading: false }); // Vẫn ở 'customer'
+            navigate("/app"); // Điều hướng về trang chat
+            return;
           }
+
+          if (context === "printer") {
+            // 1. Kiểm tra xem user có hồ sơ nhà in không
+            if (!user.printerProfileId) {
+              // 1a. Không có -> Đưa đến trang onboarding
+              toast.info("Vui lòng hoàn tất hồ sơ nhà in của bạn.");
+              set({ isContextLoading: false });
+              navigate("/printer/onboarding");
+              return;
+            }
+
+            // 2. ✅ FIX: Kiểm tra xem đã fetch profile nhà in chưa
+            // Nếu đã có profile và vẫn còn hợp lệ, dùng luôn
+            if (activePrinterProfile && activePrinterProfile._id === user.printerProfileId) {
+              // 2a. Đã có và hợp lệ -> Đặt làm active và điều hướng ngay
+              set({ 
+                activeContext: "printer", 
+                isContextLoading: false 
+              });
+              navigate("/printer/dashboard");
+              return;
+            }
+
+            // 3. Chưa có hoặc profile không khớp -> Fetch profile
+            try {
+              const profile = await printerService.getMyProfile();
+              set({
+                activePrinterProfile: profile,
+                activeContext: "printer",
+                isContextLoading: false,
+              });
+              navigate("/printer/dashboard");
+            } catch (err: any) {
+              console.error("❌ [setActiveContext] Lỗi khi fetch profile:", err);
+              toast.error(
+                err.response?.data?.message || "Không thể tải hồ sơ nhà in của bạn. Vui lòng thử lại."
+              );
+              set({ isContextLoading: false }); // Vẫn ở context cũ
+            }
+          }
+        } catch (error: any) {
+          // ✅ FIX: Xử lý lỗi tổng quát
+          console.error("❌ [setActiveContext] Lỗi không mong đợi:", error);
+          set({ isContextLoading: false });
         }
       },
 

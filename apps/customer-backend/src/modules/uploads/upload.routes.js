@@ -25,6 +25,22 @@ router.post(
 );
 
 /**
+ * ✅ FIX: Endpoint upload ảnh async cho product wizard
+ * @route   POST /api/uploads/async-image
+ * @desc    Upload ảnh async (trả về URL ngay lập tức) - dùng cho product images
+ * @access  Private
+ * @rateLimit 20 uploads per hour per user/IP
+ */
+router.post(
+  "/async-image",
+  uploadRateLimiter,
+  protect,
+  uploadMixed.single("image"), // ✅ FIX: Field name là "image" (không phải "file")
+  handleUploadError,
+  uploadController.uploadImageAsync
+);
+
+/**
  * ✅ MỚI: Endpoint dọn rác
  * @route   POST /api/uploads/cleanup-orphan
  * @desc    Xóa file trên Cloudinary (nếu lưu DB lỗi)

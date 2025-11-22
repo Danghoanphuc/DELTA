@@ -1,4 +1,5 @@
 // src/components/UserContextSwitcher.tsx (CẬP NHẬT)
+import { useState, useEffect } from "react";
 import { LogIn, Store, Repeat, Loader2, Settings } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore, AuthContext } from "@/stores/useAuthStore";
@@ -20,12 +21,30 @@ interface UserContextSwitcherProps {
 export function UserContextSwitcher({
   contextColor,
 }: UserContextSwitcherProps) {
-  const { user, activeContext, setActiveContext, isContextLoading } =
-    useAuthStore();
+  // ✅ FIX: Lấy user riêng lẻ để đảm bảo re-render khi user.printerProfileId thay đổi
+  const user = useAuthStore((s) => s.user);
+  const activeContext = useAuthStore((s) => s.activeContext);
+  const setActiveContext = useAuthStore((s) => s.setActiveContext);
+  const isContextLoading = useAuthStore((s) => s.isContextLoading);
+  const fetchMe = useAuthStore((s) => s.fetchMe);
   const navigate = useNavigate();
+  const [isOpen, setIsOpen] = useState(false);
+  
+  // ❌ REMOVED: useEffect gọi fetchMe - đã gây ra vòng lặp vô hạn
+  // App.tsx đã có logic fetchMe khi mount, không cần gọi lại ở đây
 
-  const handleContextSwitch = (context: AuthContext) => {
-    setActiveContext(context, navigate);
+  const handleContextSwitch = async (context: AuthContext) => {
+    try {
+      // ✅ FIX: Đóng Popover trước khi chuyển context để tránh UI bị stuck
+      setIsOpen(false);
+      
+      // Gọi setActiveContext (async)
+      await setActiveContext(context, navigate);
+    } catch (error) {
+      console.error("❌ [UserContextSwitcher] Lỗi khi chuyển context:", error);
+      // Mở lại Popover nếu có lỗi
+      setIsOpen(true);
+    }
   };
 
   // (Màu sắc giữ nguyên)
@@ -46,7 +65,7 @@ export function UserContextSwitcher({
   const theme = colors[contextColor];
 
   return (
-    <Popover>
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <button
           className={`w-12 h-12 rounded-full overflow-hidden transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 ${theme.ringColor}`}
@@ -109,15 +128,23 @@ export function UserContextSwitcher({
                           variant="ghost"
                           className="text-left justify-start"
                           onClick={() => handleContextSwitch("printer")}
+                          disabled={isContextLoading}
                         >
-                          <Repeat size={16} className="mr-2" />
+                          {isContextLoading ? (
+                            <Loader2 size={16} className="mr-2 animate-spin" />
+                          ) : (
+                            <Repeat size={16} className="mr-2" />
+                          )}
                           Chuyển sang Bán hàng
                         </Button>
                       ) : (
                         <Button
                           variant="ghost"
                           className={`text-left justify-start ${colors.orange.brandColor}`}
-                          onClick={() => navigate("/printer/onboarding")}
+                          onClick={() => {
+                            setIsOpen(false);
+                            navigate("/printer/onboarding");
+                          }}
                         >
                           <Store size={16} className="mr-2" />
                           Mở Xưởng in (Miễn phí)
@@ -130,8 +157,13 @@ export function UserContextSwitcher({
                       variant="ghost"
                       className="text-left justify-start"
                       onClick={() => handleContextSwitch("customer")}
+                      disabled={isContextLoading}
                     >
-                      <Repeat size={16} className="mr-2" />
+                      {isContextLoading ? (
+                        <Loader2 size={16} className="mr-2 animate-spin" />
+                      ) : (
+                        <Repeat size={16} className="mr-2" />
+                      )}
                       Chuyển sang Mua hàng
                     </Button>
                   )}

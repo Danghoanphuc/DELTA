@@ -139,24 +139,42 @@ export function useSmartWizard(productId?: string, onSuccess?: () => void) {
 
   // ✅ Auto-select asset khi chọn phôi
   useEffect(() => {
-    if (!productId) {
-      const allAssets = [...privateAssets, ...publicAssets];
-      const asset = allAssets.find((a) => a._id === watchedAssetId);
-      if (asset) {
-        setSelectedAsset(asset);
-        const displayCategory = toPrintzCategory(asset.category);
-        if (!getValues("name")) {
-          setValue("name", `In ${asset.name} theo yêu cầu`);
-        }
-        setValue("category", asset.category || "");
-        setValue("categoryDisplay", displayCategory);
-        setValue("subcategory", "");
-        if (activeStep === 1) {
-          setActiveStep(2);
-        }
-      } else {
-        setSelectedAsset(null);
+    // ✨ FIX: Chỉ chạy khi không có productId (tạo mới)
+    if (productId || !watchedAssetId) {
+      return;
+    }
+
+    const allAssets = [...privateAssets, ...publicAssets];
+    const asset = allAssets.find((a) => a._id === watchedAssetId);
+    
+    // ✨ FIX: Chỉ update nếu asset thay đổi thực sự
+    if (asset && asset._id !== selectedAsset?._id) {
+      setSelectedAsset(asset);
+      const displayCategory = toPrintzCategory(asset.category);
+      
+      // ✨ FIX: Batch setValue để tránh multiple re-renders
+      const currentName = getValues("name");
+      const currentCategory = getValues("category");
+      
+      // Chỉ set name nếu chưa có
+      if (!currentName) {
+        setValue("name", `In ${asset.name} theo yêu cầu`, { shouldDirty: false });
       }
+      
+      // Chỉ set category nếu khác với asset category
+      if (currentCategory !== asset.category) {
+        setValue("category", asset.category || "", { shouldDirty: false });
+        setValue("categoryDisplay", displayCategory, { shouldDirty: false });
+        setValue("subcategory", "", { shouldDirty: false });
+      }
+      
+      // Chỉ chuyển step nếu đang ở step 1
+      if (activeStep === 1) {
+        setActiveStep(2);
+      }
+    } else if (!asset && selectedAsset) {
+      // ✨ FIX: Chỉ clear selectedAsset nếu thực sự không tìm thấy asset
+      setSelectedAsset(null);
     }
   }, [
     watchedAssetId,
@@ -166,6 +184,7 @@ export function useSmartWizard(productId?: string, onSuccess?: () => void) {
     getValues,
     activeStep,
     productId,
+    selectedAsset?._id, // ✨ FIX: Chỉ depend on ID, không phải toàn bộ object
   ]);
 
   // ✅ Auto-save draft mutation
@@ -195,8 +214,10 @@ export function useSmartWizard(productId?: string, onSuccess?: () => void) {
     onSuccess: (data, variables) => {
       setDraftStatus("saved");
       
-      // ✨ Track saved values để tránh save lại cùng data
-      setLastSavedValues(JSON.stringify(variables));
+      // ✨ FIX: Track saved values để tránh save lại cùng data
+      // Sử dụng JSON.stringify với sort keys để đảm bảo consistent comparison
+      const savedValuesStr = JSON.stringify(variables, Object.keys(variables).sort());
+      setLastSavedValues(savedValuesStr);
       
       // ✨ FIX: Update currentDraftId để tránh tạo draft mới liên tục
       if (!currentDraftId && data.productId) {
@@ -235,37 +256,48 @@ export function useSmartWizard(productId?: string, onSuccess?: () => void) {
 
   // ✅ Auto-save khi user ngừng gõ 1s
   useEffect(() => {
+    // ✨ FIX: Early return để tránh vòng lặp vô hạn
+    if (!debouncedValues || activeStep <= 1 || !selectedAsset) {
+      return;
+    }
+    
     // ✨ CRITICAL FIX: Chỉ save khi có thay đổi thực sự
-    const currentValuesStr = JSON.stringify(debouncedValues);
+    // Sử dụng JSON.stringify với sort keys để đảm bảo consistent comparison
+    const currentValuesStr = JSON.stringify(debouncedValues, Object.keys(debouncedValues).sort());
     const hasChanges = currentValuesStr !== lastSavedValues;
+    
+    // ✨ FIX: Kiểm tra các điều kiện trước khi save
+    if (
+      !hasChanges || // Không có thay đổi
+      draftStatus === "saving" || // Đang saving
+      draftStatus === "error" || // Có lỗi
+      saveDraftMutation.isPending // Đang pending
+    ) {
+      return;
+    }
     
     // Debug log
     if (process.env.NODE_ENV === "development") {
-      console.log("[Auto-save] Check:", {
+      console.log("[Auto-save] Triggering save...", {
         hasChanges,
         activeStep,
         hasAsset: !!selectedAsset,
         draftStatus,
-        isPending: saveDraftMutation.isPending,
-        willSave: debouncedValues && activeStep > 1 && selectedAsset && hasChanges && draftStatus !== "saving" && draftStatus !== "error" && !saveDraftMutation.isPending
       });
     }
     
-    if (
-      debouncedValues &&
-      activeStep > 1 &&
-      selectedAsset &&
-      hasChanges && // ✨ CRITICAL: Chỉ save khi có thay đổi
-      draftStatus !== "saving" && // ✨ Không save nếu đang saving
-      draftStatus !== "error" && // ✨ Không save nếu có lỗi
-      !saveDraftMutation.isPending // ✨ Không save nếu đang pending
-    ) {
-      console.log("[Auto-save] Triggering save...");
-      // Chỉ auto-save từ bước 2 trở đi (sau khi chọn phôi)
-      saveDraftMutation.mutate(debouncedValues);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedValues]);
+    // ✨ FIX: Chỉ save khi tất cả điều kiện đều đúng
+    // Chỉ auto-save từ bước 2 trở đi (sau khi chọn phôi)
+    saveDraftMutation.mutate(debouncedValues);
+  }, [
+    debouncedValues,
+    lastSavedValues,
+    activeStep,
+    selectedAsset,
+    draftStatus,
+    saveDraftMutation.isPending,
+    saveDraftMutation.mutate,
+  ]);
 
   // ✅ Publish draft (submit final)
   const publishMutation = useMutation({

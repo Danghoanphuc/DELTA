@@ -18,7 +18,7 @@ import {
   FormMessage,
 } from "@/shared/components/ui/form";
 import { Loader2 } from "lucide-react";
-import { useCustomerSettings } from "../../hooks/useCustomerSettings";
+import { useCustomerSettings } from "@/features/customer/hooks/useCustomerSettings";
 // ❌ GỠ BỎ: UserAvatarFallback
 import { UserAvatar } from "@/components/UserAvatar"; // ✅ THAY THẾ
 import { toast } from "sonner";

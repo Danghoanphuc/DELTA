@@ -152,6 +152,16 @@ export const useShop = () => {
       }),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => lastPage.nextPage,
+    // ✅ FIX: Thêm retry logic để tránh retry khi bị rate limit
+    retry: (failureCount, error: any) => {
+      // Không retry khi bị rate limit (429)
+      if (error?.response?.status === 429) {
+        return false;
+      }
+      return failureCount < 2; // Chỉ retry tối đa 2 lần cho các lỗi khác
+    },
+    // ✅ FIX: Tắt refetch khi focus để tránh spam requests
+    refetchOnWindowFocus: false,
   });
 
   // ✅ SỬA: `products` giờ là list phẳng (flat list) từ các trang

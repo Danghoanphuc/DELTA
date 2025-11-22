@@ -6,7 +6,7 @@ import api from "@/shared/lib/axios";
 export interface Notification {
   _id: string;
   userId: string;
-  type: string;
+  type: "order_created" | "payment_confirmed" | "order_shipped" | "order_completed" | "order_cancelled" | "promotion" | "system" | string;
   title: string;
   message: string;
   isRead: boolean;
@@ -26,10 +26,13 @@ interface NotificationResponse {
 }
 
 // --- API CALLS ---
-const getNotifications = async (page = 1, limit = 10) => {
-  const { data } = await api.get<NotificationResponse>("/notifications", {
-    params: { page, limit },
-  });
+// ✅ Cập nhật: Hỗ trợ filter params
+const getNotifications = async (page = 1, limit = 10, filter?: string) => {
+  const params: any = { page, limit };
+  if (filter === "unread") {
+    params.isRead = false;
+  }
+  const { data } = await api.get<NotificationResponse>("/notifications", { params });
   return data;
 };
 
@@ -52,39 +55,58 @@ const markAllAsRead = async () => {
 
 // --- HOOKS ---
 
-/**
- * Hook lấy danh sách thông báo (có phân trang)
- * ✅ FIX CRASH: Ép kiểu 'enabled' thành boolean chuẩn (!!enabled)
- */
 export const useNotifications = (
-  params: { page?: number; limit?: number } = {},
-  enabled: any = true // Chấp nhận mọi kiểu dữ liệu để tránh lỗi TS
+  params: { page?: number; limit?: number; filter?: "all" | "unread" } = {},
+  enabled: boolean = true
 ) => {
   return useQuery({
-    queryKey: ["notifications", params.page || 1],
-    queryFn: () => getNotifications(params.page, params.limit),
-    // ✅ FIX QUAN TRỌNG: Nếu enabled là null/undefined thì sẽ thành false, ngược lại true
-    enabled: enabled !== undefined && enabled !== null ? !!enabled : true,
-    refetchInterval: 30000,
+    queryKey: ["notifications", params.page || 1, params.filter || "all"],
+    queryFn: () => getNotifications(params.page, params.limit, params.filter),
+    enabled,
+    // ✅ FIX: Tắt polling khi bị rate limit hoặc không enabled
+    refetchInterval: (query) => {
+      // Tắt polling nếu query bị lỗi 429 (rate limit)
+      if (query.state.error && (query.state.error as any)?.response?.status === 429) {
+        return false;
+      }
+      // Chỉ polling khi enabled
+      return enabled ? 30000 : false; // ✅ Tăng lên 30s để giảm tải
+    },
+    retry: (failureCount, error: any) => {
+      // ✅ FIX: Không retry khi bị rate limit (429)
+      if (error?.response?.status === 429) {
+        return false;
+      }
+      return failureCount < 2; // Chỉ retry tối đa 2 lần cho các lỗi khác
+    },
+    placeholderData: (previousData) => previousData, // Giữ data cũ khi chuyển trang (UX mượt hơn)
   });
 };
 
-/**
- * Hook lấy số lượng chưa đọc (dùng cho badge đỏ)
- */
 export const useUnreadCount = () => {
   const { data, isLoading } = useQuery({
     queryKey: ["notifications", "unread-count"],
     queryFn: getUnreadCount,
-    refetchInterval: 15000,
+    // ✅ FIX: Tắt polling khi bị rate limit
+    refetchInterval: (query) => {
+      // Tắt polling nếu query bị lỗi 429 (rate limit)
+      if (query.state.error && (query.state.error as any)?.response?.status === 429) {
+        return false;
+      }
+      return 30000; // ✅ Tăng lên 30s để giảm tải (thay vì 10s)
+    },
+    retry: (failureCount, error: any) => {
+      // ✅ FIX: Không retry khi bị rate limit (429)
+      if (error?.response?.status === 429) {
+        return false;
+      }
+      return failureCount < 2; // Chỉ retry tối đa 2 lần cho các lỗi khác
+    },
   });
 
   return { unreadCount: data || 0, isLoading };
 };
 
-/**
- * Hook đánh dấu 1 tin là đã đọc
- */
 export const useMarkAsRead = () => {
   const queryClient = useQueryClient();
 
@@ -92,16 +114,11 @@ export const useMarkAsRead = () => {
     mutationFn: markAsRead,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      queryClient.invalidateQueries({
-        queryKey: ["notifications", "unread-count"],
-      });
+      queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
     },
   });
 };
 
-/**
- * Hook đánh dấu TẤT CẢ là đã đọc
- */
 export const useMarkAllAsRead = () => {
   const queryClient = useQueryClient();
 
@@ -109,9 +126,7 @@ export const useMarkAllAsRead = () => {
     mutationFn: markAllAsRead,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      queryClient.invalidateQueries({
-        queryKey: ["notifications", "unread-count"],
-      });
+      queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
     },
   });
 };

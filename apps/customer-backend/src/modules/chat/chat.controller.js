@@ -1,3 +1,4 @@
+// apps/customer-backend/src/modules/chat/chat.controller.js
 import { ChatService } from "./chat.service.js";
 import { SocialChatService } from "./social-chat.service.js";
 import { Conversation } from "../../shared/models/conversation.model.js";
@@ -26,7 +27,6 @@ export class ChatController {
 
       let isSocialChat = false;
 
-      // ✅ LOGIC PHÂN LUỒNG CHẶT CHẼ HƠN
       if (conversationId) {
         const conversation = await Conversation.findById(conversationId).select(
           "type"
@@ -40,7 +40,6 @@ export class ChatController {
             isSocialChat = true;
           }
         } else {
-          // Nếu có ID mà không tìm thấy -> Có thể là lỗi FE gửi ID rác -> Ném lỗi
           throw new NotFoundException("Cuộc trò chuyện không tồn tại");
         }
       }
@@ -48,10 +47,8 @@ export class ChatController {
       let response;
       if (isSocialChat) {
         if (isGuest) throw new Error("Bạn phải đăng nhập để chat Social.");
-        // Social Chat Service xử lý
         response = await this.socialService.handleSocialMessage(req.user, body);
       } else {
-        // Bot Chat Service xử lý (Bao gồm cả tạo mới nếu không có conversationId)
         response = await this.botService.handleBotMessage(
           req.user,
           body,
@@ -67,7 +64,6 @@ export class ChatController {
     }
   };
 
-  // ... Giữ nguyên các hàm handleChatUpload, getConversations, getConversationById ...
   handleChatUpload = async (req, res, next) => {
     try {
       if (!req.file)
@@ -86,14 +82,18 @@ export class ChatController {
     }
   };
 
+  // ✅ FIXED: Cho phép lấy TẤT CẢ loại conversation (hoặc filter theo query)
+  // Thay vì hardcode "customer-bot"
   getConversations = async (req, res, next) => {
     try {
-      // ✅ FIXED: Chỉ lấy conversations của chat bot (customer-bot)
-      // Để tách bạch hoàn toàn với social chat
+      // Lấy type từ query param (nếu frontend muốn filter)
+      // Nếu không gửi type -> Lấy hết (để hiển thị cả Social lẫn Bot)
+      const type = req.query.type || null; 
+
       const conversations =
         await this.botService.chatRepository.findConversationsByUserId(
           req.user._id,
-          "customer-bot" // ✅ Filter chỉ lấy bot conversations
+          type 
         );
       res
         .status(API_CODES.SUCCESS)
@@ -151,6 +151,7 @@ export class ChatController {
 
   deleteConversation = async (req, res, next) => {
     try {
+      // Hàm deleteConversation trong service đã được update thành Soft Delete
       await this.botService.deleteConversation(
         req.params.conversationId,
         req.user._id
@@ -163,19 +164,16 @@ export class ChatController {
     }
   };
 
-  // ✅ NEW: Lấy media (ảnh/video) của conversation
   getConversationMedia = async (req, res, next) => {
     try {
       const conversation = await Conversation.findById(req.params.conversationId).select("type participants");
       if (!conversation) throw new NotFoundException("Không tìm thấy cuộc trò chuyện");
 
-      // Kiểm tra quyền truy cập
       const isParticipant = conversation.participants.some(
         (p) => p.userId.toString() === req.user._id.toString()
       );
       if (!isParticipant) throw new NotFoundException("Không có quyền truy cập");
 
-      // Dùng repository chung (cả bot và social đều dùng Message collection)
       const media = await this.botService.chatRepository.getMediaFiles(req.params.conversationId);
       res.status(API_CODES.SUCCESS).json(ApiResponse.success({ media }));
     } catch (e) {
@@ -183,19 +181,16 @@ export class ChatController {
     }
   };
 
-  // ✅ NEW: Lấy files đã chia sẻ của conversation
   getConversationFiles = async (req, res, next) => {
     try {
       const conversation = await Conversation.findById(req.params.conversationId).select("type participants");
       if (!conversation) throw new NotFoundException("Không tìm thấy cuộc trò chuyện");
 
-      // Kiểm tra quyền truy cập
       const isParticipant = conversation.participants.some(
         (p) => p.userId.toString() === req.user._id.toString()
       );
       if (!isParticipant) throw new NotFoundException("Không có quyền truy cập");
 
-      // Dùng repository chung (cả bot và social đều dùng Message collection)
       const files = await this.botService.chatRepository.getSharedFiles(req.params.conversationId);
       res.status(API_CODES.SUCCESS).json(ApiResponse.success({ files }));
     } catch (e) {
@@ -203,7 +198,6 @@ export class ChatController {
     }
   };
 
-  // ✅ NEW: Tìm kiếm tin nhắn trong conversation
   searchMessages = async (req, res, next) => {
     try {
       const { conversationId } = req.params;
@@ -216,13 +210,11 @@ export class ChatController {
       const conversation = await Conversation.findById(conversationId).select("type participants");
       if (!conversation) throw new NotFoundException("Không tìm thấy cuộc trò chuyện");
 
-      // Kiểm tra quyền truy cập
       const isParticipant = conversation.participants.some(
         (p) => p.userId.toString() === req.user._id.toString()
       );
       if (!isParticipant) throw new NotFoundException("Không có quyền truy cập");
 
-      // Tìm kiếm messages
       const messages = await this.botService.chatRepository.searchMessages(conversationId, q.trim());
       res.status(API_CODES.SUCCESS).json(ApiResponse.success({ messages }));
     } catch (e) {
@@ -230,7 +222,6 @@ export class ChatController {
     }
   };
 
-  // ✅ NEW: Tắt/Bật thông báo conversation
   muteConversation = async (req, res, next) => {
     try {
       const { conversationId } = req.params;
@@ -239,13 +230,11 @@ export class ChatController {
       const conversation = await Conversation.findById(conversationId).select("participants");
       if (!conversation) throw new NotFoundException("Không tìm thấy cuộc trò chuyện");
 
-      // Kiểm tra quyền truy cập
       const isParticipant = conversation.participants.some(
         (p) => p.userId.toString() === req.user._id.toString()
       );
       if (!isParticipant) throw new NotFoundException("Không có quyền truy cập");
 
-      // Cập nhật mute status trong participant
       const participant = conversation.participants.find(
         (p) => p.userId.toString() === req.user._id.toString()
       );

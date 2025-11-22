@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { createPeerConversation } from "../services/chat.api.service";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { useConnectionStore } from "../../../stores/useConnectionStore";
+import { useConnectionStore } from "@/stores/useConnectionStore";
 
 export const useChatWithUser = () => {
   const navigate = useNavigate();

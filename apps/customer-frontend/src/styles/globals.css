@@ -428,3 +428,21 @@ html {
   scrollbar-width: thin;
   scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
 }
+/* src/styles/globals.css - BỔ SUNG CUỐI FILE */
+
+/* Ngăn chặn hiệu ứng "rubber band" kéo giãn trang trên iOS */
+body.fixed-body {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Input fix cho iOS để tránh zoom */
+@media screen and (-webkit-min-device-pixel-ratio: 0) { 
+  select,
+  textarea,
+  input {
+    font-size: 16px !important;
+  }
+}

@@ -256,6 +256,7 @@ async function startServer() {
     apiRouter.use("/printer-stripe", protect, isPrinter, stripeOnboardingRoutes);
     apiRouter.use("/payments/momo", momoRoutes);
     apiRouter.use("/payments/payos", payosRoutes);
+    apiRouter.use("/payos", payosRoutes); // ✅ Alias để tương thích với frontend
     apiRouter.use("/notifications", notificationRoutes);
     apiRouter.use("/wallet", protect, isPrinter, walletRoutes);
     apiRouter.use("/printer", protect, isPrinter, printerDashboardRoutes);

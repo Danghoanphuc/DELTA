@@ -1,11 +1,4 @@
-// src/components/printer/FaqAccordion.tsx (COMPONENT MỚI)
-import { HelpCircle } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/components/ui/card";
+// src/features/printer/components/FaqAccordion.tsx
 import {
   Accordion,
   AccordionContent,
@@ -16,40 +9,41 @@ import {
 export function FaqAccordion() {
   const faqs = [
     {
-      question: "Làm thế nào để thêm sản phẩm mới?",
-      answer:
-        "Vào mục 'Sản phẩm' > Nhấn nút 'Thêm sản phẩm mới' > Điền thông tin chi tiết và lưu.",
+      q: "Làm thế nào để thêm sản phẩm mới?",
+      a: "Vào mục 'Sản phẩm' > Nhấn nút 'Thêm sản phẩm mới' màu cam ở góc phải. Bạn sẽ được hướng dẫn qua quy trình 5 bước để đăng bán sản phẩm.",
     },
     {
-      question: "Tôi xem đơn hàng mới ở đâu?",
-      answer:
-        "Tất cả đơn hàng mới sẽ hiển thị trong mục 'Đơn hàng'. Bạn có thể lọc theo trạng thái 'Đang xử lý' hoặc 'Chờ xác nhận'.",
+      q: "Khi nào tôi nhận được tiền thanh toán?",
+      a: "Tiền sẽ được chuyển vào 'Số dư khả dụng' sau khi đơn hàng hoàn tất 3 ngày (để đảm bảo không có khiếu nại). Bạn có thể rút tiền bất cứ lúc nào khi số dư > 200.000đ.",
     },
     {
-      question: "Làm thế nào để thay đổi thông tin xưởng in?",
-      answer:
-        "Vào mục 'Cài đặt', bạn có thể cập nhật tên, địa chỉ, chuyên môn, và các thông tin khác của xưởng in.",
+      q: "Tôi có thể từ chối đơn hàng không?",
+      a: "Có. Nếu không thể thực hiện đơn hàng, bạn có thể bấm 'Từ chối' ở trạng thái Chờ xác nhận. Lưu ý: Việc từ chối quá nhiều có thể ảnh hưởng đến điểm uy tín của xưởng.",
+    },
+    {
+      q: "Làm sao để thay đổi thông tin xưởng in?",
+      a: "Truy cập mục 'Cài đặt' > 'Thông tin Xưởng'. Tại đây bạn có thể cập nhật Logo, Tên xưởng, Địa chỉ và Mô tả.",
+    },
+    {
+      q: "Phí nền tảng PrintZ là bao nhiêu?",
+      a: "PrintZ thu phí hoa hồng cố định trên mỗi đơn hàng thành công. Mức phí chi tiết tùy thuộc vào gói dịch vụ bạn đăng ký (Standard: 5%, Premium: 3%).",
     },
   ];
 
   return (
-    <Card className="border-none shadow-sm bg-white">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-800">
-          <HelpCircle size={20} className="text-orange-600" />
-          Câu hỏi thường gặp (FAQs)
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Accordion type="single" collapsible className="w-full">
-          {faqs.map((faq, index) => (
-            <AccordionItem value={`item-${index}`} key={index}>
-              <AccordionTrigger>{faq.question}</AccordionTrigger>
-              <AccordionContent>{faq.answer}</AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </CardContent>
-    </Card>
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <Accordion type="single" collapsible className="w-full">
+        {faqs.map((faq, index) => (
+          <AccordionItem value={`item-${index}`} key={index} className="border-b border-gray-100 last:border-0 px-6">
+            <AccordionTrigger className="text-gray-800 hover:text-orange-600 hover:no-underline py-4 text-left text-sm font-medium">
+               {faq.q}
+            </AccordionTrigger>
+            <AccordionContent className="text-gray-500 pb-4 leading-relaxed">
+               {faq.a}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    </div>
   );
 }

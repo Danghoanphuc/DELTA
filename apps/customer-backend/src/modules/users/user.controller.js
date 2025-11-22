@@ -16,7 +16,7 @@ export class UserController {
       const userId = req.user._id;
 
       const user = await User.findById(userId)
-        .select("_id username displayName avatarUrl bio email createdAt")
+        .select("_id username displayName avatarUrl bio email printerProfileId phone createdAt")
         .lean();
 
       if (!user) {
@@ -41,36 +41,60 @@ export class UserController {
       const { q } = req.query;
       const currentUserId = req.user._id;
 
+      // Validate đầu vào
       if (!q || q.trim().length < 2) {
         return res.json(ApiResponse.success({ users: [] }));
       }
 
       Logger.debug(`[UserCtrl] Searching users: "${q}"`);
 
-      // Search by username or displayName (case-insensitive)
-      const users = await User.find({
-        _id: { $ne: currentUserId }, // Exclude current user
+      // 1. Tìm User (Tạm thời bỏ isActive: true để debug dễ hơn, hoặc đảm bảo DB đã set true)
+      // Nếu bạn chắc chắn DB có isActive=true thì uncomment lại dòng đó.
+      const query = {
+        _id: { $ne: currentUserId }, // Không tìm chính mình
         $or: [
           { username: { $regex: q, $options: "i" } },
           { displayName: { $regex: q, $options: "i" } },
-        ],
-        isActive: true,
-      })
+          { email: { $regex: q, $options: "i" } } // Bonus: Tìm thêm theo email nếu cần
+        ]
+        // isActive: true, // ⚠️ Bật lại dòng này khi chạy Production
+      };
+
+      const users = await User.find(query)
         .select("_id username displayName avatarUrl bio")
         .limit(20)
         .lean();
 
-      // Get connection status for each user
+      if (users.length === 0) {
+        return res.json(ApiResponse.success({ users: [] }));
+      }
+
+      // 2. Map trạng thái Connection (Sử dụng query chuẩn thay vì custom method)
       const usersWithStatus = await Promise.all(
         users.map(async (user) => {
-          const connection = await Connection.findConnectionByUsers(
-            currentUserId,
-            user._id
-          );
+          // Tìm connection bất kể ai là người gửi/nhận
+          const connection = await Connection.findOne({
+            $or: [
+              { requester: currentUserId, recipient: user._id },
+              { requester: user._id, recipient: currentUserId }
+            ]
+          }).select("status _id requester recipient").lean();
+
+          // Xác định trạng thái cụ thể hơn
+          let status = "none";
+          if (connection) {
+            status = connection.status;
+            // Nếu đang pending, kiểm tra xem mình là người gửi hay người nhận
+            if (status === 'pending') {
+                const isSender = connection.requester.toString() === currentUserId.toString();
+                // Frontend có thể cần biết isSender để hiện nút "Hủy lời mời" hay "Chấp nhận"
+                // Tuy nhiên theo interface hiện tại trả về string status là đủ
+            }
+          }
 
           return {
             ...user,
-            connectionStatus: connection ? connection.status : "none",
+            connectionStatus: status,
             connectionId: connection ? connection._id : null,
           };
         })
@@ -102,15 +126,18 @@ export class UserController {
           .json(ApiResponse.error("User not found"));
       }
 
-      // Get connection status
+      // Get connection status logic
       let connectionStatus = "none";
       let connectionId = null;
 
       if (currentUserId) {
-        const connection = await Connection.findConnectionByUsers(
-          currentUserId,
-          userId
-        );
+        // Dùng query chuẩn thay vì hàm custom để tránh lỗi
+        const connection = await Connection.findOne({
+            $or: [
+              { requester: currentUserId, recipient: userId },
+              { requester: userId, recipient: currentUserId }
+            ]
+        }).select("status _id").lean();
 
         if (connection) {
           connectionStatus = connection.status;

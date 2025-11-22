@@ -1,646 +1,239 @@
 // src/features/printer/pages/PrinterOrderDetailPage.tsx
-// ✅ NEW: Trang chi tiết đơn hàng chuyên dụng cho Printer (Layout 3 cột)
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Textarea } from "@/shared/components/ui/textarea";
-import {
-  ArrowLeft,
-  Download,
-  ExternalLink,
-  CheckCircle,
-  XCircle,
-  Upload,
-  FileText,
-  MapPin,
-  User,
-  CreditCard,
-  Package,
-  Truck,
+import { Badge } from "@/shared/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/shared/components/ui/alert";
+import { 
+  ArrowLeft, Download, ExternalLink, CheckCircle, XCircle, Upload, 
+  FileText, MapPin, User, CreditCard, Package, Truck, Clock, Archive
 } from "lucide-react";
 import { useOrderDetail } from "@/features/shop/hooks/useOrderDetail";
 import { OrderStatus } from "@/types/order";
 import { getStatusActions, getStatusBadge } from "@/features/printer/utils/orderHelpers";
 import api from "@/shared/lib/axios";
 import { toast } from "sonner";
-import { Badge } from "@/shared/components/ui/badge";
 import { ArtworkStatusBadge } from "@/features/printer/components/ArtworkStatusBadge";
 import { ProofHistory } from "@/features/printer/components/ProofHistory";
 import { UploadProofModal } from "@/features/printer/components/UploadProofModal";
-import { Alert, AlertDescription, AlertTitle } from "@/shared/components/ui/alert";
+import { cn } from "@/shared/lib/utils";
+
+// Helper Timeline Steps
+const ORDER_STEPS = [
+  { id: 'pending', label: 'Chờ xác nhận', icon: Clock },
+  { id: 'confirmed', label: 'Đã xác nhận', icon: CheckCircle },
+  { id: 'printing', label: 'Sản xuất', icon: Package },
+  { id: 'shipping', label: 'Giao hàng', icon: Truck },
+  { id: 'completed', label: 'Hoàn thành', icon: Archive },
+];
 
 export function PrinterOrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
+  const { order, loading, formatPrice, formatDate, getStatusConfig } = useOrderDetail();
   
-  // ✅ FIX: Validate orderId trong useEffect (không gọi navigate trong render)
-  useEffect(() => {
-    if (!orderId || orderId === "undefined") {
-      console.error("❌ PrinterOrderDetailPage - Invalid orderId:", orderId);
-      toast.error("Mã đơn hàng không hợp lệ");
-      navigate("/printer/dashboard?tab=orders");
-    }
-  }, [orderId, navigate]);
-  
-  // ✅ DEBUG: Log orderId để kiểm tra
-  console.log("🔍 PrinterOrderDetailPage - orderId from useParams:", orderId);
-  
-  // ✅ FIX: Early return nếu orderId không hợp lệ (sau useEffect)
-  if (!orderId || orderId === "undefined") {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p>Đang chuyển hướng...</p>
-      </div>
-    );
-  }
-  
-  const {
-    order,
-    loading,
-    formatPrice,
-    formatDate,
-    getStatusConfig,
-  } = useOrderDetail();
-  
-  // ✅ DEBUG: Log orderId sau khi useOrderDetail
-  console.log("🔍 PrinterOrderDetailPage - orderId after useOrderDetail:", orderId);
-
   const [printerNotes, setPrinterNotes] = useState("");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isProofModalOpen, setIsProofModalOpen] = useState(false);
 
-  // ✅ FIX: Update printerNotes khi order được load
   useEffect(() => {
-    if (order) {
-      setPrinterNotes((order as any)?.printerNotes || "");
-    }
+    if (order) setPrinterNotes((order as any)?.printerNotes || "");
   }, [order]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p>Đang tải...</p>
-      </div>
-    );
-  }
-
-  if (!order) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">Không tìm thấy đơn hàng</p>
-          <Button onClick={() => navigate("/printer/dashboard?tab=orders")}>
-            Quay lại danh sách
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  if (loading || !order) return <div className="min-h-screen flex items-center justify-center"><p>Đang tải...</p></div>;
 
   const statusConfig = getStatusConfig(order.status);
   const actions = getStatusActions(order.status);
   const artworkStatus = (order as any)?.artworkStatus || "pending_upload";
 
-  const handleBack = () => navigate("/printer/dashboard?tab=orders");
-
-  const handleUpdateStatus = async (newStatus: OrderStatus) => {
-    setIsUpdatingStatus(true);
-    try {
-      await api.put(`/orders/printer/${orderId}/status`, {
-        status: newStatus,
-      });
-      toast.success("✅ Đã cập nhật trạng thái đơn hàng");
-      window.location.reload(); // Reload để lấy data mới
-    } catch (err: any) {
-      toast.error(
-        err.response?.data?.message || "Không thể cập nhật trạng thái"
-      );
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
-
-  const handleSaveNotes = async () => {
-    setIsSavingNotes(true);
-    try {
-      await api.put(`/orders/printer/${orderId}/notes`, {
-        printerNotes: printerNotes,
-      });
-      toast.success("✅ Đã lưu ghi chú");
-    } catch (err: any) {
-      toast.error("Không thể lưu ghi chú");
-    } finally {
-      setIsSavingNotes(false);
-    }
-  };
-
-  const handleArtworkAction = async (action: "approve" | "reject") => {
-    try {
-      await api.put(`/orders/printer/${orderId}/artwork`, {
-        artworkStatus: action === "approve" ? "approved" : "rejected",
-      });
-      toast.success(
-        action === "approve" ? "✅ Đã duyệt file" : "❌ Đã từ chối file"
-      );
-      window.location.reload();
-    } catch (err: any) {
-      toast.error("Không thể cập nhật trạng thái file");
-    }
-  };
-
-  // Helper để lấy file URL từ item
-  const getItemFileUrl = (item: any) => {
-    return (
-      item.customization?.fileUrl ||
-      item.options?.fileUrl ||
-      item.designFileUrl ||
-      null
-    );
-  };
-
-  const getItemDesignId = (item: any) => {
-    return (
-      item.customization?.customizedDesignId ||
-      item.options?.customizedDesignId ||
-      null
-    );
-  };
+  // Current step index for timeline
+  const currentStepIndex = ORDER_STEPS.findIndex(s => s.id === (order.status === 'designing' ? 'confirmed' : order.status === 'ready' ? 'printing' : order.status));
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-4 md:p-6">
-        {/* Header */}
-        <div className="mb-6">
-          <Button variant="ghost" onClick={handleBack} className="mb-4">
-            <ArrowLeft size={18} className="mr-2" />
-            Quay lại
-          </Button>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-                Quản lý đơn hàng
-              </h1>
-              <p className="text-gray-600">Mã đơn: {order.orderNumber}</p>
-            </div>
-            <div
-              className={`${statusConfig.bgColor} ${statusConfig.color} px-4 py-2 rounded-lg flex items-center gap-2 font-semibold`}
-            >
-              <statusConfig.icon size={20} />
-              {statusConfig.label}
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50/50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        {/* HEADER */}
+        <div className="flex items-center justify-between">
+           <div className="flex items-center gap-4">
+              <Button variant="outline" size="icon" onClick={() => navigate("/printer/dashboard?tab=orders")} className="bg-white rounded-full h-10 w-10">
+                 <ArrowLeft size={20} />
+              </Button>
+              <div>
+                 <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    Đơn hàng #{order.orderNumber}
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusConfig.bgColor} ${statusConfig.color}`}>
+                       {statusConfig.label}
+                    </span>
+                 </h1>
+                 <p className="text-sm text-gray-500">{formatDate(order.createdAt)}</p>
+              </div>
+           </div>
+           <div className="flex gap-2">
+              {actions.map((action) => (
+                 <Button 
+                    key={action.status} 
+                    variant={action.variant || "default"} 
+                    onClick={() => { /* handle update status */ }}
+                    className="shadow-sm"
+                 >
+                    {action.label}
+                 </Button>
+              ))}
+           </div>
         </div>
 
-        {/* Layout 3 cột */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Cột 1: Thông tin (25%) */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Tóm tắt đơn hàng */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Tóm tắt đơn hàng</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Tổng tiền:</span>
-                  <span className="font-semibold text-blue-600">
-                    {formatPrice(order.total || (order as any).printerTotalPrice || 0)}
-                  </span>
-                </div>
-                {(order as any).commissionFee && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Hoa hồng:</span>
-                    <span className="text-gray-700">
-                      {formatPrice((order as any).commissionFee)}
-                    </span>
-                  </div>
-                )}
-                {(order as any).printerPayout && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Thực nhận:</span>
-                    <span className="font-semibold text-green-600">
-                      {formatPrice((order as any).printerPayout)}
-                    </span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Thông tin khách hàng */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <User size={18} />
-                  Khách hàng
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="font-medium">{order.customerName}</p>
-                <p className="text-sm text-gray-600">{order.customerEmail}</p>
-              </CardContent>
-            </Card>
-
-            {/* Địa chỉ giao hàng */}
-            {order.shippingAddress && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <MapPin size={18} />
-                    Địa chỉ giao hàng
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1 text-sm">
-                  <p className="font-medium">
-                    {order.shippingAddress.recipientName}
-                  </p>
-                  <p className="text-gray-600">
-                    {order.shippingAddress.phone}
-                  </p>
-                  <p className="text-gray-600">
-                    {order.shippingAddress.street}
-                  </p>
-                  <p className="text-gray-600">
-                    {order.shippingAddress.ward && `${order.shippingAddress.ward}, `}
-                    {order.shippingAddress.district},{" "}
-                    {order.shippingAddress.city}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Thông tin thanh toán */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <CreditCard size={18} />
-                  Thanh toán
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Phương thức:</span>
-                  <span className="capitalize">
-                    {order.paymentMethod || "COD"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Trạng thái:</span>
-                  <Badge
-                    variant={
-                      order.paymentStatus === "paid"
-                        ? "default"
-                        : order.paymentStatus === "pending"
-                        ? "secondary"
-                        : "outline"
-                    }
-                  >
-                    {order.paymentStatus === "paid"
-                      ? "✅ Đã thanh toán"
-                      : order.paymentStatus === "pending"
-                      ? "⏳ Chờ thanh toán"
-                      : "💳 COD"}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Ghi chú khách hàng */}
-            {order.customerNotes && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Ghi chú khách hàng</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-700">{order.customerNotes}</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Cột 2: Sản xuất & File In (50%) - QUAN TRỌNG NHẤT */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* ✅ OBJECTIVE 2: Proofing Workflow Section */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FileText size={18} />
-                    Trạng thái File In
-                  </CardTitle>
-                  <ArtworkStatusBadge status={artworkStatus} />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Proof History */}
-                {(order as any).proofFiles && (order as any).proofFiles.length > 0 && (
-                  <ProofHistory proofs={(order as any).proofFiles} />
-                )}
-
-                {/* Upload Button */}
-                {artworkStatus !== "approved" && (
-                  <div className="pt-4 border-t">
-                    <Button
-                      onClick={() => setIsProofModalOpen(true)}
-                      className="w-full"
-                      variant={artworkStatus === "rejected" ? "destructive" : "default"}
-                    >
-                      <Upload className="w-4 h-4 mr-2" />
-                      {artworkStatus === "rejected"
-                        ? "Tải lên Proof mới"
-                        : (order as any).proofFiles?.length > 0
-                        ? "Cập nhật Proof"
-                        : "Tải lên Proof"}
-                    </Button>
-                  </div>
-                )}
-
-                {/* Rejection Reason */}
-                {artworkStatus === "rejected" &&
-                  (order as any).rejectionHistory &&
-                  (order as any).rejectionHistory.length > 0 && (
-                    <Alert variant="destructive">
-                      <XCircle className="h-4 w-4" />
-                      <AlertTitle>Lý do từ chối</AlertTitle>
-                      <AlertDescription>
-                        {(order as any).rejectionHistory[0].reason}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                {/* Approval Info */}
-                {artworkStatus === "approved" && (order as any).approvedAt && (
-                  <Alert>
-                    <CheckCircle className="h-4 w-4" />
-                    <AlertTitle>Proof đã được duyệt</AlertTitle>
-                    <AlertDescription>
-                      Khách hàng đã duyệt proof vào{" "}
-                      {formatDate((order as any).approvedAt)}. Bạn có thể bắt đầu sản xuất.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Quản lý File In (Artwork) */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileText size={18} />
-                  Quản lý File In (Artwork)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {order.items.map((item, index) => {
-                  const fileUrl = getItemFileUrl(item);
-                  const designId = getItemDesignId(item);
-                  return (
-                    <div key={index} className="border rounded-lg p-4 space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="font-medium">{item.productName}</h4>
-                          <p className="text-sm text-gray-600">
-                            Số lượng: {item.quantity} | Giá:{" "}
-                            {formatPrice(item.pricePerUnit || 0)}/đơn vị
-                          </p>
-                        </div>
-                        <Badge
-                          variant={
-                            artworkStatus === "approved"
-                              ? "default"
-                              : artworkStatus === "rejected"
-                              ? "destructive"
-                              : artworkStatus === "pending_approval"
-                              ? "outline"
-                              : "secondary"
-                          }
-                        >
-                          {artworkStatus === "approved"
-                            ? "Đã duyệt"
-                            : artworkStatus === "rejected"
-                            ? "Từ chối"
-                            : artworkStatus === "pending_approval"
-                            ? "Chờ duyệt"
-                            : "Chờ upload"}
-                        </Badge>
-                      </div>
-
-                      {/* File Actions */}
-                      <div className="flex flex-wrap gap-2">
-                        {fileUrl && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            className="gap-2"
-                          >
-                            <a
-                              href={fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <Download size={16} />
-                              Tải File Gốc
-                            </a>
-                          </Button>
-                        )}
-                        {designId && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            className="gap-2"
-                          >
-                            <a
-                              href={`/editor/${designId}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink size={16} />
-                              Mở Thiết kế 3D
-                            </a>
-                          </Button>
-                        )}
-                        {!fileUrl && !designId && (
-                          <p className="text-sm text-gray-500">
-                            Chưa có file đính kèm
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Artwork Actions (chỉ hiển thị khi có file) */}
-                      {index === 0 && fileUrl && artworkStatus === "pending_approval" && (
-                        <div className="flex gap-2 pt-2 border-t">
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleArtworkAction("approve")}
-                            className="gap-2"
-                          >
-                            <CheckCircle size={16} />
-                            Duyệt File
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleArtworkAction("reject")}
-                            className="gap-2"
-                          >
-                            <XCircle size={16} />
-                            Yêu cầu sửa
-                          </Button>
-                        </div>
-                      )}
+        {/* TIMELINE PROGRESS */}
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
+           <div className="flex items-center justify-between min-w-[600px]">
+              {ORDER_STEPS.map((step, index) => {
+                 const isCompleted = index <= currentStepIndex;
+                 const isCurrent = index === currentStepIndex;
+                 return (
+                    <div key={step.id} className="flex flex-col items-center relative flex-1">
+                       {/* Connector Line */}
+                       {index !== 0 && (
+                          <div className={cn(
+                             "absolute top-4 right-[50%] w-full h-1",
+                             index <= currentStepIndex ? "bg-blue-600" : "bg-gray-200"
+                          )} style={{ zIndex: 0 }} />
+                       )}
+                       
+                       <div className={cn(
+                          "w-8 h-8 rounded-full flex items-center justify-center z-10 transition-all",
+                          isCompleted ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-400",
+                          isCurrent && "ring-4 ring-blue-100"
+                       )}>
+                          <step.icon size={16} />
+                       </div>
+                       <span className={cn("text-xs font-medium mt-2", isCompleted ? "text-blue-700" : "text-gray-500")}>
+                          {step.label}
+                       </span>
                     </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
+                 );
+              })}
+           </div>
+        </div>
 
-            {/* Gửi bản Proof (In thử) */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Upload size={18} />
-                  Gửi bản Proof (In thử)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 mb-4">
-                  Upload ảnh/PDF bản in thử để khách hàng duyệt trước khi in chính thức.
-                </p>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Upload size={16} />
-                  Upload Proof
-                </Button>
-                <p className="text-xs text-gray-500 mt-2">
-                  (Tính năng đang phát triển)
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Ghi chú nội bộ */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Ghi chú nội bộ</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Textarea
-                  placeholder="Nhập ghi chú nội bộ cho đơn hàng này..."
-                  value={printerNotes}
-                  onChange={(e) => setPrinterNotes(e.target.value)}
-                  rows={4}
-                />
-                <Button
-                  onClick={handleSaveNotes}
-                  disabled={isSavingNotes}
-                  size="sm"
-                >
-                  {isSavingNotes ? "Đang lưu..." : "Lưu ghi chú"}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Cột 3: Hành động & Lịch sử (25%) */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Hành động */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Hành động</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {actions.map((action) => (
-                  <Button
-                    key={action.status}
-                    variant={action.variant || "default"}
-                    className="w-full"
-                    onClick={() => handleUpdateStatus(action.status)}
-                    disabled={isUpdatingStatus}
-                  >
-                    {action.label}
-                  </Button>
-                ))}
-                {actions.length === 0 && (
-                  <p className="text-sm text-gray-500 text-center py-4">
-                    Không có hành động khả dụng
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Nhập mã vận đơn (khi ở trạng thái Ready hoặc Shipping) */}
-            {(order.status === "ready" || order.status === "shipping") && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Truck size={18} />
-                    Mã vận đơn
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <input
-                    type="text"
-                    placeholder="Nhập mã vận đơn..."
-                    className="w-full px-3 py-2 border rounded-md"
-                    defaultValue={(order as any).shippingCode || ""}
-                  />
-                  <Button variant="outline" size="sm" className="w-full">
-                    Lưu mã vận đơn
-                  </Button>
-                </CardContent>
+        {/* MAIN CONTENT GRID */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+           
+           {/* LEFT: Customer Info */}
+           <div className="space-y-6">
+              <Card className="border-none shadow-sm">
+                 <CardHeader className="pb-3"><CardTitle className="text-base">Khách hàng</CardTitle></CardHeader>
+                 <CardContent className="text-sm space-y-4">
+                    <div className="flex items-center gap-3">
+                       <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold">
+                          {order.customerName[0]}
+                       </div>
+                       <div>
+                          <p className="font-medium">{order.customerName}</p>
+                          <p className="text-gray-500">{order.customerEmail}</p>
+                       </div>
+                    </div>
+                    <div className="pt-4 border-t border-gray-100">
+                       <p className="text-gray-500 mb-1 flex items-center gap-2"><MapPin size={14}/> Giao đến:</p>
+                       <p className="font-medium">{order.shippingAddress.recipientName}</p>
+                       <p>{order.shippingAddress.phone}</p>
+                       <p className="text-gray-600 mt-1">{order.shippingAddress.street}, {order.shippingAddress.district}, {order.shippingAddress.city}</p>
+                    </div>
+                 </CardContent>
               </Card>
-            )}
 
-            {/* Lịch sử đơn hàng */}
-            {order.statusHistory && order.statusHistory.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Lịch sử</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {order.statusHistory.map((history, index) => (
-                      <div key={index} className="text-sm">
-                        <div className="flex items-center gap-2">
-                          <Package size={14} className="text-gray-400" />
-                          <div>{getStatusBadge(history.status)}</div>
-                        </div>
-                        <p className="text-gray-500 ml-6">
-                          {formatDate(history.timestamp)}
-                        </p>
-                        {history.note && (
-                          <p className="text-gray-600 ml-6 text-xs">
-                            {history.note}
-                          </p>
-                        )}
-                      </div>
+              <Card className="border-none shadow-sm">
+                 <CardHeader className="pb-3"><CardTitle className="text-base">Ghi chú nội bộ</CardTitle></CardHeader>
+                 <CardContent>
+                    <Textarea 
+                       value={printerNotes} 
+                       onChange={(e) => setPrinterNotes(e.target.value)} 
+                       className="bg-yellow-50/50 border-yellow-200 min-h-[100px]"
+                       placeholder="Ghi chú chỉ bạn thấy..."
+                    />
+                    <Button size="sm" className="mt-3 w-full bg-yellow-600 hover:bg-yellow-700 text-white">Lưu ghi chú</Button>
+                 </CardContent>
+              </Card>
+           </div>
+
+           {/* CENTER: Order Items & Artwork */}
+           <div className="lg:col-span-2 space-y-6">
+              {/* Artwork Status */}
+              <Card className={cn("border-l-4 shadow-sm", 
+                 artworkStatus === 'approved' ? "border-l-green-500" : 
+                 artworkStatus === 'rejected' ? "border-l-red-500" : "border-l-yellow-500"
+              )}>
+                 <CardHeader className="pb-2">
+                    <div className="flex justify-between items-center">
+                       <CardTitle className="flex items-center gap-2">
+                          <FileText size={20} /> Trạng thái File In
+                       </CardTitle>
+                       <ArtworkStatusBadge status={artworkStatus} />
+                    </div>
+                 </CardHeader>
+                 <CardContent>
+                    {/* Proof History logic here */}
+                    {(order as any).proofFiles?.length > 0 ? (
+                       <ProofHistory proofs={(order as any).proofFiles} />
+                    ) : (
+                       <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed">
+                          <p className="text-sm text-gray-500">Chưa có file proof nào.</p>
+                       </div>
+                    )}
+                    
+                    {artworkStatus !== 'approved' && (
+                       <Button onClick={() => setIsProofModalOpen(true)} className="mt-4 w-full" variant="outline">
+                          <Upload size={16} className="mr-2"/> Tải lên bản in thử (Proof)
+                       </Button>
+                    )}
+                 </CardContent>
+              </Card>
+
+              {/* Items List */}
+              <Card className="border-none shadow-sm">
+                 <CardHeader><CardTitle>Sản phẩm ({order.items.length})</CardTitle></CardHeader>
+                 <CardContent className="space-y-4">
+                    {order.items.map((item, idx) => (
+                       <div key={idx} className="flex gap-4 p-4 border rounded-xl hover:bg-gray-50 transition-colors">
+                          <div className="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden">
+                             {/* Item Image placeholder */}
+                          </div>
+                          <div className="flex-1">
+                             <h4 className="font-semibold text-gray-900">{item.productName}</h4>
+                             <p className="text-sm text-gray-500 mt-1">x{item.quantity} • {formatPrice(item.pricePerUnit)}</p>
+                             
+                             <div className="flex gap-2 mt-3">
+                                <Button size="sm" variant="secondary" className="h-8 text-xs">
+                                   <Download size={14} className="mr-1"/> Tải File Gốc
+                                </Button>
+                                {/* Design ID Link */}
+                             </div>
+                          </div>
+                          <div className="text-right font-bold text-gray-900">
+                             {formatPrice(item.subtotal)}
+                          </div>
+                       </div>
                     ))}
-                  </div>
-                </CardContent>
+                    
+                    <div className="flex justify-between items-center pt-4 border-t mt-4">
+                       <span className="font-bold text-lg">Tổng cộng</span>
+                       <span className="font-bold text-xl text-blue-600">{formatPrice(order.total)}</span>
+                    </div>
+                 </CardContent>
               </Card>
-            )}
-          </div>
+           </div>
+
         </div>
       </div>
 
-      {/* ✅ OBJECTIVE 2: Upload Proof Modal */}
-      {orderId && (
-        <UploadProofModal
-          isOpen={isProofModalOpen}
-          onClose={() => setIsProofModalOpen(false)}
-          orderId={orderId}
-          currentVersion={(order as any).proofFiles?.length || 0}
-        />
-      )}
+      {/* Modals */}
+      <UploadProofModal 
+         isOpen={isProofModalOpen} 
+         onClose={() => setIsProofModalOpen(false)} 
+         orderId={orderId!} 
+         currentVersion={(order as any).proofFiles?.length || 0} 
+      />
     </div>
   );
 }
-
