@@ -1,7 +1,6 @@
 // src/features/printer/pages/CreateProductWizard.tsx
-// ✨ SMART PIPELINE: Using useSmartWizard with auto-save + new components
+// ✅ BÀN GIAO: Đã vá lỗi Infinite Loop + Cải tiến Event-driven
 
-// ✨ CHANGED: useCreateProductWizard -> useSmartWizard
 import { useSmartWizard } from "@/features/printer/hooks/useSmartWizard";
 import { Form } from "@/shared/components/ui/form";
 import { Button } from "@/shared/components/ui/button";
@@ -9,7 +8,6 @@ import {
   Card,
   CardHeader,
   CardTitle,
-  CardContent,
 } from "@/shared/components/ui/card";
 import { ArrowLeft, Loader2, Save, CheckCircle2 } from "lucide-react";
 import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
@@ -17,10 +15,8 @@ import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScr
 // Import các component con
 import { ProductWizardStepper } from "@/features/printer/components/product-wizard/ProductWizardStepper";
 import { ProductWizardPreview } from "@/features/printer/components/product-wizard/ProductWizardPreview";
-// ✨ CHANGED: Step1_SelectAsset -> Step1_SelectAsset_New (infinite scroll)
 import { Step1_SelectAsset_New } from "@/features/printer/components/product-wizard/steps/Step1_SelectAsset_New";
 import { Step2_GeneralInfo } from "@/features/printer/components/product-wizard/steps/Step2_GeneralInfo";
-// ✨ CHANGED: Step3_Images -> Step3_Images_New (async upload with URLs)
 import { Step3_Images_New } from "@/features/printer/components/product-wizard/steps/Step3_Images_New";
 import { Step4_Pricing } from "@/features/printer/components/product-wizard/steps/Step4_Pricing";
 import { Step5_Publish } from "@/features/printer/components/product-wizard/steps/Step5_Publish";
@@ -36,16 +32,14 @@ export function CreateProductWizard({
   onFormClose,
   onSuccess,
 }: CreateProductWizardProps) {
-  // ✨ SMART PIPELINE: Using useSmartWizard instead of useCreateProductWizard
+  // ✅ SỬA: Lấy handleSelectAsset từ hook mới
   const {
     form,
     isLoading,
     isSubmitting,
-    draftStatus, // ✨ NEW: Draft status indicator
+    draftStatus,
     activeStep,
     setActiveStep,
-    privateAssets,
-    publicAssets,
     selectedAsset,
     pricingFields,
     addPricingTier,
@@ -53,9 +47,11 @@ export function CreateProductWizard({
     validateAndGoToStep,
     onSubmit,
     onError,
+    handleSelectAsset, // ✨ Hàm xử lý chọn phôi (quan trọng)
   } = useSmartWizard(productId, onSuccess);
 
   const { handleSubmit, control } = form;
+  
   // Keep watching images to avoid stale references during render cycles
   const watchedImages = form.watch("images");
   void watchedImages;
@@ -75,19 +71,19 @@ export function CreateProductWizard({
         onSubmit={handleSubmit(onSubmit, onError)}
         className="flex flex-col h-full"
       >
-        {/* ✨ SMART PIPELINE: Header with draft status */}
+        {/* Header with draft status */}
         <Card className="rounded-none border-t-0 border-x-0 sticky top-0 z-30 bg-white">
           <CardHeader className="flex flex-row items-center gap-2 space-y-0 p-4 border-b">
-            <Button variant="ghost" size="icon" onClick={onFormClose}>
+            <Button variant="ghost" size="icon" onClick={onFormClose} type="button">
               <ArrowLeft />
             </Button>
-            <Button variant="outline" size="sm" onClick={onFormClose}>
+            <Button variant="outline" size="sm" onClick={onFormClose} type="button">
               Quay lại trang Sản phẩm
             </Button>
             <CardTitle className="text-lg font-semibold ml-4">
               {productId ? "Chỉnh sửa sản phẩm" : "Đăng bán sản phẩm mới"}
             </CardTitle>
-            {/* ✨ Draft Status Indicator */}
+            {/* Draft Status Indicator */}
             <div className="ml-auto flex items-center gap-2">
               {draftStatus === "saving" && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -122,13 +118,16 @@ export function CreateProductWizard({
             {/* Form Steps (Scrollable) */}
             <ScrollArea className="flex-1 h-full pr-4">
               <div className="space-y-6">
-                {/* ✨ SMART PIPELINE: Using Step1_SelectAsset_New with infinite scroll */}
+                {/* Bước 1: Chọn Asset */}
+                {/* ✅ FIX: Truyền hàm handleSelectAsset xuống */}
                 <Step1_SelectAsset_New
                   control={control}
                   isExpanded={activeStep === 1}
                   onExpand={() => setActiveStep(1)}
+                  onSelectAsset={handleSelectAsset} 
                 />
 
+                {/* Bước 2: Thông tin chung */}
                 <Step2_GeneralInfo
                   control={control}
                   isExpanded={activeStep === 2}
@@ -138,7 +137,7 @@ export function CreateProductWizard({
                   }
                 />
 
-                {/* ✨ SMART PIPELINE: Using Step3_Images_New with async upload */}
+                {/* Bước 3: Upload ảnh */}
                 <Step3_Images_New
                   control={control}
                   isExpanded={activeStep === 3}
@@ -146,7 +145,7 @@ export function CreateProductWizard({
                   onValidate={() => validateAndGoToStep(4, ["images"])}
                 />
 
-                {/* ✅ SỬA: Đổi thành Bước 4 */}
+                {/* Bước 4: Giá */}
                 <Step4_Pricing
                   control={control}
                   fields={pricingFields}
@@ -157,7 +156,7 @@ export function CreateProductWizard({
                   onValidate={() => validateAndGoToStep(5, ["pricing"])}
                 />
 
-                {/* ✅ SỬA: Đổi thành Bước 5 */}
+                {/* Bước 5: Đăng bán */}
                 <Step5_Publish
                   control={control}
                   isExpanded={activeStep === 5}
@@ -173,7 +172,7 @@ export function CreateProductWizard({
           </div>
         </div>
 
-        {/* Footer Actions (giữ nguyên) */}
+        {/* Footer Actions */}
         <div className="flex justify-end gap-4 p-4 border-t bg-white sticky bottom-0 z-30">
           <Button
             type="button"

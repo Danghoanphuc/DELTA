@@ -10,9 +10,21 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     resolve: {
-      alias: {
-        "@": path.resolve(__dirname, "./src"),
-      },
+      alias: [
+        {
+          find: "@",
+          replacement: path.resolve(__dirname, "./src"),
+        },
+        // ✅ FIX: Alias cho mapbox-gl JS - chỉ match exact "mapbox-gl", không match "mapbox-gl/dist/..."
+        {
+          find: /^mapbox-gl$/,
+          replacement: path.resolve(__dirname, "node_modules/mapbox-gl/dist/mapbox-gl.js"),
+        },
+      ],
+      // ✅ FIX: Đảm bảo resolve đúng các package
+      dedupe: ["react", "react-dom"],
+      // ✅ FIX: Thêm conditions để resolve đúng exports
+      conditions: ["import", "module", "browser", "default"],
     },
 
     // === PHẦN MỚI (GĐ 5.R3) ===
@@ -35,6 +47,33 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_BACKEND_URL || "http://localhost:8000",
           changeOrigin: true,
           secure: false,
+        },
+      },
+    },
+
+    // ✅ FIX: Optimize dependencies - Không include react-map-gl vì có vấn đề với exports
+    optimizeDeps: {
+      include: [
+        "mapbox-gl",
+      ],
+      // ✅ KHÔNG exclude react-map-gl - để Vite tự resolve khi runtime
+      esbuildOptions: {
+        // ✅ FIX: Đảm bảo resolve đúng các package có vấn đề với exports
+        mainFields: ["module", "main", "browser"],
+      },
+    },
+
+    // ✅ FIX: Cấu hình build để xử lý mapbox-gl worker
+    build: {
+      commonjsOptions: {
+        include: [/node_modules/],
+      },
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            "mapbox-gl": ["mapbox-gl"],
+            "react-map-gl": ["react-map-gl"],
+          },
         },
       },
     },

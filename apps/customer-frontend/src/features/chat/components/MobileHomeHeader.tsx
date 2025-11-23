@@ -12,7 +12,7 @@ interface MobileHomeHeaderProps {
 const quickUtilityItems = [
   { label: "Printz Studio", icon: Wand2, href: "/design-editor" },
   { label: "Printz B2B", icon: Building2, href: "/contact" },
-  { label: "In gấp 24h", icon: Timer, href: "/shop?fast=1" },
+  { label: "In gấp 24h", icon: Timer, href: "/rush" },
   { label: "Theo sự kiện", icon: CalendarDays, href: "/inspiration" },
 ];
 

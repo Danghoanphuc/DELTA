@@ -250,6 +250,38 @@ const PrinterProfileSchema = new mongoose.Schema(
     taxCode: {
       type: String,
     },
+
+    // ✅ RUSH ORDER CONFIGURATION
+    rushConfig: {
+      acceptsRushOrders: {
+        type: Boolean,
+        default: false,
+        index: true, // ✅ Thêm index để query nhanh hơn
+      },
+      maxRushDistanceKm: {
+        type: Number,
+        default: 10, // ✅ Cập nhật default: 10km thay vì 0
+        min: 0,
+      },
+      rushFeePercentage: {
+        type: Number,
+        default: 0.2, // ✅ Cập nhật default: 20% thay vì 0
+        min: 0,
+        max: 1, // 0-100% as decimal
+      },
+      rushFeeFixed: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+    },
+
+    // ✅ RUSH ORDER QUEUE TRACKING
+    currentRushQueue: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: true,
@@ -334,6 +366,8 @@ PrinterProfileSchema.index({ isActive: 1 });
 PrinterProfileSchema.index({ tier: 1 });
 PrinterProfileSchema.index({ createdAt: -1 });
 PrinterProfileSchema.index({ updatedAt: -1 });
+// ✅ RUSH ORDER: Indexes cho rush order queries
+PrinterProfileSchema.index({ "rushConfig.acceptsRushOrders": 1, isActive: 1, isVerified: 1 });
 
 // ✅ FIX: Virtual để backward compatibility
 PrinterProfileSchema.virtual("printerProfileId").get(function () {

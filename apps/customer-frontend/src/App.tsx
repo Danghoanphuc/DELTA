@@ -75,6 +75,7 @@ const ChatHistoryPage = lazy(() => import("@/features/chat/pages/ChatHistoryPage
 const NotificationsPage = lazy(() => import("@/features/notifications/pages/NotificationsPage"));
 const MessagesPage = lazy(() => import("@/features/social/pages/MessagesPage"));
 const FriendsPage = lazy(() => import("@/features/social/pages/FriendsPage"));
+const RushPage = lazyWorkaround(() => import("@/features/rush/pages/RushPage")); // ✅ RUSH ORDER: Printz Express
 
 function App() {
   const isAuthenticated = useAuthStore((state) => !!state.accessToken);
@@ -157,6 +158,7 @@ function App() {
 
                 {/* Public Shop Routes */}
                 <Route path="/shop" element={<ShopPortalPage />} />
+                <Route path="/rush" element={<RushPage />} /> {/* ✅ RUSH ORDER: Printz Express */}
                 <Route path="/app" element={<ChatAppPage />} />
                 <Route path="/product/:slug" element={<ProductDetailPage />} />
                 <Route path="/products/:id" element={<ProductDetailPage />} />

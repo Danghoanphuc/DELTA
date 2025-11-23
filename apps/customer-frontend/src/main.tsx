@@ -1,5 +1,8 @@
 import { createRoot } from "react-dom/client";
 import "./styles/globals.css";
+// ✅ FIX: Import mapbox-gl CSS - Vite sẽ tự resolve từ node_modules
+// Lưu ý: Alias chỉ áp dụng cho JS imports, không ảnh hưởng CSS
+import "mapbox-gl/dist/mapbox-gl.css";
 import App from "./App";
 // ✅ 1. Import
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

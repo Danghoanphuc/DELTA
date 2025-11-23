@@ -209,6 +209,11 @@ export class OrderService {
         });
       }
 
+      // ✅ RUSH ORDER: Lấy rush order fields từ orderData nếu có
+      const isRushOrder = orderData.isRushOrder || false;
+      const rushFeeAmount = orderData.rushFeeAmount || 0;
+      const requiredDeadline = orderData.requiredDeadline || null;
+
       const masterOrderData = {
         orderNumber: await this.orderRepository.generateOrderNumber(),
         // --- PayOS Integration ---
@@ -224,9 +229,13 @@ export class OrderService {
         masterStatus: MASTER_ORDER_STATUS.PENDING_PAYMENT,
         paymentStatus: PAYMENT_STATUS.PENDING,
         printerOrders: printerOrdersData,
-        totalPrice: totalAmount,
+        totalPrice: totalAmount + rushFeeAmount, // ✅ RUSH: Tổng giá bao gồm rush fee
         totalCommission,
         totalPayout,
+        // ✅ RUSH ORDER FIELDS
+        isRushOrder,
+        rushFeeAmount,
+        requiredDeadline,
       };
       const newMasterOrder = await this.orderRepository.createMasterOrder(
         masterOrderData,

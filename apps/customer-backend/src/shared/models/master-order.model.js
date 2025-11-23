@@ -164,6 +164,21 @@ const MasterOrderSchema = new mongoose.Schema(
       default: MASTER_ORDER_STATUS.PENDING_PAYMENT,
       index: true,
     },
+
+    // ✅ RUSH ORDER FIELDS
+    isRushOrder: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    requiredDeadline: {
+      type: Date,
+    },
+    rushFeeAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   { timestamps: true }
 );

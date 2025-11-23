@@ -13,6 +13,7 @@ import { SupportPage } from "@/features/printer/pages/SupportPage";
 import { AccountPage } from "@/features/printer/pages/AccountPage";
 import AssetManagementPage from "@/features/printer/pages/AssetManagementPage";
 import { WalletPage } from "@/features/printer/pages/WalletPage";
+import { RushOrderListener } from "@/features/printer/components/RushOrderListener";
 
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -138,6 +139,9 @@ export default function PrinterApp() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
+      {/* ✅ RUSH ORDER: Listener cho đơn hàng gấp */}
+      <RushOrderListener />
+      
       {/* Sidebar (Fixed on Desktop, Bottom on Mobile) */}
       <PrinterSidebar activeTab={activeTab} onTabChange={handleTabChange} />
       

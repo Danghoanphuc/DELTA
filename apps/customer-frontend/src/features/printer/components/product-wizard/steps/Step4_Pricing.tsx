@@ -1,6 +1,4 @@
 // src/features/printer/components/product-wizard/steps/Step4_Pricing.tsx
-// ✅ SỬA: Đổi tên từ Step3 -> Step4
-
 import { Control, FieldArrayWithId } from "react-hook-form";
 import {
   Card,
@@ -30,7 +28,6 @@ interface StepProps {
   onValidate: () => void;
 }
 
-// ✅ SỬA: Đổi tên component
 export function Step4_Pricing({
   control,
   fields,
@@ -48,15 +45,8 @@ export function Step4_Pricing({
       className={isDisabled ? "bg-gray-50" : "cursor-pointer"}
     >
       <CardHeader>
-        <CardTitle
-          className={`flex items-center gap-2 ${
-            isDisabled ? "text-gray-400" : ""
-          }`}
-        >
-          <DollarSign
-            className={isDisabled ? "text-gray-400" : "text-green-600"}
-          />
-          {/* ✅ SỬA: Đổi tên Bước */}
+        <CardTitle className={`flex items-center gap-2 ${isDisabled ? "text-gray-400" : ""}`}>
+          <DollarSign className={isDisabled ? "text-gray-400" : "text-green-600"} />
           Bước 4: Cài đặt Bảng giá
         </CardTitle>
       </CardHeader>
@@ -75,12 +65,15 @@ export function Step4_Pricing({
                     <FormItem className="flex-1">
                       <FormLabel className="text-xs">Số lượng (từ)</FormLabel>
                       <FormControl>
+                        {/* ✅ FIX: Sử dụng valueAsNumber chuẩn của HTML/React */}
                         <Input
                           type="number"
                           {...field}
-                          onChange={(e) =>
-                            field.onChange(e.target.valueAsNumber || 0)
-                          }
+                          onChange={(e) => {
+                            // Parse số an toàn: Nếu rỗng -> 0, ngược lại lấy số
+                            const val = e.target.valueAsNumber;
+                            field.onChange(isNaN(val) ? 0 : val);
+                          }}
                         />
                       </FormControl>
                       <FormMessage className="text-xs" />
@@ -94,12 +87,14 @@ export function Step4_Pricing({
                     <FormItem className="flex-1">
                       <FormLabel className="text-xs">Đơn giá (VND)</FormLabel>
                       <FormControl>
+                        {/* ✅ FIX: Sử dụng valueAsNumber chuẩn của HTML/React */}
                         <Input
                           type="number"
                           {...field}
-                          onChange={(e) =>
-                            field.onChange(e.target.valueAsNumber || 0)
-                          }
+                          onChange={(e) => {
+                            const val = e.target.valueAsNumber;
+                            field.onChange(isNaN(val) ? 0 : val);
+                          }}
                         />
                       </FormControl>
                       <FormMessage className="text-xs" />

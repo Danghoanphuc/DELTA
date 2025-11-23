@@ -18,13 +18,13 @@ const items = [
   },
   {
     id: "fast",
-    label: "In Gấp 24h",
-    sublabel: "Chốt đơn ngay kẻo trễ", // Scarcity (Sợ bỏ lỡ)
+    label: "Printz",
+    sublabel: "In ngay, lấy gấp trong ngày ", // Scarcity (Sợ bỏ lỡ)
     icon: Timer,
-    href: "/shop?fast=1",
+    href: "/rush", // ✅ CẬP NHẬT: Trỏ thẳng sang trang Rush Page
     bg: "bg-white hover:bg-orange-50 border border-gray-100 hover:border-orange-200",
     iconBg: "bg-orange-100 text-orange-600",
-    badge: "SOS",
+    badge: "Express",
     badgeColor: "bg-red-100 text-red-600 border border-red-200 animate-pulse", // Giữ pulse nhẹ ở badge để báo khẩn cấp
   },
   {

@@ -28,7 +28,7 @@ import { isPrinter, protect } from "./shared/middleware/index.js";
 
 // (Import passport config)
 import "./infrastructure/auth/passport.config.js";
-
+import rushRoutes from "./modules/rush/rush.routes.js";
 // (Tạm thời tắt nếu chưa dùng)
 // import { initQueues } from './config/queue.config.js';
 
@@ -117,6 +117,7 @@ async function startServer() {
     const aiRoutes = (await import("./modules/ai/ai.routes.js")).default;
     const walletRoutes = (await import("./modules/wallet/wallet.routes.js"))
       .default;
+    const rushRoutes = (await import("./modules/rush/rush.routes.js")).default;
     const printerDashboardRoutes = (
       await import("./modules/printer-studio/printer-dashboard.routes.js")
     ).default;
@@ -262,6 +263,8 @@ async function startServer() {
     apiRouter.use("/printer", protect, isPrinter, printerDashboardRoutes);
     // ✨ SMART PIPELINE: AI routes
     apiRouter.use("/ai", aiRoutes);
+    // ✅ RUSH ORDER: Rush order routes
+    apiRouter.use("/rush", rushRoutes);
 
     app.use("/api", apiRouter);
 
