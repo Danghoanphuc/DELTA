@@ -72,3 +72,15 @@ export const uploadFileDirectly = async (
     throw new Error("Không thể tải file lên. Vui lòng kiểm tra kết nối.");
   }
 };
+
+/**
+ * ✅ BACKWARD COMPATIBILITY: Alias cho uploadFileDirectly
+ * Trả về URL string thay vì object (để tương thích với code cũ)
+ */
+export const uploadFileToCloudinary = async (
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<string> => {
+  const result = await uploadFileDirectly(file, onProgress);
+  return result.url;
+};
