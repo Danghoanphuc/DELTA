@@ -1,59 +1,74 @@
-// src/services/cloudinaryService.ts
-// ✅ Cập nhật để nhất quán với giải pháp mới
-
+// apps/customer-frontend/src/services/cloudinaryService.ts
 import api from "@/shared/lib/axios";
+import axios from "axios";
 
-// ✅ SỬA LỖI: Chỉ dùng đường dẫn tương đối.
-// axios sẽ tự động gọi: ${VITE_API_BASE_URL}/uploads/file
-const UPLOAD_ENDPOINT = "/uploads/file";
+interface CloudinarySignature {
+  signature: string;
+  timestamp: number;
+  cloudName: string;
+  apiKey: string;
+  uploadPreset: string;
+  folder: string;
+}
 
 /**
- * Tải file lên Cloudinary (qua Backend Proxy)
- * * @param file File (GLB/SVG/Image)
- * @returns Promise<string> URL sau khi upload
+ * 🚀 DIRECT UPLOAD: Tải file thẳng lên Cloudinary dùng Signed URL
+ * Giúp giảm tải cho server Printz khi user up file thiết kế nặng (AI, PSD, PDF)
  */
-export const uploadFileToCloudinary = async (file: File): Promise<string> => {
-  if (!file) throw new Error("File rỗng.");
-
-  const formData = new FormData();
-
-  // 1. Đính kèm file (key 'file' phải khớp với backend multer)
-  formData.append("file", file);
-
-  // 2. Thêm thông tin loại tài nguyên cho backend (để backend đặt đúng folder)
-  const resourceType =
-    file.name.endsWith(".glb") || file.name.endsWith(".gltf")
-      ? "3d-models"
-      : "products";
-  formData.append("resource_type", resourceType);
-
-  // 3. Log để theo dõi
-  console.log(
-    `[CloudinaryService] Đang tải file thật: ${file.name} lên ${resourceType}`
-  );
+export const uploadFileDirectly = async (
+  file: File, 
+  onProgress?: (percent: number) => void
+): Promise<{ url: string; publicId: string; format: string; resourceType: string }> => {
+  
+  // 1. Phân loại tài nguyên để xin chữ ký vào đúng folder
+  // - File thiết kế (.ai, .psd, .cdr, .pdf, .zip) -> resource_type: 'raw' (hoặc 'auto')
+  // - Ảnh (.png, .jpg) -> resource_type: 'image'
+  // - 3D (.glb) -> resource_type: 'image' (Cloudinary coi 3D là image đặc biệt) hoặc 'raw'
+  const isRaw = file.name.match(/\.(ai|psd|cdr|zip|rar|eps|pdf)$/i);
+  const resourceType = isRaw ? "raw" : "auto"; 
+  const folderContext = isRaw ? "printz/design-files" : "printz/chat-media";
 
   try {
-    // 4. Gọi API POST với FormData
-    const res = await api.post(UPLOAD_ENDPOINT, formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
+    // 2. Xin chữ ký từ Backend Printz (Secure)
+    const sigRes = await api.post("/uploads/signature", {
+      folder: folderContext
+    });
+    
+    const { signature, timestamp, cloudName, apiKey, uploadPreset, folder } = sigRes.data.data as CloudinarySignature;
+
+    // 3. Chuẩn bị Form Data gửi sang Cloudinary
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("api_key", apiKey);
+    formData.append("timestamp", timestamp.toString());
+    formData.append("signature", signature);
+    formData.append("upload_preset", uploadPreset);
+    formData.append("folder", folder);
+
+    // 4. Bắn thẳng sang Cloudinary (Bỏ qua Server mình)
+    const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
+    
+    const uploadRes = await axios.post(cloudinaryUrl, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total && onProgress) {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(percent);
+        }
       },
-      // Tăng timeout cho file GLB lớn
-      timeout: 30000,
     });
 
-    // 5. Giả định backend trả về { url: 'https://new-unique-url' }
-    const url = res.data?.url || res.data?.data?.url;
+    console.log("✅ [Direct Upload] Success:", uploadRes.data.secure_url);
 
-    if (!url) {
-      throw new Error("Không nhận được URL từ server sau khi upload");
-    }
+    return {
+      url: uploadRes.data.secure_url,
+      publicId: uploadRes.data.public_id,
+      format: uploadRes.data.format,
+      resourceType: uploadRes.data.resource_type
+    };
 
-    console.log(`✅ [CloudinaryService] Tải lên thành công: ${url}`);
-    return url;
   } catch (error) {
-    console.error("❌ [CloudinaryService] Lỗi upload thật:", error);
-    // Ném lỗi với thông báo chung
-    throw new Error("Tải file lên Cloud thất bại. Vui lòng kiểm tra kết nối.");
+    console.error("❌ [Direct Upload] Failed:", error);
+    throw new Error("Không thể tải file lên. Vui lòng kiểm tra kết nối.");
   }
 };

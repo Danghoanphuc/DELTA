@@ -207,7 +207,14 @@ export class ChatService {
       await session.commitTransaction();
       transactionCommitted = true;
 
+      // ✅ REDIS: Bot chat có tin nhắn mới -> Danh sách thay đổi thứ tự -> Xóa cache
       if (userId) {
+        try {
+          await this.chatRepository.invalidateUserCache(userId);
+        } catch (cacheError) {
+          Logger.warn("[ChatSvc] Cache invalidation failed (non-critical):", cacheError);
+        }
+
         try {
           socketService.emitToUser(userId.toString(), "new_message", {
             ...aiMsg.toObject(),
@@ -321,30 +328,4 @@ export class ChatService {
     await this.chatRepository.updateConversationTitle(id, title);
   }
 
-  /**
-   * ✅ FIXED: SOFT DELETE
-   * Thay vì gọi repository.deleteConversation (là hàm hard delete),
-   * ta thực hiện soft delete trực tiếp tại đây để an toàn.
-   */
-  async deleteConversation(conversationId, userId) {
-    // 1. Tìm conversation có user này
-    const conversation = await Conversation.findOne({
-      _id: conversationId,
-      "participants.userId": userId
-    });
-
-    if (!conversation) {
-      throw new NotFoundException("Không tìm thấy cuộc trò chuyện");
-    }
-
-    // 2. Cập nhật isVisible = false cho user này (Chỉ ẩn, không xóa)
-    await Conversation.updateOne(
-      { _id: conversationId, "participants.userId": userId },
-      { 
-        $set: { "participants.$.isVisible": false } 
-      }
-    );
-
-    Logger.info(`[ChatSvc] Soft deleted conversation ${conversationId} for user ${userId}`);
-  }
 }

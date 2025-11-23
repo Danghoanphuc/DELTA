@@ -27,36 +27,48 @@ export class UploadController {
   };
 
   /**
-   * ✨ SMART PIPELINE: Generate signed URL for direct upload to Cloudinary
+   * ✅ FIX: Generate signed URL chuẩn xác với Preset "Signed"
    * @desc    Client sẽ upload trực tiếp lên Cloudinary (không qua server)
+   * @note    ⚠️ QUAN TRỌNG: Preset phải là 'printz_signed' (Mode: Signed) đã tạo ở Cloudinary Dashboard
    */
   generateUploadSignature = async (req, res, next) => {
     try {
-      const { folder = "printz/products" } = req.body;
+      const { folder = "printz/chat-media" } = req.body;
 
+      // 1. Lấy timestamp hiện tại
       const timestamp = Math.round(new Date().getTime() / 1000);
+
+      // 2. Cấu hình chữ ký (Phải khớp 100% với tham số gửi lên từ Frontend)
+      // ⚠️ QUAN TRỌNG: Preset phải là 'printz_signed' (Mode: Signed) đã tạo ở Bước 1
+      const uploadConfig = {
+        timestamp,
+        folder,
+        upload_preset: "printz_signed",
+      };
+
+      // 3. Tạo chữ ký
       const signature = cloudinary.utils.api_sign_request(
-        {
-          timestamp,
-          folder,
-          upload_preset: "printz_products", // ⚠️ Cần tạo preset trong Cloudinary dashboard
-        },
+        uploadConfig,
         process.env.CLOUDINARY_API_SECRET
       );
 
-      res
-        .status(API_CODES.SUCCESS)
-        .json(
-          ApiResponse.success({
+      // 4. Trả về cho Frontend
+      res.status(API_CODES.SUCCESS).json(
+        ApiResponse.success(
+          {
             signature,
             timestamp,
             cloudName: process.env.CLOUDINARY_CLOUD_NAME,
             apiKey: process.env.CLOUDINARY_API_KEY,
-            uploadPreset: "printz_products",
+            uploadPreset: "printz_signed", // Trả về preset đúng
             folder,
-          }, "Signed URL generated")
-        );
+          },
+          "Signed URL generated"
+        )
+      );
     } catch (error) {
+      Logger.error("[UploadController] Signature Error:", error);
+      console.error("Signature Error:", error);
       next(error);
     }
   };

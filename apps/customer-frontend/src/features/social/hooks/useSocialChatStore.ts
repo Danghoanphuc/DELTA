@@ -27,6 +27,9 @@ interface SocialChatState {
   // ✅ NEW: Action xóa cuộc trò chuyện khỏi Store
   removeConversation: (conversationId: string) => void; 
 
+  // ✅ NEW: Cập nhật trạng thái Online/Offline cho user trong list chat
+  updateParticipantStatus: (userId: string, isOnline: boolean) => void;
+
   setActiveConversation: (conversationId: string | null) => void;
 
   setMessages: (conversationId: string, messages: ChatMessage[]) => void;
@@ -120,6 +123,50 @@ export const useSocialChatStore = create<SocialChatState>()(
           // Nếu đang mở cuộc trò chuyện này thì đóng lại
           activeConversationId: state.activeConversationId === conversationId ? null : state.activeConversationId,
         })),
+
+      // ✅ NEW: Cập nhật trạng thái Online/Offline cho participant trong conversations
+      updateParticipantStatus: (userId, isOnline) =>
+        set((state) => {
+          const updatedConversations = state.conversations.map((conversation) => {
+            // Kiểm tra xem user này có trong cuộc trò chuyện không
+            const hasParticipant = conversation.participants?.some(
+              (p: any) => {
+                const pId = typeof p.userId === 'string' ? p.userId : p.userId?._id;
+                return pId === userId;
+              }
+            );
+
+            if (!hasParticipant) return conversation;
+
+            // Cập nhật participant
+            const newParticipants = conversation.participants?.map((p: any) => {
+              const pId = typeof p.userId === 'string' ? p.userId : p.userId?._id;
+              
+              if (pId === userId) {
+                // Update nested object userId
+                if (typeof p.userId === 'string') {
+                  // Nếu userId là string, không thể update isOnline trực tiếp
+                  // Giữ nguyên hoặc convert sang object (tùy logic của bạn)
+                  return p;
+                } else {
+                  // userId là object, update isOnline
+                  return {
+                    ...p,
+                    userId: {
+                      ...p.userId,
+                      isOnline: isOnline,
+                    },
+                  };
+                }
+              }
+              return p;
+            });
+
+            return { ...conversation, participants: newParticipants };
+          });
+
+          return { conversations: updatedConversations };
+        }),
 
       setActiveConversation: (conversationId) => {
         set({ activeConversationId: conversationId });

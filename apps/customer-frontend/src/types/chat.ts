@@ -14,6 +14,8 @@ export interface ChatConversation {
   updatedAt: string;
   lastMessageAt?: string; // ✅ NEW: Timestamp of the last message
   type?: "customer-bot" | "peer-to-peer" | "customer-printer" | "group"; // ✅ FIXED: Đúng với backend enum
+  avatarUrl?: string; // ✅ NEW: Avatar URL cho group chat
+  description?: string; // ✅ NEW: Mô tả cho group chat
   participants?: Array<{
     userId: string | { _id: string; username?: string; displayName?: string; avatarUrl?: string };
     role?: string;

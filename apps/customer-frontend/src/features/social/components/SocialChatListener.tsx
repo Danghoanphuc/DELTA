@@ -4,6 +4,7 @@
 import { useEffect, useRef } from "react";
 import { useSocket } from "@/contexts/SocketProvider";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useConnectionStore } from "@/stores/useConnectionStore";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSocialChatStore } from "../hooks/useSocialChatStore";
@@ -15,10 +16,16 @@ const NOTIFICATION_SOUND = "/sounds/message-pop.mp3";
 export const SocialChatListener = () => {
   const { socket } = useSocket();
   const { user } = useAuthStore();
+  const { updateFriendStatus } = useConnectionStore();
   const navigate = useNavigate();
   const location = useLocation();
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const { handleSocketMessage, conversations, addConversation } = useSocialChatStore();
+  const { 
+    handleSocketMessage, 
+    conversations, 
+    addConversation, 
+    updateParticipantStatus // ✅ Lấy hàm update Chat List
+  } = useSocialChatStore();
 
   // 1. Init Audio
   useEffect(() => {
@@ -156,14 +163,27 @@ export const SocialChatListener = () => {
       );
     };
 
+    // ✅ LẮNG NGHE STATUS CHANGE: Cập nhật CẢ HAI store
+    const handleStatusChange = (data: { userId: string; isOnline: boolean }) => {
+      // 1. Cập nhật store Danh bạ (ConnectionStore)
+      updateFriendStatus(data.userId, data.isOnline);
+      
+      // 2. Cập nhật store Tin nhắn (SocialChatStore) -> Để ChatWindow và ConversationList đổi màu
+      updateParticipantStatus(data.userId, data.isOnline);
+      
+      console.log(`[Status] User ${data.userId} is now ${data.isOnline ? 'Online' : 'Offline'}`);
+    };
+
     socket.on("new_message", handleNewMessage);
     socket.on("notification", handleNotification); // Backend bạn có emit cái này trong social-chat.service.js
+    socket.on("user_status_change", handleStatusChange); // ✅ Lắng nghe status change
 
     return () => {
       socket.off("new_message", handleNewMessage);
       socket.off("notification", handleNotification);
+      socket.off("user_status_change", handleStatusChange);
     };
-  }, [socket, user, location, navigate, handleSocketMessage, conversations, addConversation]);
+  }, [socket, user, location, navigate, handleSocketMessage, conversations, addConversation, updateFriendStatus, updateParticipantStatus]);
 
   return null;
 };

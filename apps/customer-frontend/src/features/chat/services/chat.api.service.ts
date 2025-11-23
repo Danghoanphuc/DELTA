@@ -16,6 +16,30 @@ export const fetchChatConversations = async (): Promise<ChatConversation[]> => {
     return [];
   }
 };
+// apps/customer-frontend/src/features/chat/services/chat.api.service.ts
+// ... Các imports cũ
+
+// ✅ API MỚI: Lấy ngữ cảnh kinh doanh (Orders, Design Files) của hội thoại
+export const getConversationBusinessContext = async (conversationId: string) => {
+  try {
+    // Gọi API backend (bạn đã nhờ Cursor tạo)
+    const res = await api.get(`/chat/conversations/${conversationId}/business-context`);
+    return res.data?.data || { activeOrders: [], designFiles: [] };
+  } catch (error) {
+    console.warn("Failed to fetch business context, using fallback", error);
+    // Fallback data (để UI không chết khi chưa có Backend)
+    return {
+      activeOrders: [],
+      designFiles: []
+    };
+  }
+};
+
+// ✅ API MỚI: Tạo báo giá nhanh
+export const createQuote = async (conversationId: string, quoteData: any) => {
+  const res = await api.post(`/chat/conversations/${conversationId}/quote`, quoteData);
+  return res.data?.data;
+};
 
 export const fetchConversationById = async (
   conversationId: string
@@ -104,9 +128,16 @@ export const postChatMessage = async (
 
 export const postSocialChatMessage = async (
   message: string,
-  conversationId: string
+  conversationId: string,
+  attachments?: any[] // ✅ THÊM THAM SỐ NÀY
 ): Promise<ChatMessage> => {
-  const payload = { message, conversationId };
+  // Gửi cả message và attachments xuống backend
+  const payload = {
+    message,
+    conversationId,
+    attachments, // ✅ THÊM VÀO PAYLOAD
+  };
+
   const res = await api.post("/chat/message", payload);
   return res.data?.data;
 };
@@ -167,8 +198,75 @@ export const createPeerConversation = async (userId: string) => {
 };
 
 // ✅ HÀM MỚI: Tạo nhóm
-export const createGroupConversation = async (title: string, members: string[]) => {
-  const res = await api.post("/chat/conversations/group", { title, members });
+export interface CreateGroupParams {
+  title: string;
+  description?: string;
+  members: string[];
+  avatarFile?: File | null;
+  context?: {
+    referenceId: string;
+    referenceType: "ORDER" | "DESIGN" | "PRODUCT" | "NONE";
+    metadata?: any;
+  };
+}
+
+export const createGroupConversation = async (params: CreateGroupParams) => {
+  const formData = new FormData();
+
+  formData.append("title", params.title);
+  if (params.description) formData.append("description", params.description);
+
+  // Gửi array/object phức tạp qua FormData cần stringify
+  formData.append("members", JSON.stringify(params.members));
+
+  if (params.context) {
+    formData.append("context", JSON.stringify(params.context));
+  }
+
+  if (params.avatarFile) {
+    formData.append("avatar", params.avatarFile); // Key 'avatar' phải khớp với middleware multer ở BE
+  }
+
+  const res = await api.post("/chat/conversations/group", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+};
+
+// ✅ NEW: Cập nhật nhóm
+export interface UpdateGroupParams {
+  conversationId: string;
+  title?: string;
+  avatarFile?: File | null;
+  membersToRemove?: string[];
+  membersToAdd?: string[]; // ✅ Thêm hỗ trợ thêm thành viên
+}
+
+export const updateGroupConversation = async (params: UpdateGroupParams) => {
+  const formData = new FormData();
+
+  if (params.title) formData.append("title", params.title);
+
+  if (params.membersToRemove && params.membersToRemove.length > 0) {
+    formData.append("membersToRemove", JSON.stringify(params.membersToRemove));
+  }
+
+  // ✅ Gửi membersToAdd nếu có
+  if (params.membersToAdd && params.membersToAdd.length > 0) {
+    formData.append("membersToAdd", JSON.stringify(params.membersToAdd));
+  }
+
+  if (params.avatarFile) {
+    formData.append("avatar", params.avatarFile);
+  }
+
+  const res = await api.patch(
+    `/chat/conversations/group/${params.conversationId}`,
+    formData,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    }
+  );
   return res.data;
 };
 

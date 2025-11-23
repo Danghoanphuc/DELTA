@@ -97,6 +97,16 @@ const UserSchema = new mongoose.Schema(
     lastLoginAt: {
       type: Date,
     },
+    // ✅ THÊM 2 TRƯỜNG NÀY: Trạng thái online/offline và thời gian hoạt động cuối
+    isOnline: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    lastSeen: {
+      type: Date,
+      default: Date.now,
+    },
   },
   {
     timestamps: true,

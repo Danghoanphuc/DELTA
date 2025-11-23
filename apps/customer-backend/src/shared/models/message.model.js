@@ -25,16 +25,35 @@ const messageSchema = new mongoose.Schema(
     // ✅ REFACTOR: Thêm trường 'type' để hỗ trợ Rich Messages
     type: {
       type: String,
-      enum: ["text", "image", "file", "product", "order", "system"],
+      enum: ["text", "image", "file", "product", "order", "system", "quote"],
       default: "text",
     },
     
     content: {
       text: {
         type: String,
-        required: true,
+        default: "",
       },
-      // (Sau này bạn có thể thêm: images, attachments...)
+      fileUrl: {
+        type: String,
+        default: null,
+      },
+      // ✅ DEAL CLOSER: Hỗ trợ attachments (mảng file đính kèm)
+      attachments: [
+        {
+          url: { type: String, required: true },
+          type: { type: String, enum: ["image", "video", "file"], default: "file" },
+          originalName: { type: String },
+          name: { type: String },
+          format: { type: String }, // ✅ Extension (pdf, ai, zip...) để Frontend hiển thị icon đúng
+          size: { type: Number },
+          context: {
+            type: String,
+            enum: ["PRINT_FILE", "REFERENCE", "INVOICE", "OTHER"],
+            default: "OTHER",
+          },
+        },
+      ],
     },
     
     // ✅ REFACTOR: Thêm trường 'metadata' cho Rich Messages

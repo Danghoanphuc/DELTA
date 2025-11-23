@@ -30,6 +30,9 @@ interface ConnectionState {
   hasPendingRequest: (userId: string) => boolean;
   hasSentRequest: (userId: string) => boolean;
   
+  // Update friend online status
+  updateFriendStatus: (userId: string, isOnline: boolean) => void;
+  
   // Clear all
   clearConnections: () => void;
 }
@@ -100,6 +103,37 @@ export const useConnectionStore = create<ConnectionState>()(
         const { sentRequests } = get();
         return sentRequests.some((r) => r.recipient._id === userId);
       },
+      
+      updateFriendStatus: (userId, isOnline) =>
+        set((state) => {
+          const updateList = (list: Connection[]) =>
+            list.map((conn) => {
+              // Kiểm tra nếu userId là requester hoặc recipient
+              const isRequester = conn.requester._id === userId;
+              const isRecipient = conn.recipient._id === userId;
+
+              if (isRequester) {
+                // Update requester với isOnline
+                return {
+                  ...conn,
+                  requester: { ...conn.requester, isOnline },
+                };
+              } else if (isRecipient) {
+                // Update recipient với isOnline
+                return {
+                  ...conn,
+                  recipient: { ...conn.recipient, isOnline },
+                };
+              }
+              return conn;
+            });
+
+          return {
+            friends: updateList(state.friends),
+            pendingRequests: updateList(state.pendingRequests),
+            sentRequests: updateList(state.sentRequests),
+          };
+        }),
       
       clearConnections: () =>
         set({

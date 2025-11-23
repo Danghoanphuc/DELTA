@@ -16,6 +16,24 @@ const router = Router();
 const chatController = new ChatController();
 const conversationController = new ChatConversationController();
 
+// --- MIDDLEWARE PHỤ TRỢ ---
+// ✅ Middleware phiên bản "Soi Kính Hiển Vi"
+const allowQueryToken = (req, res, next) => {
+  // 1. In ra xem server nhận được gì từ trình duyệt
+  console.log("🔍 [DEBUG DOWNLOAD] Query received:", req.query);
+
+  // 2. Xử lý token
+  if (req.query.t) {
+    // Nếu có token t, nhét vào Header
+    req.headers.authorization = `Bearer ${req.query.t}`;
+    console.log("✅ [DEBUG DOWNLOAD] Đã inject Token vào Header thành công!");
+  } else {
+    console.log("❌ [DEBUG DOWNLOAD] Không tìm thấy token 't' trong URL!");
+  }
+
+  next();
+};
+
 // --- MESSAGING ROUTES ---
 router.post(
   "/message",
@@ -40,11 +58,22 @@ router.get(
   chatController.getConversationById
 );
 
-// ✅ ROUTE MỚI: Tạo nhóm
+// ✅ ROUTE MỚI: Tạo nhóm (với hỗ trợ avatar upload)
 router.post(
   "/conversations/group",
   protect,
-  conversationController.createGroupConversation
+  uploadMixed.single("avatar"), // Key 'avatar' phải khớp với FormData từ FE
+  handleUploadError,
+  chatController.createGroup
+);
+
+// ✅ ROUTE MỚI: Cập nhật nhóm (Avatar, Title, Members)
+router.patch(
+  "/conversations/group/:conversationId",
+  protect,
+  uploadMixed.single("avatar"), // Key 'avatar' phải khớp với FormData từ FE
+  handleUploadError,
+  chatController.updateGroup
 );
 
 // Social Chat Creators (Single)
@@ -71,6 +100,14 @@ router.get(
   "/history/:conversationId",
   protect,
   chatController.getMessagesForConversation
+);
+
+// ✅ PROXY DOWNLOAD: Tải file qua server để tránh CORS và lỗi trình duyệt
+router.get(
+  "/download",
+  allowQueryToken, // <--- THÊM CÁI NÀY: Chuyển token từ query string sang header
+  protect,
+  chatController.proxyDownload
 );
 
 // ✅ NEW: Lấy media và files của conversation
@@ -103,6 +140,19 @@ router.delete(
   "/conversations/:conversationId",
   protect,
   chatController.deleteConversation
+);
+
+// ✅ DEAL CLOSER: Business Context & Quote
+router.get(
+  "/conversations/:conversationId/business-context",
+  protect,
+  chatController.getBusinessContext
+);
+
+router.post(
+  "/conversations/:conversationId/quote",
+  protect,
+  chatController.createQuote
 );
 
 // Merge Guest History

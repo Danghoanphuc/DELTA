@@ -1,6 +1,7 @@
 // src/shared/components/ui/ConfirmDialog.tsx
 import { useEffect, useRef } from "react";
-import { AlertTriangle, Trash2, X } from "lucide-react";
+import { createPortal } from "react-dom"; // ✅ IMPORT QUAN TRỌNG
+import { AlertTriangle, Trash2, X, Info, Loader2 } from "lucide-react";
 import { Button } from "./button";
 import { cn } from "@/shared/lib/utils";
 
@@ -31,112 +32,98 @@ export function ConfirmDialog({
 
   useEffect(() => {
     if (!isOpen) return;
-
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-
+    const handleEscape = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     const handleClickOutside = (e: MouseEvent) => {
-      if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) {
+      if (dialogRef.current && !dialogRef.current.contains(e.target as Node) && !isLoading) {
         onClose();
       }
     };
-
     document.addEventListener("keydown", handleEscape);
     document.addEventListener("mousedown", handleClickOutside);
-
-    // Prevent body scroll
     document.body.style.overflow = "hidden";
-
     return () => {
       document.removeEventListener("keydown", handleEscape);
       document.removeEventListener("mousedown", handleClickOutside);
       document.body.style.overflow = "";
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isLoading]);
 
   if (!isOpen) return null;
 
+  // Style config (giữ nguyên để đẹp)
   const variantStyles = {
     danger: {
       icon: Trash2,
-      iconBg: "bg-red-100 dark:bg-red-900/30",
-      iconColor: "text-red-600 dark:text-red-400",
-      buttonClass: "bg-red-600 hover:bg-red-700 text-white",
+      iconBg: "bg-red-100",
+      iconColor: "text-red-600",
+      buttonClass: "bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-200",
     },
     warning: {
       icon: AlertTriangle,
-      iconBg: "bg-yellow-100 dark:bg-yellow-900/30",
-      iconColor: "text-yellow-600 dark:text-yellow-400",
-      buttonClass: "bg-yellow-600 hover:bg-yellow-700 text-white",
+      iconBg: "bg-orange-100",
+      iconColor: "text-orange-600",
+      buttonClass: "bg-orange-600 hover:bg-orange-700 text-white shadow-md shadow-orange-200",
     },
     info: {
-      icon: AlertTriangle,
-      iconBg: "bg-blue-100 dark:bg-blue-900/30",
-      iconColor: "text-blue-600 dark:text-blue-400",
-      buttonClass: "bg-blue-600 hover:bg-blue-700 text-white",
+      icon: Info,
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-600",
+      buttonClass: "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200",
     },
   };
 
   const style = variantStyles[variant];
   const Icon = style.icon;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+  // ✅ DÙNG CREATE PORTAL ĐỂ ĐƯA MODAL RA NGOÀI CÙNG (Fix triệt để lỗi bị đè)
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div
         ref={dialogRef}
-        className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-[400px] bg-white rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden"
       >
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          disabled={isLoading}
-          className="absolute top-4 right-4 p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
-          aria-label="Đóng"
-        >
-          <X size={20} />
-        </button>
+        {!isLoading && (
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors z-10"
+          >
+            <X size={20} />
+          </button>
+        )}
 
-        <div className="p-6">
-          {/* Icon */}
-          <div className={cn("w-12 h-12 rounded-full flex items-center justify-center mb-4", style.iconBg)}>
-            <Icon className={cn("w-6 h-6", style.iconColor)} />
+        <div className="p-0 flex flex-col items-center">
+          <div className="w-full flex flex-col items-center pt-8 pb-4 px-6">
+             <div className={cn("w-16 h-16 rounded-full flex items-center justify-center mb-5", style.iconBg)}>
+                <Icon className={cn("w-8 h-8", style.iconColor)} strokeWidth={2} />
+             </div>
+             <h3 className="text-xl font-bold text-gray-900 text-center leading-tight">{title}</h3>
+             <p className="text-gray-500 text-center mt-2 text-sm leading-relaxed">{description}</p>
           </div>
 
-          {/* Title */}
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            {title}
-          </h3>
-
-          {/* Description */}
-          <p className="text-gray-600 dark:text-gray-400 mb-6 leading-relaxed">
-            {description}
-          </p>
-
-          {/* Actions */}
-          <div className="flex gap-3">
+          <div className="w-full p-6 pt-2 bg-white flex gap-3">
             <Button
               onClick={onClose}
               disabled={isLoading}
               variant="outline"
-              className="flex-1"
+              className="flex-1 h-11 rounded-xl border-gray-200 font-medium hover:bg-gray-50 hover:text-gray-900"
             >
               {cancelText}
             </Button>
             <Button
-              onClick={() => {
-                onConfirm();
-                onClose();
-              }}
+              onClick={onConfirm}
               disabled={isLoading}
-              className={cn("flex-1", style.buttonClass)}
+              className={cn("flex-1 h-11 rounded-xl font-semibold transition-all", style.buttonClass)}
             >
-              {isLoading ? "Đang xử lý..." : confirmText}
+              {isLoading ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Đang xử lý...</>
+              ) : (
+                confirmText
+              )}
             </Button>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body // Target container
   );
 }
-

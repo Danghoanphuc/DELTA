@@ -1,4 +1,5 @@
 // apps/customer-backend/src/modules/chat/chat.controller.js
+import axios from "axios";
 import { ChatService } from "./chat.service.js";
 import { SocialChatService } from "./social-chat.service.js";
 import { Conversation } from "../../shared/models/conversation.model.js";
@@ -113,7 +114,7 @@ export class ChatController {
       if (!conversation) throw new NotFoundException("Không tìm thấy");
       await conversation.populate(
         "participants.userId",
-        "username displayName avatarUrl"
+        "username displayName avatarUrl isOnline" // ✅ THÊM isOnline
       );
       res.status(API_CODES.SUCCESS).json(ApiResponse.success({ conversation }));
     } catch (e) {
@@ -151,14 +152,22 @@ export class ChatController {
 
   deleteConversation = async (req, res, next) => {
     try {
-      // Hàm deleteConversation trong service đã được update thành Soft Delete
-      await this.botService.deleteConversation(
-        req.params.conversationId,
-        req.user._id
+      const userId = req.user._id;
+      const conversationId = req.params.conversationId;
+
+      // 1. Gọi service để Soft Delete trong DB
+      await this.socialService.deleteConversation(
+        conversationId,
+        userId
       );
+
+      // 2. ⚡ FIX CRITICAL: Buộc xóa Cache Redis của user này ngay tại Controller
+      // Để đảm bảo dù Service có quên thì Controller vẫn chặn hậu.
+      await this.botService.chatRepository.invalidateUserCache(userId);
+
       res
         .status(API_CODES.SUCCESS)
-        .json(ApiResponse.success({ message: "Deleted" }));
+        .json(ApiResponse.success({ message: "Deleted successfully" }));
     } catch (e) {
       next(e);
     }
@@ -248,6 +257,183 @@ export class ChatController {
       );
     } catch (e) {
       next(e);
+    }
+  };
+
+  createGroup = async (req, res, next) => {
+    try {
+      const { title, description, members, context } = req.body;
+      const creatorId = req.user._id;
+
+      // ✅ FIX: Lấy URL từ Cloudinary storage (path trong req.file khi dùng multer-storage-cloudinary)
+      // req.file.path đã chứa URL của file đã upload lên Cloudinary
+      const avatarUrl = req.file ? req.file.path : null;
+
+      // Parse members và context nếu gửi dưới dạng JSON string (do FormData)
+      let parsedMembers = members;
+      if (typeof members === "string") {
+        try {
+          parsedMembers = JSON.parse(members);
+        } catch (e) {
+          parsedMembers = [];
+        }
+      }
+
+      let parsedContext = context;
+      if (typeof context === "string") {
+        try {
+          parsedContext = JSON.parse(context);
+        } catch (e) {
+          parsedContext = null;
+        }
+      }
+
+      const conversation = await this.socialService.createGroupConversation({
+        title,
+        description,
+        members: parsedMembers,
+        avatarUrl, // ✅ Truyền string URL, không truyền object File
+        context: parsedContext,
+        creatorId,
+      });
+
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ conversation }));
+    } catch (e) {
+      next(e);
+    }
+  };
+
+  updateGroup = async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const { title, membersToRemove, membersToAdd } = req.body; // ✅ Nhận membersToAdd
+      const avatarFile = req.file; // ✅ Truyền avatarFile object, service sẽ tự xử lý URL
+
+      // Parse JSON arrays từ FormData
+      let parsedMembersToRemove = [];
+      if (typeof membersToRemove === "string") {
+        try {
+          parsedMembersToRemove = JSON.parse(membersToRemove);
+        } catch (e) {}
+      } else if (Array.isArray(membersToRemove)) {
+        parsedMembersToRemove = membersToRemove;
+      }
+
+      // ✅ Parse membersToAdd
+      let parsedMembersToAdd = [];
+      if (typeof membersToAdd === "string") {
+        try {
+          parsedMembersToAdd = JSON.parse(membersToAdd);
+        } catch (e) {}
+      } else if (Array.isArray(membersToAdd)) {
+        parsedMembersToAdd = membersToAdd;
+      }
+
+      const updatedConversation = await this.socialService.updateGroupConversation(
+        conversationId,
+        req.user._id,
+        {
+          title,
+          avatarFile, // ✅ Truyền avatarFile object, service sẽ tự xử lý URL từ multer-storage-cloudinary
+          membersToRemove: parsedMembersToRemove,
+          membersToAdd: parsedMembersToAdd, // ✅ Truyền xuống service
+        }
+      );
+
+      // ✅ FIX: Kiểm tra nếu response đã được gửi (tránh lỗi "Cannot set headers after they are sent")
+      if (res.headersSent) {
+        return;
+      }
+
+      res
+        .status(API_CODES.SUCCESS)
+        .json(ApiResponse.success({ conversation: updatedConversation }));
+    } catch (e) {
+      // ✅ FIX: Bỏ qua lỗi nếu request đã bị abort hoặc response đã được gửi
+      if (e.code === 'ECONNABORTED' || e.message?.includes('aborted') || res.headersSent) {
+        return; // Request đã bị hủy, không cần xử lý
+      }
+      next(e);
+    }
+  };
+
+  /**
+   * ✅ DEAL CLOSER: Lấy Business Context (activeOrders + designFiles)
+   */
+  getBusinessContext = async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const userId = req.user._id;
+
+      const context = await this.socialService.getBusinessContext(conversationId, userId);
+
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success(context));
+    } catch (e) {
+      next(e);
+    }
+  };
+
+  /**
+   * ✅ DEAL CLOSER: Tạo Quick Quote message
+   */
+  createQuote = async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const userId = req.user._id;
+      const { items, total, note } = req.body;
+
+      const quoteMessage = await this.socialService.createQuoteMessage(
+        conversationId,
+        userId,
+        { items, total, note }
+      );
+
+      res.status(API_CODES.SUCCESS).json(
+        ApiResponse.success({ message: quoteMessage })
+      );
+    } catch (e) {
+      next(e);
+    }
+  };
+
+  /**
+   * ✅ PROXY DOWNLOAD: Giải pháp tối thượng cho file in ấn
+   * Server tải stream từ Cloudinary -> Pipe thẳng về Client
+   * Khắc phục: Lỗi CORS, Lỗi Chrome PDF Viewer, Lỗi 401 (nếu cấu hình sign)
+   */
+  proxyDownload = async (req, res, next) => {
+    try {
+      const { url, filename } = req.query;
+
+      if (!url) {
+        return res.status(400).send("Missing URL");
+      }
+
+      // Gọi sang Cloudinary lấy luồng dữ liệu (Stream)
+      const response = await axios({
+        method: "GET",
+        url: url,
+        responseType: "stream",
+        // Nếu file private, axios server vẫn tải được nếu URL là public
+        // Nếu URL private 401, ta cần xử lý ở Preset (Bước 3 bên dưới)
+      });
+
+      // Thiết lập Header để ép trình duyệt hiện hộp thoại Save As
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename*=UTF-8''${encodeURIComponent(filename || "download.bin")}`
+      );
+      res.setHeader("Content-Type", response.headers["content-type"] || "application/octet-stream");
+
+      // Nối ống dẫn: Cloudinary -> Server -> Client
+      response.data.pipe(res);
+    } catch (error) {
+      console.error("[Proxy] Download failed:", error.message);
+      // Nếu Cloudinary trả về 401/404, báo lỗi rõ ràng
+      if (error.response && error.response.status === 401) {
+        return res.status(401).json({ message: "File này đã bị khóa hoặc hết hạn." });
+      }
+      res.status(500).send("Không thể tải file. Vui lòng thử lại.");
     }
   };
 }

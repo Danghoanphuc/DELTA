@@ -48,4 +48,16 @@ router.post(
  */
 router.post("/cleanup-orphan", protect, uploadController.cleanupOrphanedFile);
 
+/**
+ * ✅ SMART PIPELINE: Lấy chữ ký để Client upload trực tiếp (Direct Upload)
+ * @route   POST /api/uploads/signature
+ * @desc    Trả về signature, timestamp, apiKey... để frontend gọi Cloudinary SDK
+ * @access  Private
+ */
+router.post(
+  "/signature",
+  protect,
+  uploadController.generateUploadSignature
+);
+
 export default router;

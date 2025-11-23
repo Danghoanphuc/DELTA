@@ -1,16 +1,19 @@
 // apps/customer-frontend/src/features/social/pages/MessagesPage.tsx
+// ✅ FIXED UI: Dùng fixed positioning để neo chặt layout vào khung màn hình
+// Khắc phục triệt để lỗi hở trên/hở dưới
+
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { 
   fetchChatConversations, 
   createPeerConversation 
-} from "../../chat/services/chat.api.service";
-import { useSocialChatStore } from "../hooks/useSocialChatStore";
-import { ConversationList } from "../components/ConversationList";
-import { SocialChatWindow } from "../components/SocialChatWindow";
-import { ChatInfoSidebar } from "../components/ChatInfoSidebar";
-import { SocialNavSidebar } from "../components/SocialNavSidebar";
+} from "@/features/chat/services/chat.api.service";
+import { useSocialChatStore } from "@/features/social/hooks/useSocialChatStore";
+import { ConversationList } from "@/features/social/components/ConversationList";
+import { SocialChatWindow } from "@/features/social/components/SocialChatWindow";
+import { ChatInfoSidebar } from "@/features/social/components/ChatInfoSidebar";
+import { SocialNavSidebar } from "@/features/social/components/SocialNavSidebar";
 import { MessageCircle, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/shared/hooks/useMediaQuery";
 import { motion, AnimatePresence } from "framer-motion"; 
@@ -82,14 +85,14 @@ export default function MessagesPage() {
             c.participants?.some((p: any) => (p.userId?._id || p.userId) === targetUserId)
         );
         if (existing) {
-            setSearchParams({ conversationId: existing._id });
+            setSearchParams({ conversationId: existing._id }, { replace: true });
         } else {
             setIsCreating(true);
             creatingConversationRef.current.add(targetUserId);
             createPeerConversation(targetUserId).then(res => {
                 if (res.data?.conversation) {
                     addConversation(res.data.conversation);
-                    setSearchParams({ conversationId: res.data.conversation._id });
+                    setSearchParams({ conversationId: res.data.conversation._id }, { replace: true });
                     queryClient.invalidateQueries({ queryKey: ["socialConversations"] });
                 }
             }).finally(() => {
@@ -105,14 +108,14 @@ export default function MessagesPage() {
   // === MOBILE VIEW ===
   if (isMobile) {
     return (
-      <div className="relative w-full h-[100dvh] bg-white overflow-hidden flex flex-col pt-[var(--header-height,0px)]"> 
-        {/* Mobile có thể cần hoặc không cần padding tùy layout mobile app của bạn */}
+      // Mobile giữ nguyên logic tính toán calc
+      <div className="relative w-full h-[calc(100dvh-4rem)] bg-white overflow-hidden flex flex-col"> 
         <div className="flex-1 relative w-full h-full">
            <div className="absolute inset-0 pb-16">
               <ConversationList 
                   conversations={conversations} 
                   activeId={activeConversationId} 
-                  onSelect={(id) => setSearchParams({ conversationId: id })} 
+                  onSelect={(id) => setSearchParams({ conversationId: id }, { replace: true })} 
                   isLoading={isLoading} 
               />
            </div>
@@ -132,7 +135,10 @@ export default function MessagesPage() {
                   <div className="flex-1 h-full relative flex flex-col">
                      <SocialChatWindow 
                         conversation={activeConv} 
-                        onBack={() => { setActiveConversation(null); setSearchParams({}); }} 
+                        onBack={() => { 
+                            setActiveConversation(null); 
+                            setSearchParams({}, { replace: true }); 
+                        }} 
                       />
                       {isInfoSidebarOpen && (
                         <div className="absolute inset-0 z-[110] bg-white">
@@ -150,20 +156,24 @@ export default function MessagesPage() {
     );
   }
 
-  // === DESKTOP VIEW ===
+  // === DESKTOP VIEW (FIXED LAYOUT) ===
   return (
-    <div className="flex w-full bg-white h-[100dvh] overflow-hidden relative">
-      {/* Sidebar bên trái giữ nguyên full height */}
+    // 1. Dùng FIXED để neo vào khung hình
+    // top-16: Bắt đầu ngay dưới Header (64px)
+    // bottom-0: Kéo dài tới tận đáy
+    // left-0 right-0: Full chiều ngang
+    <div className="fixed top-16 bottom-0 left-0 right-0 flex bg-white overflow-hidden z-0">
+      
+      {/* Sidebar bên trái */}
       <SocialNavSidebar />
 
-      {/* ✅ FIX: Wrap phần content bên phải và thêm pt-16 để tránh Header chính */}
-      <div className="flex flex-1 h-full pt-16 min-w-0">
+      <div className="flex flex-1 h-full min-w-0">
         
         <div className="w-80 xl:w-96 flex-col border-r border-gray-200 h-full bg-white z-10 flex flex-shrink-0">
           <ConversationList 
             conversations={conversations} 
             activeId={activeConversationId} 
-            onSelect={(id) => setSearchParams({ conversationId: id })} 
+            onSelect={(id) => setSearchParams({ conversationId: id }, { replace: true })} 
             isLoading={isLoading} 
           />
         </div>
@@ -172,7 +182,10 @@ export default function MessagesPage() {
           {activeConv ? (
             <SocialChatWindow 
               conversation={activeConv} 
-              onBack={() => { setActiveConversation(null); setSearchParams({}); }} 
+              onBack={() => { 
+                  setActiveConversation(null); 
+                  setSearchParams({}, { replace: true }); 
+              }} 
             />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-300 select-none">

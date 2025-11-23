@@ -1,4 +1,5 @@
 // apps/customer-backend/src/modules/chat/chat-conversation.controller.js
+import mongoose from "mongoose"; // ✅ Import mongoose
 import { SocialChatService } from "./social-chat.service.js";
 import { ChatRepository } from "./chat.repository.js";
 import { User } from "../../shared/models/user.model.js";
@@ -158,28 +159,36 @@ export class ChatConversationController {
   };
 
   /**
-   * ✅ FIXED: Chỉ ẩn cuộc trò chuyện với user hiện tại (Soft Delete)
+   * ✅ FIXED: Ép kiểu ObjectId để updateOne hoạt động chính xác với mảng participants
+   * ✅ UPGRADE: Invalidate Cache để tránh Ghost Conversation khi reload
    */
   deleteConversation = async (req, res, next) => {
     try {
       const userId = req.user._id;
       const { id: conversationId } = req.params;
 
-      const conversation = await Conversation.findOne({
-        _id: conversationId,
-        "participants.userId": userId,
-      });
+      // 1. ✅ CRITICAL FIX: Ép kiểu sang ObjectId
+      // updateOne với operator mảng ($) yêu cầu kiểu dữ liệu phải khớp chính xác
+      const userObjectId = new mongoose.Types.ObjectId(userId);
 
-      if (!conversation)
-        throw new NotFoundException("Không tìm thấy cuộc trò chuyện");
-
-      // ✅ FIX: Chỉ set isVisible = false cho user này, KHÔNG set isActive=false
-      await Conversation.updateOne(
-        { _id: conversationId, "participants.userId": userId },
+      // 2. Thực hiện Soft Delete
+      const result = await Conversation.updateOne(
+        { 
+          _id: conversationId, 
+          "participants.userId": userObjectId // ✅ Dùng ObjectId thay vì String
+        },
         { 
           $set: { "participants.$.isVisible": false } 
         }
       );
+
+      // (Optional) Kiểm tra xem có update được không
+      // if (result.modifiedCount === 0) {
+      //   Logger.warn(`[Chat] Soft delete failed. User ${userId} might not be in conversation ${conversationId}`);
+      // }
+
+      // 3. Xóa Cache Redis ngay lập tức
+      await this.chatRepository.invalidateUserCache(userId);
 
       res.json({ success: true, message: "Đã xóa cuộc trò chuyện" });
     } catch (error) {

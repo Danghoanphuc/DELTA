@@ -1,4 +1,5 @@
 // apps/customer-backend/src/infrastructure/realtime/socket.service.ts
+
 import { Server, Socket } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { Redis } from "ioredis";
@@ -6,11 +7,9 @@ import jwt from "jsonwebtoken";
 import { type Server as HttpServer } from "http";
 import { config } from "../../config/env.config.js";
 import { Logger } from "../../shared/utils/index.js";
-// Giả sử bạn có types cho models, nếu không có thể dùng any hoặc import model JS
 import { User } from "../../shared/models/user.model.js";
 import { PrinterProfile } from "../../shared/models/printer-profile.model.js";
 
-// Định nghĩa interface cho Socket đã xác thực
 interface AuthenticatedSocket extends Socket {
   userId?: string;
   userEmail?: string;
@@ -24,28 +23,20 @@ class SocketService {
   private redisSubClient: Redis | null = null;
   private isInitialized = false;
 
-  /**
-   * Initialize Socket.io server with Redis Adapter
-   */
   public initialize(httpServer: HttpServer) {
     if (this.isInitialized) {
       Logger.warn("[SocketService] Already initialized");
       return;
     }
 
-    // 1. Khởi tạo Redis
     const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 
     this.redisPubClient = new Redis(redisUrl, {
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 100, 3000);
-        return delay;
-      },
+      retryStrategy: (times) => Math.min(times * 100, 3000),
     });
 
     this.redisSubClient = this.redisPubClient.duplicate();
 
-    // 2. Khởi tạo Socket.IO
     this.io = new Server(httpServer, {
       cors: {
         origin: config.clientUrls || "*",
@@ -60,44 +51,31 @@ class SocketService {
 
     Logger.success("[SocketService] Redis Adapter initialized for Socket.IO");
 
-    // Error handling cho Redis
-    this.redisPubClient.on("error", (err) =>
-      Logger.error("[SocketService] Redis Pub Error:", err)
-    );
-    this.redisSubClient.on("error", (err) =>
-      Logger.error("[SocketService] Redis Sub Error:", err)
-    );
+    this.redisPubClient.on("error", (err) => Logger.error("[SocketService] Redis Pub Error:", err));
+    this.redisSubClient.on("error", (err) => Logger.error("[SocketService] Redis Sub Error:", err));
 
-    // 3. Middleware JWT
+    // Middleware JWT
     this.io.use(async (socket: AuthenticatedSocket, next) => {
       try {
         const token = socket.handshake.auth.token as string;
+        if (!token) return next(new Error("Authentication error: No token provided"));
 
-        if (!token) {
-          return next(new Error("Authentication error: No token provided"));
-        }
-
-        const decoded: any = jwt.verify(
-          token,
-          config.auth.accessTokenSecret || "secret"
-        );
-
-        if (!decoded || !decoded.userId) {
-          return next(new Error("Authentication error: Invalid token"));
-        }
+        const decoded: any = jwt.verify(token, config.auth.accessTokenSecret || "secret");
+        if (!decoded || !decoded.userId) return next(new Error("Authentication error: Invalid token"));
 
         socket.userId = decoded.userId;
         socket.userEmail = decoded.email;
         socket.userRole = decoded.role;
 
         next();
-      } catch (error) {
-        Logger.error("[SocketService] Auth error:", error);
-        next(new Error("Authentication error"));
+      } catch (error: any) {
+        if (error.name === "TokenExpiredError") {
+          return next(new Error("Authentication error: Token expired"));
+        }
+        return next(new Error("Authentication error"));
       }
     });
 
-    // 4. Connection Handler
     this.io.on("connection", async (socket: AuthenticatedSocket) => {
       await this.handleConnection(socket);
     });
@@ -108,56 +86,72 @@ class SocketService {
 
   private async handleConnection(socket: AuthenticatedSocket) {
     const { userId, userRole } = socket;
-
     if (!userId) return;
 
-    // Join user room
+    // 1. Join Room
     const userRoom = `user:${userId}`;
     socket.join(userRoom);
-    Logger.info(`[Socket] Joined room: ${userRoom}`);
+    if (userRole) socket.join(`role:${userRole}`);
 
-    // Join role room
-    if (userRole) {
-      socket.join(`role:${userRole}`);
-    }
-
+    // 2. Printer Room logic
     try {
-      // Check printer profile
-      // Lưu ý: Trong file TS, dùng await User.findById cần đảm bảo User model hỗ trợ TS hoặc dùng any
       const user: any = await User.findById(userId).lean();
-
-      if (user && user.printerProfileId) {
-        const printerProfile: any = await PrinterProfile.findById(
-          user.printerProfileId
-        ).lean();
-
-        if (printerProfile && printerProfile.isVerified) {
+      if (user?.printerProfileId) {
+        const printerProfile: any = await PrinterProfile.findById(user.printerProfileId).lean();
+        if (printerProfile?.isVerified) {
           const printerRoom = `printer:${user.printerProfileId}`;
           socket.join(printerRoom);
           socket.printerProfileId = user.printerProfileId.toString();
-          Logger.info(`[Socket] Joined PRINTER room: ${printerRoom}`);
         }
       }
-
-      socket.emit("connected", { message: "Connected", userId });
-
-      // Events
-      socket.on("typing_start", (data) =>
-        this.handleTyping(socket, data, true)
-      );
-      socket.on("typing_stop", (data) =>
-        this.handleTyping(socket, data, false)
-      );
     } catch (error) {
-      Logger.error(`[Socket] Connection handling error for ${userId}`, error);
+      Logger.error(`[Socket] Error joining printer room for ${userId}`, error);
+    }
+
+    // 3. ✅ CẬP NHẬT TRẠNG THÁI ONLINE
+    await this.updateUserStatus(userId, true);
+
+    socket.emit("connected", { message: "Connected", userId });
+
+    socket.on("typing_start", (data) => this.handleTyping(socket, data, true));
+    socket.on("typing_stop", (data) => this.handleTyping(socket, data, false));
+
+    // 4. ✅ XỬ LÝ NGẮT KẾT NỐI (OFFLINE)
+    socket.on("disconnect", async () => {
+      Logger.info(`[Socket] Disconnected: ${userId}`);
+      await this.updateUserStatus(userId, false);
+    });
+  }
+
+  /**
+   * ✅ Helper cập nhật trạng thái user và thông báo cho toàn hệ thống (hoặc bạn bè)
+   */
+  private async updateUserStatus(userId: string, isOnline: boolean) {
+    try {
+      console.log(`🔌 [Socket] Updating User ${userId} -> ${isOnline ? 'ONLINE' : 'OFFLINE'}`); // ✅ THÊM LOG NÀY
+      
+      // 1. Update Database
+      await User.findByIdAndUpdate(userId, { 
+        isOnline, 
+        lastSeen: new Date() 
+      });
+
+      // 2. Bắn sự kiện global để Frontend cập nhật UI
+      // (Frontend sẽ check nếu user này nằm trong danh sách bạn bè thì đổi màu chấm xanh)
+      if (this.io) {
+        this.io.emit("user_status_change", { 
+            userId, 
+            isOnline, 
+            lastSeen: new Date() 
+        });
+        Logger.info(`[Socket] Emitted user_status_change for ${userId}: ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
+      }
+    } catch (error) {
+      Logger.error(`[Socket] Error updating status for ${userId}:`, error);
     }
   }
 
-  private handleTyping(
-    socket: AuthenticatedSocket,
-    data: any,
-    isTyping: boolean
-  ) {
+  private handleTyping(socket: AuthenticatedSocket, data: any, isTyping: boolean) {
     const { recipientId, conversationId } = data;
     if (recipientId) {
       this.emitToUser(recipientId, "partner_typing", {
@@ -168,26 +162,16 @@ class SocketService {
     }
   }
 
-  /**
-   * Emit event tới Room cụ thể
-   */
   public emitToRoom(room: string, event: string, data: any) {
     if (!this.io) return;
     this.io.to(room).emit(event, data);
   }
 
-  /**
-   * ✅ Hàm quan trọng đang bị thiếu ở file cũ
-   * Gửi event tới user cụ thể thông qua room "user:ID"
-   */
   public emitToUser(userId: string, event: string, data: any) {
     const room = `user:${userId}`;
     this.emitToRoom(room, event, data);
   }
 
-  /**
-   * Gửi event tới printer
-   */
   public emitToPrinter(printerProfileId: string, event: string, data: any) {
     const room = `printer:${printerProfileId}`;
     this.emitToRoom(room, event, data);
