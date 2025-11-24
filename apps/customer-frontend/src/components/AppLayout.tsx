@@ -10,6 +10,7 @@ import { cn } from "@/shared/lib/utils";
 import { CartSidebar } from "@/features/shop/pages/CartSidebar";
 import { useCartStore } from "@/stores/useCartStore";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { OfflineIndicator } from "./OfflineIndicator"; // <--- IMPORT MỚI
 
 export const AppLayout = () => {
   const { handleSearchSubmit } = useShop();
@@ -68,6 +69,10 @@ export const AppLayout = () => {
       )}
 
       <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      
+      {/* ✅ OFFLINE INDICATOR: Hiển thị trạng thái mất kết nối */}
+      <OfflineIndicator /> 
+
     </div>
   );
 };

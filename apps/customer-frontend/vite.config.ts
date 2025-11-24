@@ -55,6 +55,7 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       include: [
         "mapbox-gl",
+        "react-intersection-observer",
       ],
       // ✅ KHÔNG exclude react-map-gl - để Vite tự resolve khi runtime
       esbuildOptions: {

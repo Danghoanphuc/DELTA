@@ -52,7 +52,7 @@ export function GlobalHeader({
   const [isNotiOpen, setIsNotiOpen] = useState(false);
   const isAuthenticated = useAuthStore((state) => !!state.accessToken);
 
-  const { unreadCount } = useUnreadCount();
+  const { unreadCount } = useUnreadCount(isAuthenticated);
   const { data: notificationsData, isLoading: isLoadingNoti } =
     useNotifications({ page: 1, limit: 10 }, isAuthenticated);
   const markAsReadMutation = useMarkAsRead();

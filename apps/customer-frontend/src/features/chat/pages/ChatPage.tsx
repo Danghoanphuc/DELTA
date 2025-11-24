@@ -1,5 +1,5 @@
 // apps/customer-frontend/src/features/chat/pages/ChatPage.tsx
-// ✅ FIXED: Added GlobalHeader + Adjusted Layout Top Spacing
+// ✅ FULL VERSION: Fixed Welcome Flash & Optimized Layout
 
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -10,7 +10,8 @@ import {
     Home,
     MessageSquarePlus,
     X,
-    Search
+    Search,
+    Loader2 // ✅ IMPORT LOADER
 } from "lucide-react";
 
 // Components
@@ -27,8 +28,7 @@ import { useKeyboardShortcuts } from "@/shared/hooks/useKeyboardShortcuts";
 import { FocusTrap } from "@/shared/components/ui/FocusTrap";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
 import { SocialNavSidebar } from "@/features/social/components/SocialNavSidebar";
-import { GlobalHeader } from "@/components/GlobalHeader"; // ✅ Import Header
-import { SocialNavMobile } from "@/features/social/components/SocialNavMobile";
+import { GlobalHeader } from "@/components/GlobalHeader"; 
 // Stores for Header
 import { useCartStore } from "@/stores/useCartStore";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -53,11 +53,12 @@ const ChatLayout = () => {
   const isMobile = useIsMobile(); 
   const navigate = useNavigate();
 
-  // ✅ Hooks for GlobalHeader Data
+  // Hooks for GlobalHeader Data
   const { getCartItemCount } = useCartStore();
   const { accessToken } = useAuthStore();
   const cartItemCount = getCartItemCount(!!accessToken);
 
+  // Logic xác định có hiện Welcome hay không (Chỉ đúng khi KHÔNG loading)
   const showWelcome = messages.length === 0 ||
     (messages.length === 1 && messages[0]._id === WELCOME_ID);
 
@@ -224,14 +225,13 @@ const ChatLayout = () => {
 
   return (
     <>
-    {/* ✅ 1. GLOBAL HEADER (Chỉ hiện Desktop, Fixed Top) */}
+    {/* 1. GLOBAL HEADER (Chỉ hiện Desktop, Fixed Top) */}
     <GlobalHeader 
         cartItemCount={cartItemCount} 
         onCartClick={() => navigate("/cart")} 
-        // onSearchSubmit={...} // Có thể truyền nếu muốn search global
     />
 
-    {/* ✅ 2. CHAT CONTAINER */}
+    {/* 2. CHAT CONTAINER */}
     {/* lg:top-16 để tránh bị Header đè lên */}
     <div className="fixed inset-0 lg:top-16 h-[100dvh] lg:h-[calc(100dvh-4rem)] w-screen bg-white dark:bg-gray-950 flex overflow-hidden font-sans z-0">
         
@@ -251,11 +251,21 @@ const ChatLayout = () => {
 
             {/* Messages List */}
             <div className="flex-1 overflow-y-auto scroll-smooth custom-scrollbar px-0 relative" ref={messagesScrollRef}>
-                {showWelcome ? (
+                
+                {/* ✅ VÁ LỖI: LOGIC MỚI ĐỂ TRÁNH FLASHOVER WELCOME SCREEN */}
+                {isLoadingAI && messages.length === 0 ? (
+                    // 1. TRẠNG THÁI LOADING (Ưu tiên hiển thị khi đang tải dữ liệu mới)
+                    <div className="h-full w-full flex flex-col items-center justify-center gap-3">
+                        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                        <p className="text-sm text-gray-500 font-medium animate-pulse">Đang tải tin nhắn...</p>
+                    </div>
+                ) : showWelcome ? (
+                    // 2. TRẠNG THÁI WELCOME (Chỉ hiện khi KHÔNG tải và KHÔNG có tin)
                     <div className="h-full w-full flex flex-col justify-center items-center pb-10"> 
                         <ChatWelcome onPromptClick={onSendText} />
                     </div>
                 ) : (
+                    // 3. TRẠNG THÁI CÓ TIN NHẮN
                     <div className="max-w-3xl mx-auto w-full py-6 px-4">
                         <ErrorBoundary>
                             <ChatMessages
@@ -266,6 +276,7 @@ const ChatLayout = () => {
                         </ErrorBoundary>
                     </div>
                 )}
+
             </div>
 
             {/* Input Area */}

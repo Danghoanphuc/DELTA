@@ -1,13 +1,11 @@
 // apps/customer-frontend/src/App.tsx
-// ✅ FIXED: Route Structure for Social & AI
-
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useRef, Suspense, lazy, ComponentType } from "react";
 import { useAuthStore } from "./stores/useAuthStore";
 import { useCartStore } from "./stores/useCartStore";
 
 import { AppLayout } from "./components/AppLayout";
-import ProtectedRoute from "./features/auth/components/ProtectedRoute";
+import ProtectedGuard from "./features/auth/containers/ProtectedGuard";
 import { GlobalModalProvider } from "@/contexts/GlobalModalProvider";
 import { ProductQuickViewModal } from "@/components/ProductQuickViewModal";
 import { OrderQuickViewModal } from "@/features/shop/components/modals/OrderQuickViewModal";
@@ -18,19 +16,24 @@ import { NotificationListener } from "@/components/NotificationListener";
 import { Toaster } from "sonner"; 
 import { SocialChatSync } from "@/features/social/components/SocialChatSync";
 
+// ✅ CORE UI
 import PageLoader from "@/components/PageLoader";
+import NotFoundPage from "./pages/NotFoundPage"; // <--- IMPORT MỚI
 
 // --- Public Pages ---
 import SmartLanding from "@/features/landing/SmartLanding";
 import PolicyPage from "@/features/landing/PolicyPage";
 import ContactPage from "@/features/landing/ContactPage";
 import ProcessPage from "@/features/landing/ProcessPage";
+import TrendsPage from "@/features/landing/TrendsPage";
+import TemplateLibraryPage from "@/features/landing/TemplateLibraryPage";
+import BusinessPage from "@/features/landing/BusinessPage";
 
 // --- Auth Pages ---
 import SignInPage from "@/features/auth/pages/SignInPage";
-import SignUpPage from "@/features/customer/pages/SignUpPage";
-import VerifyEmailPage from "@/features/auth/components/VerifyEmailPage";
-import ResetPasswordPage from "@/features/auth/components/ResetPasswordPage";
+import SignUpPage from "@/features/auth/pages/SignUpPage";
+import VerifyEmailPage from "@/features/auth/pages/VerifyEmailPage";
+import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
 import CheckEmailPage from "@/features/auth/pages/CheckEmailPage";
 
 // Helper for lazy loading
@@ -69,13 +72,13 @@ const CustomerDesignsPage = lazyWorkaround(() => import("@/features/customer/pag
 const CustomerSettingsPage = lazyWorkaround(() => import("@/features/customer/pages/CustomerSettingsPage"));
 const DesignEditorPage = lazyWorkaround(() => import("@/features/editor/DesignEditorPage"));
 const InspirationPage = lazy(() => import("@/features/customer/pages/InspirationPage"));
-const ChatAppPage = lazy(() => import("@/features/chat/pages/AppPage")); // /app (Dashboard)
-const ChatPage = lazy(() => import("@/features/chat/pages/ChatPage")); // /chat (AI Fullscreen)
+const ChatAppPage = lazy(() => import("@/features/chat/pages/AppPage")); 
+const ChatPage = lazy(() => import("@/features/chat/pages/ChatPage")); 
 const ChatHistoryPage = lazy(() => import("@/features/chat/pages/ChatHistoryPage"));
 const NotificationsPage = lazy(() => import("@/features/notifications/pages/NotificationsPage"));
 const MessagesPage = lazy(() => import("@/features/social/pages/MessagesPage"));
 const FriendsPage = lazy(() => import("@/features/social/pages/FriendsPage"));
-const RushPage = lazyWorkaround(() => import("@/features/rush/pages/RushPage")); // ✅ RUSH ORDER: Printz Express
+const RushPage = lazyWorkaround(() => import("@/features/rush/pages/RushPage"));
 
 function App() {
   const isAuthenticated = useAuthStore((state) => !!state.accessToken);
@@ -85,37 +88,29 @@ function App() {
   const fetchCart = useCartStore((state) => state.fetchCart);
   const user = useAuthStore((state) => state.user);
   
-  // ✅ FIX: Thêm ref để tránh gọi fetchMe nhiều lần trong một khoảng thời gian ngắn
   const lastFetchTimeRef = useRef<number>(0);
   const hasFetchedRef = useRef<boolean>(false);
-  const FETCH_COOLDOWN = 10000; // ✅ Tăng lên 10 giây
+  const FETCH_COOLDOWN = 10000;
 
-  // ✅ FIX: Loại bỏ fetchMe khỏi dependency array để tránh vòng lặp vô hạn
-  // fetchMe là function từ zustand store, reference có thể thay đổi
+  // Logic fetch user data
   useEffect(() => {
-    // ✅ FIX: Chỉ fetch một lần khi mount và authenticated, không fetch lại khi user thay đổi
     if (isAuthenticated && !user && !hasFetchedRef.current) {
       const now = Date.now();
-      // Chỉ fetch nếu đã qua cooldown
       if (now - lastFetchTimeRef.current > FETCH_COOLDOWN) {
         lastFetchTimeRef.current = now;
         hasFetchedRef.current = true;
         fetchMe(true).catch((err) => {
-          // Nếu lỗi, reset flag để có thể retry sau
           console.error("[App] fetchMe error:", err);
           hasFetchedRef.current = false;
         });
       }
     }
     
-    // ✅ FIX: Reset flag khi logout
     if (!isAuthenticated) {
       hasFetchedRef.current = false;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]); // ✅ CHỈ depend on isAuthenticated, không depend on user
+  }, [isAuthenticated, user, fetchMe]); // Added dependencies for safety
 
-  // ✅ FIX: Loại bỏ function references khỏi dependency array
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
       (async () => {
@@ -127,8 +122,7 @@ function App() {
         }
       })();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, authLoading]); // Chỉ depend on state values, không phải functions
+  }, [isAuthenticated, authLoading, mergeGuestCart, fetchCart]);
 
   return (
     <BrowserRouter>
@@ -137,18 +131,25 @@ function App() {
           <Toaster position="top-right" richColors closeButton />
           <NotificationListener />
           <SocialChatSync />
+
+          {/* ✅ 1. GLOBAL SPLASH SCREEN (Artificial Delay 3s) */}
+          <PageLoader mode="splash" isLoading={authLoading} />
           
-          <Suspense fallback={<PageLoader />}>
+          {/* ✅ 2. SUSPENSE LOADER */}
+          <Suspense fallback={<PageLoader mode="loading" isLoading={true} />}>
             <Routes>
               {/* 1. PUBLIC LANDING */}
               <Route path="/" element={<SmartLanding />} />
               <Route path="/policy" element={<PolicyPage />} />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/process" element={<ProcessPage />} />
+              <Route path="/trends" element={<TrendsPage />} />
+              <Route path="/templates" element={<TemplateLibraryPage />} />
+              <Route path="/business" element={<BusinessPage />} />
 
-              {/* 2. MAIN APP LAYOUT (Có Header E-commerce) */}
+              {/* 2. MAIN APP LAYOUT */}
               <Route element={<AppLayout />}>
-                {/* Public Auth Routes */}
+                {/* Auth */}
                 <Route path="/signin" element={<SignInPage />} />
                 <Route path="/signup" element={<SignUpPage />} />
                 <Route path="/check-email" element={<CheckEmailPage />} />
@@ -156,17 +157,17 @@ function App() {
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
-                {/* Public Shop Routes */}
+                {/* Shop */}
                 <Route path="/shop" element={<ShopPortalPage />} />
-                <Route path="/rush" element={<RushPage />} /> {/* ✅ RUSH ORDER: Printz Express */}
+                <Route path="/rush" element={<RushPage />} />
                 <Route path="/app" element={<ChatAppPage />} />
                 <Route path="/product/:slug" element={<ProductDetailPage />} />
                 <Route path="/products/:id" element={<ProductDetailPage />} />
                 <Route path="/cart" element={<CartPage />} />
                 <Route path="/inspiration" element={<InspirationPage />} />
 
-                {/* Protected Customer Routes */}
-                <Route element={<ProtectedRoute />}>
+                {/* Protected Customer */}
+                <Route element={<ProtectedGuard />}>
                   <Route path="/checkout" element={<CheckoutPage />} />
                   <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
                   <Route path="/checkout/cancel" element={<CheckoutCancelPage />} />
@@ -176,7 +177,7 @@ function App() {
                   <Route path="/designs" element={<CustomerDesignsPage />} />
                   <Route path="/design-editor" element={<DesignEditorPage />} />
                   
-                  {/* ✅ SOCIAL GROUP (Có Sidebar + Header) */}
+                  {/* Social & Settings */}
                   <Route path="/settings" element={<CustomerSettingsPage />} />
                   <Route path="/messages" element={<MessagesPage />} />
                   <Route path="/friends" element={<FriendsPage />} />
@@ -184,21 +185,20 @@ function App() {
                 </Route>
               </Route>
 
-              {/* 3. STANDALONE PROTECTED ROUTES (Full Screen - Không Header AppLayout) */}
-              <Route element={<ProtectedRoute />}>
-                 {/* ✅ AI CHAT FULLSCREEN */}
+              {/* 3. FULL SCREEN ROUTES */}
+              <Route element={<ProtectedGuard />}>
                 <Route path="/chat" element={<ChatPage />} />
                 <Route path="/chat/history" element={<ChatHistoryPage />} />
 
-                {/* Printer Routes */}
+                {/* Printer Portal */}
                 <Route path="/printer/onboarding" element={<PrinterOnboardingPage />} />
                 <Route path="/printer/dashboard" element={<PrinterApp />} />
                 <Route path="/printer/orders/:orderId" element={<PrinterOrderDetailPage />} />
                 <Route path="/printer/studio/:productId" element={<PrinterStudio />} />
               </Route>
 
-              {/* 404 */}
-              <Route path="*" element={<Navigate to="/" replace />} />
+              {/* 4. 404 CÁ NHÂN HÓA - KẸT GIẤY KỸ THUẬT SỐ */}
+              <Route path="*" element={<NotFoundPage />} /> 
             </Routes>
           </Suspense>
           

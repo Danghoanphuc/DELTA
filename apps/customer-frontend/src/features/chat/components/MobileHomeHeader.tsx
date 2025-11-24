@@ -4,6 +4,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Search, Bell, ShoppingCart, Wand2, Building2, Timer, CalendarDays, MessageCircle } from "lucide-react";
 import { useUnreadCount } from "@/features/notifications/hooks/useNotifications";
 import { useSocialChatStore } from "@/features/social/hooks/useSocialChatStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 interface MobileHomeHeaderProps {
   onSearch: (term: string) => void;
@@ -20,7 +21,8 @@ export const MobileHomeHeader = ({ onSearch }: MobileHomeHeaderProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   
   // ✅ Get unread counts
-  const { unreadCount } = useUnreadCount();
+  const isAuthenticated = useAuthStore((state) => !!state.accessToken);
+  const { unreadCount } = useUnreadCount(isAuthenticated);
   const totalUnreadMessages = useSocialChatStore((state) => state.totalUnread);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {

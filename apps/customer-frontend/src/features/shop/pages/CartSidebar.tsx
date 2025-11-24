@@ -184,25 +184,35 @@ export function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           </div>
         )}
 
-        {/* (Empty State) */}
-        {!showInitialLoading &&
+       {/* (Empty State - JUICY VERSION) */}
+       {!showInitialLoading &&
           !guestCart?.items.length &&
           (!cart || cart.items.length === 0) && (
-            // (Giữ nguyên Empty State)
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-              <ShoppingBag size={64} className="text-gray-300 mb-4" />
-              <h3 className="font-semibold text-gray-700 mb-2">
-                Giỏ hàng trống
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50">
+              {/* Ghost Illustration using CSS/Divs or Icon */}
+              <div className="relative mb-6 group cursor-pointer">
+                  <div className="absolute inset-0 bg-gray-200 blur-xl rounded-full opacity-20 group-hover:opacity-40 transition-opacity"></div>
+                  <ShoppingBag size={80} strokeWidth={0.8} className="text-gray-300 relative z-10 group-hover:-translate-y-2 transition-transform duration-500" />
+                  {/* Một con nhện nhỏ rơi xuống khi hover */}
+                  <div className="absolute top-1/2 left-1/2 w-[1px] h-0 bg-gray-400 group-hover:h-12 transition-all duration-700 ease-out delay-100"></div>
+                  <div className="absolute top-1/2 left-1/2 translate-y-12 scale-0 group-hover:scale-100 transition-transform delay-700 text-xs">🕷️</div>
+              </div>
+
+              <h3 className="font-bold text-lg text-slate-700 mb-2">
+                Giỏ hàng... sạch bách!
               </h3>
-              <p className="text-sm text-gray-500 mb-4">
-                Hãy thêm sản phẩm vào giỏ hàng của bạn
+              <p className="text-sm text-slate-500 mb-8 leading-relaxed px-4">
+                Có vẻ như các sản phẩm đang chơi trốn tìm. Hãy đi bắt chúng về đây!
               </p>
-              <Button onClick={onClose} asChild>
-                <Link to="/shop">Khám phá sản phẩm</Link>
+              
+              <Button onClick={onClose} className="w-full bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-200" size="lg" asChild>
+                <Link to="/shop">
+                  <Plus size={16} className="mr-2" />
+                  Lấp đầy giỏ hàng
+                </Link>
               </Button>
             </div>
           )}
-
         {/* (Guest Cart State) */}
         {!accessToken && guestCart && guestCart.items.length > 0 && (
           <>

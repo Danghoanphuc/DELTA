@@ -1,12 +1,14 @@
-// src/pages/SignUpPage.tsx (CẬP NHẬT)
-import { AuthFlow } from "@/features/auth/components/AuthFlow"; // <-- IMPORT MỚI
+// apps/customer-frontend/src/features/customer/pages/SignUpPage.tsx
+// ✅ Refactored: Sử dụng AuthLayout và AuthFlowContainer (giống auth/pages/SignUpPage.tsx)
+// Note: File này có thể được xóa nếu App.tsx đã import từ auth/pages/SignUpPage.tsx
 
-const SignUpPage = () => {
+import { AuthLayout } from "@/features/auth/components/AuthLayout";
+import { AuthFlowContainer } from "@/features/auth/containers/AuthFlowContainer";
+
+export default function SignUpPage() {
   return (
-    <div className="bg-muted flex min-h-svh flex-col items-center justify-center p-6 md:p-10 absolute inset-0 z-0 bg-gradient-purple">
-      <AuthFlow mode="signUp" />
-    </div>
+    <AuthLayout mode="customer">
+      <AuthFlowContainer mode="signUp" />
+    </AuthLayout>
   );
-};
-
-export default SignUpPage;
+}

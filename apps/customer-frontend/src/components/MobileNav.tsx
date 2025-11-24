@@ -25,7 +25,7 @@ export function MobileNav() {
   
   // ✅ Get unread counts
   const isAuthenticated = useAuthStore((state) => !!state.accessToken);
-  const { unreadCount: notificationUnread } = useUnreadCount();
+  const { unreadCount: notificationUnread } = useUnreadCount(isAuthenticated);
   const totalUnreadMessages = useSocialChatStore((state) => state.totalUnread);
 
   if (shouldHide) {

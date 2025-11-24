@@ -1,17 +1,13 @@
-// src/pages/PrinterSignInPage.tsx (BẢN FULL)
+// apps/customer-frontend/src/features/auth/pages/PrinterSignInPage.tsx
+// ✅ Refactored: Sử dụng AuthLayout và AuthFlowContainer với mode='printer'
 
-import { AuthFlow } from "@/features/auth/components/AuthFlow";
+import { AuthLayout } from "../components/AuthLayout";
+import { AuthFlowContainer } from "../containers/AuthFlowContainer";
 
-const PrinterSignInPage = () => {
+export default function PrinterSignInPage() {
   return (
-    <div className="bg-muted flex min-h-svh flex-col items-center justify-center p-6 md:p-10 absolute inset-0 z-0 bg-gradient-purple">
-      {/*
-        Chúng ta dùng AuthFlow ở chế độ "signIn".
-        Vai trò sẽ được xác định tự động hoặc trong các bước tiếp theo.
-      */}
-      <AuthFlow mode="signIn" />
-    </div>
+    <AuthLayout mode="printer">
+      <AuthFlowContainer mode="signIn" />
+    </AuthLayout>
   );
-};
-
-export default PrinterSignInPage;
+}

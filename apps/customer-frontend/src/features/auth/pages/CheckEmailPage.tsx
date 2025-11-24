@@ -3,6 +3,7 @@
 import { useLocation, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 
+// ✅ Key phải khớp với VerifyEmailPage để đồng bộ cross-tab
 const CHECK_EMAIL_STORAGE_KEY = "emailVerifiedStatus";
 
 const CheckEmailPage = () => {

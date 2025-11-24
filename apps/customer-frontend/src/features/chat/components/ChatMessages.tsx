@@ -1,33 +1,26 @@
-// src/features/chat/components/ChatMessages.tsx (CẬP NHẬT)
+// src/features/chat/components/ChatMessages.tsx
+
 import {
   useCallback,
   useEffect,
   useRef,
   useState,
   type RefObject,
+  useMemo,
 } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChatMessage } from "@/types/chat";
 import { cn } from "@/shared/lib/utils";
-// ❌ GỠ BỎ: UserAvatarFallback
-import { UserAvatar } from "@/components/UserAvatar"; // ✅ THAY THẾ
+import { UserAvatar } from "@/components/UserAvatar";
 import { useAuthStore } from "@/stores/useAuthStore";
-import zinAvatar from "@/assets/img/zin-avatar.svg";
+
+// ✅ IMPORT COMPONENT MỚI
+import { ZinAvatar } from "@/features/zin-bot/ZinAvatar";
+// ✅ IMPORT UTILS PHÂN TÍCH CẢM XÚC
+import { analyzeSentiment } from "../utils/sentiment";
+
 import { ChatProductCarousel } from "@/features/chat/components/ChatProductCarousel";
 import { ChatOrderCarousel } from "@/features/chat/components/ChatOrderCarousel";
-
-// Bot Avatar - Clean like Grok
-const BotAvatar = () => {
-  return (
-    <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
-      <img
-        src={zinAvatar}
-        alt="Zin AI Avatar"
-        className="w-full h-full object-cover"
-      />
-    </div>
-  );
-};
 
 // User Avatar - Clean like Grok
 const UserAvatarComponent = () => {
@@ -124,7 +117,7 @@ export function ChatMessages({
     };
   }, [getScrollElement]);
 
-  // ✅ FIX: Use "auto" instead of "smooth" to avoid warning with dynamic virtualizer
+  // Fix: Use "auto" instead of "smooth" to avoid warning with dynamic virtualizer
   const scrollToBottom = useCallback(
     (behavior: "auto" | "smooth" = "auto") => {
       if (!getScrollElement()) return;
@@ -177,6 +170,20 @@ export function ChatMessages({
           const isMessageRow = virtualItem.index < messages.length;
           const message = messages[virtualItem.index];
 
+          // ✅ LOGIC TÍNH TOÁN CẢM XÚC
+          // Chỉ áp dụng cho tin nhắn của AI (Bot)
+          let botExpression: "neutral" | "happy" | "sad" | "surprised" = "neutral";
+          
+          if (isMessageRow && message && message.senderType === "AI") {
+             const textContent = message.type === 'text' || message.type === 'ai_response' 
+                ? (message.content as any).text 
+                : "";
+             // Gọi hàm utility để phân tích
+             const analyzedExpression = analyzeSentiment(textContent);
+             // Map "thinking" to "neutral" vì ZinEmotion không có "thinking"
+             botExpression = analyzedExpression === "thinking" ? "neutral" : analyzedExpression;
+          }
+
           return (
             <div
               key={virtualItem.key}
@@ -197,10 +204,16 @@ export function ChatMessages({
                       message.senderType === "User" && "flex-row-reverse"
                     )}
                   >
-                    <div className="flex-shrink-0">
-                      {message.senderType === "AI" && <BotAvatar />}
-                      {message.senderType === "User" && <UserAvatarComponent />}
-                    </div>
+                   <div className="flex-shrink-0">
+  {message.senderType === "AI" && (
+     // ✅ BẮT BUỘC THÊM: w-10 h-10 (40px)
+     // Nếu không có class này, nó sẽ phình to ra
+     <div className="w-10 h-10"> 
+        <ZinAvatar emotion={botExpression} />
+     </div>
+  )}
+  {message.senderType === "User" && <UserAvatarComponent />}
+</div>
                     <MessageContent msg={message} />
                   </div>
                 ) : (
@@ -215,21 +228,22 @@ export function ChatMessages({
   );
 }
 
+// ✅ TYPING INDICATOR VỚI TRẠNG THÁI "ĐANG NGHĨ"
 const TypingIndicator = () => (
   <div className="flex gap-4">
     <div className="flex-shrink-0">
-      <BotAvatar />
+      {/* ✅ FIX: Thêm class w-10 h-10 (40px) 
+         để ép Zin vào khuôn khổ, bằng với kích thước avatar tin nhắn thường 
+      */}
+      <div className="w-12 h-12">
+        <ZinAvatar isThinking={true} />
+      </div>
     </div>
     <div className="max-w-2xl">
-      <div className="flex items-center gap-2">
-        <span className="text-gray-500 dark:text-gray-400 text-sm italic">
-          Zin đang suy nghĩ
+      <div className="flex items-center gap-2 h-full py-2">
+        <span className="text-gray-500 dark:text-gray-400 text-sm italic animate-pulse">
+          Zin đang suy nghĩ...
         </span>
-        <div className="flex gap-1">
-          <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse"></div>
-          <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse [animation-delay:0.2s]"></div>
-          <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse [animation-delay:0.4s]"></div>
-        </div>
       </div>
     </div>
   </div>

@@ -1,12 +1,13 @@
-// src/pages/SignInPage.tsx (CẬP NHẬT)
-import { AuthFlow } from "@/features/auth/components/AuthFlow"; // <-- IMPORT MỚI
+// apps/customer-frontend/src/features/auth/pages/SignInPage.tsx
+// ✅ Entry point cho Router, sử dụng AuthLayout và AuthFlowContainer
 
-const SignInPage = () => {
+import { AuthLayout } from "../components/AuthLayout";
+import { AuthFlowContainer } from "../containers/AuthFlowContainer";
+
+export default function SignInPage() {
   return (
-    <div className="bg-muted flex min-h-svh flex-col items-center justify-center p-6 md:p-10 absolute inset-0 z-0 bg-gradient-purple">
-      <AuthFlow mode="signIn" />
-    </div>
+    <AuthLayout mode="customer">
+      <AuthFlowContainer mode="signIn" />
+    </AuthLayout>
   );
-};
-
-export default SignInPage;
+}

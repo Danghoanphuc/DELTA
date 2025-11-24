@@ -108,12 +108,18 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         useAuthStore.getState().clearState();
 
-        // Redirect to signin page
-        if (
-          typeof window !== "undefined" &&
-          !window.location.pathname.includes("/signin")
-        ) {
-          window.location.href = "/signin";
+        // ✅ FIX: Chỉ redirect khi đang ở protected routes, không redirect ở public routes
+        if (typeof window !== "undefined") {
+          const publicRoutes = ["/", "/signin", "/signup", "/shop", "/app", "/product", "/products", "/inspiration", "/rush", "/contact", "/policy", "/process"];
+          const isPublicRoute = publicRoutes.some(route => 
+            window.location.pathname === route || 
+            window.location.pathname.startsWith(route + "/")
+          );
+          
+          // Chỉ redirect nếu không phải public route và chưa ở trang signin
+          if (!isPublicRoute && !window.location.pathname.includes("/signin")) {
+            window.location.href = "/signin";
+          }
         }
         return Promise.reject(refreshError);
       } finally {

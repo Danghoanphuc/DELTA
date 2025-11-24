@@ -83,21 +83,23 @@ export const useNotifications = (
   });
 };
 
-export const useUnreadCount = () => {
+export const useUnreadCount = (enabled: boolean = true) => {
   const { data, isLoading } = useQuery({
     queryKey: ["notifications", "unread-count"],
     queryFn: getUnreadCount,
-    // ✅ FIX: Tắt polling khi bị rate limit
+    enabled, // ✅ FIX: Chỉ gọi API khi enabled = true (user đã đăng nhập)
+    // ✅ FIX: Tắt polling khi bị rate limit hoặc không enabled
     refetchInterval: (query) => {
-      // Tắt polling nếu query bị lỗi 429 (rate limit)
+      // Tắt polling nếu query bị lỗi 429 (rate limit) hoặc không enabled
+      if (!enabled) return false;
       if (query.state.error && (query.state.error as any)?.response?.status === 429) {
         return false;
       }
       return 30000; // ✅ Tăng lên 30s để giảm tải (thay vì 10s)
     },
     retry: (failureCount, error: any) => {
-      // ✅ FIX: Không retry khi bị rate limit (429)
-      if (error?.response?.status === 429) {
+      // ✅ FIX: Không retry khi bị rate limit (429) hoặc 401 (unauthorized)
+      if (error?.response?.status === 429 || error?.response?.status === 401) {
         return false;
       }
       return failureCount < 2; // Chỉ retry tối đa 2 lần cho các lỗi khác
