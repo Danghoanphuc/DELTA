@@ -1,5 +1,4 @@
 // apps/customer-frontend/src/features/social/components/SocialChatWindow/ChatInput.tsx
-// ✅ Component cho chat input area
 
 import { useState } from "react";
 import { Send, Paperclip, Smile, Loader2 } from "lucide-react";
@@ -10,13 +9,16 @@ interface ChatInputProps {
   onSend: (text: string) => Promise<void>;
   sending: boolean;
   onFileClick?: () => void;
+  // ✅ NEW PROP: Trạng thái có file đang chờ
+  hasFiles: boolean; 
 }
 
-export function ChatInput({ onSend, sending, onFileClick }: ChatInputProps) {
+export function ChatInput({ onSend, sending, onFileClick, hasFiles }: ChatInputProps) {
   const [text, setText] = useState("");
 
   const handleSend = async () => {
-    if (!text.trim() || sending) return;
+    // ✅ FIX: Gửi nếu có text HOẶC có files
+    if ((!text.trim() && !hasFiles) || sending) return;
     const content = text.trim();
     setText("");
     await onSend(content);
@@ -66,10 +68,11 @@ export function ChatInput({ onSend, sending, onFileClick }: ChatInputProps) {
         <Button
           size="icon"
           onClick={handleSend}
-          disabled={!text.trim() || sending}
+          // ✅ FIX: Bỏ yêu cầu text. Chỉ cần (text HOẶC file)
+          disabled={(!text.trim() && !hasFiles) || sending} 
           className={cn(
             "rounded-full h-10 w-10 transition-all duration-300 shadow-md",
-            text.trim()
+            (text.trim() || hasFiles) // ✅ Đổi màu khi có files
               ? "bg-blue-600 hover:bg-blue-700 text-white hover:scale-105"
               : "bg-gray-100 text-gray-400"
           )}
@@ -77,11 +80,10 @@ export function ChatInput({ onSend, sending, onFileClick }: ChatInputProps) {
           {sending ? (
             <Loader2 className="animate-spin" size={18} />
           ) : (
-            <Send size={18} className={cn(text.trim() && "ml-0.5")} />
+            <Send size={18} className={cn((text.trim() || hasFiles) && "ml-0.5")} />
           )}
         </Button>
       </div>
     </div>
   );
 }
-

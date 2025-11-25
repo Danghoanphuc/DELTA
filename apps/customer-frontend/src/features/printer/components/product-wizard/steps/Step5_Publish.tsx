@@ -1,11 +1,6 @@
 // src/features/printer/components/product-wizard/steps/Step5_Publish.tsx
+
 import { Control } from "react-hook-form";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/components/ui/card";
 import {
   FormControl,
   FormField,
@@ -15,7 +10,8 @@ import {
 } from "@/shared/components/ui/form";
 import { Switch } from "@/shared/components/ui/switch";
 import { ProductWizardFormValues } from "@/features/printer/schemas/productWizardSchema";
-import { CheckCircle, Store } from "lucide-react";
+import { Store, CheckCircle2, Rocket, EyeOff } from "lucide-react";
+import { cn } from "@/shared/lib/utils";
 
 interface StepProps {
   control: Control<ProductWizardFormValues>;
@@ -23,69 +19,79 @@ interface StepProps {
   onExpand: () => void;
 }
 
-export function Step5_Publish({ control, isExpanded, onExpand }: StepProps) {
-  const isDisabled = !isExpanded;
-
+export function Step5_Publish({ control }: StepProps) {
   return (
-    <Card
-      onClick={!isExpanded ? onExpand : undefined}
-      className={isDisabled ? "bg-gray-50" : "cursor-pointer border-2 hover:border-orange-200 transition-colors"}
-    >
-      <CardHeader>
-        <CardTitle
-          className={`flex items-center gap-2 ${
-            isDisabled ? "text-gray-400" : "text-green-600"
-          }`}
-        >
-          {isDisabled ? (
-             <CheckCircle className="text-gray-400" />
-          ) : (
-             <Store className="text-orange-500" />
-          )}
-          Bước 5: Đăng bán & Hoàn tất
-        </CardTitle>
-      </CardHeader>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      {isExpanded && (
-        <CardContent className="animate-in slide-in-from-top-2 duration-300">
-          {/* Sử dụng FormField tiêu chuẩn của RHF để tránh infinite loop */}
-          <FormField
-            control={control}
-            name="isActive"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm bg-white">
-                <div className="space-y-0.5 pr-4">
-                  <FormLabel className="text-base font-semibold text-gray-900">
-                    Đăng bán ngay lập tức
-                  </FormLabel>
-                  <FormDescription className="text-sm text-gray-500">
-                    Nếu bật, sản phẩm sẽ hiển thị ngay trên cửa hàng của bạn sau khi tạo. 
-                    <br/>Nếu tắt, sản phẩm sẽ ở trạng thái "Nháp" (Ẩn).
-                  </FormDescription>
-                </div>
-                
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                    className="data-[state=checked]:bg-green-600"
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          
-          <div className="mt-6 p-4 bg-blue-50 text-blue-700 text-sm rounded-lg flex gap-2 items-start">
-            <CheckCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <div>
-              <strong>Sẵn sàng để tạo!</strong>
-              <p className="mt-1 text-blue-600/90">
-                Vui lòng kiểm tra lại thông tin ở các bước trước. Nhấn nút <strong>"Hoàn tất & Tạo sản phẩm"</strong> ở góc phải màn hình (hoặc cuối form) để lưu lại.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      )}
-    </Card>
+      {/* Header */}
+      <div className="flex items-center gap-3 pb-4 border-b border-dashed border-gray-300">
+        <div className="p-2 bg-orange-50 rounded-md border border-orange-100">
+          <Store className="w-5 h-5 text-orange-600" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-slate-900">Hoàn tất & Đăng bán</h3>
+          <p className="text-sm text-slate-500">Bước cuối cùng để đưa sản phẩm lên kệ.</p>
+        </div>
+      </div>
+
+      {/* Main Action Card */}
+      <div className="bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+        <FormField
+          control={control}
+          name="isActive"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-4 space-y-0 rounded-lg p-5 transition-colors hover:bg-slate-50/50">
+              {/* Status Icon Dynamic */}
+              <div className={cn(
+                "p-3 rounded-full border-4 transition-all duration-300",
+                field.value 
+                  ? "bg-green-100 border-green-50 text-green-600" 
+                  : "bg-slate-100 border-slate-50 text-slate-500"
+              )}>
+                {field.value ? <Rocket size={24} /> : <EyeOff size={24} />}
+              </div>
+
+              <div className="flex-1 space-y-1">
+                <FormLabel className="text-base font-bold text-slate-900">
+                  {field.value ? "Đăng bán ngay lập tức" : "Lưu nháp (Ẩn sản phẩm)"}
+                </FormLabel>
+                <FormDescription className="text-slate-500 leading-relaxed">
+                  {field.value 
+                    ? "Sản phẩm sẽ hiển thị công khai trên sàn PrintZ. Khách hàng có thể tìm kiếm và đặt hàng ngay." 
+                    : "Sản phẩm sẽ được lưu vào kho nhưng chưa hiển thị với khách hàng. Bạn có thể đăng bán sau."}
+                </FormDescription>
+              </div>
+              
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  className="data-[state=checked]:bg-green-600 scale-110 mt-2"
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+      </div>
+
+      {/* Summary / Checklist (Trang trí) */}
+      <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-5 space-y-3">
+        <h4 className="font-bold text-blue-800 text-sm flex items-center gap-2">
+          <CheckCircle2 size={16} /> Checklist trước khi đăng:
+        </h4>
+        <ul className="space-y-2 text-sm text-blue-700/80">
+          <li className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" /> Kiểm tra kỹ chính tả tên và mô tả sản phẩm.
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" /> Đảm bảo ảnh sản phẩm sắc nét, không bị vỡ.
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" /> Bảng giá đã bao gồm chi phí nguyên vật liệu.
+          </li>
+        </ul>
+      </div>
+
+    </div>
   );
 }

@@ -212,5 +212,12 @@ export const uploadLegalDocs = createMulter(legalDocStorage, {
   { name: "cccdFile", maxCount: 1 },
 ]);
 
+// 7. Memory Storage cho R2 Upload (Lưu file vào buffer thay vì Cloudinary)
+const memoryStorage = multer.memoryStorage();
+export const uploadMemory = multer({
+  storage: memoryStorage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+});
+
 // === BƯỚC 4: EXPORT 'cloudinary' TỪ ĐÂY ===
 export { cloudinary };

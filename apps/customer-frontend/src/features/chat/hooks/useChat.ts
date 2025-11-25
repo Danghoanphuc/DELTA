@@ -127,15 +127,56 @@ export const useChat = () => {
   }, [messageState, conversationState, handleError]);
 
   const onFileUpload = useCallback(async (file: File) => {
-    const userMessage = messageState.addUserMessage(`Đã tải lên file: ${file.name}`, conversationState.currentConversationId);
+    // Tạo tin nhắn giả (Optimistic UI)
+    const userMessage = messageState.addUserMessage(
+      `Đang tải lên: ${file.name}...`,
+      conversationState.currentConversationId
+    );
     setIsLoadingAI(true);
 
     try {
-      const aiResponse = await chatApi.uploadChatFile(
-        file,
+      let aiResponse;
+      const isImage = file.type.startsWith("image/");
+
+      if (isImage) {
+        // --- LOGIC CŨ (CLOUDINARY) CHO ẢNH ---
+        aiResponse = await chatApi.uploadChatFile(
+          file,
+          conversationState.currentConversationId
+        );
+      } else {
+        // --- LOGIC MỚI (R2) CHO FILE TÀI LIỆU ---
+
+        // 1. Xin fileKey từ backend
+        const { fileKey } = await chatApi.getR2UploadUrl(
+          file.name,
+          file.type
+        );
+
+        // 2. Upload file lên R2 qua proxy (tránh CORS)
+        await chatApi.uploadToR2(fileKey, file);
+
+        // 3. Gửi tin nhắn báo server đã upload xong (kèm metadata R2)
+        aiResponse = await chatApi.postChatMessage(
+          `Đã gửi file: ${file.name}`,
+          conversationState.currentConversationId,
+          undefined,
+          undefined,
+          "file", // Type message
+          {
+            // Metadata
+            fileName: file.name,
+            fileSize: file.size,
+            fileKey: fileKey, // Key R2 quan trọng để download sau này
+            storage: "r2", // Đánh dấu là R2
+          }
+        );
+      }
+
+      const aiMessage = messageState.addAiMessage(
+        aiResponse,
         conversationState.currentConversationId
       );
-      const aiMessage = messageState.addAiMessage(aiResponse, conversationState.currentConversationId);
 
       // Handle new conversation
       if (aiResponse.newConversation) {

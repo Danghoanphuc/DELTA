@@ -297,3 +297,71 @@ body.fixed-body {
   .safe-top { padding-top: max(1rem, env(safe-area-inset-top)); }
   .safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
 }
+/* src/styles/globals.css */
+
+/* ... (Giữ nguyên các phần cũ) ... */
+
+@layer utilities {
+  /* ... (Các class cũ) ... */
+
+  /* --- [NEW] INDUSTRIAL PRINT THEME --- */
+
+  /* 1. Nền Lưới Kỹ Thuật (Technical Grid) */
+  .bg-tech-grid {
+    background-color: #ffffff;
+    background-image: 
+      linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+    background-size: 20px 20px; /* Ô lưới 20px */
+    /* Hiệu ứng Vignette nhẹ ở góc để tập trung vào giữa */
+    mask-image: radial-gradient(circle at center, black 60%, transparent 100%); 
+  }
+
+  /* 2. Card "Phiếu In" (Job Ticket Card) */
+  /* Card này có 4 dấu xén (Crop Marks) ở 4 góc */
+  .card-tech {
+    @apply relative bg-white border border-gray-200 shadow-sm transition-all duration-200;
+  }
+  
+  /* Tạo dấu xén (Crop Marks) */
+  .card-tech::before, .card-tech::after {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-color: #cbd5e1; /* Slate-300 */
+    transition: border-color 0.2s;
+    pointer-events: none;
+  }
+  
+  /* Góc Trái-Trên & Phải-Dưới */
+  .card-tech::before {
+    top: -1px; left: -1px;
+    border-top: 2px solid; border-left: 2px solid;
+  }
+  /* Để tạo đủ 4 góc, ta dùng thêm element con hoặc trick css, 
+     nhưng để đơn giản ta làm 2 góc đối xứng tạo cảm giác "đóng khung" */
+  .card-tech::after {
+    bottom: -1px; right: -1px;
+    border-bottom: 2px solid; border-right: 2px solid;
+  }
+
+  /* Hover thì dấu xén đậm lên (màu cam in ấn) */
+  .card-tech:hover::before, .card-tech:hover::after {
+    border-color: #f97316; /* Orange-500 */
+  }
+  
+  /* Selected State */
+  .card-tech.selected {
+    @apply border-orange-500 ring-1 ring-orange-500 bg-orange-50/10;
+  }
+  .card-tech.selected::before, .card-tech.selected::after {
+    border-color: #ea580c; /* Orange-600 */
+  }
+
+  /* 3. Font số kỹ thuật (Technical Monospace) */
+  .font-tech {
+    font-family: "JetBrains Mono", "Fira Code", monospace; /* Cần import hoặc dùng font hệ thống */
+    letter-spacing: -0.02em;
+  }
+}

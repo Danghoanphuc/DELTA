@@ -6,6 +6,13 @@ import { Conversation } from "../../shared/models/conversation.model.js";
 import { ApiResponse } from "../../shared/utils/index.js";
 import { API_CODES } from "../../shared/constants/index.js";
 import { NotFoundException, ForbiddenException } from "../../shared/exceptions/index.js";
+import { Logger } from "../../shared/utils/index.js";
+import { r2Service } from "./r2.service.js";
+
+// Import Cloudinary để hỗ trợ tạo Signed URL khi cần
+import * as cloudinaryModule from "../../infrastructure/storage/multer.config.js"; 
+// Đảm bảo lấy đúng instance v2
+const cloudinary = cloudinaryModule.cloudinary || cloudinaryModule.default || cloudinaryModule;
 
 export class ChatController {
   constructor() {
@@ -397,43 +404,185 @@ export class ChatController {
   };
 
   /**
-   * ✅ PROXY DOWNLOAD: Giải pháp tối thượng cho file in ấn
-   * Server tải stream từ Cloudinary -> Pipe thẳng về Client
-   * Khắc phục: Lỗi CORS, Lỗi Chrome PDF Viewer, Lỗi 401 (nếu cấu hình sign)
+   * ✅ API MỚI: Lấy link upload lên R2 (cho file nặng)
+   */
+  getUploadUrl = async (req, res, next) => {
+    try {
+      const { fileName, fileType } = req.body;
+      
+      if (!fileName || !fileType) {
+        return res.status(API_CODES.BAD_REQUEST).json(
+          ApiResponse.error("Thiếu fileName hoặc fileType")
+        );
+      }
+
+      const data = await r2Service.getPresignedUploadUrl(fileName, fileType);
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success(data));
+    } catch (e) {
+      next(e);
+    }
+  };
+
+  /**
+   * ✅ API MỚI: Lấy link download/preview từ R2 (Bảo mật)
+   * @param {string} key - File key trên R2
+   * @param {string} filename - Tên file gốc
+   * @param {string} mode - 'inline' (preview) hoặc 'attachment' (download), mặc định 'inline'
+   */
+  getR2DownloadUrl = async (req, res, next) => {
+    try {
+      const { key, filename, mode } = req.query;
+
+      if (!key) {
+        return res.status(API_CODES.BAD_REQUEST).json(
+          ApiResponse.error("Missing file key")
+        );
+      }
+
+      // Mặc định dùng 'inline' để preview được, nếu muốn download thì truyền mode='attachment'
+      const downloadUrl = await r2Service.getPresignedDownloadUrl(
+        key,
+        filename || "file",
+        mode || 'inline'
+      );
+
+      // Trả về JSON chứa URL để Frontend dễ xử lý
+      res.status(API_CODES.SUCCESS).json(
+        ApiResponse.success({ downloadUrl })
+      );
+    } catch (e) {
+      next(e);
+    }
+  };
+
+  /**
+   * ✅ API MỚI: Proxy upload file lên R2 (Tránh CORS)
+   */
+  uploadToR2 = async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(API_CODES.BAD_REQUEST).json(
+          ApiResponse.error("Thiếu file")
+        );
+      }
+
+      const { fileKey } = req.body;
+      if (!fileKey) {
+        return res.status(API_CODES.BAD_REQUEST).json(
+          ApiResponse.error("Thiếu fileKey")
+        );
+      }
+
+      // Upload file lên R2 từ buffer
+      await r2Service.uploadFile(
+        req.file.buffer,
+        fileKey,
+        req.file.mimetype
+      );
+
+      res.status(API_CODES.SUCCESS).json(
+        ApiResponse.success({ message: "Upload thành công", fileKey })
+      );
+    } catch (e) {
+      next(e);
+    }
+  };
+
+  /**
+   * ✅ PROXY DOWNLOAD (FINAL FIX):
+   * Giữ nguyên Delivery Type (upload/private) khi tạo Signed URL
+   * Tải stream từ Cloudinary -> Pipe về Client
    */
   proxyDownload = async (req, res, next) => {
     try {
       const { url, filename } = req.query;
 
       if (!url) {
-        return res.status(400).send("Missing URL");
+        return res.status(400).json(ApiResponse.error("Missing URL"));
+      }
+      
+      // Helper stream file
+      const streamFile = async (targetUrl) => {
+        Logger.info(`[Proxy Download] Streaming from: ${targetUrl}`);
+        
+        const response = await axios({
+          method: "GET",
+          url: targetUrl,
+          responseType: "stream",
+          headers: { Authorization: undefined } // Bỏ header auth app
+        });
+
+        let finalFilename = filename || targetUrl.split('/').pop();
+        finalFilename = finalFilename.split('?')[0]; 
+        const encodedFilename = encodeURIComponent(finalFilename).replace(/['()]/g, escape).replace(/\*/g, '%2A');
+
+        res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodedFilename}`);
+        res.setHeader("Content-Type", response.headers["content-type"] || "application/octet-stream");
+        
+        if (response.headers["content-length"]) {
+          res.setHeader("Content-Length", response.headers["content-length"]);
+        }
+
+        response.data.pipe(res);
+        
+        return new Promise((resolve, reject) => {
+          response.data.on('end', resolve);
+          response.data.on('error', reject);
+        });
+      };
+
+      try {
+        // Thử tải trực tiếp
+        await streamFile(url);
+      } catch (error) {
+        const isAuthError = error.response && (error.response.status === 401 || error.response.status === 403);
+        
+        if (isAuthError) {
+          Logger.warn(`[Proxy Download] 401 Access Denied. Generating Signed URL for original path...`);
+
+          // 1. Phân tích URL để lấy đúng type gốc
+          // Regex match: /resource_type/type/vVersion/public_id
+          const regex = /\/(image|video|raw)\/(upload|authenticated|private|fetch)\/(?:v(\d+)\/)?(.+)$/;
+          const match = url.match(regex);
+
+          if (match) {
+            const resourceType = match[1]; // ví dụ: 'raw'
+            const deliveryType = match[2]; // 🔥 QUAN TRỌNG: Lấy đúng type gốc (ví dụ: 'upload')
+            const version = match[3];      // ví dụ: '1764050403'
+            const publicId = match[4];     // ví dụ: 'printz/design-files/abc.pdf'
+
+            Logger.info(`[Proxy Download] Detected - Resource: ${resourceType}, Type: ${deliveryType}, Ver: ${version}`);
+
+            // 2. Tạo Signed URL giữ nguyên type gốc
+            const signedUrl = cloudinary.url(publicId, {
+              resource_type: resourceType,
+              type: deliveryType, // ✅ Dùng lại type gốc (upload), không ép sang authenticated
+              sign_url: true,     // Tự động thêm s--signature--
+              auth_token: undefined,
+              version: version,
+              secure: true
+            });
+
+            Logger.info(`[Proxy Download] Retrying with Signed URL: ${signedUrl}`);
+            await streamFile(signedUrl);
+            return; 
+          } else {
+            Logger.error(`[Proxy Download] Cannot parse Cloudinary URL: ${url}`);
+          }
+        }
+        
+        throw error;
       }
 
-      // Gọi sang Cloudinary lấy luồng dữ liệu (Stream)
-      const response = await axios({
-        method: "GET",
-        url: url,
-        responseType: "stream",
-        // Nếu file private, axios server vẫn tải được nếu URL là public
-        // Nếu URL private 401, ta cần xử lý ở Preset (Bước 3 bên dưới)
-      });
-
-      // Thiết lập Header để ép trình duyệt hiện hộp thoại Save As
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename*=UTF-8''${encodeURIComponent(filename || "download.bin")}`
-      );
-      res.setHeader("Content-Type", response.headers["content-type"] || "application/octet-stream");
-
-      // Nối ống dẫn: Cloudinary -> Server -> Client
-      response.data.pipe(res);
     } catch (error) {
-      console.error("[Proxy] Download failed:", error.message);
-      // Nếu Cloudinary trả về 401/404, báo lỗi rõ ràng
-      if (error.response && error.response.status === 401) {
-        return res.status(401).json({ message: "File này đã bị khóa hoặc hết hạn." });
+      Logger.error(`[Proxy Download] Final Failure: ${error.message}`);
+      
+      if (!res.headersSent) {
+        // Trả về lỗi 404 chuẩn nếu Cloudinary báo 404
+        const status = error.response ? error.response.status : 500;
+        const msg = status === 404 ? "File không tồn tại." : "Không thể tải file (Lỗi quyền truy cập).";
+        res.status(status).json(ApiResponse.error(msg));
       }
-      res.status(500).send("Không thể tải file. Vui lòng thử lại.");
     }
   };
 }

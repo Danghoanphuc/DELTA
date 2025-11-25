@@ -157,6 +157,31 @@ export const uploadChatFile = async (
   return res.data?.data;
 };
 
+// ✅ R2 API: Lấy link upload R2
+export const getR2UploadUrl = async (fileName: string, fileType: string) => {
+  const res = await api.post("/chat/r2/upload-url", { fileName, fileType });
+  return res.data?.data; // Trả về { uploadUrl, fileKey }
+};
+
+// ✅ R2 API: Upload file lên R2 (Proxy qua Backend để tránh CORS)
+export const uploadToR2 = async (fileKey: string, file: File, onProgress?: (percent: number) => void) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("fileKey", fileKey);
+
+  const res = await api.post("/chat/r2/upload", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress: (progressEvent) => {
+      if (progressEvent.total && onProgress) {
+        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onProgress(percent);
+      }
+    },
+  });
+  
+  return res.data?.data;
+};
+
 export const fetchOrderDetails = async (orderId: string): Promise<Order> => {
   const res = await api.get(`/orders/${orderId}`);
   return res.data.data.order;

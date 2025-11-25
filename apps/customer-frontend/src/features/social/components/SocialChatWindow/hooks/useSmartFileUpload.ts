@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { uploadFileDirectly } from "@/services/cloudinaryService";
+import { getR2UploadUrl, uploadToR2 } from "@/features/chat/services/chat.api.service";
 
 export type FileContextType = "PRINT_FILE" | "REFERENCE" | "INVOICE" | "OTHER";
 
@@ -77,22 +78,54 @@ export const useSmartFileUpload = () => {
       setStagedFiles(prev => prev.map(f => f.id === stagedFile.id ? { ...f, status: "uploading" } : f));
 
       try {
-        // Call Direct Upload Service
-        const result = await uploadFileDirectly(stagedFile.file, (percent) => {
-           setStagedFiles(prev => prev.map(f => f.id === stagedFile.id ? { ...f, progress: percent } : f));
-        });
+        const isImage = stagedFile.file.type.startsWith("image/");
+        let result: { url?: string; fileKey?: string };
+
+        if (isImage) {
+          // --- LOGIC CŨ (CLOUDINARY) CHO ẢNH ---
+          const cloudinaryResult = await uploadFileDirectly(stagedFile.file, (percent) => {
+            setStagedFiles(prev => prev.map(f => f.id === stagedFile.id ? { ...f, progress: percent } : f));
+          });
+          result = { url: cloudinaryResult.url };
+        } else {
+          // --- LOGIC MỚI (R2) CHO FILE TÀI LIỆU ---
+          
+          // 1. Xin fileKey từ backend
+          const { fileKey } = await getR2UploadUrl(
+            stagedFile.file.name,
+            stagedFile.file.type
+          );
+
+          // 2. Upload file lên R2 qua proxy với progress tracking
+          await uploadToR2(
+            fileKey,
+            stagedFile.file,
+            (percent) => {
+              setStagedFiles(prev => prev.map(f => f.id === stagedFile.id ? { ...f, progress: percent } : f));
+            }
+          );
+          
+          result = { fileKey };
+        }
 
         // Update status -> done
         setStagedFiles(prev => prev.map(f => f.id === stagedFile.id ? { 
             ...f, 
             status: "done", 
-            serverUrl: result.url 
+            serverUrl: result.url || undefined
         } : f));
+
+        // Tạo proxy URL cho R2 file (để thỏa mãn schema requirement)
+        const proxyUrl = result.fileKey 
+          ? `${import.meta.env.VITE_API_URL || ''}/api/chat/r2/download?key=${encodeURIComponent(result.fileKey)}&filename=${encodeURIComponent(stagedFile.file.name)}`
+          : result.url;
 
         return {
             originalName: stagedFile.file.name,
-            url: result.url,
-            type: stagedFile.fileType, // Lúc này sẽ là 'file' hoặc 'image' (Backend chịu nhận)
+            url: proxyUrl, // Cloudinary URL hoặc R2 proxy URL
+            fileKey: result.fileKey, // R2 Key (nếu là file)
+            storage: isImage ? "cloudinary" : "r2", // Đánh dấu storage type
+            type: stagedFile.fileType, // 'file' hoặc 'image'
             format: stagedFile.file.name.split('.').pop()?.toLowerCase(), // ✅ Gửi thêm cái này để Frontend biết là PDF hay AI mà hiện icon
             size: stagedFile.file.size,
             context: stagedFile.context // Quan trọng: Gửi kèm tag ngữ cảnh cho Backend lưu

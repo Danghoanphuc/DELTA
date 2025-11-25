@@ -1,6 +1,4 @@
 // apps/customer-backend/src/modules/chat/chat.routes.js
-// ✅ FIXED: Added /conversations/group route
-
 import { Router } from "express";
 import { ChatController } from "./chat.controller.js";
 import { ChatConversationController } from "./chat-conversation.controller.js";
@@ -9,30 +7,12 @@ import {
   optionalAuth,
   handleUploadError,
 } from "../../shared/middleware/index.js";
-import { uploadMixed } from "../../infrastructure/storage/multer.config.js";
+import { uploadMixed, uploadMemory } from "../../infrastructure/storage/multer.config.js";
 import { chatRateLimiter } from "../../shared/middleware/rate-limit.middleware.js";
 
 const router = Router();
 const chatController = new ChatController();
 const conversationController = new ChatConversationController();
-
-// --- MIDDLEWARE PHỤ TRỢ ---
-// ✅ Middleware phiên bản "Soi Kính Hiển Vi"
-const allowQueryToken = (req, res, next) => {
-  // 1. In ra xem server nhận được gì từ trình duyệt
-  console.log("🔍 [DEBUG DOWNLOAD] Query received:", req.query);
-
-  // 2. Xử lý token
-  if (req.query.t) {
-    // Nếu có token t, nhét vào Header
-    req.headers.authorization = `Bearer ${req.query.t}`;
-    console.log("✅ [DEBUG DOWNLOAD] Đã inject Token vào Header thành công!");
-  } else {
-    console.log("❌ [DEBUG DOWNLOAD] Không tìm thấy token 't' trong URL!");
-  }
-
-  next();
-};
 
 // --- MESSAGING ROUTES ---
 router.post(
@@ -105,9 +85,29 @@ router.get(
 // ✅ PROXY DOWNLOAD: Tải file qua server để tránh CORS và lỗi trình duyệt
 router.get(
   "/download",
-  allowQueryToken, // <--- THÊM CÁI NÀY: Chuyển token từ query string sang header
-  protect,
+  protect, // ✅ FIX: CHỈ GIỮ LẠI PROTECT - Token được đọc từ Header
   chatController.proxyDownload
+);
+
+// ✅ R2 ROUTES (Hybrid Cloud Storage)
+router.post(
+  "/r2/upload-url",
+  protect,
+  chatController.getUploadUrl
+);
+
+router.post(
+  "/r2/upload",
+  protect,
+  uploadMemory.single("file"), // Dùng memory storage để lấy buffer
+  handleUploadError,
+  chatController.uploadToR2
+);
+
+router.get(
+  "/r2/download",
+  protect, // Vẫn bảo vệ bằng Token của App
+  chatController.getR2DownloadUrl
 );
 
 // ✅ NEW: Lấy media và files của conversation

@@ -9,6 +9,8 @@ interface CloudinarySignature {
   apiKey: string;
   uploadPreset: string;
   folder: string;
+  type?: string;          // ✅ THÊM
+  access_mode?: string;   // ✅ THÊM
 }
 
 /**
@@ -34,7 +36,7 @@ export const uploadFileDirectly = async (
       folder: folderContext
     });
     
-    const { signature, timestamp, cloudName, apiKey, uploadPreset, folder } = sigRes.data.data as CloudinarySignature;
+    const { signature, timestamp, cloudName, apiKey, uploadPreset, folder, type, access_mode } = sigRes.data.data as CloudinarySignature;
 
     // 3. Chuẩn bị Form Data gửi sang Cloudinary
     const formData = new FormData();
@@ -44,6 +46,10 @@ export const uploadFileDirectly = async (
     formData.append("signature", signature);
     formData.append("upload_preset", uploadPreset);
     formData.append("folder", folder);
+    
+    // ✅ THÊM: Gửi type và access_mode để file là public
+    if (type) formData.append("type", type);
+    if (access_mode) formData.append("access_mode", access_mode);
 
     // 4. Bắn thẳng sang Cloudinary (Bỏ qua Server mình)
     const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;

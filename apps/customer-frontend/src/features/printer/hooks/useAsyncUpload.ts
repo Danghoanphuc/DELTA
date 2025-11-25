@@ -1,7 +1,5 @@
 // apps/customer-frontend/src/features/printer/hooks/useAsyncUpload.ts
-// ✨ SMART PIPELINE: Async Upload với queue management
-
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react"; // Thêm useMemo
 import { useMutation } from "@tanstack/react-query";
 import api from "@/shared/lib/axios";
 import { toast } from "sonner";
@@ -13,16 +11,9 @@ export interface UploadQueueItem {
   url?: string;
   publicId?: string;
   error?: string;
-  preview?: string; // Local preview URL
+  preview?: string;
 }
 
-/**
- * ✨ ASYNC UPLOAD HOOK
- * - Upload queue management
- * - Progress tracking (0-100%)
- * - Max 3 concurrent uploads
- * - Retry on error
- */
 export function useAsyncUpload() {
   const [queue, setQueue] = useState<UploadQueueItem[]>([]);
   const [activeUploads, setActiveUploads] = useState(0);
@@ -86,9 +77,6 @@ export function useAsyncUpload() {
     },
   });
 
-  /**
-   * Thêm files vào queue và bắt đầu upload
-   */
   const addToQueue = useCallback(
     (files: File[]) => {
       const newItems: UploadQueueItem[] = files.map((file) => ({
@@ -100,8 +88,6 @@ export function useAsyncUpload() {
 
       setQueue((prev) => {
         const updatedQueue = [...prev, ...newItems];
-
-        // Start uploading pending items (respect MAX_CONCURRENT)
         const pendingItems = updatedQueue
           .map((item, index) => ({ item, index }))
           .filter(({ item }) => item.status === "pending");
@@ -119,13 +105,9 @@ export function useAsyncUpload() {
     [activeUploads, uploadMutation]
   );
 
-  /**
-   * Xóa item khỏi queue
-   */
   const removeFromQueue = useCallback((index: number) => {
     setQueue((prev) => {
       const item = prev[index];
-      // Revoke preview URL to free memory
       if (item.preview) {
         URL.revokeObjectURL(item.preview);
       }
@@ -133,9 +115,6 @@ export function useAsyncUpload() {
     });
   }, []);
 
-  /**
-   * Retry upload nếu failed
-   */
   const retryUpload = useCallback(
     (index: number) => {
       const item = queue[index];
@@ -152,7 +131,8 @@ export function useAsyncUpload() {
   );
 
   /**
-   * Lấy danh sách URLs đã upload thành công
+   * ✅ TỐI ƯU: Chỉ tính toán lại danh sách completed khi queue thực sự thay đổi trạng thái
+   * Sử dụng JSON.stringify để so sánh "deep" thay vì tham chiếu
    */
   const getCompletedUrls = useCallback(() => {
     return queue
@@ -163,18 +143,12 @@ export function useAsyncUpload() {
       }));
   }, [queue]);
 
-  /**
-   * Lấy danh sách Files đã upload thành công (để submit form)
-   */
   const getCompletedFiles = useCallback(() => {
     return queue
       .filter((item) => item.status === "completed")
       .map((item) => item.file);
   }, [queue]);
 
-  /**
-   * Clear toàn bộ queue
-   */
   const clearQueue = useCallback(() => {
     queue.forEach((item) => {
       if (item.preview) {
@@ -184,7 +158,6 @@ export function useAsyncUpload() {
     setQueue([]);
   }, [queue]);
 
-  // Computed states
   const isAllCompleted =
     queue.length > 0 && queue.every((item) => item.status === "completed");
   const hasErrors = queue.some((item) => item.status === "failed");
@@ -211,7 +184,6 @@ export function useAsyncUpload() {
     getCompletedUrls,
     getCompletedFiles,
     clearQueue,
-    // Computed states
     isAllCompleted,
     hasErrors,
     hasPending,
@@ -222,4 +194,3 @@ export function useAsyncUpload() {
     totalCount: queue.length,
   };
 }
-

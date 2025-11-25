@@ -41,7 +41,15 @@ const messageSchema = new mongoose.Schema(
       // ✅ DEAL CLOSER: Hỗ trợ attachments (mảng file đính kèm)
       attachments: [
         {
-          url: { type: String, required: true },
+          url: { 
+            type: String, 
+            required: function() {
+              // url required nếu không có fileKey (Cloudinary)
+              return !this.fileKey;
+            }
+          },
+          fileKey: { type: String }, // ✅ R2 file key (thay thế url khi storage === "r2")
+          storage: { type: String, enum: ["cloudinary", "r2"], default: "cloudinary" }, // ✅ Đánh dấu storage type
           type: { type: String, enum: ["image", "video", "file"], default: "file" },
           originalName: { type: String },
           name: { type: String },

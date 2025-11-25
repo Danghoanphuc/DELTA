@@ -40,10 +40,13 @@ export class UploadController {
 
       // 2. Cấu hình chữ ký (Phải khớp 100% với tham số gửi lên từ Frontend)
       // ⚠️ QUAN TRỌNG: Preset phải là 'printz_signed' (Mode: Signed) đã tạo ở Bước 1
+      // ✅ FIX: Thêm access_mode: "public" để file có thể download trực tiếp
       const uploadConfig = {
         timestamp,
         folder,
         upload_preset: "printz_signed",
+        type: "upload",           // ✅ THÊM: Explicit upload type
+        access_mode: "public"     // ✅ THÊM: QUAN TRỌNG - File sẽ là public!
       };
 
       // 3. Tạo chữ ký
@@ -60,8 +63,10 @@ export class UploadController {
             timestamp,
             cloudName: process.env.CLOUDINARY_CLOUD_NAME,
             apiKey: process.env.CLOUDINARY_API_KEY,
-            uploadPreset: "printz_signed", // Trả về preset đúng
+            uploadPreset: "printz_signed",
             folder,
+            type: "upload",           // ✅ THÊM: Frontend cần gửi param này
+            access_mode: "public"     // ✅ THÊM: Frontend cần gửi param này
           },
           "Signed URL generated"
         )

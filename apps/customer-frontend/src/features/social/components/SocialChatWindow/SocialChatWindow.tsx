@@ -89,66 +89,71 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
     prevMessagesLength.current = messages.length;
   }, [messages, currentUser?._id, isReady, playReceiveSound, prevMessagesLength]);
 
-  // --- HANDLE SEND (Logic nâng cấp) ---
+  // --- HANDLE SEND (Logic Gửi Siêu Nhanh - Optimistic UI) ---
   const handleSend = async (content: string) => {
-    // Chỉ chặn gửi nếu: (không có text VÀ không có file) HOẶC (đang gửi/upload)
-    if ((!content.trim() && stagedFiles.length === 0) || sending || isUploading) return;
+    // 1. Kiểm tra điều kiện gửi
+    const filesToProcess = stagedFiles.length > 0;
+    
+    if ((!content.trim() && !filesToProcess) || sending || isUploading) return;
 
     playSendSound();
     setSending(true);
 
-    // 1. Upload Files trước (Nếu có trong Staging)
-    let uploadedAttachments: any[] = [];
-    if (stagedFiles.length > 0) {
-        // Upload song song tất cả file
-        uploadedAttachments = await uploadAllFiles();
-        
-        // Nếu có file trong hàng chờ mà upload thất bại toàn bộ -> Dừng lại, không gửi tin nhắn
-        if (uploadedAttachments.length === 0 && stagedFiles.length > 0) {
-            setSending(false);
-            return; 
-        }
-    }
-
-    // 2. Tạo Optimistic UI Message (Hiển thị ngay lập tức)
+    // 2. Tạo ID tạm thời và Message Optimistic
     const tempId = `temp-${Date.now()}`;
-    const hasFiles = uploadedAttachments.length > 0;
-    const tempMsg: ChatMessage = hasFiles ? {
+    const tempMsg: ChatMessage = {
       _id: tempId,
       conversationId: conversation._id,
       senderType: "User",
       sender: currentUser?._id,
-      type: "file",
-      content: { 
-          fileUrl: uploadedAttachments[0]?.url || "",
-          fileName: uploadedAttachments[0]?.name || "file",
-      },
+      type: filesToProcess ? "file" : "text", 
+      content: filesToProcess ? {
+          // Pass Blob URL và File Data vào đây để MessageItem có thể hiển thị
+          text: content || (stagedFiles[0]?.context === 'PRINT_FILE' ? "Đã gửi file in" : "Đã gửi file đính kèm"),
+          attachments: stagedFiles.map(f => ({
+              url: f.previewUrl, // <<-- Dùng Blob URL local
+              originalName: f.file.name,
+              type: f.fileType,
+              format: f.file.name.split('.').pop()?.toLowerCase(),
+              size: f.file.size
+          })),
+      } : { text: content },
       createdAt: new Date().toISOString(),
       status: "sending",
-    } : {
-      _id: tempId,
-      conversationId: conversation._id,
-      senderType: "User",
-      sender: currentUser?._id,
-      type: "text",
-      content: { 
-          text: content,
-      },
-      createdAt: new Date().toISOString(),
-      status: "sending",
-    };
+    } as ChatMessage;
 
+    // 3. THÊM MESSAGE VÀO UI NGAY LẬP TỨC (OPTIMISTIC)
     addMessage(conversation._id, tempMsg);
     prevMessagesLength.current += 1;
-
     setTimeout(() => scrollRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    
+    // 🔥 FIX CẤP THIẾT: Xóa Staging Area ngay để tránh sự cố "Load đúp"
+    clearStaging(); 
 
+
+    // 4. **BẮT ĐẦU PROCESS NẶNG (ASYNC)**
+    let uploadedAttachments: any[] = [];
     try {
-      // 3. Gọi API Backend (Gửi nội dung + mảng file đã upload)
+      // 4a. Upload Files (chạy ngầm)
+      if (filesToProcess) {
+          // GỌI UPLOAD: Quá trình này đã được tách khỏi UI
+          uploadedAttachments = await uploadAllFiles(); 
+          
+          if (uploadedAttachments.length === 0 && stagedFiles.length > 0) {
+              setSending(false);
+              toast.error("Tải file thất bại. Vui lòng thử lại.");
+              return; 
+          }
+      }
+
+      // 4b. Chuẩn bị nội dung cuối cùng
+      const finalContent = content || (uploadedAttachments.length > 0 ? "Đã gửi file" : "");
+
+      // 4c. Gửi API Backend với URLs thật
       const res = await postSocialChatMessage(
-        content || (uploadedAttachments.length > 0 ? "Đã gửi file" : ""),
+        finalContent,
         conversation._id,
-        uploadedAttachments // ✅ Truyền attachments vào API
+        filesToProcess ? uploadedAttachments : [] // Truyền attachments thật
       );
       
       if (res) {
@@ -157,13 +162,12 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
           sender: res.sender ?? currentUser?._id,
           status: "sent",
         };
+        // 4d. Cập nhật Message ID tạm thành ID thật
         updateMessageId(conversation._id, tempId, realMsg);
-        
-        // Xóa staging sau khi gửi thành công
-        clearStaging();
       }
     } catch (e) {
-      toast.error("Gửi thất bại");
+      toast.error("Gửi thất bại.");
+      // TODO: Thêm logic cập nhật tin nhắn tạm thành status: 'failed'
     } finally {
       setSending(false);
     }
@@ -211,7 +215,6 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
       />
 
       {/* --- STAGING AREA (Vùng chờ file) --- */}
-      {/* Chỉ hiển thị khi có file trong hàng chờ */}
       <FileStagingArea 
          files={stagedFiles} 
          onRemove={removeFile} 
@@ -221,8 +224,9 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
       {/* Input Area */}
       <ChatInput 
         onSend={handleSend} 
-        sending={sending || isUploading}
+        sending={sending}
         onFileClick={open} 
+        hasFiles={stagedFiles.length > 0} 
       />
 
       {/* Edit Group Modal */}

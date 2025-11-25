@@ -1,4 +1,5 @@
 // src/features/printer/hooks/useSmartWizard.ts
+
 import { useState, useEffect } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -58,9 +59,9 @@ export function useSmartWizard(productId?: string, onSuccess?: () => void) {
     name: "pricing",
   });
 
-  // ✅ FIX 1: Dùng useWatch cho toàn bộ form để auto-save, nhưng không dùng useEffect để set lại state
+  // Theo dõi form để Auto-save
   const watchedValues = useWatch({ control });
-  const [debouncedValues] = useDebounce(watchedValues, 1500); // Tăng debounce lên 1.5s cho an toàn
+  const [debouncedValues] = useDebounce(watchedValues, 1500);
   const [lastSavedJson, setLastSavedJson] = useState<string>("");
 
   // Load draft/init data
@@ -95,13 +96,13 @@ export function useSmartWizard(productId?: string, onSuccess?: () => void) {
             categoryDisplay: displayCategory,
             subcategory: (draftData as any).subcategory || "",
             tags: (draftData as any).tags || [],
-            images: [], // Images handled separately
+            images: [], // Images handled separately (by AsyncUpload Hook)
             pricing: draftData.pricing,
             isActive: draftData.isActive,
           };
 
           reset(formData);
-          setLastSavedJson(JSON.stringify(formData)); // Đánh dấu điểm mốc để không save lại ngay lập tức
+          setLastSavedJson(JSON.stringify(formData)); 
 
           setSelectedAsset({
             _id: assetId,
@@ -126,20 +127,19 @@ export function useSmartWizard(productId?: string, onSuccess?: () => void) {
     loadInitialData();
   }, [productId, draftData, reset]);
 
-  // ✅ FIX 2: Logic chọn Asset chuyển thành hàm Imperative (Chủ động gọi)
-  // Thay vì useEffect lắng nghe change -> set value -> trigger watch -> loop
+  // Hàm xử lý chọn Asset (Imperative)
   const handleSelectAsset = (assetId: string) => {
     const allAssets = [...privateAssets, ...publicAssets];
     const asset = allAssets.find((a) => a._id === assetId);
 
     if (asset) {
-      // 1. Set Form Value cho assetId
+      // 1. Set Form Value
       setValue("assetId", assetId, { shouldValidate: true, shouldDirty: true });
       
-      // 2. Update local state selectedAsset
+      // 2. Update local state
       setSelectedAsset(asset);
 
-      // 3. Auto-fill các trường khác (Chỉ khi tạo mới hoặc trường đó đang trống)
+      // 3. Auto-fill (nếu chưa có)
       const currentName = getValues("name");
       if (!currentName || currentName.startsWith("In ")) {
         setValue("name", `In ${asset.name} theo yêu cầu`, { shouldValidate: true });
@@ -151,7 +151,6 @@ export function useSmartWizard(productId?: string, onSuccess?: () => void) {
       
       // 4. Auto next step
       if (activeStep === 1) {
-        // Set timeout nhỏ để đảm bảo UI cập nhật xong tick xanh trước khi chuyển
         setTimeout(() => setActiveStep(2), 300); 
       }
     }
@@ -161,12 +160,12 @@ export function useSmartWizard(productId?: string, onSuccess?: () => void) {
   const saveDraftMutation = useMutation({
     mutationKey: ["save-draft", currentDraftId],
     mutationFn: async (data: ProductWizardFormValues) => {
-      if (!data.name || !data.assetId) return; // Không save nếu thiếu info cơ bản
+      if (!data.name || !data.assetId) return; 
 
       const res = await api.post("/products/draft", {
         productId: currentDraftId,
         step: activeStep,
-        data: { ...data }, // Spread data
+        data: { ...data },
       });
       return res.data.data;
     },
@@ -181,35 +180,21 @@ export function useSmartWizard(productId?: string, onSuccess?: () => void) {
     },
     onError: () => {
       setDraftStatus("error");
-      setTimeout(() => setDraftStatus("idle"), 3000); // Reset error để thử lại sau
+      setTimeout(() => setDraftStatus("idle"), 3000);
     }
   });
 
-  // ✅ FIX 3: Auto-save Effect an toàn hơn
+  // Auto-save Effect
   useEffect(() => {
     if (!debouncedValues) return;
-    
-    // Bỏ qua nếu chưa qua bước 1
     if (activeStep <= 1) return;
 
     const currentJson = JSON.stringify(debouncedValues);
-    
-    // Chỉ save nếu JSON string thay đổi so với lần save trước
     if (currentJson !== lastSavedJson) {
       setLastSavedJson(currentJson);
       saveDraftMutation.mutate(debouncedValues as ProductWizardFormValues);
     }
-  }, [debouncedValues, activeStep]); // Bỏ dependency lastSavedJson để tránh loop, chỉ dùng nó để check
-
-  // ... (Phần Publish Mutation giữ nguyên logic cũ) ...
-  const publishMutation = useMutation({
-    mutationFn: async (data: ProductWizardFormValues) => {
-        // ... logic cũ
-        // Placeholder để code ngắn gọn
-        return {}; 
-    },
-    // ...
-  });
+  }, [debouncedValues, activeStep]); 
 
   const validateAndGoToStep = async (step: number, fieldsToValidate: any[]) => {
     const isValid = await trigger(fieldsToValidate);
@@ -218,20 +203,32 @@ export function useSmartWizard(productId?: string, onSuccess?: () => void) {
   };
 
   const onSubmit = async (data: ProductWizardFormValues) => {
-     // Placeholder submit logic
      toast.success("Đã lưu!");
      if(onSuccess) onSuccess();
   };
 
+  // ✅ XỬ LÝ LỖI THÔNG MINH (NO-TOAST)
   const onError = (errors: any) => {
-    console.error(errors);
-    toast.error("Form chưa hợp lệ");
+    console.error("❌ Form Validation Errors:", errors);
+    
+    // Tự động chuyển đến tab chứa lỗi đầu tiên tìm thấy
+    if (errors.assetId) {
+      setActiveStep(1); 
+    } else if (errors.name || errors.categoryDisplay || errors.description) {
+      setActiveStep(2); 
+    } else if (errors.images) {
+      setActiveStep(3); 
+    } else if (errors.pricing) {
+      setActiveStep(4); 
+    } else {
+      setActiveStep(1);
+    }
   };
 
   return {
     form,
     isLoading,
-    isSubmitting: false, // Thay bằng mutation state thật
+    isSubmitting: false, 
     activeStep,
     setActiveStep,
     privateAssets,
@@ -244,7 +241,6 @@ export function useSmartWizard(productId?: string, onSuccess?: () => void) {
     onSubmit,
     onError,
     draftStatus,
-    // ✅ EXPORT MỚI: Hàm xử lý chọn asset
     handleSelectAsset, 
   };
 }
