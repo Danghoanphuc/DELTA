@@ -37,7 +37,7 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
   const isMobile = useIsMobile();
   const visualHeight = useVisualViewport();
 
-  const { addMessage, updateMessageId, toggleInfoSidebar, isInfoSidebarOpen } =
+  const { addMessage, updateMessageId, toggleInfoSidebar, isInfoSidebarOpen, unreadCounts, markAsRead } =
     useSocialChatStore();
 
   // --- CUSTOM HOOKS (Existing) ---
@@ -53,6 +53,7 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
     stagedFiles, 
     addFiles, 
     removeFile, 
+    addLink,
     updateFileContext, 
     uploadAllFiles, 
     clearStaging, 
@@ -110,12 +111,12 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
       content: filesToProcess ? {
           // Pass Blob URL và File Data vào đây để MessageItem có thể hiển thị
           text: content || (stagedFiles[0]?.context === 'PRINT_FILE' ? "Đã gửi file in" : "Đã gửi file đính kèm"),
-          attachments: stagedFiles.map(f => ({
+          attachments: stagedFiles.filter(f => f.file).map(f => ({
               url: f.previewUrl, // <<-- Dùng Blob URL local
-              originalName: f.file.name,
+              originalName: f.file!.name,
               type: f.fileType,
-              format: f.file.name.split('.').pop()?.toLowerCase(),
-              size: f.file.size
+              format: f.file!.name.split('.').pop()?.toLowerCase(),
+              size: f.file!.size
           })),
       } : { text: content },
       createdAt: new Date().toISOString(),
@@ -125,10 +126,16 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
     // 3. THÊM MESSAGE VÀO UI NGAY LẬP TỨC (OPTIMISTIC)
     addMessage(conversation._id, tempMsg);
     prevMessagesLength.current += 1;
-    setTimeout(() => scrollRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    // ✅ Scroll xuống dưới khi gửi tin nhắn mới
+    setTimeout(() => {
+      if (scrollRef.current && containerRef.current) {
+        scrollRef.current.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 50);
     
-    // 🔥 FIX CẤP THIẾT: Xóa Staging Area ngay để tránh sự cố "Load đúp"
-    clearStaging(); 
+    // ✅ FIX: KHÔNG clear staging ngay - đợi message được update với URL thật
+    // Blob URL cần được giữ lại cho đến khi ảnh thật load xong
+    // clearStaging(); // ❌ BỎ - sẽ clear sau khi message được update 
 
 
     // 4. **BẮT ĐẦU PROCESS NẶNG (ASYNC)**
@@ -164,9 +171,14 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
         };
         // 4d. Cập nhật Message ID tạm thành ID thật
         updateMessageId(conversation._id, tempId, realMsg);
+        
+        // ✅ BÂY GIỜ mới clear staging vì message đã có URL thật
+        clearStaging();
       }
     } catch (e) {
       toast.error("Gửi thất bại.");
+      // ✅ Clear staging khi lỗi
+      clearStaging();
       // TODO: Thêm logic cập nhật tin nhắn tạm thành status: 'failed'
     } finally {
       setSending(false);
@@ -212,6 +224,14 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
         containerRef={containerRef}
         scrollRef={scrollRef}
         messageRefs={messageRefs}
+        onScroll={() => {}}
+        showScrollButton={false}
+        onScrollToBottom={() => {
+          if (containerRef.current) {
+            containerRef.current.scrollTop = containerRef.current.scrollHeight;
+          }
+        }}
+        unreadCount={unreadCounts[conversation._id] || 0}
       />
 
       {/* --- STAGING AREA (Vùng chờ file) --- */}
@@ -227,6 +247,9 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
         sending={sending}
         onFileClick={open} 
         hasFiles={stagedFiles.length > 0} 
+        onPasteFile={addFiles} // Dán file vật lý
+        onAddLink={addLink} // ✅ Dán link Canva
+        onAddDriveFile={addFiles} // ✅ File từ Drive (dạng blob)
       />
 
       {/* Edit Group Modal */}

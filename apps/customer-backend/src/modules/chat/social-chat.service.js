@@ -7,7 +7,6 @@ import { Conversation } from "../../shared/models/conversation.model.js";
 import { Message } from "../../shared/models/message.model.js";
 import { MasterOrder } from "../../shared/models/master-order.model.js";
 import { Logger } from "../../shared/utils/index.js";
-import { socketService } from "../../infrastructure/realtime/socket.service.js";
 import { ChatRepository } from "./chat.repository.js";
 import { cloudinary } from "../../infrastructure/storage/multer.config.js";
 import {
@@ -19,6 +18,18 @@ import { MASTER_ORDER_STATUS } from "@printz/types";
 export class SocialChatService {
   constructor() {
     this.chatRepository = new ChatRepository();
+    this._socketService = null; // Lazy load
+  }
+
+  /**
+   * ✅ LAZY LOAD: Chỉ import socketService khi cần dùng
+   */
+  async getSocketService() {
+    if (!this._socketService) {
+      const { socketService } = await import("../../infrastructure/realtime/socket.service.js");
+      this._socketService = socketService;
+    }
+    return this._socketService;
   }
   
   /**
@@ -105,6 +116,7 @@ export class SocialChatService {
     // Clear Redis Cache
     await this.chatRepository.invalidateParticipantsCache(allMembers);
 
+    const socketService = await this.getSocketService();
     allMembers.forEach((memberId) => {
       const mIdStr = memberId.toString();
       
@@ -228,6 +240,7 @@ export class SocialChatService {
 
     // 6.2 Bắn Socket "conversation_updated" cho thành viên hiện tại
     // Frontend nghe event này -> Update lại item trong list chat ngay lập tức
+    const socketService = await this.getSocketService();
     currentParticipantIds.forEach(pId => {
         socketService.emitToUser(pId, "conversation_updated", conversation);
     });
@@ -273,6 +286,7 @@ export class SocialChatService {
     await this.chatRepository.invalidateUserCache(userId);
 
     // Bắn event ngay lập tức cho chính user đó để FE xóa khỏi list
+    const socketService = await this.getSocketService();
     socketService.emitToUser(userId.toString(), "conversation_removed", { conversationId });
 
     Logger.info(`[SocialChatSvc] Soft deleted conversation ${conversationId} for user ${userId}`);
@@ -410,6 +424,7 @@ export class SocialChatService {
         return uId && uId.toString() !== sender._id.toString();
       });
 
+      const socketService = await this.getSocketService();
       recipients.forEach(recipient => {
           const recipientId = (recipient.userId?._id || recipient.userId).toString();
           const senderName = sender.displayName || sender.username || "Ai đó";

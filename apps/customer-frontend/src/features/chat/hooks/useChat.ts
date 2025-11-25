@@ -1,8 +1,9 @@
 // src/features/chat/hooks/useChat.ts (REFACTORED - Clean Architecture)
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { AiApiResponse } from "@/types/chat";
+import { AiApiResponse, ChatMessage, TextMessage } from "@/types/chat";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useSocket } from "@/contexts/SocketProvider";
 import * as chatApi from "../services/chat.api.service";
 
 // Import custom hooks
@@ -20,6 +21,7 @@ export const useChat = () => {
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [isChatExpanded, setIsChatExpanded] = useState(true);
   const accessToken = useAuthStore((s) => s.accessToken);
+  const socket = useSocket();
 
   // Load conversations on auth change
   const { loadConversations, clearCurrentConversation, currentConversationId } = conversationState;
@@ -47,6 +49,112 @@ export const useChat = () => {
       loadConversations();
     }
   }, [accessToken, loadConversations]);
+
+  // Effect 3: Socket listener for real-time messages (URL preview, AI responses, etc.)
+  useEffect(() => {
+    if (!socket?.socket || !socket.isConnected) return;
+
+    console.log("[useChat] ✅ Setting up socket listeners for real-time messages");
+
+    // Handler for new messages from socket (URL preview worker, AI responses, etc.)
+    const handleNewMessage = (socketMessage: any) => {
+      try {
+        console.log("[useChat] 🔔 Received socket message:", {
+          messageId: socketMessage._id,
+          conversationId: socketMessage.conversationId,
+          senderType: socketMessage.senderType,
+          type: socketMessage.type,
+        });
+
+        // ✅ Chỉ nhận messages cho conversation hiện tại
+        if (
+          socketMessage.conversationId &&
+          conversationState.currentConversationId &&
+          socketMessage.conversationId !== conversationState.currentConversationId
+        ) {
+          console.log(
+            `[useChat] ⏭️ Skipping message - different conversation. Current: ${conversationState.currentConversationId}, Message: ${socketMessage.conversationId}`
+          );
+          return;
+        }
+
+        // ✅ Kiểm tra message đã tồn tại chưa (tránh duplicate)
+        const exists = messageState.messages.some((msg) => msg._id === socketMessage._id);
+        if (exists) {
+          console.log(`[useChat] ⏭️ Message ${socketMessage._id} already exists, skipping...`);
+          return;
+        }
+
+        // ✅ Convert socket message format sang ChatMessage format
+        let chatMessage: ChatMessage;
+
+        if (socketMessage.type === "text") {
+          // ✅ Text message (có thể có fileUrl từ URL preview)
+          chatMessage = {
+            _id: socketMessage._id,
+            senderType: socketMessage.senderType || "AI",
+            sender: socketMessage.sender || null,
+            type: "text",
+            conversationId: socketMessage.conversationId?.toString() || conversationState.currentConversationId || "",
+            content: socketMessage.content || { text: "" },
+            metadata: socketMessage.metadata || null,
+            createdAt: socketMessage.createdAt || new Date().toISOString(),
+            updatedAt: socketMessage.updatedAt || new Date().toISOString(),
+          } as TextMessage;
+        } else {
+          // ✅ Fallback cho các loại message khác
+          console.warn(`[useChat] ⚠️ Unknown message type: ${socketMessage.type}, using text type`);
+          chatMessage = {
+            _id: socketMessage._id,
+            senderType: socketMessage.senderType || "AI",
+            sender: socketMessage.sender || null,
+            type: "text",
+            conversationId: socketMessage.conversationId?.toString() || conversationState.currentConversationId || "",
+            content: socketMessage.content || { text: "" },
+            metadata: socketMessage.metadata || null,
+            createdAt: socketMessage.createdAt || new Date().toISOString(),
+            updatedAt: socketMessage.updatedAt || new Date().toISOString(),
+          } as TextMessage;
+        }
+
+        // ✅ Thêm message vào state
+        console.log(`[useChat] ✅ Adding message ${chatMessage._id} to conversation ${chatMessage.conversationId}`);
+        messageState.setMessages((prev: ChatMessage[]) => {
+          // Kiểm tra lại tránh duplicate trong cùng một render cycle
+          const alreadyExists = prev.some((msg) => msg._id === chatMessage._id);
+          if (alreadyExists) {
+            console.log(`[useChat] ⏭️ Message ${chatMessage._id} already in state, skipping...`);
+            return prev;
+          }
+          return [...prev, chatMessage];
+        });
+
+        // ✅ Tắt loading khi nhận được message (có thể đang chờ AI response)
+        setIsLoadingAI(false);
+
+        console.log(`[useChat] ✅ Message ${chatMessage._id} added successfully`);
+      } catch (error: any) {
+        console.error("[useChat] ❌ Error processing socket message:", error);
+        console.error("[useChat] Error details:", {
+          message: error?.message,
+          stack: error?.stack,
+          socketMessage,
+        });
+      }
+    };
+
+    // ✅ Listen cho cả 2 event names (backend emit cả 2 để đảm bảo)
+    socket.socket.on("chat:message:new", handleNewMessage);
+    socket.socket.on("new_message", handleNewMessage);
+
+    return () => {
+      if (socket?.socket) {
+        socket.socket.off("chat:message:new", handleNewMessage);
+        socket.socket.off("new_message", handleNewMessage);
+        console.log("[useChat] 🧹 Cleaned up socket listeners");
+      }
+    };
+  }, [socket, conversationState.currentConversationId, messageState]);
 
   // Error handler
   const handleError = useCallback((

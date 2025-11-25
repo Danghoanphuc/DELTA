@@ -42,11 +42,30 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173, // Cổng frontend của Phúc
       proxy: {
-        // (Giữ nguyên proxy của Phúc nếu có)
+        // ✅ FIX: Proxy config để đảm bảo cookies được forward đúng cách
         "/api": {
           target: env.VITE_BACKEND_URL || "http://localhost:8000",
           changeOrigin: true,
           secure: false,
+          // ✅ FIX: Đảm bảo cookies được forward
+          cookieDomainRewrite: "",
+          cookiePathRewrite: "/",
+          // ✅ FIX: Forward credentials
+          configure: (proxy, _options) => {
+            proxy.on('proxyReq', (proxyReq, req, _res) => {
+              // Forward cookies từ request
+              if (req.headers.cookie) {
+                proxyReq.setHeader('Cookie', req.headers.cookie);
+              }
+            });
+            proxy.on('proxyRes', (proxyRes, req, res) => {
+              // Forward Set-Cookie headers từ response
+              const setCookieHeaders = proxyRes.headers['set-cookie'];
+              if (setCookieHeaders) {
+                res.setHeader('Set-Cookie', setCookieHeaders);
+              }
+            });
+          },
         },
       },
     },

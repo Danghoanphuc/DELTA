@@ -1,28 +1,24 @@
 // src/features/chat/components/ChatMessages.tsx
-
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type RefObject,
-  useMemo,
 } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChatMessage } from "@/types/chat";
 import { cn } from "@/shared/lib/utils";
-import { UserAvatar } from "@/components/UserAvatar";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { UserAvatar } from "@/components/UserAvatar";
 
-// ✅ IMPORT COMPONENT MỚI
-import { ZinAvatar } from "@/features/zin-bot/ZinAvatar";
-// ✅ IMPORT UTILS PHÂN TÍCH CẢM XÚC
+// ✅ IMPORT CHUẨN: Dùng ZinNotionAvatar
+import { ZinNotionAvatar } from "@/features/zin-bot/ZinNotionAvatar";
+import { ZinEmotion } from "@/features/zin-bot/types";
 import { analyzeSentiment } from "../utils/sentiment";
+import { MessageContent } from "./MessageContent";
 
-import { ChatProductCarousel } from "@/features/chat/components/ChatProductCarousel";
-import { ChatOrderCarousel } from "@/features/chat/components/ChatOrderCarousel";
-
-// User Avatar - Clean like Grok
 const UserAvatarComponent = () => {
   const user = useAuthStore((s) => s.user);
   return (
@@ -33,37 +29,6 @@ const UserAvatarComponent = () => {
       fallbackClassName="bg-gray-400 text-white"
     />
   );
-};
-
-// Message Content - Clean like Grok
-const MessageContent = ({ msg }: { msg: ChatMessage }) => {
-  switch (msg.type) {
-    case "ai_response":
-    case "text":
-      return (
-        <div className="max-w-2xl">
-          <p className="text-gray-900 dark:text-gray-100 leading-relaxed whitespace-pre-wrap">
-            {msg.content.text}
-          </p>
-        </div>
-      );
-    case "product_selection":
-      return (
-        <div className="max-w-2xl">
-          <p className="text-gray-900 dark:text-gray-100 mb-4 leading-relaxed">{msg.content.text}</p>
-          <ChatProductCarousel products={msg.content.products} />
-        </div>
-      );
-    case "order_selection":
-      return (
-        <div className="max-w-2xl">
-          <p className="text-gray-900 dark:text-gray-100 mb-4 leading-relaxed">{msg.content.text}</p>
-          <ChatOrderCarousel orders={msg.content.orders} />
-        </div>
-      );
-    default:
-      return null;
-  }
 };
 
 interface ChatMessagesProps {
@@ -82,6 +47,14 @@ export function ChatMessages({
 }: ChatMessagesProps) {
   const fallbackScrollRef = useRef<HTMLDivElement>(null);
   const [isNearBottom, setIsNearBottom] = useState(true);
+  const [isReady, setIsReady] = useState(false); // ✅ NEW: Track when ready to render
+  const isInitialLoadRef = useRef(true);
+  const lastMessagesLengthRef = useRef(0);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastScrolledMessageIdRef = useRef<string | null>(null);
+  const previousMessagesRef = useRef<ChatMessage[]>([]);
+  const newMessageIdsRef = useRef<Set<string>>(new Set());
+  
   const totalItems = messages.length + (isLoadingAI ? 1 : 0);
   const lastMessage = messages[messages.length - 1];
 
@@ -89,13 +62,13 @@ export function ChatMessages({
     return scrollContainerRef?.current ?? fallbackScrollRef.current;
   }, [scrollContainerRef]);
 
-  const estimateRowHeight = useCallback(() => 200, []);
+  const estimateRowHeight = useCallback(() => 100, []);
 
   const virtualizer = useVirtualizer({
     count: totalItems,
     getScrollElement,
     estimateSize: estimateRowHeight,
-    overscan: 8,
+    overscan: 5,
     getItemKey: (index) =>
       index < messages.length ? messages[index]._id : "ai-typing",
   });
@@ -103,52 +76,144 @@ export function ChatMessages({
   useEffect(() => {
     const scrollEl = getScrollElement();
     if (!scrollEl) return;
-
+    
+    const distanceFromBottom =
+      scrollEl.scrollHeight - (scrollEl.scrollTop + scrollEl.clientHeight);
+    setIsNearBottom(distanceFromBottom < AUTO_SCROLL_THRESHOLD_PX);
+    
     const handleScroll = () => {
       const distanceFromBottom =
         scrollEl.scrollHeight - (scrollEl.scrollTop + scrollEl.clientHeight);
       setIsNearBottom(distanceFromBottom < AUTO_SCROLL_THRESHOLD_PX);
     };
-
-    handleScroll();
     scrollEl.addEventListener("scroll", handleScroll, { passive: true });
-    return () => {
-      scrollEl.removeEventListener("scroll", handleScroll);
-    };
+    return () => scrollEl.removeEventListener("scroll", handleScroll);
   }, [getScrollElement]);
 
-  // Fix: Use "auto" instead of "smooth" to avoid warning with dynamic virtualizer
   const scrollToBottom = useCallback(
-    (behavior: "auto" | "smooth" = "auto") => {
+    (behavior: "auto" | "smooth" = "smooth") => {
       if (!getScrollElement()) return;
       const lastIndex = totalItems - 1;
-      if (lastIndex < 0) return;
-      virtualizer.scrollToIndex(lastIndex, { align: "end", behavior: "auto" });
+      if (lastIndex >= 0) {
+        virtualizer.scrollToIndex(lastIndex, { align: "end", behavior });
+      }
     },
     [getScrollElement, totalItems, virtualizer]
   );
 
-  useEffect(() => {
-    if (messages.length === 0 && isLoadingAI) {
-      scrollToBottom();
+  // ✅ CRITICAL: Use virtualizer to scroll to bottom IMMEDIATELY before render
+  useLayoutEffect(() => {
+    if (messages.length === 0) {
+      setIsReady(false);
+      lastMessagesLengthRef.current = 0;
+      previousMessagesRef.current = [];
       return;
     }
 
-    if (messages.length === 0) return;
-
-    const shouldForceScroll = lastMessage?.senderType === "User";
-
-    if (shouldForceScroll || isNearBottom) {
-      scrollToBottom();
+    // Detect initial load (messages jumping from 0 to many)
+    const wasEmpty = lastMessagesLengthRef.current === 0;
+    const isInitialLoad = wasEmpty && messages.length > 0;
+    
+    if (isInitialLoad) {
+      setIsReady(false); // ✅ Don't render yet
+      
+      const scrollEl = getScrollElement();
+      if (scrollEl) {
+        // ✅ Step 1: Calculate and set estimated scroll position FIRST
+        const estimatedHeight = messages.length * estimateRowHeight() + VERTICAL_PADDING * 2;
+        scrollEl.scrollTop = estimatedHeight; // Set immediately
+        
+        // ✅ Step 2: Wait for browser to process, then use virtualizer
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            // Step 3: Use virtualizer to scroll to exact bottom
+            const lastIndex = totalItems - 1;
+            if (lastIndex >= 0 && scrollEl) {
+              virtualizer.scrollToIndex(lastIndex, { 
+                align: "end", 
+                behavior: "auto"
+              });
+              
+              // ✅ Step 4: Verify scroll is at bottom before showing messages
+              setTimeout(() => {
+                if (scrollEl) {
+                  // Final check: ensure scroll is at bottom
+                  const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+                  scrollEl.scrollTop = maxScroll;
+                  
+                  // ✅ NOW safe to render - scroll is definitely at bottom
+                  setIsReady(true);
+                  lastMessagesLengthRef.current = messages.length;
+                  previousMessagesRef.current = messages;
+                }
+              }, 50); // Small delay to ensure scroll is processed
+            }
+          });
+        });
+      } else {
+        // No scroll element, render anyway
+        setIsReady(true);
+        lastMessagesLengthRef.current = messages.length;
+        previousMessagesRef.current = messages;
+      }
+      return;
     }
-  }, [
-    isLoadingAI,
-    isNearBottom,
-    lastMessage?._id,
-    lastMessage?.senderType,
-    messages.length,
-    scrollToBottom,
-  ]);
+
+    // For subsequent updates (not initial load)
+    setIsReady(true);
+    lastMessagesLengthRef.current = messages.length;
+  }, [messages.length, totalItems, virtualizer, getScrollElement, estimateRowHeight]);
+
+  // ✅ Track newly added messages for animation
+  useEffect(() => {
+    if (!isReady) return;
+    
+    const previousIds = new Set(previousMessagesRef.current.map(m => m._id));
+    const newMessages = messages.filter(m => !previousIds.has(m._id));
+    
+    if (newMessages.length > 0) {
+      newMessages.forEach(m => newMessageIdsRef.current.add(m._id));
+      setTimeout(() => {
+        newMessages.forEach(m => newMessageIdsRef.current.delete(m._id));
+      }, 500);
+    }
+
+    previousMessagesRef.current = messages;
+  }, [messages, isReady]);
+
+  // ✅ Handle scroll for new messages (only after initial load)
+  useEffect(() => {
+    if (!isReady) return;
+    if (messages.length === 0) return;
+    
+    const isNewMessage = messages.length > lastMessagesLengthRef.current;
+    const shouldForceScroll = lastMessage?.senderType === "User";
+    
+    if (isNewMessage && lastMessage && !isInitialLoadRef.current) {
+      const shouldScroll = (shouldForceScroll || isNearBottom) && 
+                           lastScrolledMessageIdRef.current !== lastMessage._id;
+      
+      if (shouldScroll) {
+        lastScrolledMessageIdRef.current = lastMessage._id;
+        
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            scrollTimeoutRef.current = setTimeout(() => {
+              scrollToBottom("smooth");
+            }, 250);
+          });
+        });
+      }
+    }
+    
+    isInitialLoadRef.current = false;
+    
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, [messages.length, lastMessage?._id, isLoadingAI, scrollToBottom, isNearBottom, isReady]);
 
   const virtualItems = virtualizer.getVirtualItems();
 
@@ -160,90 +225,114 @@ export function ChatMessages({
         !scrollContainerRef && "h-full overflow-y-auto"
       )}
     >
+      {/* ✅ Render messages but use display:none until scroll is ready to prevent any rendering */}
       <div
         className="relative w-full"
-        style={{
-          height: virtualizer.getTotalSize() + VERTICAL_PADDING * 2,
+        style={{ 
+          height: isReady ? virtualizer.getTotalSize() + VERTICAL_PADDING * 2 : 0,
+          display: isReady ? "block" : "none" // ✅ Completely prevent rendering until ready
         }}
       >
-        {virtualItems.map((virtualItem) => {
-          const isMessageRow = virtualItem.index < messages.length;
-          const message = messages[virtualItem.index];
+          {virtualItems.map((virtualItem) => {
+            const isMessageRow = virtualItem.index < messages.length;
+            const message = messages[virtualItem.index];
 
-          // ✅ LOGIC TÍNH TOÁN CẢM XÚC
-          // Chỉ áp dụng cho tin nhắn của AI (Bot)
-          let botExpression: "neutral" | "happy" | "sad" | "surprised" = "neutral";
-          
-          if (isMessageRow && message && message.senderType === "AI") {
-             const textContent = message.type === 'text' || message.type === 'ai_response' 
+            // ✅ LOGIC TỰ ĐỘNG PHÂN TÍCH CẢM XÚC
+            let emotion: ZinEmotion = "neutral";
+            let isThinking = false;
+
+            if (isMessageRow && message?.senderType === "AI") {
+              const textContent = message.type === 'text' || message.type === 'ai_response' 
                 ? (message.content as any).text 
                 : "";
-             // Gọi hàm utility để phân tích
-             const analyzedExpression = analyzeSentiment(textContent);
-             // Map "thinking" to "neutral" vì ZinEmotion không có "thinking"
-             botExpression = analyzedExpression === "thinking" ? "neutral" : analyzedExpression;
-          }
+              
+              const sentiment = analyzeSentiment(textContent);
+              
+              if (sentiment === "thinking") isThinking = true;
+              else if (sentiment === "waiting") isThinking = true;
+              else if (sentiment === "confused") emotion = "surprised";
+              else emotion = sentiment as ZinEmotion;
+            }
 
-          return (
-            <div
-              key={virtualItem.key}
-              ref={virtualizer.measureElement}
-              data-index={virtualItem.index}
-              className="absolute left-0 right-0 will-change-transform"
-              style={{
-                transform: `translateY(${
-                  virtualItem.start + VERTICAL_PADDING
-                }px)`,
-              }}
-            >
-              <div className="py-3">
-                {isMessageRow && message ? (
-                  <div
-                    className={cn(
-                      "flex gap-4",
-                      message.senderType === "User" && "flex-row-reverse"
-                    )}
-                  >
-                   <div className="flex-shrink-0">
-  {message.senderType === "AI" && (
-     // ✅ BẮT BUỘC THÊM: w-10 h-10 (40px)
-     // Nếu không có class này, nó sẽ phình to ra
-     <div className="w-10 h-10"> 
-        <ZinAvatar emotion={botExpression} />
-     </div>
-  )}
-  {message.senderType === "User" && <UserAvatarComponent />}
-</div>
-                    <MessageContent msg={message} />
-                  </div>
-                ) : (
-                  <TypingIndicator />
-                )}
+            // ✅ Check if this is a newly added message for animation
+            const isNewMessage = message && newMessageIdsRef.current.has(message._id);
+            
+            return (
+              <div
+                key={virtualItem.key}
+                ref={virtualizer.measureElement}
+                data-index={virtualItem.index}
+                className="absolute left-0 right-0"
+                style={{
+                  transform: `translateY(${virtualItem.start + VERTICAL_PADDING}px)`,
+                }}
+              >
+                <div 
+                  className={cn(
+                    "py-2",
+                    isNewMessage && "animate-in fade-in slide-in-from-bottom-3 duration-300 ease-out"
+                  )}
+                  style={{
+                    animationFillMode: isNewMessage ? "backwards" : undefined,
+                  }}
+                >
+                  {isMessageRow && message ? (
+                    <div className={cn(
+                        "flex gap-3",
+                        message.senderType === "User" && "flex-row-reverse"
+                      )}>
+                      
+                      {/* AVATAR ZIN (NOTION STYLE) */}
+                      <div className="flex-shrink-0 mt-1">
+                        {message.senderType === "AI" && (
+                          <div className="w-8 h-8 md:w-9 md:h-9"> 
+                            <ZinNotionAvatar 
+                              emotion={emotion} 
+                              isThinking={isThinking}
+                              className="w-full h-full text-slate-800 dark:text-slate-200"
+                            />
+                          </div>
+                        )}
+                        {message.senderType === "User" && <UserAvatarComponent />}
+                      </div>
+                      
+                      {/* CONTENT */}
+                      <div className={cn(
+                        "rounded-2xl px-4 py-2.5 max-w-[85%] md:max-w-[75%] shadow-sm text-[15px] leading-relaxed",
+                        message.senderType === "User" 
+                          ? "bg-blue-600 text-white rounded-br-sm" 
+                          : "bg-white border border-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100 rounded-bl-sm"
+                      )}>
+                        <MessageContent message={message} />
+                      </div>
+
+                    </div>
+                  ) : (
+                    <TypingIndicator />
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
       </div>
     </div>
   );
 }
 
-// ✅ TYPING INDICATOR VỚI TRẠNG THÁI "ĐANG NGHĨ"
+// ✅ Typing Indicator dùng Avatar mới
 const TypingIndicator = () => (
-  <div className="flex gap-4">
-    <div className="flex-shrink-0">
-      {/* ✅ FIX: Thêm class w-10 h-10 (40px) 
-         để ép Zin vào khuôn khổ, bằng với kích thước avatar tin nhắn thường 
-      */}
-      <div className="w-12 h-12">
-        <ZinAvatar isThinking={true} />
-      </div>
+  <div className="flex gap-3 py-2">
+    <div className="w-8 h-8 md:w-9 md:h-9 flex-shrink-0 mt-1">
+      <ZinNotionAvatar 
+        isThinking={true} 
+        className="w-full h-full text-slate-800 dark:text-slate-200"
+      />
     </div>
-    <div className="max-w-2xl">
-      <div className="flex items-center gap-2 h-full py-2">
-        <span className="text-gray-500 dark:text-gray-400 text-sm italic animate-pulse">
-          Zin đang suy nghĩ...
-        </span>
+    <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex items-center gap-2">
+      <div className="flex gap-1 h-2 items-center">
+        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
       </div>
     </div>
   </div>

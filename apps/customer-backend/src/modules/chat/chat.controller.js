@@ -1,23 +1,67 @@
 // apps/customer-backend/src/modules/chat/chat.controller.js
 import axios from "axios";
-import { ChatService } from "./chat.service.js";
-import { SocialChatService } from "./social-chat.service.js";
 import { Conversation } from "../../shared/models/conversation.model.js";
 import { ApiResponse } from "../../shared/utils/index.js";
 import { API_CODES } from "../../shared/constants/index.js";
 import { NotFoundException, ForbiddenException } from "../../shared/exceptions/index.js";
 import { Logger } from "../../shared/utils/index.js";
-import { r2Service } from "./r2.service.js";
 
-// Import Cloudinary để hỗ trợ tạo Signed URL khi cần
-import * as cloudinaryModule from "../../infrastructure/storage/multer.config.js"; 
-// Đảm bảo lấy đúng instance v2
-const cloudinary = cloudinaryModule.cloudinary || cloudinaryModule.default || cloudinaryModule;
+// ✅ LAZY LOAD: Chỉ import services khi cần
+let ChatServiceClass = null;
+let SocialChatServiceClass = null;
+let r2ServiceInstance = null;
+let cloudinaryInstance = null;
+
+async function getChatService() {
+  if (!ChatServiceClass) {
+    const module = await import("./chat.service.js");
+    ChatServiceClass = module.ChatService;
+  }
+  return new ChatServiceClass();
+}
+
+async function getSocialChatService() {
+  if (!SocialChatServiceClass) {
+    const module = await import("./social-chat.service.js");
+    SocialChatServiceClass = module.SocialChatService;
+  }
+  return new SocialChatServiceClass();
+}
+
+async function getR2Service() {
+  if (!r2ServiceInstance) {
+    const module = await import("./r2.service.js");
+    r2ServiceInstance = module.r2Service;
+  }
+  return r2ServiceInstance;
+}
+
+async function getCloudinary() {
+  if (!cloudinaryInstance) {
+    const module = await import("../../infrastructure/storage/multer.config.js");
+    cloudinaryInstance = module.cloudinary || module.default || module;
+  }
+  return cloudinaryInstance;
+}
 
 export class ChatController {
   constructor() {
-    this.botService = new ChatService();
-    this.socialService = new SocialChatService();
+    this._botService = null;
+    this._socialService = null;
+  }
+
+  async getBotService() {
+    if (!this._botService) {
+      this._botService = await getChatService();
+    }
+    return this._botService;
+  }
+
+  async getSocialService() {
+    if (!this._socialService) {
+      this._socialService = await getSocialChatService();
+    }
+    return this._socialService;
   }
 
   handleChatMessage = async (req, res, next) => {
@@ -55,9 +99,11 @@ export class ChatController {
       let response;
       if (isSocialChat) {
         if (isGuest) throw new Error("Bạn phải đăng nhập để chat Social.");
-        response = await this.socialService.handleSocialMessage(req.user, body);
+        const socialService = await this.getSocialService();
+        response = await socialService.handleSocialMessage(req.user, body);
       } else {
-        response = await this.botService.handleBotMessage(
+        const botService = await this.getBotService();
+        response = await botService.handleBotMessage(
           req.user,
           body,
           isGuest
@@ -94,27 +140,35 @@ export class ChatController {
   // Thay vì hardcode "customer-bot"
   getConversations = async (req, res, next) => {
     try {
+      Logger.info(`[ChatController] getConversations called for user ${req.user._id}`);
       // Lấy type từ query param (nếu frontend muốn filter)
       // Nếu không gửi type -> Lấy hết (để hiển thị cả Social lẫn Bot)
       const type = req.query.type || null; 
+      Logger.debug(`[ChatController] Query type: ${type}`);
 
+      Logger.info(`[ChatController] Fetching conversations from repository...`);
+      const botService = await this.getBotService();
       const conversations =
-        await this.botService.chatRepository.findConversationsByUserId(
+        await botService.chatRepository.findConversationsByUserId(
           req.user._id,
           type 
         );
+      Logger.info(`[ChatController] Found ${conversations?.length || 0} conversations`);
+      
       res
         .status(API_CODES.SUCCESS)
         .json(ApiResponse.success({ conversations }));
     } catch (e) {
+      Logger.error(`[ChatController] Error in getConversations:`, e);
       next(e);
     }
   };
 
   getConversationById = async (req, res, next) => {
     try {
+      const botService = await this.getBotService();
       const conversation =
-        await this.botService.chatRepository.getConversationMetadata(
+        await botService.chatRepository.getConversationMetadata(
           req.params.conversationId,
           req.user._id
         );
@@ -131,20 +185,28 @@ export class ChatController {
 
   getMessagesForConversation = async (req, res, next) => {
     try {
-      const data = await this.botService.getMessages(
+      const botService = await this.getBotService();
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 30;
+      
+      // ✅ FIX: Dùng getPaginatedMessages từ repository
+      const data = await botService.chatRepository.getPaginatedMessages(
         req.params.conversationId,
-        req.user._id,
-        req.query
+        page,
+        limit
       );
+      
       res.status(API_CODES.SUCCESS).json(ApiResponse.success(data));
     } catch (e) {
+      Logger.error(`[GET /api/chat/history/${req.params.conversationId}] Error:`, e);
       next(e);
     }
   };
 
   renameConversation = async (req, res, next) => {
     try {
-      await this.botService.renameConversation(
+      const botService = await this.getBotService();
+      await botService.renameConversation(
         req.params.conversationId,
         req.user._id,
         req.body.title
@@ -163,14 +225,16 @@ export class ChatController {
       const conversationId = req.params.conversationId;
 
       // 1. Gọi service để Soft Delete trong DB
-      await this.socialService.deleteConversation(
+      const socialService = await this.getSocialService();
+      await socialService.deleteConversation(
         conversationId,
         userId
       );
 
       // 2. ⚡ FIX CRITICAL: Buộc xóa Cache Redis của user này ngay tại Controller
       // Để đảm bảo dù Service có quên thì Controller vẫn chặn hậu.
-      await this.botService.chatRepository.invalidateUserCache(userId);
+      const botService = await this.getBotService();
+      await botService.chatRepository.invalidateUserCache(userId);
 
       res
         .status(API_CODES.SUCCESS)
@@ -190,7 +254,8 @@ export class ChatController {
       );
       if (!isParticipant) throw new NotFoundException("Không có quyền truy cập");
 
-      const media = await this.botService.chatRepository.getMediaFiles(req.params.conversationId);
+      const botService = await this.getBotService();
+      const media = await botService.chatRepository.getMediaFiles(req.params.conversationId);
       res.status(API_CODES.SUCCESS).json(ApiResponse.success({ media }));
     } catch (e) {
       next(e);
@@ -207,7 +272,8 @@ export class ChatController {
       );
       if (!isParticipant) throw new NotFoundException("Không có quyền truy cập");
 
-      const files = await this.botService.chatRepository.getSharedFiles(req.params.conversationId);
+      const botService = await this.getBotService();
+      const files = await botService.chatRepository.getSharedFiles(req.params.conversationId);
       res.status(API_CODES.SUCCESS).json(ApiResponse.success({ files }));
     } catch (e) {
       next(e);
@@ -231,7 +297,8 @@ export class ChatController {
       );
       if (!isParticipant) throw new NotFoundException("Không có quyền truy cập");
 
-      const messages = await this.botService.chatRepository.searchMessages(conversationId, q.trim());
+      const botService = await this.getBotService();
+      const messages = await botService.chatRepository.searchMessages(conversationId, q.trim());
       res.status(API_CODES.SUCCESS).json(ApiResponse.success({ messages }));
     } catch (e) {
       next(e);
@@ -295,7 +362,8 @@ export class ChatController {
         }
       }
 
-      const conversation = await this.socialService.createGroupConversation({
+      const socialService = await this.getSocialService();
+      const conversation = await socialService.createGroupConversation({
         title,
         description,
         members: parsedMembers,
@@ -336,7 +404,8 @@ export class ChatController {
         parsedMembersToAdd = membersToAdd;
       }
 
-      const updatedConversation = await this.socialService.updateGroupConversation(
+      const socialService = await this.getSocialService();
+      const updatedConversation = await socialService.updateGroupConversation(
         conversationId,
         req.user._id,
         {
@@ -372,7 +441,8 @@ export class ChatController {
       const { conversationId } = req.params;
       const userId = req.user._id;
 
-      const context = await this.socialService.getBusinessContext(conversationId, userId);
+      const socialService = await this.getSocialService();
+      const context = await socialService.getBusinessContext(conversationId, userId);
 
       res.status(API_CODES.SUCCESS).json(ApiResponse.success(context));
     } catch (e) {
@@ -389,7 +459,8 @@ export class ChatController {
       const userId = req.user._id;
       const { items, total, note } = req.body;
 
-      const quoteMessage = await this.socialService.createQuoteMessage(
+      const socialService = await this.getSocialService();
+      const quoteMessage = await socialService.createQuoteMessage(
         conversationId,
         userId,
         { items, total, note }
@@ -416,6 +487,7 @@ export class ChatController {
         );
       }
 
+      const r2Service = await getR2Service();
       const data = await r2Service.getPresignedUploadUrl(fileName, fileType);
       res.status(API_CODES.SUCCESS).json(ApiResponse.success(data));
     } catch (e) {
@@ -440,6 +512,7 @@ export class ChatController {
       }
 
       // Mặc định dùng 'inline' để preview được, nếu muốn download thì truyền mode='attachment'
+      const r2Service = await getR2Service();
       const downloadUrl = await r2Service.getPresignedDownloadUrl(
         key,
         filename || "file",
@@ -474,6 +547,7 @@ export class ChatController {
       }
 
       // Upload file lên R2 từ buffer
+      const r2Service = await getR2Service();
       await r2Service.uploadFile(
         req.file.buffer,
         fileKey,
@@ -554,6 +628,7 @@ export class ChatController {
             Logger.info(`[Proxy Download] Detected - Resource: ${resourceType}, Type: ${deliveryType}, Ver: ${version}`);
 
             // 2. Tạo Signed URL giữ nguyên type gốc
+            const cloudinary = await getCloudinary();
             const signedUrl = cloudinary.url(publicId, {
               resource_type: resourceType,
               type: deliveryType, // ✅ Dùng lại type gốc (upload), không ép sang authenticated

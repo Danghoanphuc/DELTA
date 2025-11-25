@@ -1,8 +1,11 @@
 // apps/customer-frontend/src/App.tsx
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect, useRef, Suspense, lazy, ComponentType } from "react";
 import { useAuthStore } from "./stores/useAuthStore";
 import { useCartStore } from "./stores/useCartStore";
+
+// ✅ HOOK BẢO VỆ NỘI DUNG
+import { useContentProtection } from "@/shared/hooks/useContentProtection";
 
 import { AppLayout } from "./components/AppLayout";
 import ProtectedGuard from "./features/auth/containers/ProtectedGuard";
@@ -18,7 +21,7 @@ import { SocialChatSync } from "@/features/social/components/SocialChatSync";
 
 // ✅ CORE UI
 import PageLoader from "@/components/PageLoader";
-import NotFoundPage from "./pages/NotFoundPage"; // <--- IMPORT MỚI
+import NotFoundPage from "./pages/NotFoundPage"; 
 
 // --- Public Pages ---
 import SmartLanding from "@/features/landing/SmartLanding";
@@ -92,6 +95,9 @@ function App() {
   const hasFetchedRef = useRef<boolean>(false);
   const FETCH_COOLDOWN = 10000;
 
+  // ✅ KÍCH HOẠT LÁ CHẮN BẢO VỆ (Chống copy, chuột phải, F12)
+  useContentProtection();
+
   // Logic fetch user data
   useEffect(() => {
     if (isAuthenticated && !user && !hasFetchedRef.current) {
@@ -109,7 +115,7 @@ function App() {
     if (!isAuthenticated) {
       hasFetchedRef.current = false;
     }
-  }, [isAuthenticated, user, fetchMe]); // Added dependencies for safety
+  }, [isAuthenticated, user, fetchMe]);
 
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
@@ -132,10 +138,10 @@ function App() {
           <NotificationListener />
           <SocialChatSync />
 
-          {/* ✅ 1. GLOBAL SPLASH SCREEN (Artificial Delay 3s) */}
+          {/* 1. GLOBAL SPLASH SCREEN */}
           <PageLoader mode="splash" isLoading={authLoading} />
           
-          {/* ✅ 2. SUSPENSE LOADER */}
+          {/* 2. SUSPENSE LOADER */}
           <Suspense fallback={<PageLoader mode="loading" isLoading={true} />}>
             <Routes>
               {/* 1. PUBLIC LANDING */}
@@ -197,7 +203,7 @@ function App() {
                 <Route path="/printer/studio/:productId" element={<PrinterStudio />} />
               </Route>
 
-              {/* 4. 404 CÁ NHÂN HÓA - KẸT GIẤY KỸ THUẬT SỐ */}
+              {/* 4. 404 CÁ NHÂN HÓA */}
               <Route path="*" element={<NotFoundPage />} /> 
             </Routes>
           </Suspense>

@@ -28,7 +28,6 @@ import { isPrinter, protect } from "./shared/middleware/index.js";
 
 // (Import passport config)
 import "./infrastructure/auth/passport.config.js";
-import rushRoutes from "./modules/rush/rush.routes.js";
 // (Tạm thời tắt nếu chưa dùng)
 // import { initQueues } from './config/queue.config.js';
 
@@ -40,8 +39,121 @@ async function startServer() {
     // --- 1. KẾT NỐI CÁC DỊCH VỤ NỀN TẢNG (DB, Cache) ---
     await connectDB();
     await connectToRedis();
-    // await initQueues();
     Logger.info("✅ Đã kết nối Database & Redis thành công.");
+
+    try {
+      const { urlPreviewQueue } = await import("./infrastructure/queue/url-preview.queue.js");
+      const { urlProcessorWorker } = await import("./modules/chat/workers/url-processor.worker.js");
+
+      if (!urlProcessorWorker) {
+        throw new Error("urlProcessorWorker is undefined");
+      }
+
+      // ✅ CRITICAL: Worker wrapper với complete domain isolation
+      const safeProcessJob = async (job: any) => {
+        const jobId = job.id;
+        const jobData = job.data;
+        const jobStartTime = Date.now();
+        
+        // ✅ CRITICAL: Heartbeat để track job progress
+        const heartbeatInterval = setInterval(() => {
+          const elapsed = ((Date.now() - jobStartTime) / 1000).toFixed(1);
+          Logger.info(`[URL Preview Worker] 💓 Job ${jobId} đang chạy... (${elapsed}s)`);
+        }, 10000);
+
+        try {
+          Logger.info(`[URL Preview Worker] 📋 Processing job ${jobId}`);
+          Logger.info(`[URL Preview Worker] Job data:`, JSON.stringify(jobData, null, 2));
+          
+          // ✅ CRITICAL: Wrap trong Promise với comprehensive error handling
+          const result = await new Promise(async (resolve, reject) => {
+            // ✅ Inner timeout để đảm bảo không bao giờ hang
+            const timeout = setTimeout(() => {
+              Logger.error(`[URL Preview Worker] ⏱️ Internal timeout cho job ${jobId} sau 42s`);
+              reject(new Error(`Worker internal timeout for job ${jobId}`));
+            }, 42000); // 42s (dưới job timeout 45s)
+
+            try {
+              Logger.info(`[URL Preview Worker] 🔄 Gọi urlProcessorWorker.processUrlJob cho job ${jobId}...`);
+              const processResult = await urlProcessorWorker.processUrlJob(job);
+              clearTimeout(timeout);
+              Logger.info(`[URL Preview Worker] ✅ processUrlJob hoàn thành cho job ${jobId}`);
+              resolve(processResult);
+            } catch (processError: any) {
+              clearTimeout(timeout);
+              Logger.error(`[URL Preview Worker] ❌ processUrlJob failed cho job ${jobId}:`, {
+                message: processError?.message || 'Unknown error',
+                name: processError?.name || 'Unknown',
+                stack: processError?.stack || 'No stack'
+              });
+              reject(processError);
+            }
+          });
+
+          clearInterval(heartbeatInterval);
+          const duration = ((Date.now() - jobStartTime) / 1000).toFixed(2);
+          Logger.info(`[URL Preview Worker] ✅ Job ${jobId} completed trong ${duration}s`);
+          return result;
+          
+        } catch (workerError: any) {
+          clearInterval(heartbeatInterval);
+          const duration = ((Date.now() - jobStartTime) / 1000).toFixed(2);
+          
+          // ✅ CRITICAL: Log đầy đủ nhưng KHÔNG crash server
+          Logger.error(`[URL Preview Worker] ❌ Error in job ${jobId} sau ${duration}s:`, {
+            message: workerError?.message || 'Unknown error',
+            name: workerError?.name || 'Unknown',
+            code: workerError?.code || 'N/A',
+            stack: workerError?.stack || 'No stack',
+            jobData: jobData
+          });
+          
+          // ✅ CRITICAL: Đảm bảo error được log trước khi throw
+          console.error(`[URL Preview Worker] CRITICAL ERROR in job ${jobId}:`, workerError);
+          
+          // ✅ Re-throw để Bull đánh dấu failed (sẽ retry)
+          throw workerError;
+        }
+      };
+
+      // ✅ Register worker với concurrency 1
+      urlPreviewQueue.process(1, safeProcessJob);
+      
+      Logger.info("✅ URL Preview Worker đã sẵn sàng (concurrency: 1)");
+
+    } catch (queueError) {
+      Logger.error("❌ Lỗi khi khởi chạy URL Preview Worker:", queueError);
+      Logger.error("Stack:", queueError instanceof Error ? queueError.stack : 'No stack');
+      Logger.warn("⚠️ Server sẽ tiếp tục khởi động nhưng URL Preview sẽ không hoạt động");
+    }
+
+    // ✅ CRITICAL: Global error handlers (nằm NGOÀI try-catch trên)
+    // Đặt sau worker registration để bắt mọi unhandled errors
+    process.on('unhandledRejection', (reason, promise) => {
+      Logger.error(`[Process] ⚠️ Unhandled Rejection:`, {
+        reason: reason,
+        promise: promise
+      });
+      // ✅ KHÔNG exit - chỉ log
+    });
+
+    process.on('uncaughtException', (error) => {
+      Logger.error(`[Process] ⚠️ Uncaught Exception:`, {
+        message: error.message,
+        stack: error.stack
+      });
+      // ✅ KHÔNG exit - chỉ log
+    });
+
+    // ✅ IMPORT QUEUES & WORKERS (sau khi Redis đã kết nối)
+    // Import queue.config.js để có Bull Board UI và PDF Queue
+    try {
+      await import('./config/queue.config.js');
+      Logger.info("✅ Đã khởi chạy Queue Workers (PDF Renderer, URL Preview).");
+    } catch (queueConfigError) {
+      Logger.error("❌ Lỗi khi import queue.config.js:", queueConfigError);
+      // ✅ Không throw để server vẫn có thể chạy
+    }
 
     // ✅ Import Real-time Services (dynamic import after DB connection)
     const { socketService } = await import(
@@ -63,66 +175,57 @@ async function startServer() {
 
     const allowedOrigins = config.clientUrls;
 
-    // --- 2. IMPORT ROUTES (DYNAMIC IMPORT) ---
-    // (Import động vẫn giữ nguyên)
-    const authRoutes = (await import("./modules/auth/auth.routes.js")).default;
-    const oauthRoutes = (await import("./modules/auth/auth-oauth.routes.js"))
-      .default;
-    const userRoutes = (await import("./modules/users/user.routes.js")).default;
-    const connectionRoutes = (await import("./modules/connections/connection.routes.js")).default;
-    const printerRoutes = (await import("./modules/printers/printer.routes.js"))
-      .default;
-    const productRoutes = (await import("./modules/products/product.routes.js"))
-      .default;
-    const assetRoutes = (await import("./modules/assets/asset.routes.js"))
-      .default;
-    const mediaAssetRoutes = (
-      await import("./modules/media-assets/media-asset.routes.js")
-    ).default;
-    const designRoutes = (await import("./modules/designs/design.routes.js"))
-      .default;
-    const cartRoutes = (await import("./modules/cart/cart.routes.js")).default;
-    const orderRoutes = (await import("./modules/orders/order.routes.js"))
-      .default;
-    const studioRoutes = (
-      await import("./modules/printer-studio/studio.routes.js")
-    ).default;
-    const pdfRenderRoutes = (
-      await import("./modules/printer-studio/pdf-render/pdf-render.routes.js")
-    ).default;
-    const chatRoutes = (await import("./modules/chat/chat.routes.js")).default;
-    const uploadRoutes = (await import("./modules/uploads/upload.routes.js"))
-      .default;
-    const customerRoutes = (
-      await import("./modules/customer/customer.routes.js")
-    ).default;
-    const checkoutRoutes = (
-      await import("./modules/checkout/checkout.routes.js")
-    ).default;
-    const stripeOnboardingRoutes = (
-      await import("./modules/payments/stripe.onboarding.routes.js")
-    ).default;
-    const stripeWebhookRoutes = (
-      await import("./modules/payments/stripe.webhook.routes.js")
-    ).default;
-    const momoRoutes = (
-      await import("./modules/payments/momo/momo.routes.js")
-    ).default;
-    const payosRoutes = (await import("./modules/payments/payos/payos.routes.js"))
-      .default;
-    const notificationRoutes = (
-      await import("./modules/notifications/notification.routes.js")
-    ).default;
-    // ✨ SMART PIPELINE: AI routes
-    const aiRoutes = (await import("./modules/ai/ai.routes.js")).default;
-    const walletRoutes = (await import("./modules/wallet/wallet.routes.js"))
-      .default;
-    const rushRoutes = (await import("./modules/rush/rush.routes.js")).default;
-    const printerDashboardRoutes = (
-      await import("./modules/printer-studio/printer-dashboard.routes.js")
-    ).default;
+    // ✅ CẢI THIỆN: Thêm các origin dev mặc định (127.0.0.1 và localhost)
+    const devOrigins = [
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "http://localhost:8000",
+      "http://127.0.0.1:8000",
+    ];
 
-    Logger.info("✅ Đã tải (import) routes động thành công.");
+    // --- 2. IMPORT ROUTES (DYNAMIC IMPORT) ---
+    // Khai báo các biến routes ở ngoài để có thể sử dụng sau
+    let authRoutes, oauthRoutes, userRoutes, connectionRoutes, printerRoutes;
+    let productRoutes, assetRoutes, mediaAssetRoutes, designRoutes;
+    let cartRoutes, orderRoutes, studioRoutes, pdfRenderRoutes;
+    let chatRoutes, uploadRoutes, customerRoutes, checkoutRoutes;
+    let stripeOnboardingRoutes, stripeWebhookRoutes, momoRoutes, payosRoutes;
+    let notificationRoutes, aiRoutes, walletRoutes, rushRoutes, printerDashboardRoutes;
+    
+    try {
+      authRoutes = (await import("./modules/auth/auth.routes.js")).default;
+      oauthRoutes = (await import("./modules/auth/auth-oauth.routes.js")).default;
+      userRoutes = (await import("./modules/users/user.routes.js")).default;
+      connectionRoutes = (await import("./modules/connections/connection.routes.js")).default;
+      printerRoutes = (await import("./modules/printers/printer.routes.js")).default;
+      productRoutes = (await import("./modules/products/product.routes.js")).default;
+      assetRoutes = (await import("./modules/assets/asset.routes.js")).default;
+      mediaAssetRoutes = (await import("./modules/media-assets/media-asset.routes.js")).default;
+      designRoutes = (await import("./modules/designs/design.routes.js")).default;
+      cartRoutes = (await import("./modules/cart/cart.routes.js")).default;
+      orderRoutes = (await import("./modules/orders/order.routes.js")).default;
+      studioRoutes = (await import("./modules/printer-studio/studio.routes.js")).default;
+      pdfRenderRoutes = (await import("./modules/printer-studio/pdf-render/pdf-render.routes.js")).default;
+      chatRoutes = (await import("./modules/chat/chat.routes.js")).default;
+      uploadRoutes = (await import("./modules/uploads/upload.routes.js")).default;
+      customerRoutes = (await import("./modules/customer/customer.routes.js")).default;
+      checkoutRoutes = (await import("./modules/checkout/checkout.routes.js")).default;
+      stripeOnboardingRoutes = (await import("./modules/payments/stripe.onboarding.routes.js")).default;
+      stripeWebhookRoutes = (await import("./modules/payments/stripe.webhook.routes.js")).default;
+      momoRoutes = (await import("./modules/payments/momo/momo.routes.js")).default;
+      payosRoutes = (await import("./modules/payments/payos/payos.routes.js")).default;
+      notificationRoutes = (await import("./modules/notifications/notification.routes.js")).default;
+      aiRoutes = (await import("./modules/ai/ai.routes.js")).default;
+      walletRoutes = (await import("./modules/wallet/wallet.routes.js")).default;
+      rushRoutes = (await import("./modules/rush/rush.routes.js")).default;
+      printerDashboardRoutes = (await import("./modules/printer-studio/printer-dashboard.routes.js")).default;
+    } catch (routeError) {
+      Logger.error("❌ Lỗi khi import routes:", routeError);
+      Logger.error("Stack trace:", routeError instanceof Error ? routeError.stack : "No stack trace");
+      throw routeError; // Re-throw để catch block bên ngoài xử lý
+    }
 
     // --- 3. KHỞI TẠO APP VÀ MIDDLEWARE ---
     const app = express();
@@ -134,16 +237,36 @@ async function startServer() {
     server.headersTimeout = 186000; // Slightly higher than keepAliveTimeout
 
     app.set("trust proxy", 1);
+
+    // ---------------------------------------------------------
+    // 1. LOGGER MIDDLEWARE (Đặt ngay đầu tiên)
+    // Giúp bạn thấy ngay lập tức khi có request bay vào
+    // ---------------------------------------------------------
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      console.log(`👉 [REQUEST] ${req.method} ${req.url}`);
+      Logger.info(`[REQUEST] ${req.method} ${req.url}`, {
+        ip: req.ip,
+        userAgent: req.get("user-agent"),
+      });
+      next();
+    });
     const corsOptions: CorsOptions = {
       origin(
         origin: string | undefined,
         callback: (err: Error | null, allow?: boolean) => void
       ) {
+        // Cho phép requests không có origin (Postman, curl, etc.)
         if (!origin) {
           return callback(null, true);
         }
 
+        // Kiểm tra trong danh sách allowed origins từ config
         if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+
+        // ✅ CẢI THIỆN: Cho phép các origin dev mặc định (127.0.0.1 và localhost)
+        if (config.env !== "production" && devOrigins.includes(origin)) {
           return callback(null, true);
         }
 
@@ -155,6 +278,8 @@ async function startServer() {
         );
       },
       credentials: true,
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     };
 
     app.use(cors(corsOptions));
@@ -250,6 +375,15 @@ async function startServer() {
     apiRouter.use("/orders", protect, orderRoutes);
     apiRouter.use("/studio", protect, isPrinter, studioRoutes);
     apiRouter.use("/pdf-render", protect, isPrinter, pdfRenderRoutes);
+    
+    // ✅ FIX: Tách route test ra ngoài để không bị chặn bởi protect middleware
+    // Route test không cần authentication
+    apiRouter.get("/chat/test", (req: Request, res: Response) => {
+      Logger.info("[ChatRoutes] Test route called");
+      res.json({ success: true, message: "Chat routes are working" });
+    });
+    
+    // Các route chat khác vẫn cần protect
     apiRouter.use("/chat", protect, chatRoutes);
     apiRouter.use("/uploads", protect, uploadRoutes);
     apiRouter.use("/customer", protect, customerRoutes);
@@ -267,6 +401,15 @@ async function startServer() {
     apiRouter.use("/rush", rushRoutes);
 
     app.use("/api", apiRouter);
+
+    // ✅ QUEUE MONITORING: Bull Board UI (Admin only - có thể thêm protect middleware sau)
+    try {
+      const { bullBoardRouter } = await import('./config/queue.config.js');
+      app.use("/admin/queues", bullBoardRouter);
+      Logger.info("✅ Bull Board UI available at /admin/queues");
+    } catch (error) {
+      Logger.warn("⚠️ Bull Board router not available:", error);
+    }
 
     // === Health Check ===
     app.get("/", (req: Request, res: Response) => {
@@ -289,20 +432,20 @@ async function startServer() {
     // --- 7. KHỞI TẠO REAL-TIME SERVICES ---
     // Initialize Socket.io (before listening)
     socketService.initialize(server);
-    Logger.success("✅ Socket.io initialized");
 
     // Initialize MongoDB Change Streams
     initChangeStreams();
-    Logger.success("✅ Change Streams initialized");
 
     // ✅ MAINTENANCE: Initialize Cron Jobs
     initCronJobs();
-    Logger.success("✅ Cron jobs initialized");
 
     // --- 8. LẮNG NGHE ---
-    const PORT = process.env.PORT || 8000;
-    server.listen(PORT, () => {
+    const PORT: number = parseInt(process.env.PORT || "8000", 10);
+    // ✅ FIX: Listen trên 0.0.0.0 để tránh vấn đề IPv6 trên Windows
+    // 0.0.0.0 sẽ lắng nghe trên cả IPv4 và IPv6
+    server.listen(PORT, "0.0.0.0", () => {
       Logger.info(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+      Logger.info(`🚀 Server đang chạy tại http://127.0.0.1:${PORT}`);
       Logger.info(`🔌 Socket.io ready at ws://localhost:${PORT}`);
     });
 

@@ -77,6 +77,9 @@ export class ChatRepository {
    * 4. Hybrid Hydration: Khi lấy từ cache, query lại isOnline từ DB để làm tươi dữ liệu
    */
   async findConversationsByUserId(userId, type = null) {
+    const startTime = Date.now();
+    Logger.info(`[ChatRepository] findConversationsByUserId called for user ${userId}, type: ${type || 'all'}`);
+    
     const userObjectId = new mongoose.Types.ObjectId(userId);
     const cacheKey = `chat:user:${userId.toString()}:conversations:${type || 'all'}`;
 
@@ -87,18 +90,23 @@ export class ChatRepository {
     try {
       const redisClient = getRedisClient();
       if (redisClient) {
+        Logger.debug(`[ChatRepository] Checking Redis cache: ${cacheKey}`);
         const cachedData = await redisClient.get(cacheKey);
         if (cachedData) {
           conversations = JSON.parse(cachedData);
           isFromCache = true; // ✅ Đánh dấu là lấy từ cache
+          Logger.info(`[ChatRepository] Cache HIT: Found ${conversations?.length || 0} conversations in ${Date.now() - startTime}ms`);
+        } else {
+          Logger.debug(`[ChatRepository] Cache MISS`);
         }
       }
     } catch (error) {
-      Logger.warn("[Redis] Get cache failed, falling back to DB", error);
+      Logger.warn("[ChatRepository] Get cache failed, falling back to DB", error);
     }
 
     // 2. Nếu Cache Miss -> Query Full DB (Nặng)
     if (!conversations) {
+      Logger.info(`[ChatRepository] Querying MongoDB for conversations...`);
       const query = {
         participants: {
           $elemMatch: {
@@ -111,11 +119,13 @@ export class ChatRepository {
       
       if (type) query.type = type;
       
+      const queryStartTime = Date.now();
       conversations = await Conversation.find(query)
         .sort({ lastMessageAt: -1, updatedAt: -1 })
         .select("_id title lastMessageAt createdAt updatedAt type participants avatarUrl description lastMessagePreview") // ✅ Thêm lastMessagePreview
         .populate("participants.userId", "username displayName avatarUrl role isOnline") 
         .lean();
+      Logger.info(`[ChatRepository] MongoDB query completed in ${Date.now() - queryStartTime}ms, found ${conversations?.length || 0} conversations`);
 
       // Lưu vào Cache để lần sau load nhanh hơn
       try {
@@ -177,7 +187,9 @@ export class ChatRepository {
         }
     }
 
-    return conversations;
+    const totalTime = Date.now() - startTime;
+    Logger.info(`[ChatRepository] findConversationsByUserId completed in ${totalTime}ms, returning ${conversations?.length || 0} conversations`);
+    return conversations || [];
   }
 
   async createConversation(userId) {

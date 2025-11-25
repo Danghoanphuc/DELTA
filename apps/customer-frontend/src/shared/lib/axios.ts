@@ -4,19 +4,37 @@
 import axios from "axios";
 import { useAuthStore } from "@/stores/useAuthStore"; // Đảm bảo đường dẫn này đúng
 
-const API_HOST = import.meta.env.VITE_API_URL || "http://localhost:8000";
+// ✅ FIX: Sử dụng relative path trong dev để đi qua Vite proxy (tránh cross-site cookie issue)
+// Trong production, sử dụng absolute URL từ env
+const isDevelopment = import.meta.env.DEV || import.meta.env.MODE === 'development';
+const API_HOST = import.meta.env.VITE_API_URL;
 
-if (!import.meta.env.VITE_API_URL) {
-  console.warn(
-    "⚠️ VITE_API_URL chưa được định nghĩa trong file .env, sử dụng default: http://localhost:8000"
-  );
+// ✅ FIX: Trong dev, sử dụng relative path để đi qua Vite proxy
+// Điều này đảm bảo cookie được gửi đúng cách (same-origin)
+// ✅ FIX: Trong production, BẮT BUỘC phải có VITE_API_URL
+let baseURL: string;
+if (isDevelopment) {
+  baseURL = '/api'; // Relative path - đi qua Vite proxy
+  console.log("🔧 [Axios] Development mode - using Vite proxy at /api");
+} else {
+  // Production mode
+  if (!API_HOST) {
+    const errorMsg = "❌ [Axios] VITE_API_URL is required in production! Please set it in your environment variables.";
+    console.error(errorMsg);
+    // ✅ FIX: Fallback về relative path nếu không có env (có thể dùng với reverse proxy)
+    // Nhưng vẫn log warning để developer biết
+    baseURL = '/api';
+    console.warn("⚠️ [Axios] Falling back to relative path /api. Make sure your production server has a reverse proxy configured.");
+  } else {
+    // ✅ FIX: Đảm bảo API_HOST không có trailing slash và có /api
+    const cleanHost = API_HOST.replace(/\/+$/, ''); // Remove trailing slashes
+    baseURL = `${cleanHost}/api`;
+    console.log(`🔧 [Axios] Production mode - using API: ${baseURL}`);
+  }
 }
 
 const api = axios.create({
-  // ✅ SỬA LỖI: Gắn cứng hậu tố /api tại đây.
-  // Giờ đây baseURL sẽ là 'http://localhost:8000/api' (local)
-  // hoặc 'https://delta-customer.onrender.com/api' (production)
-  baseURL: `${API_HOST}/api`,
+  baseURL,
   withCredentials: true,
   timeout: 10000, // ✅ THÊM: Timeout 10s để tránh treo quá lâu
 });
@@ -84,31 +102,54 @@ api.interceptors.response.use(
 
       try {
         console.log("🔄 Access token expired, refreshing...");
+        console.log("🔄 [Frontend] Checking cookies:", document.cookie);
+        console.log("🔄 [Frontend] Request URL:", originalRequest.url);
+        
         // Quan trọng: Lời gọi refresh cũng là đường dẫn tương đối
-        const refreshRes = await api.post("/auth/refresh");
+        // ✅ FIX: Đảm bảo withCredentials được set đúng cách
+        const refreshRes = await api.post(
+          "/auth/refresh", 
+          {}, 
+          {
+            withCredentials: true, // ✅ Đảm bảo credentials được gửi
+            headers: {
+              // ✅ FIX: Đảm bảo không gửi Authorization header trong refresh request
+              Authorization: undefined,
+            },
+          }
+        );
 
         // Cập nhật theo cấu trúc data của anh
         const newAccessToken =
-          refreshRes.data.accessToken || refreshRes.data.data.accessToken;
+          refreshRes.data.accessToken || refreshRes.data.data?.accessToken;
 
         if (!newAccessToken) {
+          console.error("❌ [Frontend] No access token in refresh response:", refreshRes.data);
           throw new Error("No access token received from refresh");
         }
 
+        console.log("✅ [Frontend] Token refreshed successfully");
         useAuthStore.getState().setAccessToken(newAccessToken);
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 
         processQueue(null, newAccessToken);
         return api(originalRequest);
       } catch (refreshError: any) {
-        console.error(
-          "❌ Failed to refresh token:",
-          refreshError.response?.data?.message || refreshError.message
-        );
+        const errorMessage = refreshError.response?.data?.message || refreshError.message;
+        const errorCode = refreshError.response?.status;
+        
+        console.error("❌ [Frontend] Failed to refresh token:", {
+          message: errorMessage,
+          status: errorCode,
+          url: originalRequest.url,
+          cookies: document.cookie,
+        });
+        
         processQueue(refreshError, null);
         useAuthStore.getState().clearState();
 
         // ✅ FIX: Chỉ redirect khi đang ở protected routes, không redirect ở public routes
+        // ✅ FIX: Trong dev, không redirect ngay lập tức để tránh làm phiền
         if (typeof window !== "undefined") {
           const publicRoutes = ["/", "/signin", "/signup", "/shop", "/app", "/product", "/products", "/inspiration", "/rush", "/contact", "/policy", "/process"];
           const isPublicRoute = publicRoutes.some(route => 
@@ -116,9 +157,14 @@ api.interceptors.response.use(
             window.location.pathname.startsWith(route + "/")
           );
           
-          // Chỉ redirect nếu không phải public route và chưa ở trang signin
+          // ✅ FIX: Chỉ redirect nếu không phải public route và chưa ở trang signin
+          // ✅ FIX: Trong dev, chỉ redirect nếu thực sự cần thiết (không phải lỗi tạm thời)
           if (!isPublicRoute && !window.location.pathname.includes("/signin")) {
-            window.location.href = "/signin";
+            // ✅ FIX: Delay redirect một chút để tránh redirect quá nhanh trong dev
+            setTimeout(() => {
+              console.log("🔄 [Frontend] Redirecting to signin due to refresh token failure");
+              window.location.href = "/signin";
+            }, 100);
           }
         }
         return Promise.reject(refreshError);

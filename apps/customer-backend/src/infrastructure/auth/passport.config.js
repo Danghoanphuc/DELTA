@@ -25,8 +25,37 @@ const findOrCreateUser = async (profile) => {
     // Step 2: If user exists
     if (user) {
       console.log(`✅ [Passport] User found: ${user.email}`);
+      console.log(`📋 [Passport] User authMethod: ${user.authMethod || 'local'}`);
+      console.log(`📋 [Passport] User has googleId: ${!!user.googleId}`);
 
       let updated = false;
+
+      // ✅ FIXED: Kiểm tra conflict - nếu user có googleId khác với profile.id
+      if (user.googleId && user.googleId !== profile.id) {
+        console.warn(
+          `⚠️ [Passport] User ${user.email} has different googleId. Current: ${user.googleId}, New: ${profile.id}`
+        );
+        // Vẫn cho phép đăng nhập nhưng không cập nhật googleId (giữ nguyên)
+        // Điều này xử lý trường hợp user có nhiều Google account cùng email
+      } else if (!user.googleId) {
+        // ✅ CRITICAL: Nếu user đăng ký bằng local, thêm googleId để có thể đăng nhập bằng Google sau này
+        user.googleId = profile.id;
+        updated = true;
+        console.log(`📝 [Passport] Linked Google account to existing user: ${user.email}`);
+      }
+
+      // ✅ FIXED: Cập nhật authMethod nếu user đang dùng local
+      // Cho phép user đăng nhập bằng cả local và Google
+      if (user.authMethod === "local") {
+        // Có thể giữ "local" hoặc đổi sang "google" tùy business logic
+        // Ở đây giữ "local" để user vẫn có thể đăng nhập bằng password
+        console.log(`📝 [Passport] User ${user.email} can now login with both local and Google`);
+      } else if (!user.authMethod) {
+        // Legacy data có thể không có authMethod
+        user.authMethod = "google";
+        updated = true;
+        console.log(`📝 [Passport] Set authMethod to 'google' for ${user.email}`);
+      }
 
       // Ensure username exists (legacy data may miss this)
       if (!user.username) {
@@ -35,18 +64,25 @@ const findOrCreateUser = async (profile) => {
         console.log(`🆕 [Passport] Generated username for ${user.email}`);
       }
 
-      // Update googleId if missing
-      if (!user.googleId) {
-        user.googleId = profile.id;
-        updated = true;
-        console.log(`📝 [Passport] Updated googleId for ${user.email}`);
-      }
-
       // Verify email if not verified
       if (!user.isVerified) {
         user.isVerified = true;
         updated = true;
         console.log(`✅ [Passport] Verified email for ${user.email}`);
+      }
+
+      // Update avatar from Google if missing or empty
+      if ((!user.avatarUrl || user.avatarUrl === "") && profile.photos?.[0]?.value) {
+        user.avatarUrl = profile.photos[0].value;
+        updated = true;
+        console.log(`🖼️ [Passport] Updated avatar from Google for ${user.email}`);
+      }
+
+      // Update displayName from Google if missing
+      if (!user.displayName && profile.displayName) {
+        user.displayName = profile.displayName;
+        updated = true;
+        console.log(`👤 [Passport] Updated displayName from Google for ${user.email}`);
       }
 
       // Update last login time

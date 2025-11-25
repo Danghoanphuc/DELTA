@@ -21,6 +21,8 @@ export interface ChatConversation {
     role?: string;
   }>; // ✅ FIXED: Đúng với backend structure
   isActive?: boolean; // ✅ NEW: Trạng thái active
+  lastMessagePreview?: string; // ✅ NEW: Preview text của tin nhắn cuối (real-time từ socket)
+  lastMessage?: ChatMessage; // ✅ NEW: Tin nhắn cuối cùng (real-time từ socket)
 }
 
 // ===================================

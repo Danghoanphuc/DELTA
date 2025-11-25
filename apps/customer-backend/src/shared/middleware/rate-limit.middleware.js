@@ -100,7 +100,7 @@ function getRateLimitKey(req, prefix = "global") {
  * @param {string} name - Limiter name for logging
  * @returns {import('express').RequestHandler}
  */
-function createRateLimitMiddleware(limiter, name = "API") {
+export function createRateLimitMiddleware(limiter, name = "API") {
   return async (req, res, next) => {
     // Initialize limiters if not already done
     if (!chatLimiter || !uploadLimiter || !generalLimiter) {

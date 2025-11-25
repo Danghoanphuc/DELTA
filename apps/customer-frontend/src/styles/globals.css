@@ -1,4 +1,4 @@
-/* src/styles/globals.css - FULL & PATCHED */
+/* apps/customer-frontend/src/styles/globals.css */
 
 /* 1. IMPORT FONTS: Inter (UI) & Yrsa (Heading) */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Yrsa:wght@400;500;600;700&display=swap");
@@ -7,13 +7,13 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 2. KHAI BÁO BIẾN (ROOT VARIABLES) */
+/* 2. ROOT VARIABLES (Cấu hình màu sắc toàn hệ thống) */
 :root {
   --font-size: 17px;
   
   /* Background & Text */
   --background: 0 0% 100%;
-  --foreground: 222.2 47.4% 11.2%; /* Slate-900 pha chút xanh - Modern Black */
+  --foreground: 222.2 47.4% 11.2%; /* Slate-900 pha chút xanh */
 
   /* Card & Popover */
   --card: 0 0% 100%;
@@ -21,41 +21,42 @@
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 47.4% 11.2%;
 
-  /* --- [QUAN TRỌNG] PRIMARY COLOR: PRINTZ BLUE (#2563EB) --- */
+  /* --- PRIMARY COLOR: PRINTZ BLUE --- */
   --primary: 221.2 83.2% 53.3%; 
   --primary-foreground: 210 40% 98%;
 
-  /* Secondary & Muted */
+  /* Secondary */
   --secondary: 210 40% 96.1%;
   --secondary-foreground: 222.2 47.4% 11.2%;
+
+  /* Muted (Màu phụ mờ) */
   --muted: 210 40% 96.1%;
   --muted-foreground: 215.4 16.3% 46.9%;
   
-  /* Accent */
+  /* Accent (Màu nhấn) */
   --accent: 210 40% 96.1%;
   --accent-foreground: 222.2 47.4% 11.2%;
 
-  /* Destructive (Error) */
+  /* Destructive (Màu lỗi/xóa) */
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
 
   /* Border & Input */
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
-  --input-background: 0 0% 95%;
   --ring: 221.2 83.2% 53.3%; /* Ring focus cùng màu Primary */
 
-  /* --- [QUAN TRỌNG] BO GÓC (RADIUS) --- */
-  --radius: 0.75rem; /* 12px - Mềm mại, khớp với App UI */
+  /* Bo góc */
+  --radius: 0.75rem; /* 12px */
 
-  /* Chart Colors (Dữ trữ) */
+  /* Chart Colors (Dữ liệu biểu đồ) */
   --chart-1: 12 76% 61%;
   --chart-2: 173 58% 39%;
   --chart-3: 197 37% 24%;
   --chart-4: 43 74% 66%;
   --chart-5: 27 87% 67%;
 
-  /* Sidebar Variables */
+  /* Sidebar Variables (Dành cho Admin/Dashboard) */
   --sidebar: 0 0% 98%;
   --sidebar-foreground: 222.2 84% 4.9%;
   --sidebar-primary: 222.2 47.4% 11.2%;
@@ -65,21 +66,14 @@
   --sidebar-border: 220 13% 91%;
   --sidebar-ring: 217.2 91.2% 59.8%;
 
-  /* FONTS SETTINGS */
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-heading: "Yrsa", "Georgia", serif;
-  
+  /* Fonts Setting */
+  --font-sans: "Inter", sans-serif;
+  --font-heading: "Yrsa", serif;
   --line-height-normal: 1.6;
   --line-height-heading: 1.2;
-
-  /* MÀU IN ẤN CMYK (Dùng cho Decor/Accent) */
-  --cmyk-c: #06b6d4; /* Cyan */
-  --cmyk-m: #d946ef; /* Magenta */
-  --cmyk-y: #eab308; /* Yellow */
-  --cmyk-k: #1e293b; /* Key (Black) */
 }
 
-/* Dark Mode (Giữ nguyên cấu trúc) */
+/* Dark Mode Configuration */
 .dark {
   --background: 222.2 84% 4.9%;
   --foreground: 210 40% 98%;
@@ -100,9 +94,19 @@
   --border: 217.2 32.6% 17.5%;
   --input: 217.2 32.6% 17.5%;
   --ring: 212.7 26.8% 83.9%;
+  
+  /* Sidebar Dark */
+  --sidebar: 240 5.9% 10%;
+  --sidebar-foreground: 240 4.8% 95.9%;
+  --sidebar-primary: 224.3 76.3% 48%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 240 3.7% 15.9%;
+  --sidebar-accent-foreground: 240 4.8% 95.9%;
+  --sidebar-border: 240 3.7% 15.9%;
+  --sidebar-ring: 217.2 91.2% 59.8%;
 }
 
-/* 3. BASE STYLES */
+/* 3. BASE STYLES & CONTENT PROTECTION */
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -115,143 +119,50 @@
 
   body {
     @apply bg-background text-foreground antialiased font-sans;
-    overscroll-behavior-y: contain; /* Ngăn pull-to-refresh thừa thãi */
+    
+    /* 🔥 CHỐNG BÔI ĐEN / COPY TOÀN TRANG (Quan trọng) */
+    -webkit-user-select: none; /* Chrome/Safari */
+    -moz-user-select: none;    /* Firefox */
+    -ms-user-select: none;     /* IE/Edge */
+    user-select: none;         /* Standard */
   }
 
-  /* Typography System */
+  /* Typography mặc định */
   h1, h2, h3, h4, h5 {
     @apply font-heading font-bold text-slate-900;
     line-height: var(--line-height-heading);
   }
   
-  h1 { @apply text-4xl md:text-5xl lg:text-6xl; }
-  h2 { @apply text-3xl md:text-4xl; }
-  h3 { @apply text-2xl; }
-  h4 { @apply text-xl; }
-  
   p {
     @apply font-normal text-slate-600;
     line-height: var(--line-height-normal);
   }
-  
-  /* Remove ugly inputs on IE/Edge */
-  input::-ms-reveal,
-  input::-ms-clear {
-    display: none;
-  }
 }
 
-/* 4. UTILITIES & CUSTOM CLASSES */
+/* 4. UTILITIES & THEMES */
 @layer utilities {
   
-  /* --- [NEW] NỀN GIẤY NHÁM (Paper Texture) --- */
-  .bg-paper-texture {
-    background-color: #ffffff;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  /* --- [EXCEPTION] CHO PHÉP NHẬP LIỆU --- */
+  /* Bắt buộc để Input/Textarea vẫn hoạt động bình thường */
+  input, 
+  textarea, 
+  [contenteditable="true"], 
+  .allow-select {
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    user-select: text !important;
+    cursor: text;
   }
 
-  /* --- [NEW] NỀN GRID XANH NHẠT (Smart Tech Grid) --- */
-  .bg-grid-blue {
-    background-image: linear-gradient(to right, rgba(59, 130, 246, 0.05) 1px, transparent 1px),
-                      linear-gradient(to bottom, rgba(59, 130, 246, 0.05) 1px, transparent 1px);
-    background-size: 32px 32px;
+  /* Chống kéo ảnh về máy (Drag & Drop) */
+  img {
+    -webkit-user-drag: none;
+    user-drag: none;
+    pointer-events: none; /* Chặn chuột phải vào ảnh triệt để */
   }
 
-  /* --- [NEW] TECH BORDER (Viền kỹ thuật có góc xanh) --- */
-  .tech-border {
-    border: 1px solid #e2e8f0;
-    position: relative;
-  }
-  .tech-border::before,
-  .tech-border::after {
-    content: '';
-    position: absolute;
-    width: 8px; height: 8px;
-    border-color: #3b82f6; /* Xanh Printz */
-    transition: all 0.3s ease;
-  }
-  .tech-border::before {
-    top: -1px; left: -1px;
-    border-top: 2px solid; border-left: 2px solid;
-  }
-  .tech-border::after {
-    bottom: -1px; right: -1px;
-    border-bottom: 2px solid; border-right: 2px solid;
-  }
-
-  /* --- CMYK SHADOWS --- */
-  .cmyk-shadow-sm {
-    box-shadow: 2px 2px 0px 0px var(--cmyk-c), -2px -2px 0px 0px var(--cmyk-m);
-  }
-  .cmyk-shadow-md {
-    box-shadow: 4px 4px 0px 0px var(--cmyk-c), -4px -4px 0px 0px var(--cmyk-m);
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .cmyk-shadow-md:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 6px 6px 0px 0px var(--cmyk-c), -6px -6px 0px 0px var(--cmyk-m);
-  }
-
-  /* --- ANIMATIONS --- */
-  
-  /* Fade In Up (Trồi lên khi scroll) */
-  .fade-in-up {
-    animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-    animation-timeline: view();
-    animation-range: entry 10% cover 25%;
-  }
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(30px) scale(0.98); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-  }
-
-  /* Float (Bay lơ lửng) */
-  .animate-float { animation: float 6s ease-in-out infinite; }
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-12px); }
-  }
-
-  /* Pulse Slow (Nhịp tim chậm) */
-  .animate-pulse-slow { animation: pulseSlow 3s infinite; }
-  @keyframes pulseSlow {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.85; transform: scale(1.02); }
-  }
-
-  /* Marquee (Chạy chữ) */
-  .animate-marquee { animation: marquee 60s linear infinite; }
-  @keyframes marquee {
-    from { transform: translateX(0); }
-    to { transform: translateX(-100%); }
-  }
-
-  /* Shimmer (Quét sáng) */
-  @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-  }
-  .animate-shimmer { animation: shimmer 2s infinite; }
-
-  /* Hover Lift (Nâng card) */
-  .hover-lift {
-    @apply transition-all duration-300 ease-out;
-  }
-  .hover-lift:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
-  }
-
-  /* --- SCROLLBAR CUSTOMIZATION --- */
-  
-  /* Hide Scrollbar (cho carousel) */
-  .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .hide-scrollbar::-webkit-scrollbar { display: none; }
-
-  /* Custom Scrollbar (Mảnh & Đẹp) */
+  /* Custom Scrollbar (Thanh cuộn mảnh đẹp) */
   .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
   .custom-scrollbar::-webkit-scrollbar-thumb {
@@ -260,98 +171,57 @@
     transition: background-color 0.2s;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(59, 130, 246, 0.6); /* Blue khi hover */
-  }
-  
-  /* Global Scrollbar */
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-}
-
-/* 5. MOBILE & iOS FIXES */
-@media (max-width: 768px) {
-  body { overflow-x: hidden; }
-  
-  /* Prevent iOS Zoom on Input */
-  input[type="text"],
-  input[type="email"],
-  input[type="password"],
-  textarea,
-  select {
-    font-size: 16px !important;
+    background-color: rgba(59, 130, 246, 0.6); /* Xanh Printz khi hover */
   }
 
-  /* Better Touch Targets */
-  button, a { min-height: 44px; min-width: 44px; }
-}
-
-/* Prevent Rubber Banding on iOS */
-body.fixed-body {
-  position: fixed; width: 100%; height: 100%; overflow: hidden;
-}
-
-/* Safe Area support (iPhone notch) */
-@supports (padding: max(0px)) {
-  .safe-top { padding-top: max(1rem, env(safe-area-inset-top)); }
-  .safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
-}
-/* src/styles/globals.css */
-
-/* ... (Giữ nguyên các phần cũ) ... */
-
-@layer utilities {
-  /* ... (Các class cũ) ... */
-
-  /* --- [NEW] INDUSTRIAL PRINT THEME --- */
-
-  /* 1. Nền Lưới Kỹ Thuật (Technical Grid) */
+  /* --- [THEME] INDUSTRIAL PRINT (Phong cách in ấn công nghiệp) --- */
+  
+  /* 1. Nền Lưới Kỹ Thuật (Dùng cho trang Empty State, Dashboard) */
   .bg-tech-grid {
     background-color: #ffffff;
     background-image: 
       linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
       linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
-    background-size: 20px 20px; /* Ô lưới 20px */
-    /* Hiệu ứng Vignette nhẹ ở góc để tập trung vào giữa */
+    background-size: 20px 20px;
+    /* Hiệu ứng Vignette (tối góc) nhẹ */
     mask-image: radial-gradient(circle at center, black 60%, transparent 100%); 
   }
 
   /* 2. Card "Phiếu In" (Job Ticket Card) */
-  /* Card này có 4 dấu xén (Crop Marks) ở 4 góc */
+  /* Card có hiệu ứng 4 dấu xén (Crop Marks) ở góc */
   .card-tech {
     @apply relative bg-white border border-gray-200 shadow-sm transition-all duration-200;
   }
   
-  /* Tạo dấu xén (Crop Marks) */
+  /* Tạo các dấu xén giả lập */
   .card-tech::before, .card-tech::after {
     content: "";
     position: absolute;
     width: 12px;
     height: 12px;
-    border-color: #cbd5e1; /* Slate-300 */
+    border-color: #cbd5e1; /* Màu xám nhạt */
     transition: border-color 0.2s;
     pointer-events: none;
   }
   
-  /* Góc Trái-Trên & Phải-Dưới */
+  /* Góc Trái-Trên */
   .card-tech::before {
     top: -1px; left: -1px;
     border-top: 2px solid; border-left: 2px solid;
   }
-  /* Để tạo đủ 4 góc, ta dùng thêm element con hoặc trick css, 
-     nhưng để đơn giản ta làm 2 góc đối xứng tạo cảm giác "đóng khung" */
+  
+  /* Góc Phải-Dưới */
   .card-tech::after {
     bottom: -1px; right: -1px;
     border-bottom: 2px solid; border-right: 2px solid;
   }
 
-  /* Hover thì dấu xén đậm lên (màu cam in ấn) */
+  /* Hover vào card -> Dấu xén chuyển màu cam (Màu đặc trưng in ấn) */
   .card-tech:hover::before, .card-tech:hover::after {
     border-color: #f97316; /* Orange-500 */
   }
   
-  /* Selected State */
+  /* Trạng thái Active/Selected của Card */
   .card-tech.selected {
     @apply border-orange-500 ring-1 ring-orange-500 bg-orange-50/10;
   }
@@ -359,9 +229,9 @@ body.fixed-body {
     border-color: #ea580c; /* Orange-600 */
   }
 
-  /* 3. Font số kỹ thuật (Technical Monospace) */
+  /* 3. Font số kỹ thuật (Monospace) - Dùng cho mã đơn hàng, thông số */
   .font-tech {
-    font-family: "JetBrains Mono", "Fira Code", monospace; /* Cần import hoặc dùng font hệ thống */
+    font-family: "JetBrains Mono", "Fira Code", monospace; 
     letter-spacing: -0.02em;
   }
 }

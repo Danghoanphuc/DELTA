@@ -69,14 +69,30 @@ export const useSocialChatStore = create<SocialChatState>()(
 
       // ✅ FIXED: Sync logic - Trust API as Source of Truth
       // Đã loại bỏ logic "giữ lại localOnly" vì nó gây ra lỗi không thể xóa cuộc trò chuyện
+      // ✅ FIXED: Giữ lại lastMessage và lastMessagePreview từ store nếu có (real-time updates)
       syncConversations: (apiConversations: ChatConversation[]) =>
         set((state) => {
           const preservedActiveId = state.activeConversationId;
           
-          // Chỉ merge thông tin, không tự ý thêm vào danh sách nếu API không trả về
-          // (Trừ khi bạn có cơ chế 'pending creation' riêng, nhưng hiện tại app tạo là lưu DB luôn nên không cần)
-          
-          const merged = [...apiConversations];
+          // Merge với store để giữ lại lastMessage và lastMessagePreview (real-time từ socket)
+          const merged = apiConversations.map((apiConv) => {
+            const storeConv = state.conversations.find((c) => c._id === apiConv._id);
+            if (storeConv) {
+              const storeLastMessageAt = storeConv.lastMessageAt ? new Date(storeConv.lastMessageAt).getTime() : 0;
+              const apiLastMessageAt = apiConv.lastMessageAt ? new Date(apiConv.lastMessageAt).getTime() : 0;
+              
+              // Nếu store có lastMessage mới hơn hoặc bằng API, giữ lại lastMessage và lastMessagePreview
+              if (storeLastMessageAt >= apiLastMessageAt && (storeConv as any).lastMessage) {
+                return {
+                  ...apiConv,
+                  lastMessageAt: storeConv.lastMessageAt,
+                  lastMessagePreview: (storeConv as any).lastMessagePreview,
+                  lastMessage: (storeConv as any).lastMessage,
+                };
+              }
+            }
+            return apiConv;
+          });
 
           // Sắp xếp theo lastMessageAt
           merged.sort((a, b) => {
@@ -279,9 +295,31 @@ export const useSocialChatStore = create<SocialChatState>()(
           if (convIndex !== -1) {
             const conv = newConversations[convIndex];
             newConversations.splice(convIndex, 1);
+            
+            // Tạo preview text từ message
+            let previewText = "";
+            if (message.type === 'system') {
+              previewText = message.content?.text || "Đã cập nhật thông tin nhóm";
+            } else if (message.type === 'image' || (message.content as any)?.attachments?.some((a: any) => a.type === 'image')) {
+              previewText = "📷 Đã gửi ảnh";
+            } else if (message.type === 'file' || (message.content as any)?.attachments?.length > 0) {
+              const attachments = (message.content as any)?.attachments || [];
+              const fileCount = attachments.length;
+              previewText = fileCount > 1 ? `📎 ${fileCount} tệp đính kèm` : `📎 ${attachments[0]?.originalName || 'Tệp đính kèm'}`;
+            } else if (message.content && 'text' in message.content && typeof message.content.text === 'string') {
+              previewText = message.content.text;
+              if (previewText.length > 50) {
+                previewText = previewText.substring(0, 50) + "...";
+              }
+            } else {
+              previewText = "Tin nhắn";
+            }
+            
             newConversations.unshift({
               ...conv,
               lastMessageAt: message.createdAt,
+              lastMessagePreview: previewText,
+              lastMessage: message, // Lưu cả message object để dùng sau
             });
           } else {
             // Nếu chưa có conversation (có thể do sync chậm), tạm thời fetch sau

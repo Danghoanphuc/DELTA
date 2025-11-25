@@ -187,10 +187,103 @@ export const useChat = () => {
       messageState.markMessageAsRead(data.messageId, data.userId);
     };
 
+    // ✅ REAL-TIME: Listen for new messages from socket (URL preview worker, AI responses, etc.)
+    const handleNewMessage = (socketMessage: any) => {
+      try {
+        console.log("[useChat Enterprise] 🔔 Received socket message:", {
+          messageId: socketMessage._id,
+          conversationId: socketMessage.conversationId,
+          senderType: socketMessage.senderType,
+          type: socketMessage.type,
+        });
+
+        // ✅ Chỉ nhận messages cho conversation hiện tại
+        if (
+          socketMessage.conversationId &&
+          conversationState.currentConversationId &&
+          socketMessage.conversationId !== conversationState.currentConversationId
+        ) {
+          console.log(
+            `[useChat Enterprise] ⏭️ Skipping message - different conversation. Current: ${conversationState.currentConversationId}, Message: ${socketMessage.conversationId}`
+          );
+          return;
+        }
+
+        // ✅ Kiểm tra message đã tồn tại chưa (tránh duplicate)
+        const exists = messageState.messages.some((msg) => msg._id === socketMessage._id);
+        if (exists) {
+          console.log(`[useChat Enterprise] ⏭️ Message ${socketMessage._id} already exists, skipping...`);
+          return;
+        }
+
+        // ✅ Convert socket message format sang ChatMessage format
+        let chatMessage: ChatMessage;
+
+        if (socketMessage.type === "text") {
+          // ✅ Text message (có thể có fileUrl từ URL preview)
+          chatMessage = {
+            _id: socketMessage._id,
+            senderType: socketMessage.senderType || "AI",
+            sender: socketMessage.sender || null,
+            type: "text",
+            conversationId: socketMessage.conversationId?.toString() || conversationState.currentConversationId || "",
+            content: socketMessage.content || { text: "" },
+            metadata: socketMessage.metadata || null,
+            createdAt: socketMessage.createdAt || new Date().toISOString(),
+            updatedAt: socketMessage.updatedAt || new Date().toISOString(),
+          } as ChatMessage;
+        } else {
+          // ✅ Fallback cho các loại message khác
+          console.warn(`[useChat Enterprise] ⚠️ Unknown message type: ${socketMessage.type}, using text type`);
+          chatMessage = {
+            _id: socketMessage._id,
+            senderType: socketMessage.senderType || "AI",
+            sender: socketMessage.sender || null,
+            type: "text",
+            conversationId: socketMessage.conversationId?.toString() || conversationState.currentConversationId || "",
+            content: socketMessage.content || { text: "" },
+            metadata: socketMessage.metadata || null,
+            createdAt: socketMessage.createdAt || new Date().toISOString(),
+            updatedAt: socketMessage.updatedAt || new Date().toISOString(),
+          } as ChatMessage;
+        }
+
+        // ✅ Thêm message vào state
+        console.log(`[useChat Enterprise] ✅ Adding message ${chatMessage._id} to conversation ${chatMessage.conversationId}`);
+        messageState.setMessages((prev: ChatMessage[]) => {
+          // Kiểm tra lại tránh duplicate trong cùng một render cycle
+          const alreadyExists = prev.some((msg) => msg._id === chatMessage._id);
+          if (alreadyExists) {
+            console.log(`[useChat Enterprise] ⏭️ Message ${chatMessage._id} already in state, skipping...`);
+            return prev;
+          }
+          return [...prev, chatMessage];
+        });
+
+        // ✅ Tắt loading khi nhận được message (có thể đang chờ AI response)
+        setIsLoadingAI(false);
+
+        // ✅ ENTERPRISE: Sync across tabs
+        crossTabSync.postMessage("NEW_MESSAGE", chatMessage);
+
+        console.log(`[useChat Enterprise] ✅ Message ${chatMessage._id} added successfully`);
+      } catch (error: any) {
+        console.error("[useChat Enterprise] ❌ Error processing socket message:", error);
+        console.error("[useChat Enterprise] Error details:", {
+          message: error?.message,
+          stack: error?.stack,
+          socketMessage,
+        });
+      }
+    };
+
     socket.socket.on("partner_typing", handlePartnerTyping);
     socket.socket.on("typing_stop", handleTypingStop);
     socket.socket.on("message_delivered", handleMessageDelivered);
     socket.socket.on("message_read", handleMessageRead);
+    // ✅ REAL-TIME: Listen cho cả 2 event names (backend emit cả 2 để đảm bảo)
+    socket.socket.on("chat:message:new", handleNewMessage);
+    socket.socket.on("new_message", handleNewMessage);
 
     return () => {
       if (socket?.socket) {
@@ -198,9 +291,11 @@ export const useChat = () => {
         socket.socket.off("typing_stop", handleTypingStop);
         socket.socket.off("message_delivered", handleMessageDelivered);
         socket.socket.off("message_read", handleMessageRead);
+        socket.socket.off("chat:message:new", handleNewMessage);
+        socket.socket.off("new_message", handleNewMessage);
       }
     };
-  }, [socket, conversationState.currentConversationId, messageState]);
+  }, [socket, conversationState.currentConversationId, messageState, setIsLoadingAI]);
 
   // ===================================
   // EFFECT 3: Cross-Tab Synchronization

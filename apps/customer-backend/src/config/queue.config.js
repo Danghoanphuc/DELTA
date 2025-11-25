@@ -3,6 +3,8 @@
 
 import Queue from "bull";
 import { pdfRenderer } from "../infrastructure/workers/pdf-renderer.worker.js";
+// ⚠️ KHÔNG import urlPreviewQueue ở top-level - sẽ được import dynamic trong server.ts
+// để tránh kết nối Redis sớm
 
 // ✅ BƯỚC 1: IMPORT CÁC THÀNH PHẦN CỦA BULL-BOARD
 import { createBullBoard } from "@bull-board/api";
@@ -45,6 +47,13 @@ pdfQueue.on("failed", (job, err) => {
 });
 
 // ==========================================================
+// ✅ URL PREVIEW QUEUE: Worker Process
+// ==========================================================
+// ⚠️ LƯU Ý: Worker được khởi chạy trực tiếp trong server.ts sau khi Redis kết nối
+// Không khởi chạy ở đây để tránh duplicate processing
+// Worker sẽ được khởi chạy với: urlPreviewQueue.process(1, async (job) => {...})
+
+// ==========================================================
 // ✅ BƯỚC 2: CẤU HÌNH BULL-BOARD UI
 // ==========================================================
 
@@ -55,11 +64,9 @@ const serverAdapter = new ExpressAdapter();
 // Người dùng sẽ truy cập: http://localhost:5001/admin/queues
 serverAdapter.setBasePath("/admin/queues");
 
-// Tạo UI board
+// ✅ Tạo UI board (chỉ với pdfQueue, urlPreviewQueue sẽ được thêm sau trong server.ts)
 createBullBoard({
-  // Danh sách các queues muốn theo dõi
   queues: [new BullAdapter(pdfQueue)],
-  // Gắn adapter của Express vào
   serverAdapter: serverAdapter,
 });
 

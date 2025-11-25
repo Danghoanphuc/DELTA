@@ -42,12 +42,23 @@ router.get(
     session: false,
     failureRedirect: `${CLIENT_URL}/signin?error=auth_failed`,
   }),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       Logger.info(`[OAuth] Callback triggered for user: ${req.user?.email || 'unknown'}`);
       Logger.info(`[OAuth] Request origin: ${req.get('origin') || 'none'}`);
       Logger.info(`[OAuth] Request referer: ${req.get('referer') || 'none'}`);
       Logger.info(`[OAuth] CLIENT_ORIGINS: ${JSON.stringify(CLIENT_ORIGINS)}`);
+
+      // ✅ FIXED: Validate req.user exists
+      if (!req.user) {
+        Logger.error("[OAuth] ❌ req.user is null or undefined");
+        return res.redirect(`${CLIENT_URL}/signin?error=auth_failed`);
+      }
+
+      if (!req.user._id) {
+        Logger.error("[OAuth] ❌ req.user._id is missing");
+        return res.redirect(`${CLIENT_URL}/signin?error=auth_failed`);
+      }
 
       // Create session and get tokens
       const result = await authService.createOAuthSession(req.user);
@@ -183,7 +194,78 @@ router.get(
       `);
     } catch (error) {
       Logger.error("❌ OAuth Callback Error:", error);
-      res.redirect(`${CLIENT_URL}/signin?error=server_error`);
+      Logger.error("❌ OAuth Error Stack:", error.stack);
+      Logger.error("❌ OAuth Error Details:", {
+        message: error.message,
+        name: error.name,
+        code: error.code,
+      });
+      
+      // ✅ FIXED: Nếu response đã được gửi, không redirect nữa
+      if (res.headersSent) {
+        Logger.warn("[OAuth] Response already sent, cannot redirect");
+        return;
+      }
+      
+      // ✅ FIXED: Trả về HTML với error message thay vì redirect
+      // Vì đây là popup window, redirect có thể không hoạt động tốt
+      const errorPayload = {
+        success: false,
+        message: process.env.NODE_ENV === "production" 
+          ? "Có lỗi xảy ra, vui lòng thử lại sau."
+          : error.message || "Lỗi xác thực",
+        error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      };
+
+      res.status(500).send(`
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Lỗi đăng nhập</title>
+  <meta charset="UTF-8">
+</head>
+<body>
+  <script>
+    (function() {
+      const payload = ${JSON.stringify(errorPayload)};
+      const targetOrigins = ${JSON.stringify(CLIENT_ORIGINS)};
+      
+      console.error("[OAuth] ❌ Error payload:", payload);
+      
+      function sendErrorAndClose() {
+        if (window.opener && !window.opener.closed) {
+          targetOrigins.forEach(origin => {
+            try {
+              window.opener.postMessage(payload, origin);
+            } catch (e) {
+              console.warn("[OAuth] Failed to send error to", origin);
+            }
+          });
+          
+          try {
+            window.opener.postMessage(payload, "*");
+          } catch (e) {
+            console.warn("[OAuth] Failed to send error with wildcard");
+          }
+        }
+        
+        setTimeout(() => {
+          try {
+            window.close();
+          } catch (e) {
+            if (targetOrigins.length > 0) {
+              window.location.href = targetOrigins[0] + "/signin?error=server_error";
+            }
+          }
+        }, 100);
+      }
+      
+      sendErrorAndClose();
+    })();
+  </script>
+</body>
+</html>
+      `);
     }
   }
 );

@@ -191,10 +191,10 @@ NGỮ CẢNH NGƯỜI DÙNG HIỆN TẠI:
         messages: [
           { role: "system", content: systemPrompt },
           ...historyMessages,
-          { role: "user", content: "..." },
+          { role: "user", content: prompt }, // ✅ Sửa: Gửi prompt thực sự thay vì "..."
         ],
         temperature: 0.3,
-        max_tokens: 150,
+        max_tokens: 300, // ✅ Tăng lên 300 để có đủ chỗ cho response
       });
       return completion.choices[0].message.content;
     } catch (error) {

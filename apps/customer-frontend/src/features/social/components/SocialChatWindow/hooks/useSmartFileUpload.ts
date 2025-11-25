@@ -7,25 +7,25 @@ export type FileContextType = "PRINT_FILE" | "REFERENCE" | "INVOICE" | "OTHER";
 
 export interface StagedFile {
   id: string;
-  file: File;
-  previewUrl: string; // Blob URL để preview ngay lập tức
+  file?: File; // Có thể null nếu là Link
+  linkMeta?: { url: string; title: string; type: 'canva' | 'drive' | 'general' }; // ✅ Metadata cho Link
+  previewUrl: string; // Blob URL hoặc Link icon
   progress: number;
   status: "pending" | "uploading" | "done" | "error";
-  context: FileContextType; // ✅ Context-Aware: Tag ngữ cảnh
-  serverUrl?: string; // URL thật sau khi upload xong
-  fileType: string; // 'image', 'pdf', 'ai', 'zip'...
+  context: FileContextType;
+  serverUrl?: string;
+  fileType: string; // 'image', 'file', 'link'
 }
 
 export const useSmartFileUpload = () => {
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
-  // 1. Smart Detection: Tự đoán ngữ cảnh dựa trên đuôi file
+  // 1. Detect Context cho File thật
   const detectContext = (file: File): FileContextType => {
     const name = file.name.toLowerCase();
     if (name.match(/\.(ai|psd|cdr|eps|pdf|tiff|zip|rar)$/)) return "PRINT_FILE";
     if (name.match(/\.(jpg|jpeg|png|heic|webp)$/)) {
-        // Ảnh > 5MB thường là ảnh in hoặc ảnh gốc máy ảnh
         if (file.size > 5 * 1024 * 1024) return "PRINT_FILE"; 
         return "REFERENCE";
     }
@@ -33,29 +33,40 @@ export const useSmartFileUpload = () => {
   };
 
   const getFileType = (file: File) => {
-    // 1. Nếu là ảnh -> trả về 'image'
     if (file.type.startsWith('image/')) return 'image';
-    
-    // 2. Nếu là video -> trả về 'video'
     if (file.type.startsWith('video/')) return 'video';
-    
-    // 3. Còn lại (PDF, AI, ZIP, RAR...) -> trả về 'file' hết
     return 'file';
   };
 
-  // 2. Add files to Staging Area
+  // 2a. Add FILES (Vật lý)
   const addFiles = useCallback((files: File[]) => {
-    const newStagedFiles: StagedFile[] = files.map(file => ({
-      id: Math.random().toString(36).substring(7),
-      file,
-      previewUrl: URL.createObjectURL(file),
-      progress: 0,
-      status: "pending",
-      context: detectContext(file),
-      fileType: getFileType(file)
-    }));
-
+    const newStagedFiles: StagedFile[] = files.map(file => {
+      const blobUrl = URL.createObjectURL(file);
+      return {
+        id: Math.random().toString(36).substring(7),
+        file,
+        previewUrl: blobUrl,
+        progress: 0,
+        status: "pending",
+        context: detectContext(file),
+        fileType: getFileType(file)
+      };
+    });
     setStagedFiles(prev => [...prev, ...newStagedFiles]);
+  }, []);
+
+  // 2b. ✅ Add LINKS (Canva/Drive) - Coi như một file đã upload xong
+  const addLink = useCallback((url: string, type: 'canva' | 'drive' | 'general', title?: string) => {
+    const newLink: StagedFile = {
+        id: Math.random().toString(36).substring(7),
+        linkMeta: { url, type, title: title || url },
+        previewUrl: "", // Không dùng blob cho link
+        progress: 100,
+        status: "done", // Link coi như đã xong, không cần upload
+        context: "REFERENCE", // Mặc định là tham khảo, user có thể đổi
+        fileType: "link"
+    };
+    setStagedFiles(prev => [...prev, newLink]);
   }, []);
 
   const removeFile = useCallback((id: string) => {
@@ -66,15 +77,18 @@ export const useSmartFileUpload = () => {
     setStagedFiles(prev => prev.map(f => f.id === id ? { ...f, context: newContext } : f));
   }, []);
 
-  // 3. Process Upload Queue (Parallel)
+  // 3. Process Queue
   const uploadAllFiles = async (): Promise<any[]> => {
     setIsUploading(true);
     
-    // Lọc ra các file chưa upload (pending)
+    // Chỉ upload những file "pending" (Links đã là "done" rồi)
     const filesToUpload = stagedFiles.filter(f => f.status === "pending" || f.status === "error");
-    
+    // Những file đã done (bao gồm links) thì giữ nguyên để return
+    const alreadyDoneFiles = stagedFiles.filter(f => f.status === "done");
+
     const uploadPromises = filesToUpload.map(async (stagedFile) => {
-      // Update status -> uploading
+      if (!stagedFile.file) return null; // Should not happen for pending files
+
       setStagedFiles(prev => prev.map(f => f.id === stagedFile.id ? { ...f, status: "uploading" } : f));
 
       try {
@@ -82,55 +96,34 @@ export const useSmartFileUpload = () => {
         let result: { url?: string; fileKey?: string };
 
         if (isImage) {
-          // --- LOGIC CŨ (CLOUDINARY) CHO ẢNH ---
           const cloudinaryResult = await uploadFileDirectly(stagedFile.file, (percent) => {
             setStagedFiles(prev => prev.map(f => f.id === stagedFile.id ? { ...f, progress: percent } : f));
           });
           result = { url: cloudinaryResult.url };
         } else {
-          // --- LOGIC MỚI (R2) CHO FILE TÀI LIỆU ---
-          
-          // 1. Xin fileKey từ backend
-          const { fileKey } = await getR2UploadUrl(
-            stagedFile.file.name,
-            stagedFile.file.type
-          );
-
-          // 2. Upload file lên R2 qua proxy với progress tracking
-          await uploadToR2(
-            fileKey,
-            stagedFile.file,
-            (percent) => {
-              setStagedFiles(prev => prev.map(f => f.id === stagedFile.id ? { ...f, progress: percent } : f));
-            }
-          );
-          
+          const { fileKey } = await getR2UploadUrl(stagedFile.file.name, stagedFile.file.type);
+          await uploadToR2(fileKey, stagedFile.file, (percent) => {
+             setStagedFiles(prev => prev.map(f => f.id === stagedFile.id ? { ...f, progress: percent } : f));
+          });
           result = { fileKey };
         }
 
-        // Update status -> done
-        setStagedFiles(prev => prev.map(f => f.id === stagedFile.id ? { 
-            ...f, 
-            status: "done", 
-            serverUrl: result.url || undefined
-        } : f));
+        setStagedFiles(prev => prev.map(f => f.id === stagedFile.id ? { ...f, status: "done", serverUrl: result.url } : f));
 
-        // Tạo proxy URL cho R2 file (để thỏa mãn schema requirement)
         const proxyUrl = result.fileKey 
           ? `${import.meta.env.VITE_API_URL || ''}/api/chat/r2/download?key=${encodeURIComponent(result.fileKey)}&filename=${encodeURIComponent(stagedFile.file.name)}`
           : result.url;
 
         return {
             originalName: stagedFile.file.name,
-            url: proxyUrl, // Cloudinary URL hoặc R2 proxy URL
-            fileKey: result.fileKey, // R2 Key (nếu là file)
-            storage: isImage ? "cloudinary" : "r2", // Đánh dấu storage type
-            type: stagedFile.fileType, // 'file' hoặc 'image'
-            format: stagedFile.file.name.split('.').pop()?.toLowerCase(), // ✅ Gửi thêm cái này để Frontend biết là PDF hay AI mà hiện icon
+            url: proxyUrl,
+            fileKey: result.fileKey,
+            storage: isImage ? "cloudinary" : "r2",
+            type: stagedFile.fileType,
+            format: stagedFile.file.name.split('.').pop()?.toLowerCase(),
             size: stagedFile.file.size,
-            context: stagedFile.context // Quan trọng: Gửi kèm tag ngữ cảnh cho Backend lưu
+            context: stagedFile.context
         };
-
       } catch (error) {
         setStagedFiles(prev => prev.map(f => f.id === stagedFile.id ? { ...f, status: "error" } : f));
         toast.error(`Lỗi upload: ${stagedFile.file.name}`);
@@ -138,19 +131,31 @@ export const useSmartFileUpload = () => {
       }
     });
 
-    const results = await Promise.all(uploadPromises);
+    const uploadedResults = await Promise.all(uploadPromises);
+    
+    // Map Links sang format attachment của backend
+    const linkResults = alreadyDoneFiles.filter(f => f.fileType === 'link').map(f => ({
+        originalName: f.linkMeta?.title || "Liên kết",
+        url: f.linkMeta?.url,
+        type: 'link', // Backend cần handle type này
+        format: f.linkMeta?.type, // 'canva' | 'drive'
+        context: f.context,
+        storage: 'external'
+    }));
+
     setIsUploading(false);
-    return results.filter(r => r !== null);
+    return [...uploadedResults.filter(r => r !== null), ...linkResults];
   };
 
   const clearStaging = useCallback(() => {
-    stagedFiles.forEach(f => URL.revokeObjectURL(f.previewUrl)); // Clean memory
+    stagedFiles.forEach(f => { if(f.previewUrl) URL.revokeObjectURL(f.previewUrl) });
     setStagedFiles([]);
   }, [stagedFiles]);
 
   return {
     stagedFiles,
     addFiles,
+    addLink, // ✅ Export function mới
     removeFile,
     updateFileContext,
     uploadAllFiles,

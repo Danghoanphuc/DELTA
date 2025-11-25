@@ -81,11 +81,17 @@ export function useAuthLogic({ mode }: UseAuthLogicOptions) {
     if (user && authPaths.includes(currentPath)) {
       const from = location.state?.from?.pathname;
 
-      if (from && from !== currentPath) {
+      if (from && from !== currentPath && from !== "/") {
         toast.success("Đã đăng nhập, đang chuyển hướng...");
         navigate(from, { replace: true });
       } else {
-        navigate("/", { replace: true });
+        // ✅ FIX: Redirect trực tiếp về /app hoặc /printer/dashboard thay vì /
+        // Tránh race condition với SmartLanding
+        if (user.role === "printer") {
+          navigate("/printer/dashboard", { replace: true });
+        } else {
+          navigate("/app", { replace: true });
+        }
       }
     }
   }, [user, navigate, location.state]);
@@ -149,12 +155,27 @@ export function useAuthLogic({ mode }: UseAuthLogicOptions) {
           // Don't block login flow
         }
 
-        // Redirect is handled by useEffect above
-        // But we add a backup timeout just in case
-        setTimeout(() => {
-          const from = location.state?.from?.pathname;
-          navigate(from || "/", { replace: true });
-        }, 200);
+        // ✅ FIX: Redirect trực tiếp về /app hoặc /printer/dashboard
+        // signIn đã await fetchMe() nên user đã được set trong store
+        // Lấy user từ store state hiện tại
+        const currentUser = useAuthStore.getState().user;
+        const from = location.state?.from?.pathname;
+        const currentPath = window.location.pathname;
+        
+        // Nếu có from path hợp lệ và không phải root, dùng nó
+        if (from && from !== "/" && from !== currentPath) {
+          navigate(from, { replace: true });
+        } else if (currentUser) {
+          // Redirect dựa trên role
+          if (currentUser.role === "printer") {
+            navigate("/printer/dashboard", { replace: true });
+          } else {
+            navigate("/app", { replace: true });
+          }
+        } else {
+          // Fallback: redirect về /app (SmartLanding sẽ xử lý nếu cần)
+          navigate("/app", { replace: true });
+        }
       }
     } catch (err: any) {
       console.error("[AuthLogic] Error:", err);
