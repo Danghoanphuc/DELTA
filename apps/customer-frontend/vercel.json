@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://delta-customer.onrender.com/:path*"
+      "destination": "https://delta-customer.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",

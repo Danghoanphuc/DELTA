@@ -17,7 +17,7 @@ const convController = new ChatConversationController();
 // ✅ NOTE: Routes /message, /stream, và /upload đã được mount riêng trong server.ts
 // với optionalAuth để cho phép guest users. Các route này không cần protect.
 // router.post("/message", chatRateLimiter, optionalAuth, chatController.handleChatMessage);
-// router.post("/stream", chatRateLimiter, optionalAuth, chatController.handleChatStream);
+router.post("/stream", chatRateLimiter, optionalAuth, chatController.handleChatStream);
 // router.post("/upload", optionalAuth, uploadMixed.single("file"), handleUploadError, chatController.handleChatUpload);
 
 // --- Conversations ---

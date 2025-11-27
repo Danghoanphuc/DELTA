@@ -20,6 +20,8 @@ import { Textarea } from "@/shared/components/ui/textarea";
 import { ArrowLeft, Save, Loader2, Eye, CheckCircle2 } from "lucide-react";
 import { NativeScrollArea as ScrollArea } from "@/shared/components/ui/NativeScrollArea";
 import { Separator } from "@/shared/components/ui/separator";
+import { ConfirmDialog } from "@/shared/components/ui/ConfirmDialog";
+import { useConfirmDialog } from "@/shared/hooks/useConfirmDialog";
 
 // Types
 type TemplateFormData = {
@@ -34,6 +36,7 @@ type TemplateFormData = {
 export function PublishTemplatePage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const confirmDialog = useConfirmDialog();
 
   // State này giờ sẽ chứa { baseProductId, decals, timestamp, previewDataUrl: null }
   const [designData, setDesignData] = useState<any>(null);
@@ -178,13 +181,18 @@ export function PublishTemplatePage() {
                 size="icon"
                 type="button"
                 onClick={() => {
-                  if (
-                    window.confirm(
-                      "Bạn có chắc muốn quay lại? Dữ liệu chưa lưu sẽ bị mất."
-                    )
-                  ) {
-                    navigate(-1); // Quay lại studio
-                  }
+                  confirmDialog.confirm(
+                    {
+                      title: "Quay lại?",
+                      description: "Bạn có chắc muốn quay lại? Dữ liệu chưa lưu sẽ bị mất.",
+                      confirmText: "Quay lại",
+                      cancelText: "Ở lại",
+                      variant: "warning",
+                    },
+                    () => {
+                      navigate(-1); // Quay lại studio
+                    }
+                  );
                 }}
               >
                 <ArrowLeft size={20} />
@@ -336,13 +344,18 @@ export function PublishTemplatePage() {
                       type="button"
                       variant="outline"
                       onClick={() => {
-                        if (
-                          window.confirm(
-                            "Bạn có chắc muốn hủy? Dữ liệu chưa lưu sẽ bị mất."
-                          )
-                        ) {
-                          navigate(-1);
-                        }
+                        confirmDialog.confirm(
+                          {
+                            title: "Hủy đăng bán?",
+                            description: "Bạn có chắc muốn hủy? Dữ liệu chưa lưu sẽ bị mất.",
+                            confirmText: "Hủy",
+                            cancelText: "Tiếp tục",
+                            variant: "warning",
+                          },
+                          () => {
+                            navigate(-1);
+                          }
+                        );
                       }}
                       disabled={isSubmitting}
                       className="flex-1"
@@ -373,6 +386,17 @@ export function PublishTemplatePage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={confirmDialog.handleClose}
+        onConfirm={confirmDialog.handleConfirm}
+        title={confirmDialog.options.title}
+        description={confirmDialog.options.description}
+        confirmText={confirmDialog.options.confirmText}
+        cancelText={confirmDialog.options.cancelText}
+        variant={confirmDialog.options.variant}
+      />
     </div>
   );
 }

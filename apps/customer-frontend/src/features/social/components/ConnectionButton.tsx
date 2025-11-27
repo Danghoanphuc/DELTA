@@ -14,6 +14,8 @@ import { toast } from "@/shared/utils/toast";
 import { UserPlus, UserCheck, UserMinus, Clock, Loader2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
+import { ConfirmDialog } from "@/shared/components/ui/ConfirmDialog";
+import { useConfirmDialog } from "@/shared/hooks/useConfirmDialog";
 
 interface ConnectionButtonProps {
   userId: string;
@@ -27,6 +29,7 @@ export const ConnectionButton: React.FC<ConnectionButtonProps> = ({
   className = "",
 }) => {
   const queryClient = useQueryClient();
+  const confirmDialog = useConfirmDialog();
 
   // Check connection status
   const { data: statusData, isLoading } = useQuery({
@@ -123,7 +126,16 @@ export const ConnectionButton: React.FC<ConnectionButtonProps> = ({
           variant="ghost"
           size="sm"
           onClick={() => {
-            if (confirm("Hủy kết bạn?")) removeConnectionMutation.mutate();
+            confirmDialog.confirm(
+              {
+                title: "Hủy kết bạn?",
+                description: `Bạn có chắc muốn hủy kết bạn với ${userName}? Cuộc trò chuyện giữa hai bạn cũng sẽ bị xóa.`,
+                confirmText: "Hủy kết bạn",
+                cancelText: "Giữ lại",
+                variant: "danger",
+              },
+              () => removeConnectionMutation.mutate()
+            );
           }}
           disabled={removeConnectionMutation.isPending}
           className="text-red-500 hover:text-red-600 hover:bg-red-50"
@@ -192,18 +204,31 @@ export const ConnectionButton: React.FC<ConnectionButtonProps> = ({
 
   // CASE: Mặc định (Chưa kết bạn) -> Nút Kết bạn
   return (
-    <Button
-      size="sm"
-      onClick={() => sendRequestMutation.mutate()}
-      disabled={sendRequestMutation.isPending}
-      className={cn("bg-blue-600 hover:bg-blue-700 text-white", className)}
-    >
-      {sendRequestMutation.isPending ? (
-        <Loader2 className="w-4 h-4 animate-spin mr-1" />
-      ) : (
-        <UserPlus size={16} className="mr-1" />
-      )}
-      Kết bạn
-    </Button>
+    <>
+      <Button
+        size="sm"
+        onClick={() => sendRequestMutation.mutate()}
+        disabled={sendRequestMutation.isPending}
+        className={cn("bg-blue-600 hover:bg-blue-700 text-white", className)}
+      >
+        {sendRequestMutation.isPending ? (
+          <Loader2 className="w-4 h-4 animate-spin mr-1" />
+        ) : (
+          <UserPlus size={16} className="mr-1" />
+        )}
+        Kết bạn
+      </Button>
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={confirmDialog.handleClose}
+        onConfirm={confirmDialog.handleConfirm}
+        title={confirmDialog.options.title}
+        description={confirmDialog.options.description}
+        confirmText={confirmDialog.options.confirmText}
+        cancelText={confirmDialog.options.cancelText}
+        variant={confirmDialog.options.variant}
+        isLoading={removeConnectionMutation.isPending}
+      />
+    </>
   );
 };

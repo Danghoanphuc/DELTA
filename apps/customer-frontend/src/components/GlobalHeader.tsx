@@ -85,7 +85,7 @@ export function GlobalHeader({
 
         {/* Icons */}
         <div className="flex items-center gap-2">
-          {isAuthenticated && <NotificationInbox />}
+          <NotificationInbox />
 
           <Button
             variant="ghost"

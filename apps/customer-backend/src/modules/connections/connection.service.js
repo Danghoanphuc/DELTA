@@ -1,5 +1,6 @@
 // apps/customer-backend/src/modules/connections/connection.service.js
 import mongoose from "mongoose";
+import { Connection } from "../../shared/models/connection.model.js";
 import { ConnectionRepository } from "./connection.repository.js";
 import { Notification } from "../../shared/models/notification.model.js";
 import { Logger } from "../../shared/utils/index.js";
@@ -86,14 +87,15 @@ export class ConnectionService {
   }
 
   /**
-   * ✅ TRANSACTION: Đảm bảo Kết bạn & Tạo Chat luôn thành công cùng nhau
+   * ✅ FIX: Tách việc tạo Chat ra khỏi Transaction Kết bạn
+   * Đảm bảo kết bạn luôn thành công, chat creation chỉ là bonus
    */
   async acceptConnection(connectionId, userId) {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-      // 1. Cập nhật trạng thái Connection
+      // 1. Chấp nhận kết bạn
       const connection = await this.connectionRepository.acceptConnection(
         connectionId,
         userId,
@@ -102,28 +104,44 @@ export class ConnectionService {
 
       if (!connection) throw new NotFoundException("Lời mời không tồn tại");
 
-      // 2. Tự động tạo hội thoại Chat (Kèm session để rollback nếu lỗi)
-      const chatResult = await this.socialChatService.createPeerConversation(
-        connection.requester._id,
-        connection.recipient._id,
-        session
-      );
-
+      // 2. Commit transaction NGAY LẬP TỨC để đảm bảo trạng thái bạn bè được lưu
+      // Việc tạo chat có thể làm sau (async) hoặc xử lý lỗi riêng
       await session.commitTransaction();
+      session.endSession(); // End session sớm
 
-      // 3. Gửi Socket & Notification (Sau khi commit thành công)
-      this._notifyAccept(connection, chatResult.conversation._id);
+      // 3. Tạo hội thoại Chat (Tách ra khỏi transaction kết bạn)
+      // Nếu lỗi chat -> Log warning nhưng VẪN TRẢ VỀ SUCCESS cho kết bạn
+      let conversationId = null;
+      try {
+        const chatResult = await this.socialChatService.createPeerConversation(
+          connection.requester._id,
+          connection.recipient._id
+          // Không truyền session cũ vào đây nữa vì đã commit
+        );
+        conversationId = chatResult?.conversation?._id;
+      } catch (chatError) {
+        Logger.warn(
+          `[Connection] Created friend but chat init failed: ${chatError.message}`
+        );
+        // Không throw error, để FE nhận success
+      }
+
+      // 4. Gửi Socket & Notification
+      this._notifyAccept(connection, conversationId);
 
       return {
         ...connection.toObject(),
-        conversationId: chatResult.conversation._id,
+        conversationId: conversationId,
       };
     } catch (error) {
-      await session.abortTransaction();
-      Logger.error(`[ConnectionSvc] Accept Transaction Failed:`, error);
+      // Chỉ abort nếu bước acceptConnection thất bại
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
+      Logger.error(`[ConnectionSvc] Accept Failed:`, error);
       throw error;
     } finally {
-      session.endSession();
+      if (session.inTransaction()) session.endSession();
     }
   }
 
@@ -227,8 +245,53 @@ export class ConnectionService {
   async declineConnection(id, userId) {
     return this.connectionRepository.declineConnection(id, userId);
   }
-  async unfriend(id, userId) {
-    return this.connectionRepository.deleteConnection(id, userId);
+  /**
+   * ✅ [NEW PATCH] Unfriend: Xóa connection và disable chat tương ứng
+   */
+  async unfriend(connectionId, userId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      // 1. Lấy thông tin connection trước khi xóa để biết ID đối phương
+      const conn = await Connection.findById(connectionId);
+
+      if (!conn) {
+        throw new NotFoundException("Connection not found");
+      }
+
+      // Lấy ID người kia
+      const otherUserId =
+        conn.requester.toString() === userId.toString()
+          ? conn.recipient
+          : conn.requester;
+
+      // 2. Xóa Connection
+      await this.connectionRepository.deleteConnection(connectionId, userId);
+
+      await session.commitTransaction();
+      session.endSession();
+
+      // 3. [NEW PATCH] Xóa luôn đoạn chat
+      // Lưu ý: Gọi ngoài transaction connection để tránh lock,
+      // hoặc nếu muốn chắc chắn thì gọi sau khi commit.
+      // Ở đây ta gọi luôn (fire & forget) để user cảm thấy nhanh.
+      this.socialChatService
+        .disableConversationBetween(userId, otherUserId)
+        .catch((err) =>
+          Logger.warn("Failed to disable chat on unfriend", err)
+        );
+
+      return conn;
+    } catch (error) {
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
+      Logger.error(`[ConnectionSvc] Unfriend Failed:`, error);
+      throw error;
+    } finally {
+      if (session.inTransaction()) session.endSession();
+    }
   }
   async blockUser(reqId, recId) {
     return this.connectionRepository.blockUser(reqId, recId);

@@ -1,42 +1,54 @@
-// src/shared/hooks/useConfirmDialog.ts
+// apps/customer-frontend/src/shared/hooks/useConfirmDialog.ts
+// ✅ Hook để dùng ConfirmDialog dễ dàng
+
 import { useState, useCallback } from "react";
 
-interface ConfirmDialogState {
-  isOpen: boolean;
+interface ConfirmOptions {
   title: string;
   description: string;
-  onConfirm: () => void;
   confirmText?: string;
   cancelText?: string;
   variant?: "danger" | "warning" | "info";
 }
 
 export function useConfirmDialog() {
-  const [dialogState, setDialogState] = useState<ConfirmDialogState>({
-    isOpen: false,
+  const [isOpen, setIsOpen] = useState(false);
+  const [options, setOptions] = useState<ConfirmOptions>({
     title: "",
     description: "",
-    onConfirm: () => {},
+    confirmText: "Xác nhận",
+    cancelText: "Hủy",
+    variant: "warning",
   });
+  const [onConfirmCallback, setOnConfirmCallback] = useState<(() => void) | null>(null);
 
-  const openDialog = useCallback(
-    (config: Omit<ConfirmDialogState, "isOpen">) => {
-      setDialogState({
-        ...config,
-        isOpen: true,
-      });
+  const confirm = useCallback(
+    (opts: ConfirmOptions, onConfirm: () => void) => {
+      setOptions(opts);
+      setOnConfirmCallback(() => onConfirm);
+      setIsOpen(true);
     },
     []
   );
 
-  const closeDialog = useCallback(() => {
-    setDialogState((prev) => ({ ...prev, isOpen: false }));
+  const handleConfirm = useCallback(() => {
+    if (onConfirmCallback) {
+      onConfirmCallback();
+    }
+    setIsOpen(false);
+    setOnConfirmCallback(null);
+  }, [onConfirmCallback]);
+
+  const handleClose = useCallback(() => {
+    setIsOpen(false);
+    setOnConfirmCallback(null);
   }, []);
 
   return {
-    dialogState,
-    openDialog,
-    closeDialog,
+    isOpen,
+    options,
+    confirm,
+    handleConfirm,
+    handleClose,
   };
 }
-

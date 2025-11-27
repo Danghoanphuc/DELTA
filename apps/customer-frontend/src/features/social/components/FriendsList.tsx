@@ -54,13 +54,24 @@ export const FriendsList: React.FC = () => {
   return (
     <div className="divide-y divide-gray-100">
       {friendsList.map((connection: any) => {
-        // Logic tìm người kia trong connection
+        // ✅ FIX: Logic tìm người kia CHUẨN XÁC
+        // Kiểm tra an toàn cả trường hợp populate (object) và chưa populate (string ID)
+        const requesterId =
+          typeof connection.requester === "string"
+            ? connection.requester
+            : connection.requester?._id;
+
+        const currentUserIdStr = currentUser?._id?.toString();
+        const requesterIdStr = requesterId?.toString();
+
+        // Nếu mình là requester -> bạn là recipient, và ngược lại
         const friend =
-          connection.requester._id === currentUser._id
+          requesterIdStr === currentUserIdStr
             ? connection.recipient
             : connection.requester;
 
-        if (!friend) return null;
+        // Nếu friend bị null (do data lỗi), skip thay vì crash
+        if (!friend || typeof friend !== "object") return null;
 
         return (
           <div

@@ -63,6 +63,11 @@ export class SocialChatService {
       throw new NotFoundException("Conversation not found");
     }
 
+    // 🔥 [NEW PATCH] Chặn nhắn tin nếu hội thoại đã bị disable (do unfriend/block)
+    if (conversation.isActive === false) {
+      throw new ValidationException("Cuộc trò chuyện này không còn khả dụng.");
+    }
+
     // 2. Kiểm tra user có trong participants không
     const isParticipant = conversation.participants.some(
       (p) => p.userId._id?.toString() === userId?.toString() || p.userId.toString() === userId?.toString()
@@ -416,5 +421,27 @@ export class SocialChatService {
     }
 
     return message;
+  }
+
+  /**
+   * ✅ [NEW PATCH] Tìm và Vô hiệu hóa chat giữa 2 người (Dùng cho Unfriend/Block)
+   */
+  async disableConversationBetween(userId1, userId2) {
+    // Tìm hội thoại peer-to-peer đang active giữa 2 người
+    const conversation = await Conversation.findOne({
+      type: "peer-to-peer",
+      "participants.userId": { $all: [userId1, userId2] },
+      isActive: true, // Chỉ tìm cái đang active
+    }).select("_id");
+
+    if (conversation) {
+      Logger.info(
+        `[SocialChat] Disabling conversation ${conversation._id} due to connection break.`
+      );
+      // Tái sử dụng hàm deleteConversation có sẵn để đảm bảo logic Socket & Cache đồng bộ
+      // Truyền userId1 làm người thực hiện hành động
+      return await this.deleteConversation(conversation._id, userId1);
+    }
+    return null;
   }
 }

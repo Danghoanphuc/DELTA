@@ -24,12 +24,15 @@ import { EditorErrorBoundary } from "./components/EditorErrorBoundary";
 import { toast } from "@/shared/utils/toast"; // ✅ Thêm toast
 import { CameraControlsHandle } from "./components/ProductViewer3D";
 import { ExportDialog } from "./components/ExportDialog";
+import { ConfirmDialog } from "@/shared/components/ui/ConfirmDialog";
+import { useConfirmDialog } from "@/shared/hooks/useConfirmDialog";
 
 function DesignEditorPageContent() {
   const navigate = useNavigate();
   const cameraControlsRef = useRef<CameraControlsHandle | null>(null);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const confirmDialog = useConfirmDialog();
 
   // 1. Hook đã được cập nhật
   const {
@@ -116,11 +119,18 @@ function DesignEditorPageContent() {
   }, [product]); // ✅ Phụ thuộc vào product
 
   const handleExit = () => {
-    if (
-      window.confirm("Bạn có chắc muốn thoát? Mọi thay đổi chưa lưu sẽ bị mất.")
-    ) {
-      navigate(-1); // Quay lại trang trước đó
-    }
+    confirmDialog.confirm(
+      {
+        title: "Thoát khỏi trình chỉnh sửa?",
+        description: "Mọi thay đổi chưa lưu sẽ bị mất. Bạn có chắc muốn thoát?",
+        confirmText: "Thoát",
+        cancelText: "Ở lại",
+        variant: "warning",
+      },
+      () => {
+        navigate(-1); // Quay lại trang trước đó
+      }
+    );
   };
 
   // Camera controls handlers
@@ -317,6 +327,18 @@ function DesignEditorPageContent() {
         isOpen={isExportDialogOpen}
         onClose={() => setIsExportDialogOpen(false)}
         onExport={handleExport}
+      />
+
+      {/* 8. CONFIRM DIALOG */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={confirmDialog.handleClose}
+        onConfirm={confirmDialog.handleConfirm}
+        title={confirmDialog.options.title}
+        description={confirmDialog.options.description}
+        confirmText={confirmDialog.options.confirmText}
+        cancelText={confirmDialog.options.cancelText}
+        variant={confirmDialog.options.variant}
       />
     </div>
   );

@@ -8,6 +8,8 @@ import { Sparkles, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "@/shared/utils/toast";
 import api from "@/shared/lib/axios";
 import { cn } from "@/shared/lib/utils";
+import { ConfirmDialog } from "@/shared/components/ui/ConfirmDialog";
+import { useConfirmDialog } from "@/shared/hooks/useConfirmDialog";
 
 interface SmartTextareaProps {
   value: string;
@@ -48,6 +50,7 @@ export function SmartTextarea({
   maxRows = 12,
 }: SmartTextareaProps) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const confirmDialog = useConfirmDialog();
 
   /**
    * Handle AI generation (one-shot)
@@ -87,18 +90,24 @@ export function SmartTextarea({
   /**
    * Handle regenerate (nếu đã có nội dung)
    */
-  const handleRegenerate = async () => {
+  const handleRegenerate = () => {
     if (!productName) {
       toast.error("Vui lòng nhập tên sản phẩm trước");
       return;
     }
 
-    const confirmed = window.confirm(
-      "Bạn có chắc muốn tạo lại nội dung? Nội dung hiện tại sẽ bị thay thế."
+    confirmDialog.confirm(
+      {
+        title: "Tạo lại nội dung?",
+        description: "Nội dung hiện tại sẽ bị thay thế bằng nội dung mới do AI tạo ra.",
+        confirmText: "Tạo lại",
+        cancelText: "Hủy",
+        variant: "warning",
+      },
+      async () => {
+        await handleAskZin();
+      }
     );
-    if (!confirmed) return;
-
-    await handleAskZin();
   };
 
   return (
@@ -180,6 +189,18 @@ export function SmartTextarea({
           💡 Tip: Nhấn "Ask Zin" để AI tự động viết mô tả chuyên nghiệp cho bạn
         </p>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={confirmDialog.handleClose}
+        onConfirm={confirmDialog.handleConfirm}
+        title={confirmDialog.options.title}
+        description={confirmDialog.options.description}
+        confirmText={confirmDialog.options.confirmText}
+        cancelText={confirmDialog.options.cancelText}
+        variant={confirmDialog.options.variant}
+        isLoading={isGenerating}
+      />
     </div>
   );
 }

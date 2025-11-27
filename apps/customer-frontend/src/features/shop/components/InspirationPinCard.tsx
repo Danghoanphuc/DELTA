@@ -6,6 +6,7 @@ import { Badge } from "@/shared/components/ui/badge";
 import { Brush, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/shared/lib/utils";
+import { toast } from "@/shared/utils/toast";
 
 // Định nghĩa kiểu dữ liệu cho một Ghim do AI tạo
 export interface InspirationPin {
@@ -28,7 +29,9 @@ export function InspirationPinCard({ pin }: InspirationPinCardProps) {
     // 2. Chuyển hướng đến DesignEditorPage
     // 3. Truyền 'imageUrl' và 'prompt' qua state của react-router
     // 4. Editor sẽ tải ảnh này làm decal
-    alert(`Đang triển khai: Sử dụng mẫu AI (ID: ${pin.id})`);
+    toast.info("Tính năng đang phát triển", {
+      description: `Sử dụng mẫu AI (ID: ${pin.id}) sẽ sớm được triển khai`,
+    });
   };
 
   return (

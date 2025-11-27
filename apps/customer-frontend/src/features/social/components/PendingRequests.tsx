@@ -70,9 +70,10 @@ export const PendingRequests: React.FC = () => {
   // ✅ FIX: Lấy list chuẩn xác
   const requests = data?.data?.requests || data?.data?.connections || [];
 
-  const validRequests = requests.filter(
-    (req: any) => req.requester && req.requester._id
-  );
+  // ✅ FIX 1: Logic lọc an toàn hơn - chỉ lọc bỏ nếu requester hoàn toàn null/undefined
+  const validRequests = requests.filter((req: any) => {
+    return !!req.requester;
+  });
 
   if (validRequests.length === 0) {
     return (
@@ -88,7 +89,13 @@ export const PendingRequests: React.FC = () => {
   return (
     <div className="divide-y divide-gray-100">
       {validRequests.map((request: any) => {
-        const requester = request.requester;
+        // ✅ FIX 2: Fallback an toàn khi lấy thông tin requester
+        const requester = request.requester || {};
+        const displayName = requester.displayName || requester.username || "Người dùng ẩn danh";
+        const avatarUrl = requester.avatarUrl;
+        const username = requester.username || "unknown";
+        const initial = displayName[0]?.toUpperCase() || "?";
+
         return (
           <div
             key={request._id}
@@ -96,25 +103,24 @@ export const PendingRequests: React.FC = () => {
           >
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-sm">
-                {requester.avatarUrl ? (
+                {avatarUrl ? (
                   <img
-                    src={requester.avatarUrl}
+                    src={avatarUrl}
                     className="w-full h-full rounded-full object-cover"
                   />
                 ) : (
-                  <span>
-                    {(requester.displayName ||
-                      requester.username)[0].toUpperCase()}
-                  </span>
+                  <span>{initial}</span>
                 )}
               </div>
               <div className="truncate">
                 <h4 className="font-semibold text-sm text-gray-900 truncate">
-                  {requester.displayName || requester.username}
+                  {displayName}
                 </h4>
-                <p className="text-xs text-gray-500 truncate">
-                  @{requester.username}
-                </p>
+                <p className="text-xs text-gray-500 truncate">@{username}</p>
+                {/* Debug info: in case _id is missing */}
+                {!requester._id && (
+                  <p className="text-[10px] text-red-400">Data error: Missing ID</p>
+                )}
               </div>
             </div>
 

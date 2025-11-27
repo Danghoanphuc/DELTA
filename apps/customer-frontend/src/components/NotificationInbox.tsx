@@ -2,6 +2,9 @@ import { useEffect, useRef } from 'react';
 import { Inbox } from '@novu/react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useTheme } from '@/shared/hooks/useTheme';
+import { Bell } from 'lucide-react';
+import { Button } from '@/shared/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 const NOTIFICATION_SOUND = '/sounds/message-pop.mp3';
 
@@ -9,6 +12,7 @@ export function NotificationInbox() {
   const applicationIdentifier = import.meta.env.VITE_NOVU_APPLICATION_IDENTIFIER;
   const user = useAuthStore((state) => state.user);
   const { isDark } = useTheme();
+  const navigate = useNavigate();
   const notificationCountRef = useRef<number>(0);
 
   const playNotificationSound = () => {
@@ -56,16 +60,23 @@ export function NotificationInbox() {
     return () => clearInterval(interval);
   }, []);
 
-  if (!applicationIdentifier) {
-    console.error('VITE_NOVU_APPLICATION_IDENTIFIER is not defined');
-    return null;
+  // ✅ FALLBACK: Nếu không có Novu config hoặc user chưa load, hiển thị button đơn giản
+  // Luôn hiển thị chuông, kể cả khi chưa đăng nhập hoặc chưa có Novu config
+  if (!applicationIdentifier || !user?._id) {
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        className="relative"
+        onClick={() => navigate('/notifications')}
+        aria-label="Thông báo"
+      >
+        <Bell size={20} />
+      </Button>
+    );
   }
 
-  const subscriberId = user?._id?.toString();
-
-  if (!subscriberId) {
-    return null;
-  }
+  const subscriberId = user._id.toString();
 
   const backendUrl = import.meta.env.VITE_NOVU_BACKEND_URL;
   const socketUrl = import.meta.env.VITE_NOVU_SOCKET_URL;

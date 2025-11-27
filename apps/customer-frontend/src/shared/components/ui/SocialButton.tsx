@@ -25,7 +25,12 @@ export function SocialButton({ provider, className, mode = "signIn" }: SocialBut
     const searchParams = new URLSearchParams({ origin: window.location.origin });
     const url = `${API_URL}/api/auth/google?${searchParams.toString()}`;
     const popup = window.open(url, "Google Login", "width=500,height=600");
-    if (!popup) { alert("Popup bị chặn!"); return; }
+    if (!popup) {
+      toast.error("Popup bị chặn!", {
+        description: "Vui lòng cho phép popup để đăng nhập bằng Google",
+      });
+      return;
+    }
 
     let messageReceived = false;
     const messageListener = async (event: MessageEvent) => {

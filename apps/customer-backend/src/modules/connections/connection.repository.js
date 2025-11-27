@@ -29,7 +29,8 @@ export class ConnectionRepository {
     })
       .populate("requester", "username displayName avatarUrl")
       .populate("recipient", "username displayName avatarUrl")
-      .sort({ acceptedAt: -1 });
+      .sort({ acceptedAt: -1 })
+      .lean(); // ✅ FIX: Thêm lean() để trả về object thuần, an toàn cho FE
   }
 
   // ✅ FIX: Đảm bảo lấy đúng yêu cầu mình nhận được (mình là recipient)
@@ -38,8 +39,9 @@ export class ConnectionRepository {
       recipient: userId,
       status: "pending",
     })
-      .populate("requester", "username displayName avatarUrl")
-      .sort({ createdAt: -1 });
+      .populate("requester", "username displayName avatarUrl") // Mặc định _id luôn có
+      .sort({ createdAt: -1 })
+      .lean(); // ✅ FIX: Thêm lean() để trả về object thuần, an toàn cho FE
   }
 
   async getSentRequests(userId) {

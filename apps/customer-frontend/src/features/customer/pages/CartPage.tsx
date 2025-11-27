@@ -23,6 +23,8 @@ import { toast } from "@/shared/utils/toast";
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/shared/lib/utils';
 import { Progress } from '@/shared/components/ui/progress';
+import { ConfirmDialog } from "@/shared/components/ui/ConfirmDialog";
+import { useConfirmDialog } from "@/shared/hooks/useConfirmDialog";
 
 // Cấu hình mức Freeship (Ví dụ: 1 triệu đ)
 const FREE_SHIPPING_THRESHOLD = 1000000;
@@ -31,6 +33,7 @@ export const CartPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const isAuthenticated = !!user;
+  const confirmDialog = useConfirmDialog();
   
   const [editingQuantities, setEditingQuantities] = useState<Record<string, string>>({});
   const [shippingFee, setShippingFee] = useState(0);
@@ -72,14 +75,24 @@ export const CartPage = () => {
     }
   };
 
-  const handleClearCart = async () => {
-    if (window.confirm('Bạn có chắc muốn xóa toàn bộ giỏ hàng?')) {
-      try {
-        await clearCart();
-      } catch (error) {
-        toast.error('Không thể xóa giỏ hàng');
+  const handleClearCart = () => {
+    confirmDialog.confirm(
+      {
+        title: "Xóa toàn bộ giỏ hàng?",
+        description: "Bạn có chắc muốn xóa tất cả sản phẩm trong giỏ hàng? Hành động này không thể hoàn tác.",
+        confirmText: "Xóa tất cả",
+        cancelText: "Hủy",
+        variant: "danger",
+      },
+      async () => {
+        try {
+          await clearCart();
+          toast.success("Đã xóa toàn bộ giỏ hàng");
+        } catch (error) {
+          toast.error('Không thể xóa giỏ hàng');
+        }
       }
-    }
+    );
   };
 
   const handleCheckout = () => {
@@ -334,6 +347,17 @@ export const CartPage = () => {
 
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={confirmDialog.handleClose}
+        onConfirm={confirmDialog.handleConfirm}
+        title={confirmDialog.options.title}
+        description={confirmDialog.options.description}
+        confirmText={confirmDialog.options.confirmText}
+        cancelText={confirmDialog.options.cancelText}
+        variant={confirmDialog.options.variant}
+      />
     </div>
   );
 };
