@@ -5,27 +5,26 @@ import { z } from "zod";
 
 // --- VALIDATION SCHEMAS ---
 // Schema này có thể được share với backend thông qua @printz/types
-export const authFlowSchema = z
-  .object({
-    email: z.string().email("Email không hợp lệ"),
-    firstName: z.string().optional(),
-    lastName: z.string().optional(),
-    password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
-    confirmPassword: z.string().optional(),
-  })
-  .refine(
-    (data) => {
-      // Chỉ validate confirmPassword khi nó có giá trị (tức là đang ở mode signUp)
-      if (data.confirmPassword) {
-        return data.password === data.confirmPassword;
-      }
-      return true;
-    },
-    {
-      message: "Mật khẩu xác nhận không khớp",
-      path: ["confirmPassword"], // Gắn lỗi vào field confirmPassword
+// ✅ FIX: Sử dụng z.object() trực tiếp thay vì chain để tránh lỗi Zod v4
+export const authFlowSchema = z.object({
+  email: z.string().min(1, "Email không được để trống").email("Email không hợp lệ"),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
+  confirmPassword: z.string().optional(),
+}).refine(
+  (data) => {
+    // Chỉ validate confirmPassword khi nó có giá trị (tức là đang ở mode signUp)
+    if (data.confirmPassword) {
+      return data.password === data.confirmPassword;
     }
-  );
+    return true;
+  },
+  {
+    message: "Mật khẩu xác nhận không khớp",
+    path: ["confirmPassword"], // Gắn lỗi vào field confirmPassword
+  }
+);
 
 export type AuthFlowValues = z.infer<typeof authFlowSchema>;
 

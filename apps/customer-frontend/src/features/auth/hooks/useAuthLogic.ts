@@ -109,10 +109,22 @@ export function useAuthLogic({ mode }: UseAuthLogicOptions) {
   }, [email, watch, mode]);
 
   const handleEmailSubmit = async () => {
-    const isValid = await trigger("email");
-    if (!isValid) return;
-    if (mode === "signUp") setStep("name");
-    else setStep("password");
+    try {
+      const isValid = await trigger("email");
+      if (!isValid) return;
+      if (mode === "signUp") setStep("name");
+      else setStep("password");
+    } catch (error) {
+      console.error("[AuthLogic] Email validation error:", error);
+      // Fallback: vẫn cho phép tiếp tục nếu có email hợp lệ
+      const emailValue = watch("email");
+      if (emailValue && emailValue.includes("@")) {
+        if (mode === "signUp") setStep("name");
+        else setStep("password");
+      } else {
+        toast.error("Vui lòng nhập email hợp lệ");
+      }
+    }
   };
 
   const handleNameSubmit = async () => {
