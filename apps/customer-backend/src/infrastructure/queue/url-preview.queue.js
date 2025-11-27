@@ -24,11 +24,12 @@ let _urlPreviewQueue = null;
  */
 export function getUrlPreviewQueue() {
   if (!_urlPreviewQueue) {
-    _urlPreviewQueue = new Queue("url-preview", {
-      redis: {
-        host: process.env.REDIS_HOST || "localhost",
-        port: process.env.REDIS_PORT || 6379,
-      },
+    try {
+      _urlPreviewQueue = new Queue("url-preview", {
+        redis: {
+          host: process.env.REDIS_HOST || "localhost",
+          port: process.env.REDIS_PORT || 6379,
+        },
       settings: {
         // ✅ Stalled interval: Thời gian chờ trước khi coi job là stalled
         stalledInterval: 30000, // 30 giây (mặc định)
@@ -67,8 +68,17 @@ export function getUrlPreviewQueue() {
     });
 
     _urlPreviewQueue.on("error", (error) => {
-      Logger.error(`❌ [URL Preview Queue] Queue error:`, error);
+      // ✅ FIX: Chỉ log warning, không throw để server vẫn chạy được khi không có Redis
+      if (error.code === 'ECONNREFUSED') {
+        Logger.warn(`⚠️ [URL Preview Queue] Redis connection refused. Queue will retry automatically.`);
+      } else {
+        Logger.error(`❌ [URL Preview Queue] Queue error:`, error);
+      }
     });
+    } catch (error) {
+      Logger.warn(`⚠️ [URL Preview Queue] Failed to create queue (Redis may not be available): ${error.message}`);
+      return null; // Return null để server vẫn chạy được
+    }
   }
   return _urlPreviewQueue;
 }

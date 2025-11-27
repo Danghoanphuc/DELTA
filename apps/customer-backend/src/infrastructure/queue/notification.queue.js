@@ -13,18 +13,37 @@ const redisConnection = {
 };
 
 // 1. Khởi tạo Queue tên là 'notifications'
-export const notificationQueue = new Queue('notifications', {
-  connection: redisConnection,
-  defaultJobOptions: {
-    attempts: 3, // Thử lại 3 lần nếu lỗi
-    backoff: {
-      type: 'exponential',
-      delay: 5000, // Lần 1 chờ 5s, lần 2 chờ 10s...
+// ✅ FIX: Wrap trong try-catch để không crash khi Redis không có
+let notificationQueue;
+try {
+  notificationQueue = new Queue('notifications', {
+    connection: redisConnection,
+    defaultJobOptions: {
+      attempts: 3, // Thử lại 3 lần nếu lỗi
+      backoff: {
+        type: 'exponential',
+        delay: 5000, // Lần 1 chờ 5s, lần 2 chờ 10s...
+      },
+      removeOnComplete: true, // Xóa job khi xong để nhẹ Redis
+      removeOnFail: false, // Giữ lại job lỗi để debug
     },
-    removeOnComplete: true, // Xóa job khi xong để nhẹ Redis
-    removeOnFail: false, // Giữ lại job lỗi để debug
-  },
-});
+  });
+
+  // ✅ FIX: Handle connection errors gracefully
+  notificationQueue.on('error', (error) => {
+    if (error.code === 'ECONNREFUSED') {
+      Logger.warn(`⚠️ [Notification Queue] Redis connection refused. Queue will retry automatically.`);
+    } else {
+      Logger.error(`❌ [Notification Queue] Queue error:`, error);
+    }
+  });
+} catch (error) {
+  Logger.warn(`⚠️ [Notification Queue] Failed to initialize queue (Redis may not be available):`, error.message);
+  // Tạo mock queue để tránh crash
+  notificationQueue = null;
+}
+
+export { notificationQueue };
 
 /**
  * Hàm bắn Job vào hàng đợi

@@ -5,9 +5,9 @@ import { ApiResponse, Logger } from "../../shared/utils/index.js";
 import { API_CODES } from "../../shared/constants/index.js";
 import { Conversation } from "../../shared/models/conversation.model.js";
 import { NotFoundException } from "../../shared/exceptions/index.js";
-// 🚀 NEW: Vercel AI SDK imports
-import { streamText, tool } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
+// 🚀 NEW: Vercel AI SDK imports - Lazy import để tránh conflict với import-in-the-middle
+// import { streamText, tool } from "ai";
+// import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod"; // ✅ Dùng zod 3.23.8 (tương thích với Vercel AI SDK v4.x)
 import { config } from "../../config/env.config.js";
 
@@ -235,6 +235,10 @@ export class ChatController {
    */
   handleChatStream = async (req, res, next) => {
     try {
+      // ✅ LAZY IMPORT: Import ai package khi cần để tránh conflict với import-in-the-middle
+      const { streamText, tool } = await import("ai");
+      const { createOpenAI } = await import("@ai-sdk/openai");
+
       const { messages, conversationId } = req.body;
       const user = req.user;
       const isGuest = !user;

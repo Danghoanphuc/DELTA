@@ -48,25 +48,36 @@ const processor = async (job) => {
 
 // Hàm khởi động Worker (Gọi ở file server.ts)
 export const startNotificationWorker = () => {
-  const worker = new Worker('notifications', processor, {
-    connection: redisConnection,
-    concurrency: 5, // Xử lý 5 thông báo cùng lúc
-  });
+  try {
+    const worker = new Worker('notifications', processor, {
+      connection: redisConnection,
+      concurrency: 5, // Xử lý 5 thông báo cùng lúc
+    });
 
-  worker.on('completed', (job) => {
-    Logger.info(`[Worker] ✅ Job ${job.id} completed!`);
-  });
+    worker.on('completed', (job) => {
+      Logger.info(`[Worker] ✅ Job ${job.id} completed!`);
+    });
 
-  worker.on('failed', (job, err) => {
-    Logger.warn(`[Worker] ⚠️ Job ${job?.id || 'unknown'} failed. Retrying... Reason: ${err.message}`);
-  });
+    worker.on('failed', (job, err) => {
+      Logger.warn(`[Worker] ⚠️ Job ${job?.id || 'unknown'} failed. Retrying... Reason: ${err.message}`);
+    });
 
-  worker.on('error', (error) => {
-    Logger.error(`[Worker] ❌ Worker error: ${error.message}`);
-  });
-  
-  Logger.info('[Worker] 🚀 Notification Worker started');
+    worker.on('error', (error) => {
+      // ✅ FIX: Chỉ log warning cho Redis connection errors, không throw
+      if (error.code === 'ECONNREFUSED') {
+        Logger.warn(`⚠️ [Worker] Redis connection refused. Worker will retry automatically.`);
+      } else {
+        Logger.error(`[Worker] ❌ Worker error: ${error.message}`);
+      }
+    });
+    
+    Logger.info('[Worker] 🚀 Notification Worker started');
+    Logger.info('✅ Notification Worker đã sẵn sàng (concurrency: 5)');
 
-  return worker;
+    return worker;
+  } catch (error) {
+    Logger.warn(`⚠️ [Worker] Failed to start notification worker (Redis may not be available): ${error.message}`);
+    return null; // Return null để server vẫn chạy được
+  }
 };
 

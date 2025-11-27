@@ -3,6 +3,7 @@
 
 import Queue from "bull";
 import { pdfRenderer } from "../infrastructure/workers/pdf-renderer.worker.js";
+import { Logger } from "../shared/utils/index.js";
 // ⚠️ KHÔNG import urlPreviewQueue ở top-level - sẽ được import dynamic trong server.ts
 // để tránh kết nối Redis sớm
 
@@ -26,12 +27,13 @@ const PDF_QUEUE_CONCURRENCY = Math.max(
  */
 export function getPdfQueue() {
   if (!_pdfQueue) {
-    _pdfQueue = new Queue("pdf-rendering", {
-      redis: {
-        host: process.env.REDIS_HOST || "localhost",
-        port: process.env.REDIS_PORT || 6379,
-      },
-    });
+    try {
+      _pdfQueue = new Queue("pdf-rendering", {
+        redis: {
+          host: process.env.REDIS_HOST || "localhost",
+          port: process.env.REDIS_PORT || 6379,
+        },
+      });
 
     // Worker process
     _pdfQueue.process(PDF_QUEUE_CONCURRENCY, async (job) => {
@@ -53,6 +55,19 @@ export function getPdfQueue() {
     _pdfQueue.on("failed", (job, err) => {
       console.error(`❌ [PDF Queue] Job ${job.id} failed:`, err);
     });
+
+    // ✅ FIX: Handle Redis connection errors gracefully
+    _pdfQueue.on("error", (error) => {
+      if (error.code === 'ECONNREFUSED') {
+        Logger.warn(`⚠️ [PDF Queue] Redis connection refused. Queue will retry automatically.`);
+      } else {
+        Logger.error(`❌ [PDF Queue] Queue error:`, error);
+      }
+    });
+    } catch (error) {
+      Logger.warn(`⚠️ [PDF Queue] Failed to create queue (Redis may not be available): ${error.message}`);
+      return null; // Return null để server vẫn chạy được
+    }
   }
   return _pdfQueue;
 }
@@ -85,11 +100,15 @@ let _bullBoardInitialized = false;
 function initializeBullBoard() {
   if (!_bullBoardInitialized) {
     const pdfQueue = getPdfQueue();
-    createBullBoard({
-      queues: [new BullAdapter(pdfQueue)],
-      serverAdapter: serverAdapter,
-    });
-    _bullBoardInitialized = true;
+    if (pdfQueue) {
+      createBullBoard({
+        queues: [new BullAdapter(pdfQueue)],
+        serverAdapter: serverAdapter,
+      });
+      _bullBoardInitialized = true;
+    } else {
+      Logger.warn(`⚠️ [Bull Board] Cannot initialize - PDF Queue is not available (Redis may not be available)`);
+    }
   }
 }
 

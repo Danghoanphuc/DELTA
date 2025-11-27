@@ -65,7 +65,11 @@ async function startServer() {
       const { getUrlPreviewQueue } = await import("./infrastructure/queue/url-preview.queue.js");
       Logger.info('[Server] ✅ Đã import url-preview.queue.js');
       const urlPreviewQueue = getUrlPreviewQueue();
-      Logger.info('[Server] ✅ Đã khởi tạo urlPreviewQueue');
+      if (urlPreviewQueue) {
+        Logger.info('[Server] ✅ Đã khởi tạo urlPreviewQueue');
+      } else {
+        Logger.warn('[Server] ⚠️ urlPreviewQueue không khởi tạo được (Redis có thể không có)');
+      }
       
       Logger.info('[Server] 📦 Đang import url-processor.worker.js...');
       const { urlProcessorWorker } = await import("./modules/chat/workers/url-processor.worker.js");
@@ -160,8 +164,12 @@ async function startServer() {
       const { startNotificationWorker } = await import("./infrastructure/queue/notification.worker.js");
       Logger.info('[Server] ✅ Đã import notification.worker.js');
       
-      startNotificationWorker();
-      Logger.info("✅ Notification Worker đã sẵn sàng (concurrency: 5)");
+      const worker = startNotificationWorker();
+      if (worker) {
+        Logger.info("✅ Notification Worker đã sẵn sàng (concurrency: 5)");
+      } else {
+        Logger.warn("⚠️ Notification Worker không khởi động được (Redis có thể không có)");
+      }
     } catch (notificationWorkerError) {
       Logger.error("❌ Lỗi khi khởi chạy Notification Worker:", notificationWorkerError);
       Logger.error("Stack:", notificationWorkerError instanceof Error ? notificationWorkerError.stack : 'No stack');
