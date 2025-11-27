@@ -1,0 +1,58 @@
+# PATCH cho package.json
+# Thêm NODE_OPTIONS để tăng Node.js memory limit
+
+## Cách 1: Sửa trực tiếp trong package.json
+
+Tìm section "scripts" và update:
+
+```json
+{
+  "scripts": {
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 pnpm dev:services:down && pnpm dev:services:up && concurrently \"pnpm dev:be\" \"pnpm dev:fe\"",
+    "dev:be": "cross-env NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter ./apps/customer-backend dev",
+    "dev:fe": "pnpm --filter ./apps/customer-frontend dev"
+  }
+}
+```
+
+**Cài đặt cross-env nếu chưa có:**
+```bash
+pnpm add -D cross-env
+```
+
+---
+
+## Cách 2: Tạo file .env tại root
+
+Tạo file `D:\LAP-TRINH\DELTA\.env` với nội dung:
+
+```bash
+# Node.js Memory Limit (4GB)
+NODE_OPTIONS=--max-old-space-size=4096
+
+# Puppeteer Options (optional)
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
+PUPPETEER_EXECUTABLE_PATH=
+
+# Environment
+NODE_ENV=development
+```
+
+---
+
+## Giải thích
+
+- `--max-old-space-size=4096`: Tăng heap memory lên 4GB (default là 512MB-2GB)
+- Puppeteer cần ~300-500MB để import + Chromium cần ~500MB khi chạy
+- Tổng cần ~1-2GB, set 4GB để an toàn
+
+---
+
+## Test
+
+```bash
+# Check Node.js memory limit hiện tại
+node -e "console.log('Max Old Space:', require('v8').getHeapStatistics().heap_size_limit / 1024 / 1024, 'MB')"
+
+# Kết quả mong đợi: ~4096 MB
+```

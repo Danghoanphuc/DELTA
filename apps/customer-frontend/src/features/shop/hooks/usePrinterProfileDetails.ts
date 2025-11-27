@@ -1,7 +1,7 @@
 // src/features/shop/hooks/usePrinterProfileDetails.ts
 import { useState, useEffect } from "react";
 import api from "@/shared/lib/axios";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 
 // Cấu trúc gallery (từ model.js)
 interface PrinterGallery {

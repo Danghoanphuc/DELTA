@@ -14,7 +14,7 @@ import {
   ActiveSelection, // Thêm import (cho delete)
   TDataUrlOptions,
 } from "fabric";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 
 // Các kiểu dữ liệu
 type ShapeType = "rect" | "circle" | "triangle" | "line";
@@ -139,7 +139,7 @@ export const copySelected = async (canvas: Canvas) => {
 
 export const paste = async (canvas: Canvas) => {
   if (!clipboard) {
-    toast("Clipboard trống!");
+    toast.warning("Clipboard trống!");
     return;
   }
   const cloned = await clipboard.clone();
@@ -256,7 +256,7 @@ export const applyFilter = (canvas: Canvas, filterType: FilterType) => {
     activeObject.applyFilters();
     canvas.renderAll();
   } else {
-    toast("Vui lòng chọn một ảnh để áp dụng bộ lọc.");
+    toast.warning("Vui lòng chọn một ảnh để áp dụng bộ lọc.");
   }
 };
 

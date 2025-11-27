@@ -3,7 +3,7 @@
 import React, { useMemo, lazy, Suspense, useState, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { Breadcrumb } from "@/shared/components/ui/breadcrumb";
 import { useProductDetail } from "../hooks/useProductDetail";
 import { useNavigate } from "react-router-dom";

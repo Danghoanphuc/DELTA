@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { Upload, X, Loader2, FileImage, FileText } from "lucide-react";
 
 import {

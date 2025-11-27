@@ -19,7 +19,7 @@ import {
   Trash2, Minus, Plus, ShoppingBag, ArrowRight, 
   Truck, ShieldCheck, Gift, ArrowLeft 
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from "@/shared/utils/toast";
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/shared/lib/utils';
 import { Progress } from '@/shared/components/ui/progress';

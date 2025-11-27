@@ -7,7 +7,7 @@ import {
 } from "@stripe/react-stripe-js";
 import { Button } from "@/shared/components/ui/button";
 import { Loader2, Lock } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { useCartStore } from "@/stores/useCartStore"; // Import để xóa giỏ hàng
 
 interface PaymentFormProps {

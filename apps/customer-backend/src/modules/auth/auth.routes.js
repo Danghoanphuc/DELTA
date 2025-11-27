@@ -1,13 +1,16 @@
 // src/modules/auth/auth.routes.js
 import { Router } from "express";
 import { AuthController } from "./auth.controller.js";
+import { PusherController } from "./pusher.controller.js";
 import { createRateLimitMiddleware } from "../../shared/middleware/rate-limit.middleware.js";
 import { RateLimiterRedis, RateLimiterMemory } from "rate-limiter-flexible";
 import { getRedisClient } from "../../infrastructure/cache/redis.js";
 import { config } from "../../config/env.config.js";
+import { protect } from "../../shared/middleware/index.js";
 
 const router = Router();
 const authController = new AuthController();
+const pusherController = new PusherController();
 
 // ✅ SECURITY: Rate limiters cho auth endpoints
 // Tăng rate limit cho development environment để dễ test
@@ -65,5 +68,8 @@ router.post("/signout", authController.signOut);
 router.post("/refresh", authController.refresh);
 router.post("/verify-email", authController.verifyEmail);
 router.post("/resend-verification", authRateLimit, authController.resendVerificationEmail);
+
+// ✅ Pusher Authentication (Bắt buộc phải có protect để lấy req.user)
+router.post("/pusher/auth", protect, pusherController.authenticate);
 
 export default router;

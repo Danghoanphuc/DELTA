@@ -7,7 +7,7 @@ import * as assetService from "@/services/assetService";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Plus, Search, Box, Filter, Layers } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { AssetCard } from "@/features/printer/components/AssetCard";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";

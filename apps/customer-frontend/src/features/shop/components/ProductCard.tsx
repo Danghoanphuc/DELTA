@@ -6,7 +6,7 @@ import { Badge } from "@/shared/components/ui/badge";
 import { Product } from "@/types/product";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { LoginPopup } from "@/features/auth/components/LoginPopup";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { Link } from "react-router-dom";
 import { cn } from "@/shared/lib/utils";
 import { Card } from "@/shared/components/ui/card";

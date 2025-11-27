@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import api from "@/shared/lib/axios";
 
 const SETTINGS_TABS = [

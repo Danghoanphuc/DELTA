@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/shared/components/ui/button";
 import { Slider } from "@/shared/components/ui/slider";
 import { ZoomIn, ZoomOut, Move, RotateCcw, Check, X, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 
 interface AvatarCropModalProps {
   isOpen: boolean;

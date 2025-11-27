@@ -2,7 +2,7 @@
 // ✅ ĐÃ KHẮC PHỤC: Bổ sung dấu {} cho khối catch
 
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { extractMaterialNames } from "@/features/editor/utils/materialDebug";
 import { validateAssetUrl } from "../utils/assetValidator"; // Đảm bảo file này tồn tại
 import { uploadFileToCloudinary } from "@/services/cloudinaryService";
@@ -199,18 +199,18 @@ export function useAssetWizard(
       },
     };
 
-    let toastId: string | number = "";
+    let toastId: string | number | undefined = undefined;
 
     setIsUploading(true);
     try {
       if (isEditMode) {
         toastId = toast.loading("Đang cập nhật phôi...");
         await api.put(`/assets/${assetId}`, assetData);
-        toast.success("Cập nhật phôi thành công!", { id: toastId });
+        if (toastId) toast.success("Cập nhật phôi thành công!", { id: toastId });
       } else {
         toastId = toast.loading("Đang tạo phôi mới...");
         await api.post("/assets", assetData);
-        toast.success("Tạo phôi thành công!", { id: toastId });
+        if (toastId) toast.success("Tạo phôi thành công!", { id: toastId });
       }
       onSuccess(); // Refresh list
     } catch (err: any) {

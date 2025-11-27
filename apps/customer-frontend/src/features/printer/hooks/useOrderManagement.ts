@@ -5,7 +5,7 @@ import { useState, useMemo } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Order, OrderStatus } from "@/types/order";
 import api from "@/shared/lib/axios";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 
 interface FetchOrdersParams {
   pageParam?: number;

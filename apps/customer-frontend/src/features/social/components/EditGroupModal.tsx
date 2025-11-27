@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
 import { Camera, Save, Loader2, Trash2, UserPlus, ArrowLeft, Search, Check, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { updateGroupConversation } from "../../chat/services/chat.api.service";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/useAuthStore";

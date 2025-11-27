@@ -1,74 +1,72 @@
-// src/features/chat/hooks/useFileUpload.ts
-// Tách logic file upload thành custom hook theo nguyên tắc Single Responsibility
-
 import { useState, useCallback } from "react";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { useDropzone } from "react-dropzone";
 
 interface UseFileUploadProps {
-  onFileUpload: (file: File) => void;
   isLoading: boolean;
 }
 
-export const useFileUpload = ({ onFileUpload, isLoading }: UseFileUploadProps) => {
-  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
-  const [isDragActive, setIsDragActive] = useState(false);
+export const useFileUpload = ({ isLoading }: UseFileUploadProps) => {
+  // ✅ Thay đổi state thành mảng File[]
+  const [files, setFiles] = useState<File[]>([]);
 
   const validateFile = useCallback((file: File): boolean => {
-    // File size limit: 10MB
-    const maxSize = 10 * 1024 * 1024;
+    const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
-      toast.error("File quá lớn. Giới hạn 10MB.");
+      toast.error(`File ${file.name} quá lớn (Giới hạn 10MB).`);
       return false;
     }
-
-    // File type validation
-    const allowedTypes = [
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-      'application/pdf',
-      'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      toast.error("Loại file không được hỗ trợ. Chỉ chấp nhận ảnh, PDF và tài liệu Word.");
-      return false;
-    }
-
     return true;
   }, []);
 
-  const processFile = useCallback((file: File) => {
-    if (!validateFile(file)) return;
-
+  // ✅ Hàm thêm file (Append vào danh sách cũ)
+  const addFiles = useCallback((newFiles: File[]) => {
     if (isLoading) {
       toast.warning("Đang xử lý tin nhắn trước, vui lòng đợi...");
       return;
     }
 
-    setFileToUpload(file);
-    onFileUpload(file);
-  }, [validateFile, isLoading, onFileUpload]);
+    const validFiles = newFiles.filter(validateFile);
+    
+    if (validFiles.length > 0) {
+      setFiles((prev) => {
+        // Lọc trùng lặp (nếu cần) hoặc giới hạn số lượng
+        const updated = [...prev, ...validFiles];
+        if (updated.length > 5) {
+            toast.warning("Chỉ được gửi tối đa 5 file một lúc.");
+            return prev;
+        }
+        return updated;
+      });
+    }
+  }, [validateFile, isLoading]);
 
-  const clearFile = useCallback(() => {
-    setFileToUpload(null);
+  // ✅ Hàm xóa file khỏi hàng đợi
+  const removeFile = useCallback((indexToRemove: number) => {
+    setFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
   }, []);
 
-  const dropzoneConfig = useDropzone({
-    onDrop: useCallback((acceptedFiles: File[]) => {
-      if (acceptedFiles.length > 0) {
-        processFile(acceptedFiles[0]);
-      }
-    }, [processFile]),
-    onDragEnter: useCallback(() => setIsDragActive(true), []),
-    onDragLeave: useCallback(() => setIsDragActive(false), []),
-    multiple: false,
-    noClick: true, // Disable click to open file dialog
+  const clearFiles = useCallback(() => {
+    setFiles([]);
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+    onDrop: addFiles, // Gọi hàm addFiles khi thả
+    noClick: true,
+    noKeyboard: true,
+    multiple: true, // ✅ Cho phép chọn nhiều file
   });
 
   return {
-    fileToUpload,
+    files,
+    addFiles,
+    removeFile,
+    clearFiles,
     isDragActive,
-    clearFile,
-    dropzoneConfig,
+    dropzoneConfig: {
+      getRootProps,
+      getInputProps,
+      open,
+    },
   };
 };

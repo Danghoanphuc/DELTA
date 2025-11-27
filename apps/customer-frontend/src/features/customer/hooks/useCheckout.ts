@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { toast } from "@/shared/utils/toast";
 import axiosClient from '@/shared/lib/axios';
 import { useCartStore } from '@/stores/useCartStore';
 

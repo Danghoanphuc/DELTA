@@ -13,49 +13,67 @@ import { Logger } from "../../shared/utils/index.js";
  * - Concurrency: 1 (chỉ chạy 1 job cùng lúc để tránh quá tải RAM)
  * - removeOnComplete: true (tự động xóa job sau khi hoàn thành để không rác Redis)
  */
-export const urlPreviewQueue = new Queue("url-preview", {
-  redis: {
-    host: process.env.REDIS_HOST || "localhost",
-    port: process.env.REDIS_PORT || 6379,
-  },
-  defaultJobOptions: {
-    // ✅ Tự động xóa job sau khi hoàn thành (tránh rác Redis)
-    removeOnComplete: true,
-    // ✅ Giữ lại job failed để debug (tối đa 10 jobs)
-    removeOnFail: {
-      age: 24 * 3600, // 24 giờ
-      count: 10, // Tối đa 10 jobs failed
-    },
-    // ✅ Retry policy: Thử lại 2 lần, mỗi lần cách nhau 5s
-    attempts: 2,
-    backoff: {
-      type: "fixed",
-      delay: 5000, // 5 giây
-    },
-    // ✅ Timeout cho mỗi job: 45 giây (đủ cho Puppeteer chụp ảnh + upload + AI)
-    // Tăng lên 45s để đảm bảo đủ thời gian cho toàn bộ flow
-    timeout: 45000,
-  },
-});
 
-// Event listeners để theo dõi queue
-urlPreviewQueue.on("completed", (job, result) => {
-  Logger.info(`✅ [URL Preview Queue] Job ${job.id} completed successfully`);
-});
+// ✅ LAZY INITIALIZATION: Queue chỉ được tạo khi gọi getUrlPreviewQueue()
+// Tránh kết nối Redis ngay khi import module
+let _urlPreviewQueue = null;
 
-urlPreviewQueue.on("failed", (job, err) => {
-  Logger.error(`❌ [URL Preview Queue] Job ${job.id} failed:`, err.message);
-});
+/**
+ * ✅ Lazy getter cho urlPreviewQueue - chỉ tạo khi cần dùng
+ * Đảm bảo Redis đã kết nối trước khi tạo queue
+ */
+export function getUrlPreviewQueue() {
+  if (!_urlPreviewQueue) {
+    _urlPreviewQueue = new Queue("url-preview", {
+      redis: {
+        host: process.env.REDIS_HOST || "localhost",
+        port: process.env.REDIS_PORT || 6379,
+      },
+      settings: {
+        // ✅ Stalled interval: Thời gian chờ trước khi coi job là stalled
+        stalledInterval: 30000, // 30 giây (mặc định)
+        maxStalledCount: 1, // Cho phép 1 lần stalled trước khi fail
+      },
+      defaultJobOptions: {
+        // ✅ Tự động xóa job sau khi hoàn thành (tránh rác Redis)
+        removeOnComplete: true,
+        // ✅ Giữ lại job failed để debug (tối đa 10 jobs)
+        removeOnFail: {
+          age: 24 * 3600, // 24 giờ
+          count: 10, // Tối đa 10 jobs failed
+        },
+        // ✅ Retry policy: Thử lại 2 lần, mỗi lần cách nhau 5s
+        attempts: 2,
+        backoff: {
+          type: "fixed",
+          delay: 5000, // 5 giây
+        },
+        // ✅ Timeout: Đủ cho ApiFlash API call + upload R2 + AI Vision analysis
+        timeout: 60000, // 60 giây (ApiFlash nhanh hơn Puppeteer nhiều)
+      },
+    });
 
-urlPreviewQueue.on("stalled", (job) => {
-  Logger.warn(`⚠️ [URL Preview Queue] Job ${job.id} stalled (có thể do worker crash hoặc timeout)`);
-  // ✅ Có thể thêm logic để retry hoặc cleanup ở đây nếu cần
-});
+    // Event listeners để theo dõi queue
+    _urlPreviewQueue.on("completed", (job, result) => {
+      Logger.info(`✅ [URL Preview Queue] Job ${job.id} completed successfully`);
+    });
 
-urlPreviewQueue.on("error", (error) => {
-  Logger.error(`❌ [URL Preview Queue] Queue error:`, error);
-});
+    _urlPreviewQueue.on("failed", (job, err) => {
+      Logger.error(`❌ [URL Preview Queue] Job ${job.id} failed:`, err.message);
+    });
 
-// ✅ Export để sử dụng trong các module khác
-export default urlPreviewQueue;
+    _urlPreviewQueue.on("stalled", (job) => {
+      Logger.warn(`⚠️ [URL Preview Queue] Job ${job.id} stalled (có thể do worker crash hoặc timeout)`);
+    });
+
+    _urlPreviewQueue.on("error", (error) => {
+      Logger.error(`❌ [URL Preview Queue] Queue error:`, error);
+    });
+  }
+  return _urlPreviewQueue;
+}
+
+// ✅ Export getter function (chỉ export một lần)
+// ❌ KHÔNG export default trực tiếp - sẽ gọi getter ngay khi import
+// Code cũ cần sửa để dùng getUrlPreviewQueue() thay vì import default
 

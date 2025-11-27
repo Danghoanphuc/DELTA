@@ -1,6 +1,4 @@
 // src/features/chat/hooks/useConversationState.ts
-// Tách logic quản lý conversations thành custom hook
-
 import { useState, useCallback } from "react";
 import { ChatConversation } from "@/types/chat";
 import * as chatApi from "../services/chat.api.service";
@@ -8,31 +6,51 @@ import * as chatApi from "../services/chat.api.service";
 export const useConversationState = () => {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
 
-  const loadConversations = useCallback(async () => {
+  // ✅ LOAD WITH FILTERS (Giữ logic Bot/Social)
+  const loadConversations = useCallback(async (filters?: { type?: string }) => {
+    setIsLoadingConversations(true);
     try {
-      const convos = await chatApi.fetchChatConversations();
-      // ✅ FIXED: Chỉ lấy conversations của chat bot (customer-bot)
-      const botConversations = convos.filter(
-        (c) => c.type === "customer-bot" || !c.type // Fallback cho conversations cũ chưa có type
-      );
-      setConversations(botConversations.reverse());
-      return botConversations;
+      const convos = await chatApi.fetchChatConversations(filters);
+      const valid = convos
+        .filter(c => c && !c.deletedAt)
+        .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());
+      
+      setConversations(valid);
+      return valid;
     } catch (error) {
       console.error("Failed to load conversations:", error);
       return [];
+    } finally {
+      setIsLoadingConversations(false);
     }
   }, []);
 
-  const addConversation = useCallback((conversation: ChatConversation) => {
-    setConversations((prev) => [conversation, ...prev]);
+  // ✅ SAFE UPSERT & MERGE
+  const addConversation = useCallback((incomingConvo: Partial<ChatConversation>) => {
+    setConversations((prev) => {
+      const existingIndex = prev.findIndex((c) => c._id === incomingConvo._id);
+      
+      let newConversation: ChatConversation;
+      let otherConversations = [...prev];
+
+      if (existingIndex !== -1) {
+        // Merge: Giữ lại dữ liệu gốc (quan trọng nhất là createdAt)
+        newConversation = { ...prev[existingIndex], ...incomingConvo } as ChatConversation;
+        otherConversations.splice(existingIndex, 1);
+      } else {
+        newConversation = incomingConvo as ChatConversation;
+      }
+
+      // Move to Top
+      return [newConversation, ...otherConversations];
+    });
   }, []);
 
   const updateConversationTitle = useCallback((id: string, newTitle: string) => {
-    setConversations((prev) =>
-      prev.map((c) => (c._id === id ? { ...c, title: newTitle } : c))
-    );
-  }, []);
+    addConversation({ _id: id, title: newTitle });
+  }, [addConversation]);
 
   const removeConversation = useCallback((id: string) => {
     setConversations((prev) => prev.filter((c) => c._id !== id));
@@ -49,6 +67,7 @@ export const useConversationState = () => {
   return {
     conversations,
     currentConversationId,
+    isLoadingConversations,
     loadConversations,
     addConversation,
     updateConversationTitle,

@@ -14,7 +14,7 @@ import {
 import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { Download, Loader2, FileImage, FileCode } from "lucide-react";
 // import { EditorCanvasRef } from "./EditorCanvas";
 type EditorCanvasRef = any;

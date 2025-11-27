@@ -2,7 +2,7 @@
 import { useState, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import api from "@/shared/lib/axios";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 
 export interface RushSolution {
   printerProfileId: string;

@@ -21,7 +21,7 @@ import { Loader2 } from "lucide-react";
 import { useCustomerSettings } from "@/features/customer/hooks/useCustomerSettings";
 // ❌ GỠ BỎ: UserAvatarFallback
 import { UserAvatar } from "@/components/UserAvatar"; // ✅ THAY THẾ
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import api from "@/shared/lib/axios";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useState } from "react";

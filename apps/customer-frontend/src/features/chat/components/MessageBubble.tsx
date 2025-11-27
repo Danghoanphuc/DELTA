@@ -2,11 +2,9 @@
 import { useMemo } from "react";
 import { ChatMessage } from "@/types/chat";
 import { cn } from "@/shared/lib/utils";
-// ✅ Import BotAvatar (Style Notion)
 import { BotAvatar } from "./BotAvatar";
 import { UserAvatarComponent } from "./UserAvatarComponent";
 import { MessageContent } from "./MessageContent";
-// ✅ Import hàm phân tích vừa tạo
 import { analyzeSentiment } from "../utils/sentiment";
 
 interface MessageBubbleProps {
@@ -16,42 +14,39 @@ interface MessageBubbleProps {
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUserMessage = message.senderType === "User";
 
-  // ✅ Tự động phân tích cảm xúc nếu là tin nhắn của AI
+  // Bot Sentiment Analysis
   const botExpression = useMemo(() => {
     if (isUserMessage) return "neutral";
-    
-    // Lấy nội dung text an toàn
     const textContent = 
         message.type === 'text' || message.type === 'ai_response' 
         ? (message.content as any).text 
         : "";
-        
     return analyzeSentiment(textContent);
   }, [message, isUserMessage]);
 
   return (
     <div className={cn(
-      "flex gap-3 max-w-[85%] md:max-w-[80%] group items-end", // items-end để avatar nằm dưới cùng
+      "flex gap-3 max-w-[90%] md:max-w-[80%] group items-end", 
       isUserMessage ? "ml-auto flex-row-reverse" : "mr-auto"
     )}>
-      {/* Avatar Section */}
+      {/* Avatar */}
       <div className="flex-shrink-0 mb-1">
         {isUserMessage ? (
             <UserAvatarComponent />
         ) : (
-            // ✅ BotAvatar tự đổi mặt theo botExpression
             <div className="w-8 h-8 md:w-10 md:h-10"> 
                 <BotAvatar expression={botExpression} />
             </div>
         )}
       </div>
 
-      {/* Message Content Section */}
+      {/* Bubble Content */}
       <div className={cn(
         "rounded-2xl px-4 py-3 max-w-full break-words shadow-sm text-[15px] leading-relaxed",
         isUserMessage
-          ? "bg-blue-600 text-white rounded-br-none"
-          : "bg-white border border-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100 rounded-bl-none shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+          // ✅ FIX CONTRAST: Dùng màu xanh đậm hơn và shadow màu xanh để tạo chiều sâu
+          ? "bg-blue-600 text-white rounded-br-none shadow-md shadow-blue-600/10 dark:bg-blue-700"
+          : "bg-white border border-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700 rounded-bl-none shadow-sm"
       )}>
         <MessageContent message={message} />
       </div>

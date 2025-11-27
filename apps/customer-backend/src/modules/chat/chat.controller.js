@@ -1,118 +1,46 @@
-// apps/customer-backend/src/modules/chat/chat.controller.js
-import axios from "axios";
-import { Conversation } from "../../shared/models/conversation.model.js";
-import { ApiResponse } from "../../shared/utils/index.js";
+import { ChatService } from "./chat.service.js";
+import { SocialChatService } from "./social-chat.service.js";
+import { r2Service } from "./r2.service.js"; // Singleton export
+import { ApiResponse, Logger } from "../../shared/utils/index.js";
 import { API_CODES } from "../../shared/constants/index.js";
-import { NotFoundException, ForbiddenException } from "../../shared/exceptions/index.js";
-import { Logger } from "../../shared/utils/index.js";
+import { Conversation } from "../../shared/models/conversation.model.js";
+import { NotFoundException } from "../../shared/exceptions/index.js";
+// 🚀 NEW: Vercel AI SDK imports
+import { streamText, tool } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
+import { z } from "zod"; // ✅ Dùng zod 3.23.8 (tương thích với Vercel AI SDK v4.x)
+import { config } from "../../config/env.config.js";
 
-// ✅ LAZY LOAD: Chỉ import services khi cần
-let ChatServiceClass = null;
-let SocialChatServiceClass = null;
-let r2ServiceInstance = null;
-let cloudinaryInstance = null;
-
-async function getChatService() {
-  if (!ChatServiceClass) {
-    const module = await import("./chat.service.js");
-    ChatServiceClass = module.ChatService;
-  }
-  return new ChatServiceClass();
-}
-
-async function getSocialChatService() {
-  if (!SocialChatServiceClass) {
-    const module = await import("./social-chat.service.js");
-    SocialChatServiceClass = module.SocialChatService;
-  }
-  return new SocialChatServiceClass();
-}
-
-async function getR2Service() {
-  if (!r2ServiceInstance) {
-    const module = await import("./r2.service.js");
-    r2ServiceInstance = module.r2Service;
-  }
-  return r2ServiceInstance;
-}
-
-async function getCloudinary() {
-  if (!cloudinaryInstance) {
-    const module = await import("../../infrastructure/storage/multer.config.js");
-    cloudinaryInstance = module.cloudinary || module.default || module;
-  }
-  return cloudinaryInstance;
-}
+// ✅ INSTANTIATE ONCE (Singleton)
+const chatService = new ChatService();
+const socialService = new SocialChatService();
 
 export class ChatController {
-  constructor() {
-    this._botService = null;
-    this._socialService = null;
-  }
-
-  async getBotService() {
-    if (!this._botService) {
-      this._botService = await getChatService();
-    }
-    return this._botService;
-  }
-
-  async getSocialService() {
-    if (!this._socialService) {
-      this._socialService = await getSocialChatService();
-    }
-    return this._socialService;
-  }
-
+  
   handleChatMessage = async (req, res, next) => {
     try {
       const { conversationId } = req.body;
       const isGuest = !req.user;
-
-      // Parse Metadata
-      let body = { ...req.body };
-      if (body.metadata && typeof body.metadata === "string") {
-        try {
-          body.metadata = JSON.parse(body.metadata);
-        } catch (e) {}
+      
+      // Parse metadata if needed
+      if (req.body.metadata && typeof req.body.metadata === 'string') {
+        try { req.body.metadata = JSON.parse(req.body.metadata); } catch(e){}
       }
 
+      // Check Conversation Type
       let isSocialChat = false;
-
       if (conversationId) {
-        const conversation = await Conversation.findById(conversationId).select(
-          "type"
-        );
-        if (conversation) {
-          if (
-            ["peer-to-peer", "customer-printer", "group"].includes(
-              conversation.type
-            )
-          ) {
-            isSocialChat = true;
-          }
-        } else {
-          throw new NotFoundException("Cuộc trò chuyện không tồn tại");
+        const conv = await Conversation.findById(conversationId).select("type");
+        if (conv && ["peer-to-peer", "customer-printer", "group"].includes(conv.type)) {
+          isSocialChat = true;
         }
       }
 
-      let response;
-      if (isSocialChat) {
-        if (isGuest) throw new Error("Bạn phải đăng nhập để chat Social.");
-        const socialService = await this.getSocialService();
-        response = await socialService.handleSocialMessage(req.user, body);
-      } else {
-        const botService = await this.getBotService();
-        response = await botService.handleBotMessage(
-          req.user,
-          body,
-          isGuest
-        );
-      }
+      const response = isSocialChat 
+        ? await socialService.handleSocialMessage(req.user, req.body)
+        : await chatService.handleBotMessage(req.user, req.body, isGuest);
 
-      res
-        .status(API_CODES.SUCCESS)
-        .json(ApiResponse.success({ ...response, isGuest }));
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ ...response, isGuest }));
     } catch (error) {
       next(error);
     }
@@ -120,543 +48,416 @@ export class ChatController {
 
   handleChatUpload = async (req, res, next) => {
     try {
-      if (!req.file)
-        return res
-          .status(API_CODES.BAD_REQUEST)
-          .json(ApiResponse.error("Thiếu file"));
-      req.body = {
-        ...req.body,
-        fileUrl: req.file.path,
-        fileName: req.file.originalname,
-        fileType: req.file.mimetype,
-      };
+      if (!req.file) return res.status(API_CODES.BAD_REQUEST).json(ApiResponse.error("Thiếu file"));
+      
+      // ✅ LOG: File upload info (chỉ log thông tin quan trọng)
+      Logger.info(`[ChatController] 📎 File upload: ${req.file.originalname}, size=${req.file.size}, type=${req.file.mimetype}`);
+      
+      req.body = { ...req.body, fileUrl: req.file.path, fileName: req.file.originalname, fileType: req.file.mimetype };
+      
       return this.handleChatMessage(req, res, next);
-    } catch (error) {
-      next(error);
+    } catch (error) { 
+      Logger.error(`[ChatController] 📎 File upload error:`, error);
+      next(error); 
     }
   };
 
-  // ✅ FIXED: Cho phép lấy TẤT CẢ loại conversation (hoặc filter theo query)
-  // Thay vì hardcode "customer-bot"
   getConversations = async (req, res, next) => {
     try {
-      Logger.info(`[ChatController] getConversations called for user ${req.user._id}`);
-      // Lấy type từ query param (nếu frontend muốn filter)
-      // Nếu không gửi type -> Lấy hết (để hiển thị cả Social lẫn Bot)
-      const type = req.query.type || null; 
-      Logger.debug(`[ChatController] Query type: ${type}`);
-
-      Logger.info(`[ChatController] Fetching conversations from repository...`);
-      const botService = await this.getBotService();
-      const conversations =
-        await botService.chatRepository.findConversationsByUserId(
-          req.user._id,
-          type 
-        );
-      Logger.info(`[ChatController] Found ${conversations?.length || 0} conversations`);
-      
-      res
-        .status(API_CODES.SUCCESS)
-        .json(ApiResponse.success({ conversations }));
-    } catch (e) {
-      Logger.error(`[ChatController] Error in getConversations:`, e);
-      next(e);
-    }
+      const type = req.query.type || null;
+      const conversations = await chatService.chatRepository.findConversationsByUserId(req.user._id, type);
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ conversations }));
+    } catch (e) { next(e); }
   };
 
   getConversationById = async (req, res, next) => {
     try {
-      const botService = await this.getBotService();
-      const conversation =
-        await botService.chatRepository.getConversationMetadata(
-          req.params.conversationId,
-          req.user._id
-        );
-      if (!conversation) throw new NotFoundException("Không tìm thấy");
-      await conversation.populate(
-        "participants.userId",
-        "username displayName avatarUrl isOnline" // ✅ THÊM isOnline
-      );
+      const { conversationId } = req.params;
+      const conversation = await Conversation.findById(conversationId);
+      if (!conversation) {
+        throw new NotFoundException("Conversation not found");
+      }
       res.status(API_CODES.SUCCESS).json(ApiResponse.success({ conversation }));
-    } catch (e) {
-      next(e);
-    }
-  };
-
-  getMessagesForConversation = async (req, res, next) => {
-    try {
-      const botService = await this.getBotService();
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 30;
-      
-      // ✅ FIX: Dùng getPaginatedMessages từ repository
-      const data = await botService.chatRepository.getPaginatedMessages(
-        req.params.conversationId,
-        page,
-        limit
-      );
-      
-      res.status(API_CODES.SUCCESS).json(ApiResponse.success(data));
-    } catch (e) {
-      Logger.error(`[GET /api/chat/history/${req.params.conversationId}] Error:`, e);
-      next(e);
-    }
-  };
-
-  renameConversation = async (req, res, next) => {
-    try {
-      const botService = await this.getBotService();
-      await botService.renameConversation(
-        req.params.conversationId,
-        req.user._id,
-        req.body.title
-      );
-      res
-        .status(API_CODES.SUCCESS)
-        .json(ApiResponse.success({ message: "Ok" }));
-    } catch (e) {
-      next(e);
-    }
+    } catch (e) { next(e); }
   };
 
   deleteConversation = async (req, res, next) => {
     try {
-      const userId = req.user._id;
-      const conversationId = req.params.conversationId;
-
-      // 1. Gọi service để Soft Delete trong DB
-      const socialService = await this.getSocialService();
-      await socialService.deleteConversation(
-        conversationId,
-        userId
-      );
-
-      // 2. ⚡ FIX CRITICAL: Buộc xóa Cache Redis của user này ngay tại Controller
-      // Để đảm bảo dù Service có quên thì Controller vẫn chặn hậu.
-      const botService = await this.getBotService();
-      await botService.chatRepository.invalidateUserCache(userId);
-
-      res
-        .status(API_CODES.SUCCESS)
-        .json(ApiResponse.success({ message: "Deleted successfully" }));
-    } catch (e) {
-      next(e);
-    }
+      const { conversationId } = req.params;
+      await socialService.deleteConversation(conversationId, req.user._id);
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ message: "Conversation deleted" }));
+    } catch (e) { next(e); }
   };
 
-  getConversationMedia = async (req, res, next) => {
-    try {
-      const conversation = await Conversation.findById(req.params.conversationId).select("type participants");
-      if (!conversation) throw new NotFoundException("Không tìm thấy cuộc trò chuyện");
-
-      const isParticipant = conversation.participants.some(
-        (p) => p.userId.toString() === req.user._id.toString()
-      );
-      if (!isParticipant) throw new NotFoundException("Không có quyền truy cập");
-
-      const botService = await this.getBotService();
-      const media = await botService.chatRepository.getMediaFiles(req.params.conversationId);
-      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ media }));
-    } catch (e) {
-      next(e);
-    }
-  };
-
-  getConversationFiles = async (req, res, next) => {
-    try {
-      const conversation = await Conversation.findById(req.params.conversationId).select("type participants");
-      if (!conversation) throw new NotFoundException("Không tìm thấy cuộc trò chuyện");
-
-      const isParticipant = conversation.participants.some(
-        (p) => p.userId.toString() === req.user._id.toString()
-      );
-      if (!isParticipant) throw new NotFoundException("Không có quyền truy cập");
-
-      const botService = await this.getBotService();
-      const files = await botService.chatRepository.getSharedFiles(req.params.conversationId);
-      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ files }));
-    } catch (e) {
-      next(e);
-    }
-  };
-
-  searchMessages = async (req, res, next) => {
+  renameConversation = async (req, res, next) => {
     try {
       const { conversationId } = req.params;
-      const { q } = req.query;
-
-      if (!q || q.trim().length === 0) {
-        return res.status(API_CODES.SUCCESS).json(ApiResponse.success({ messages: [] }));
-      }
-
-      const conversation = await Conversation.findById(conversationId).select("type participants");
-      if (!conversation) throw new NotFoundException("Không tìm thấy cuộc trò chuyện");
-
-      const isParticipant = conversation.participants.some(
-        (p) => p.userId.toString() === req.user._id.toString()
-      );
-      if (!isParticipant) throw new NotFoundException("Không có quyền truy cập");
-
-      const botService = await this.getBotService();
-      const messages = await botService.chatRepository.searchMessages(conversationId, q.trim());
-      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ messages }));
-    } catch (e) {
-      next(e);
-    }
-  };
-
-  muteConversation = async (req, res, next) => {
-    try {
-      const { conversationId } = req.params;
-      const { isMuted } = req.body;
-
-      const conversation = await Conversation.findById(conversationId).select("participants");
-      if (!conversation) throw new NotFoundException("Không tìm thấy cuộc trò chuyện");
-
-      const isParticipant = conversation.participants.some(
-        (p) => p.userId.toString() === req.user._id.toString()
-      );
-      if (!isParticipant) throw new NotFoundException("Không có quyền truy cập");
-
-      const participant = conversation.participants.find(
-        (p) => p.userId.toString() === req.user._id.toString()
-      );
-      if (participant) {
-        participant.isMuted = isMuted;
-        await conversation.save();
-      }
-
-      res.status(API_CODES.SUCCESS).json(
-        ApiResponse.success({ message: isMuted ? "Đã tắt thông báo" : "Đã bật thông báo" })
-      );
-    } catch (e) {
-      next(e);
-    }
-  };
-
-  createGroup = async (req, res, next) => {
-    try {
-      const { title, description, members, context } = req.body;
-      const creatorId = req.user._id;
-
-      // ✅ FIX: Lấy URL từ Cloudinary storage (path trong req.file khi dùng multer-storage-cloudinary)
-      // req.file.path đã chứa URL của file đã upload lên Cloudinary
-      const avatarUrl = req.file ? req.file.path : null;
-
-      // Parse members và context nếu gửi dưới dạng JSON string (do FormData)
-      let parsedMembers = members;
-      if (typeof members === "string") {
-        try {
-          parsedMembers = JSON.parse(members);
-        } catch (e) {
-          parsedMembers = [];
-        }
-      }
-
-      let parsedContext = context;
-      if (typeof context === "string") {
-        try {
-          parsedContext = JSON.parse(context);
-        } catch (e) {
-          parsedContext = null;
-        }
-      }
-
-      const socialService = await this.getSocialService();
-      const conversation = await socialService.createGroupConversation({
-        title,
-        description,
-        members: parsedMembers,
-        avatarUrl, // ✅ Truyền string URL, không truyền object File
-        context: parsedContext,
-        creatorId,
-      });
-
-      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ conversation }));
-    } catch (e) {
-      next(e);
-    }
+      const { title } = req.body;
+      await socialService.updateGroupConversation(conversationId, req.user._id, { title });
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ message: "Conversation renamed" }));
+    } catch (e) { next(e); }
   };
 
   updateGroup = async (req, res, next) => {
     try {
       const { conversationId } = req.params;
-      const { title, membersToRemove, membersToAdd } = req.body; // ✅ Nhận membersToAdd
-      const avatarFile = req.file; // ✅ Truyền avatarFile object, service sẽ tự xử lý URL
-
-      // Parse JSON arrays từ FormData
-      let parsedMembersToRemove = [];
-      if (typeof membersToRemove === "string") {
-        try {
-          parsedMembersToRemove = JSON.parse(membersToRemove);
-        } catch (e) {}
-      } else if (Array.isArray(membersToRemove)) {
-        parsedMembersToRemove = membersToRemove;
-      }
-
-      // ✅ Parse membersToAdd
-      let parsedMembersToAdd = [];
-      if (typeof membersToAdd === "string") {
-        try {
-          parsedMembersToAdd = JSON.parse(membersToAdd);
-        } catch (e) {}
-      } else if (Array.isArray(membersToAdd)) {
-        parsedMembersToAdd = membersToAdd;
-      }
-
-      const socialService = await this.getSocialService();
-      const updatedConversation = await socialService.updateGroupConversation(
-        conversationId,
-        req.user._id,
-        {
-          title,
-          avatarFile, // ✅ Truyền avatarFile object, service sẽ tự xử lý URL từ multer-storage-cloudinary
-          membersToRemove: parsedMembersToRemove,
-          membersToAdd: parsedMembersToAdd, // ✅ Truyền xuống service
-        }
-      );
-
-      // ✅ FIX: Kiểm tra nếu response đã được gửi (tránh lỗi "Cannot set headers after they are sent")
-      if (res.headersSent) {
-        return;
-      }
-
-      res
-        .status(API_CODES.SUCCESS)
-        .json(ApiResponse.success({ conversation: updatedConversation }));
-    } catch (e) {
-      // ✅ FIX: Bỏ qua lỗi nếu request đã bị abort hoặc response đã được gửi
-      if (e.code === 'ECONNABORTED' || e.message?.includes('aborted') || res.headersSent) {
-        return; // Request đã bị hủy, không cần xử lý
-      }
-      next(e);
-    }
+      const { title, membersToRemove, membersToAdd } = req.body;
+      const avatarFile = req.file;
+      await socialService.updateGroupConversation(conversationId, req.user._id, {
+        title,
+        avatarFile,
+        membersToRemove,
+        membersToAdd,
+      });
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ message: "Group updated" }));
+    } catch (e) { next(e); }
   };
 
-  /**
-   * ✅ DEAL CLOSER: Lấy Business Context (activeOrders + designFiles)
-   */
   getBusinessContext = async (req, res, next) => {
     try {
       const { conversationId } = req.params;
-      const userId = req.user._id;
-
-      const socialService = await this.getSocialService();
-      const context = await socialService.getBusinessContext(conversationId, userId);
-
+      const context = await socialService.getBusinessContext(conversationId, req.user._id);
       res.status(API_CODES.SUCCESS).json(ApiResponse.success(context));
-    } catch (e) {
-      next(e);
-    }
+    } catch (e) { next(e); }
   };
 
-  /**
-   * ✅ DEAL CLOSER: Tạo Quick Quote message
-   */
   createQuote = async (req, res, next) => {
     try {
       const { conversationId } = req.params;
-      const userId = req.user._id;
-      const { items, total, note } = req.body;
-
-      const socialService = await this.getSocialService();
-      const quoteMessage = await socialService.createQuoteMessage(
-        conversationId,
-        userId,
-        { items, total, note }
-      );
-
-      res.status(API_CODES.SUCCESS).json(
-        ApiResponse.success({ message: quoteMessage })
-      );
-    } catch (e) {
-      next(e);
-    }
+      const quoteData = req.body;
+      await socialService.createQuoteMessage(conversationId, req.user._id, quoteData);
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ message: "Quote created" }));
+    } catch (e) { next(e); }
   };
 
-  /**
-   * ✅ API MỚI: Lấy link upload lên R2 (cho file nặng)
-   */
+  getMessagesForConversation = async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 50;
+      
+      // ✅ FIX: Dùng getPaginatedMessages thay vì findMessagesByConversationId (không tồn tại)
+      const result = await chatService.chatRepository.getPaginatedMessages(conversationId, page, limit);
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success(result));
+    } catch (e) { next(e); }
+  };
+
   getUploadUrl = async (req, res, next) => {
     try {
       const { fileName, fileType } = req.body;
-      
-      if (!fileName || !fileType) {
-        return res.status(API_CODES.BAD_REQUEST).json(
-          ApiResponse.error("Thiếu fileName hoặc fileType")
-        );
-      }
-
-      const r2Service = await getR2Service();
       const data = await r2Service.getPresignedUploadUrl(fileName, fileType);
       res.status(API_CODES.SUCCESS).json(ApiResponse.success(data));
-    } catch (e) {
-      next(e);
-    }
+    } catch (e) { next(e); }
   };
 
-  /**
-   * ✅ API MỚI: Lấy link download/preview từ R2 (Bảo mật)
-   * @param {string} key - File key trên R2
-   * @param {string} filename - Tên file gốc
-   * @param {string} mode - 'inline' (preview) hoặc 'attachment' (download), mặc định 'inline'
-   */
-  getR2DownloadUrl = async (req, res, next) => {
-    try {
-      const { key, filename, mode } = req.query;
-
-      if (!key) {
-        return res.status(API_CODES.BAD_REQUEST).json(
-          ApiResponse.error("Missing file key")
-        );
-      }
-
-      // Mặc định dùng 'inline' để preview được, nếu muốn download thì truyền mode='attachment'
-      const r2Service = await getR2Service();
-      const downloadUrl = await r2Service.getPresignedDownloadUrl(
-        key,
-        filename || "file",
-        mode || 'inline'
-      );
-
-      // Trả về JSON chứa URL để Frontend dễ xử lý
-      res.status(API_CODES.SUCCESS).json(
-        ApiResponse.success({ downloadUrl })
-      );
-    } catch (e) {
-      next(e);
-    }
-  };
-
-  /**
-   * ✅ API MỚI: Proxy upload file lên R2 (Tránh CORS)
-   */
   uploadToR2 = async (req, res, next) => {
     try {
       if (!req.file) {
-        return res.status(API_CODES.BAD_REQUEST).json(
-          ApiResponse.error("Thiếu file")
-        );
+        return res.status(API_CODES.BAD_REQUEST).json(ApiResponse.error("No file provided"));
       }
-
-      const { fileKey } = req.body;
-      if (!fileKey) {
-        return res.status(API_CODES.BAD_REQUEST).json(
-          ApiResponse.error("Thiếu fileKey")
-        );
+      
+      // ✅ FIX: Dùng fileKey từ formData (từ presigned upload URL) để đảm bảo key khớp
+      const fileKeyFromForm = req.body?.fileKey;
+      
+      if (!fileKeyFromForm) {
+        Logger.warn(`[ChatController] R2 upload: No fileKey provided, creating new key`);
+        // Fallback: Tạo key mới nếu không có (legacy support)
+        const newFileKey = await r2Service.uploadFile(req.file.buffer, req.file.originalname, req.file.mimetype);
+        return res.status(API_CODES.SUCCESS).json(ApiResponse.success({ 
+          fileKey: newFileKey,
+          url: `${req.protocol}://${req.get('host')}/api/chat/r2/download?key=${encodeURIComponent(newFileKey)}&filename=${encodeURIComponent(req.file.originalname)}`
+        }));
       }
-
-      // Upload file lên R2 từ buffer
-      const r2Service = await getR2Service();
-      await r2Service.uploadFile(
-        req.file.buffer,
-        fileKey,
+      
+      // ✅ FIX: Upload với fileKey đã có (từ presigned URL) - đảm bảo key khớp với DB
+      const fileKey = await r2Service.uploadFileWithKey(
+        req.file.buffer, 
+        fileKeyFromForm, 
         req.file.mimetype
       );
+      
+      Logger.info(`[ChatController] R2 upload: fileKey=${fileKey}, fileName=${req.file.originalname}`);
+      
+      // ✅ FIX: Trả về fileKey để frontend lưu vào DB
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ 
+        fileKey: fileKey,
+        url: `${req.protocol}://${req.get('host')}/api/chat/r2/download?key=${encodeURIComponent(fileKey)}&filename=${encodeURIComponent(req.file.originalname)}`
+      }));
+    } catch (e) { 
+      Logger.error(`[ChatController] R2 upload error:`, e.message);
+      next(e); 
+    }
+  };
 
-      res.status(API_CODES.SUCCESS).json(
-        ApiResponse.success({ message: "Upload thành công", fileKey })
-      );
-    } catch (e) {
-      next(e);
+  getR2DownloadUrl = async (req, res, next) => {
+    try {
+      const { key, filename, mode } = req.query;
+      
+      if (!key) {
+        Logger.warn(`[ChatController] R2 download: missing key param`);
+        return res.status(API_CODES.BAD_REQUEST).json(ApiResponse.error("key parameter is required"));
+      }
+      
+      // ✅ Decode URL-encoded key (giữ nguyên toàn bộ key, không cắt)
+      const fileKey = decodeURIComponent(key);
+      const finalFileName = filename ? decodeURIComponent(filename) : fileKey.split('/').pop() || 'file';
+      const finalMode = mode || 'inline';
+      
+      Logger.info(`[ChatController] R2 download: key=${fileKey}, filename=${finalFileName}, mode=${finalMode}`);
+      
+      // ✅ FIX: Truyền filename và mode vào getPresignedDownloadUrl
+      const presignedUrl = await r2Service.getPresignedDownloadUrl(fileKey, finalFileName, finalMode);
+      
+      Logger.info(`[ChatController] R2 download: Generated presigned URL for key=${fileKey.substring(0, 50)}...`);
+      
+      // ✅ FIX: Trả về JSON với downloadUrl (thay vì redirect) để frontend có thể xử lý
+      // Frontend có thể dùng URL này để preview (inline) hoặc download (attachment)
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success({ 
+        downloadUrl: presignedUrl,
+        fileKey,
+        filename: finalFileName,
+        mode: finalMode
+      }));
+    } catch (e) { 
+      Logger.error(`[ChatController] R2 download error:`, e.message);
+      if (e.message?.includes('NoSuchKey') || e.message?.includes('does not exist')) {
+        Logger.error(`[ChatController] R2 download: File key does not exist in bucket. Key=${req.query.key}`);
+        return res.status(API_CODES.NOT_FOUND).json(ApiResponse.error("File not found in storage"));
+      }
+      res.status(API_CODES.INTERNAL_ERROR).json(ApiResponse.error("Failed to generate download URL: " + e.message));
     }
   };
 
   /**
-   * ✅ PROXY DOWNLOAD (FINAL FIX):
-   * Giữ nguyên Delivery Type (upload/private) khi tạo Signed URL
-   * Tải stream từ Cloudinary -> Pipe về Client
+   * 🚀 NÂNG CẤP: Stream thông minh với Tools support
+   * POST /chat/stream
+   * Sử dụng Vercel AI SDK để tự động xử lý Function Calling
    */
-  proxyDownload = async (req, res, next) => {
+  handleChatStream = async (req, res, next) => {
     try {
-      const { url, filename } = req.query;
+      const { messages, conversationId } = req.body;
+      const user = req.user;
+      const isGuest = !user;
 
-      if (!url) {
-        return res.status(400).json(ApiResponse.error("Missing URL"));
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        return res.status(API_CODES.BAD_REQUEST).json(ApiResponse.error("Messages array is required"));
       }
-      
-      // Helper stream file
-      const streamFile = async (targetUrl) => {
-        Logger.info(`[Proxy Download] Streaming from: ${targetUrl}`);
+
+      // Lấy tin nhắn cuối cùng (user message)
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role !== "user") {
+        return res.status(API_CODES.BAD_REQUEST).json(ApiResponse.error("Last message must be from user"));
+      }
+
+      // 1. Setup Context & Conversation như cũ
+      let conversation = conversationId
+        ? await chatService.chatRepository.findConversationById(conversationId, user?._id)
+        : null;
+
+      let isNewConversation = false;
+      if (!conversation) {
+        conversation = await chatService.chatRepository.createConversation(user?._id);
+        isNewConversation = true;
         
-        const response = await axios({
-          method: "GET",
-          url: targetUrl,
-          responseType: "stream",
-          headers: { Authorization: undefined } // Bỏ header auth app
-        });
-
-        let finalFilename = filename || targetUrl.split('/').pop();
-        finalFilename = finalFilename.split('?')[0]; 
-        const encodedFilename = encodeURIComponent(finalFilename).replace(/['()]/g, escape).replace(/\*/g, '%2A');
-
-        res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodedFilename}`);
-        res.setHeader("Content-Type", response.headers["content-type"] || "application/octet-stream");
-        
-        if (response.headers["content-length"]) {
-          res.setHeader("Content-Length", response.headers["content-length"]);
-        }
-
-        response.data.pipe(res);
-        
-        return new Promise((resolve, reject) => {
-          response.data.on('end', resolve);
-          response.data.on('error', reject);
-        });
-      };
-
-      try {
-        // Thử tải trực tiếp
-        await streamFile(url);
-      } catch (error) {
-        const isAuthError = error.response && (error.response.status === 401 || error.response.status === 403);
-        
-        if (isAuthError) {
-          Logger.warn(`[Proxy Download] 401 Access Denied. Generating Signed URL for original path...`);
-
-          // 1. Phân tích URL để lấy đúng type gốc
-          // Regex match: /resource_type/type/vVersion/public_id
-          const regex = /\/(image|video|raw)\/(upload|authenticated|private|fetch)\/(?:v(\d+)\/)?(.+)$/;
-          const match = url.match(regex);
-
-          if (match) {
-            const resourceType = match[1]; // ví dụ: 'raw'
-            const deliveryType = match[2]; // 🔥 QUAN TRỌNG: Lấy đúng type gốc (ví dụ: 'upload')
-            const version = match[3];      // ví dụ: '1764050403'
-            const publicId = match[4];     // ví dụ: 'printz/design-files/abc.pdf'
-
-            Logger.info(`[Proxy Download] Detected - Resource: ${resourceType}, Type: ${deliveryType}, Ver: ${version}`);
-
-            // 2. Tạo Signed URL giữ nguyên type gốc
-            const cloudinary = await getCloudinary();
-            const signedUrl = cloudinary.url(publicId, {
-              resource_type: resourceType,
-              type: deliveryType, // ✅ Dùng lại type gốc (upload), không ép sang authenticated
-              sign_url: true,     // Tự động thêm s--signature--
-              auth_token: undefined,
-              version: version,
-              secure: true
-            });
-
-            Logger.info(`[Proxy Download] Retrying with Signed URL: ${signedUrl}`);
-            await streamFile(signedUrl);
-            return; 
-          } else {
-            Logger.error(`[Proxy Download] Cannot parse Cloudinary URL: ${url}`);
+        // 🔥 WOW FIX: Bắn Socket conversation_created NGAY LẬP TỨC
+        if (user?._id) {
+          try {
+            const { socketService } = await import("../../infrastructure/realtime/pusher.service.js");
+            await conversation.populate("participants.userId", "username displayName avatarUrl isOnline");
+            const conversationToEmit = conversation.toObject ? conversation.toObject() : conversation;
+            const formattedConversation = {
+              ...conversationToEmit,
+              _id: conversationToEmit._id?.toString() || conversationToEmit._id,
+              title: conversationToEmit.title || "Đoạn chat mới",
+              type: conversationToEmit.type || "customer-bot",
+              createdAt: conversationToEmit.createdAt || new Date().toISOString(),
+              updatedAt: conversationToEmit.updatedAt || new Date().toISOString(),
+              lastMessageAt: conversationToEmit.lastMessageAt || null,
+              isActive: conversationToEmit.isActive !== undefined ? conversationToEmit.isActive : true
+            };
+            Logger.info(`[ChatController] 🔥 Emitting conversation_created to user ${user._id}, conversationId: ${formattedConversation._id}`);
+            socketService.emitToUser(user._id.toString(), 'conversation_created', formattedConversation);
+          } catch (emitError) {
+            Logger.error("[ChatController] Failed to emit conversation_created:", emitError);
           }
         }
-        
-        throw error;
       }
 
+      // 2. Lưu tin nhắn User
+      await chatService.chatRepository.createMessage({
+        conversationId: conversation._id,
+        senderType: "User",
+        sender: user?._id || null,
+        content: { text: lastMessage.content },
+        type: "text",
+      });
+
+      // 3. Setup context cho tools
+      const context = {
+        user,
+        actorId: user?._id || null,
+        actorType: isGuest ? "Guest" : "User",
+        conversationId: conversation._id.toString(),
+      };
+
+      // 4. Định nghĩa Tools bằng Zod (Chuẩn nhất với Vercel AI SDK)
+      const tools = {
+        find_products: tool({
+          description: "Tìm kiếm sản phẩm in ấn (áo thun, card visit, tờ rơi...).",
+          parameters: z.object({
+            search_query: z.string().describe("Tên sản phẩm cần tìm"),
+          }),
+          execute: async ({ search_query }) => {
+            Logger.info(`[ChatController] 🔧 Tool: find_products - ${search_query}`);
+            const result = await chatService.agent.toolService._find_products({ search_query });
+            return typeof result === "string" ? result : JSON.stringify(result);
+          },
+        }),
+
+        find_printers: tool({
+          description: "Tìm kiếm nhà in, tiệm in theo tên hoặc địa điểm.",
+          parameters: z.object({
+            search_query: z.string().describe("Từ khóa (tên nhà in, địa điểm)"),
+          }),
+          execute: async ({ search_query }) => {
+            Logger.info(`[ChatController] 🔧 Tool: find_printers - ${search_query}`);
+            const result = await chatService.agent.toolService._find_printers({ search_query }, context);
+            return typeof result === "string" ? result : JSON.stringify(result);
+          },
+        }),
+
+        get_recent_orders: tool({
+          description: "Lấy danh sách đơn hàng gần đây của user.",
+          parameters: z.object({}), // Object rỗng cho hàm không tham số
+          execute: async () => {
+            Logger.info(`[ChatController] 🔧 Tool: get_recent_orders`);
+            const result = await chatService.agent.toolService._get_recent_orders(context);
+            return typeof result === "string" ? result : JSON.stringify(result);
+          },
+        }),
+
+        suggest_value_added_services: tool({
+          description: "Gợi ý dịch vụ gia tăng (VAS).",
+          parameters: z.object({
+            role: z.enum(["designer", "business_owner", "customer"]).describe("Vai trò của user"),
+          }),
+          execute: async ({ role }) => {
+            Logger.info(`[ChatController] 🔧 Tool: suggest_value_added_services - ${role}`);
+            const result = await chatService.agent.toolService._suggest_value_added_services({ role });
+            return typeof result === "string" ? result : JSON.stringify(result);
+          },
+        }),
+      };
+
+      // 5. Kiểm tra OpenAI API key
+      if (!config.apiKeys?.openai) {
+        Logger.error("[ChatController] OpenAI API key is not configured");
+        res.status(API_CODES.INTERNAL_ERROR).json(ApiResponse.error("AI service is not available"));
+        return;
+      }
+
+      // 6. Khởi tạo OpenAI provider với API key
+      const openaiProvider = createOpenAI({
+        apiKey: config.apiKeys.openai,
+      });
+
+      // 7. Gọi AI Stream với Tools (v4.x cần await)
+      const result = await streamText({
+        model: openaiProvider("gpt-4o-mini"), // Dùng model nhẹ cho nhanh
+        system: "Bạn là Zin, trợ lý AI của Printz.vn. Bạn giúp user tìm sản phẩm, nhà in. Trước khi trả lời, hãy suy nghĩ trong thẻ <think>...</think> nếu cần thiết.",
+        messages: messages.map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+        })),
+        tools, // 👈 Inject Tools vào đây
+        maxSteps: 5, // Cho phép AI gọi tool tối đa 5 bước (VD: Tìm sp -> Không thấy -> Tìm lại)
+        async onFinish({ text, toolCalls, toolResults }) {
+          // 8. Lưu kết quả AI vào DB khi stream xong
+          try {
+            // Detect message type dựa trên tool calls
+            let messageType = "text";
+            if (toolCalls && toolCalls.length > 0) {
+              const toolNames = toolCalls.map((tc) => tc.toolName);
+              if (toolNames.includes("find_products")) {
+                messageType = "product_selection";
+              } else if (toolNames.includes("find_printers")) {
+                messageType = "printer_selection";
+              } else if (toolNames.includes("get_recent_orders")) {
+                messageType = "order_selection";
+              }
+            }
+
+            await chatService.chatRepository.createMessage({
+              conversationId: conversation._id,
+              senderType: "AI",
+              sender: null,
+              content: { text: text || "" },
+              type: messageType,
+            });
+
+            Logger.info(`[ChatController] Stream completed for conversation: ${conversation._id}, toolCalls: ${toolCalls?.length || 0}`);
+
+            // 🔥 WOW FIX: Emit conversation_updated sau khi lưu message xong
+            if (user?._id) {
+              try {
+                const { socketService } = await import("../../infrastructure/realtime/pusher.service.js");
+                
+                // Reload conversation để lấy lastMessageAt mới nhất
+                const updatedConversation = await chatService.chatRepository.findConversationById(conversation._id, user._id);
+                if (updatedConversation) {
+                  await updatedConversation.populate("participants.userId", "username displayName avatarUrl isOnline");
+                  const conversationToEmit = updatedConversation.toObject ? updatedConversation.toObject() : updatedConversation;
+                  const formattedConversation = {
+                    ...conversationToEmit,
+                    _id: conversationToEmit._id?.toString() || conversationToEmit._id,
+                    title: conversationToEmit.title || "Đoạn chat mới",
+                    type: conversationToEmit.type || "customer-bot",
+                    createdAt: conversationToEmit.createdAt || new Date().toISOString(),
+                    updatedAt: conversationToEmit.updatedAt || new Date().toISOString(),
+                    lastMessageAt: conversationToEmit.lastMessageAt || null,
+                    isActive: conversationToEmit.isActive !== undefined ? conversationToEmit.isActive : true
+                  };
+                  
+                  // Emit conversation_updated để frontend update sidebar
+                  socketService.emitToUser(user._id.toString(), 'conversation_updated', formattedConversation);
+                  
+                  // 🔥 WOW FIX: Trigger Auto-Naming chạy ngầm (Fire & Forget)
+                  // Chỉ chạy nếu là đoạn chat mới hoặc chưa có tên custom
+                  if (isNewConversation || !updatedConversation.title || updatedConversation.title === "Đoạn chat mới") {
+                    const userMessage = lastMessage.content || "";
+                    // Gọi private method qua reflection (hoặc tạo public method)
+                    if (typeof chatService._generateWowTitle === 'function') {
+                      chatService._generateWowTitle(conversation._id, user._id, userMessage, text).catch((e) => {
+                        Logger.error("[ChatController] Auto-title failed silently", e);
+                      });
+                    }
+                  }
+                }
+              } catch (emitError) {
+                Logger.error("[ChatController] Failed to emit conversation_updated:", emitError);
+              }
+            }
+          } catch (error) {
+            Logger.error("[ChatController] Error saving AI message:", error);
+          }
+        },
+      });
+
+      // 9. Pipe stream thẳng về client (Vercel AI SDK v4.x dùng pipeDataStreamToResponse)
+      result.pipeDataStreamToResponse(res, {
+        headers: {
+          // ✅ Dùng text/plain cho v4 để tránh buffering
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
+      });
     } catch (error) {
-      Logger.error(`[Proxy Download] Final Failure: ${error.message}`);
-      
+      Logger.error("[ChatController] Stream error:", error);
       if (!res.headersSent) {
-        // Trả về lỗi 404 chuẩn nếu Cloudinary báo 404
-        const status = error.response ? error.response.status : 500;
-        const msg = status === 404 ? "File không tồn tại." : "Không thể tải file (Lỗi quyền truy cập).";
-        res.status(status).json(ApiResponse.error(msg));
+        res.status(API_CODES.INTERNAL_ERROR).json(ApiResponse.error(error.message));
+      } else {
+        res.end();
       }
     }
   };

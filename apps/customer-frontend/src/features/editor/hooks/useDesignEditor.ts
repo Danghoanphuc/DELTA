@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { toast } from "@/shared/utils/toast";
 import { useDebouncedCallback } from 'use-debounce';
 import { useCartStore } from '@/stores/useCartStore';
 import { Product } from '@/types/product';

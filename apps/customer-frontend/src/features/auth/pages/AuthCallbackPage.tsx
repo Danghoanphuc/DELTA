@@ -7,7 +7,7 @@ import { Loader2, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Card } from '@/shared/components/ui/card';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { toast } from 'sonner';
+import { toast } from "@/shared/utils/toast";
 import { AuthLayout } from '../components/AuthLayout';
 
 type CallbackStatus = 'loading' | 'success' | 'error';

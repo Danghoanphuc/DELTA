@@ -8,7 +8,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { Order, OrderStatus } from "@/types/order";
 import api from "@/shared/lib/axios";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { Link } from "react-router-dom";
 import { cn } from "@/shared/lib/utils";
 

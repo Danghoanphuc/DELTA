@@ -21,7 +21,7 @@ import { formatPrice } from "@/features/printer/utils/formatters";
 import EditorFooterToolbar from "./components/EditorFooterToolbar";
 import { ContextualPropertyBar } from "./components/ContextualPropertyBar";
 import { EditorErrorBoundary } from "./components/EditorErrorBoundary";
-import { toast } from "sonner"; // ✅ Thêm toast
+import { toast } from "@/shared/utils/toast"; // ✅ Thêm toast
 import { CameraControlsHandle } from "./components/ProductViewer3D";
 import { ExportDialog } from "./components/ExportDialog";
 

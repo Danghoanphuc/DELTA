@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Product } from "@/types/product";
 import { useCartStore } from "@/stores/useCartStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 
 export const useProductQuickShop = () => {
   const { addToCart, isInCart, cart } = useCartStore(); // ✅ Thêm cart để track changes

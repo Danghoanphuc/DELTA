@@ -1,13 +1,14 @@
 // apps/customer-frontend/src/features/chat/services/chat.api.service.ts
-// ✅ FIXED: Added createGroupConversation API call
 
 import api from "@/shared/lib/axios";
 import { AiApiResponse, ChatMessage, ChatConversation } from "@/types/chat";
 import { Order } from "@/types/order";
 
-export const fetchChatConversations = async (): Promise<ChatConversation[]> => {
+// ✅ CẬP NHẬT: Thêm tham số filters
+export const fetchChatConversations = async (filters?: { type?: string }): Promise<ChatConversation[]> => {
   try {
-    const res = await api.get("/chat/conversations");
+    // Truyền filters vào params của axios
+    const res = await api.get("/chat/conversations", { params: filters });
     return Array.isArray(res.data?.data?.conversations)
       ? res.data.data.conversations
       : [];
@@ -16,18 +17,15 @@ export const fetchChatConversations = async (): Promise<ChatConversation[]> => {
     return [];
   }
 };
-// apps/customer-frontend/src/features/chat/services/chat.api.service.ts
-// ... Các imports cũ
 
-// ✅ API MỚI: Lấy ngữ cảnh kinh doanh (Orders, Design Files) của hội thoại
+// ... Các hàm khác giữ nguyên ...
+
 export const getConversationBusinessContext = async (conversationId: string) => {
   try {
-    // Gọi API backend (bạn đã nhờ Cursor tạo)
     const res = await api.get(`/chat/conversations/${conversationId}/business-context`);
     return res.data?.data || { activeOrders: [], designFiles: [] };
   } catch (error) {
     console.warn("Failed to fetch business context, using fallback", error);
-    // Fallback data (để UI không chết khi chưa có Backend)
     return {
       activeOrders: [],
       designFiles: []
@@ -35,7 +33,6 @@ export const getConversationBusinessContext = async (conversationId: string) => 
   }
 };
 
-// ✅ API MỚI: Tạo báo giá nhanh
 export const createQuote = async (conversationId: string, quoteData: any) => {
   const res = await api.post(`/chat/conversations/${conversationId}/quote`, quoteData);
   return res.data?.data;
@@ -83,7 +80,6 @@ export const fetchChatHistory = async (
 
     const transformedMessages: ChatMessage[] = rawMessages.map((msg) => {
       if (msg.type) return msg as ChatMessage;
-      // Fallback logic
       let type: ChatMessage["type"] = "text";
       if (msg.senderType === "AI") {
         if (msg.content.products) type = "product_selection";
@@ -112,10 +108,12 @@ export const postChatMessage = async (
   latitude?: number,
   longitude?: number,
   type?: ChatMessage["type"],
-  metadata?: any
+  metadata?: any,
+  displayText?: string
 ): Promise<AiApiResponse> => {
   const payload = {
     message,
+    displayText,
     conversationId,
     latitude,
     longitude,
@@ -129,13 +127,12 @@ export const postChatMessage = async (
 export const postSocialChatMessage = async (
   message: string,
   conversationId: string,
-  attachments?: any[] // ✅ THÊM THAM SỐ NÀY
+  attachments?: any[]
 ): Promise<ChatMessage> => {
-  // Gửi cả message và attachments xuống backend
   const payload = {
     message,
     conversationId,
-    attachments, // ✅ THÊM VÀO PAYLOAD
+    attachments,
   };
 
   const res = await api.post("/chat/message", payload);
@@ -157,13 +154,11 @@ export const uploadChatFile = async (
   return res.data?.data;
 };
 
-// ✅ R2 API: Lấy link upload R2
 export const getR2UploadUrl = async (fileName: string, fileType: string) => {
   const res = await api.post("/chat/r2/upload-url", { fileName, fileType });
-  return res.data?.data; // Trả về { uploadUrl, fileKey }
+  return res.data?.data;
 };
 
-// ✅ R2 API: Upload file lên R2 (Proxy qua Backend để tránh CORS)
 export const uploadToR2 = async (fileKey: string, file: File, onProgress?: (percent: number) => void) => {
   const formData = new FormData();
   formData.append("file", file);
@@ -222,7 +217,6 @@ export const createPeerConversation = async (userId: string) => {
   return res.data;
 };
 
-// ✅ HÀM MỚI: Tạo nhóm
 export interface CreateGroupParams {
   title: string;
   description?: string;
@@ -240,16 +234,12 @@ export const createGroupConversation = async (params: CreateGroupParams) => {
 
   formData.append("title", params.title);
   if (params.description) formData.append("description", params.description);
-
-  // Gửi array/object phức tạp qua FormData cần stringify
   formData.append("members", JSON.stringify(params.members));
-
   if (params.context) {
     formData.append("context", JSON.stringify(params.context));
   }
-
   if (params.avatarFile) {
-    formData.append("avatar", params.avatarFile); // Key 'avatar' phải khớp với middleware multer ở BE
+    formData.append("avatar", params.avatarFile);
   }
 
   const res = await api.post("/chat/conversations/group", formData, {
@@ -258,29 +248,24 @@ export const createGroupConversation = async (params: CreateGroupParams) => {
   return res.data;
 };
 
-// ✅ NEW: Cập nhật nhóm
 export interface UpdateGroupParams {
   conversationId: string;
   title?: string;
   avatarFile?: File | null;
   membersToRemove?: string[];
-  membersToAdd?: string[]; // ✅ Thêm hỗ trợ thêm thành viên
+  membersToAdd?: string[];
 }
 
 export const updateGroupConversation = async (params: UpdateGroupParams) => {
   const formData = new FormData();
 
   if (params.title) formData.append("title", params.title);
-
   if (params.membersToRemove && params.membersToRemove.length > 0) {
     formData.append("membersToRemove", JSON.stringify(params.membersToRemove));
   }
-
-  // ✅ Gửi membersToAdd nếu có
   if (params.membersToAdd && params.membersToAdd.length > 0) {
     formData.append("membersToAdd", JSON.stringify(params.membersToAdd));
   }
-
   if (params.avatarFile) {
     formData.append("avatar", params.avatarFile);
   }
@@ -295,25 +280,21 @@ export const updateGroupConversation = async (params: UpdateGroupParams) => {
   return res.data;
 };
 
-// ✅ NEW: Lấy media (ảnh/video) của conversation
 export const getConversationMedia = async (conversationId: string) => {
   const res = await api.get(`/chat/conversations/${conversationId}/media`);
   return res.data?.data?.media || [];
 };
 
-// ✅ NEW: Lấy files đã chia sẻ của conversation
 export const getConversationFiles = async (conversationId: string) => {
   const res = await api.get(`/chat/conversations/${conversationId}/files`);
   return res.data?.data?.files || [];
 };
 
-// ✅ NEW: Đánh dấu tất cả conversations là đã đọc
 export const markAllConversationsAsRead = async () => {
   const res = await api.post("/chat/conversations/mark-all-read");
   return res.data;
 };
 
-// ✅ NEW: Tắt/Bật thông báo cuộc trò chuyện
 export const muteConversation = async (
   conversationId: string,
   isMuted: boolean
@@ -329,7 +310,6 @@ export const muteConversation = async (
   }
 };
 
-// ✅ NEW: Tìm kiếm tin nhắn trong hội thoại
 export const searchMessages = async (
   conversationId: string,
   query: string
@@ -342,5 +322,15 @@ export const searchMessages = async (
   } catch (err) {
     console.error("Error searching messages:", err);
     return [];
+  }
+};
+
+export const generateConversationTitle = async (conversationId: string): Promise<string | null> => {
+  try {
+    const res = await api.post(`/chat/conversations/${conversationId}/title`);
+    return res.data?.data?.title || null;
+  } catch (err) {
+    console.error("Failed to generate title:", err);
+    return null;
   }
 };

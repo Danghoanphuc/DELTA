@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { Upload, X, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 
 import {
   FormControl,

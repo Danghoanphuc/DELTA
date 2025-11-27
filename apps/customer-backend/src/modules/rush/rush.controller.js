@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { PrinterProfile } from "../../shared/models/printer-profile.model.js";
 import { Product } from "../../shared/models/product.model.js";
 import { OrderService } from "../orders/order.service.js";
-import { socketService } from "../../infrastructure/realtime/socket.service.js";
+import { socketService } from "../../infrastructure/realtime/pusher.service.js";
 import { ApiResponse } from "../../shared/utils/index.js";
 import { API_CODES } from "../../shared/constants/index.js";
 import {

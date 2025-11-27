@@ -1,7 +1,7 @@
 // src/contexts/GlobalModalProvider.tsx (TẠO MỚI)
 import { createContext, useContext, ReactNode, useState } from "react";
 import { flushSync } from "react-dom";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { PrinterProduct } from "@/types/product";
 import { Order } from "@/types/order";
 import api from "@/shared/lib/axios";

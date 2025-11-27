@@ -1,104 +1,109 @@
-// apps/customer-backend/src/modules/chat/r2.service.js
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Logger } from "../../shared/utils/index.js";
 
 class R2Service {
   constructor() {
-    const accountId = process.env.R2_ACCOUNT_ID;
-    if (!accountId) {
-      Logger.warn("Missing R2_ACCOUNT_ID");
+    // Fail fast nếu thiếu config
+    if (!process.env.R2_ACCOUNT_ID) {
+        Logger.warn("[R2] Missing R2_ACCOUNT_ID env");
     }
 
     this.client = new S3Client({
       region: "auto",
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
       credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID,
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+        accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
       },
     });
     this.bucketName = process.env.R2_BUCKET_NAME || "printz";
   }
 
-  /**
-   * Tạo URL upload tạm thời (Client đẩy file thẳng lên R2)
-   * @param {string} fileName - Tên file gốc
-   * @param {string} fileType - Mime type (vd: application/pdf)
-   */
   async getPresignedUploadUrl(fileName, fileType) {
-    try {
-      // Tạo unique key: design-files/{timestamp}-{random}-{filename}
-      const uniqueKey = `design-files/${Date.now()}-${Math.random().toString(36).substring(7)}-${fileName}`;
-      
-      const command = new PutObjectCommand({
-        Bucket: this.bucketName,
-        Key: uniqueKey,
-        ContentType: fileType,
-      });
+    const uniqueKey = `chat-uploads/${Date.now()}-${Math.random().toString(36).substr(2, 5)}-${fileName}`;
+    const command = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: uniqueKey,
+      ContentType: fileType,
+    });
 
-      // URL sống trong 15 phút (900s)
-      const url = await getSignedUrl(this.client, command, { expiresIn: 900 });
-      
-      return {
-        uploadUrl: url, // URL để Frontend PUT file lên
-        fileKey: uniqueKey, // Key để lưu vào DB
-        publicUrl: `${process.env.ADMIN_APP_URL || ''}/api/chat/r2/proxy/${uniqueKey}` // URL danh nghĩa (nếu cần)
-      };
+    const url = await getSignedUrl(this.client, command, { expiresIn: 900 }); // 15 phút
+    return { uploadUrl: url, fileKey: uniqueKey };
+  }
+
+  async getPresignedDownloadUrl(fileKey, fileName, mode = 'inline') {
+    if (!fileKey) {
+      throw new Error("fileKey is required");
+    }
+    
+    // ✅ FIX: fileName có thể undefined, cần fallback
+    const finalFileName = fileName || fileKey.split('/').pop() || 'file';
+    
+    // ✅ FIX: ResponseContentDisposition format: "inline; filename="..." hoặc "attachment; filename="..."
+    const disposition = mode === 'attachment' 
+      ? `attachment; filename="${encodeURIComponent(finalFileName)}"`
+      : `inline; filename="${encodeURIComponent(finalFileName)}"`;
+    
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: fileKey,
+      ResponseContentDisposition: disposition,
+    });
+    
+    try {
+      const signedUrl = await getSignedUrl(this.client, command, { expiresIn: 3600 }); // 1 giờ
+      Logger.info(`[R2] Generated presigned URL for key=${fileKey.substring(0, 50)}..., mode=${mode}`);
+      return signedUrl;
     } catch (error) {
-      Logger.error(`[R2] Get Upload URL Error: ${error.message}`);
+      Logger.error(`[R2] Failed to generate presigned URL for key=${fileKey}:`, error.message);
       throw error;
     }
   }
 
-  /**
-   * Tạo URL download/preview tạm thời (Bảo mật file)
-   * @param {string} fileKey - Key của file trên R2
-   * @param {string} originalName - Tên file gốc
-   * @param {string} mode - 'inline' (hiển thị) hoặc 'attachment' (tải xuống), mặc định 'inline'
-   */
-  async getPresignedDownloadUrl(fileKey, originalName, mode = 'inline') {
+  async uploadFile(buffer, key, contentType) {
     try {
-      const disposition = mode === 'attachment' 
-        ? `attachment; filename="${encodeURIComponent(originalName)}"`
-        : `inline; filename="${encodeURIComponent(originalName)}"`;
-
-      const command = new GetObjectCommand({
-        Bucket: this.bucketName,
-        Key: fileKey,
-        ResponseContentDisposition: disposition,
-      });
-
-      // URL download sống trong 1 giờ (3600s)
-      const url = await getSignedUrl(this.client, command, { expiresIn: 3600 });
-      return url;
-    } catch (error) {
-      Logger.error(`[R2] Get Download URL Error: ${error.message}`);
-      throw error;
+        // ✅ FIX: key có thể là fileName (từ originalname), cần tạo unique key
+        const uniqueKey = key.startsWith('chat-uploads/') 
+          ? key 
+          : `chat-uploads/${Date.now()}-${Math.random().toString(36).substr(2, 5)}-${key}`;
+        
+        const command = new PutObjectCommand({
+            Bucket: this.bucketName,
+            Key: uniqueKey,
+            Body: buffer,
+            ContentType: contentType
+        });
+        await this.client.send(command);
+        
+        // ✅ Return fileKey để frontend có thể dùng để download
+        return uniqueKey;
+    } catch (e) {
+        Logger.error(`[R2] Upload failed: ${e.message}`);
+        throw e;
     }
   }
 
-  /**
-   * Upload file lên R2 từ backend (Proxy để tránh CORS)
-   * @param {Buffer} fileBuffer - File buffer
-   * @param {string} fileKey - Key của file trên R2
-   * @param {string} contentType - Mime type
-   */
-  async uploadFile(fileBuffer, fileKey, contentType) {
+  // ✅ NEW: Upload với fileKey cụ thể (từ presigned URL) - đảm bảo key khớp
+  async uploadFileWithKey(buffer, fileKey, contentType) {
     try {
-      const command = new PutObjectCommand({
-        Bucket: this.bucketName,
-        Key: fileKey,
-        Body: fileBuffer,
-        ContentType: contentType,
-      });
-
-      await this.client.send(command);
-      Logger.info(`[R2] Upload successful: ${fileKey}`);
-      return true;
-    } catch (error) {
-      Logger.error(`[R2] Upload Error: ${error.message}`);
-      throw error;
+        if (!fileKey) {
+            throw new Error("fileKey is required");
+        }
+        
+        const command = new PutObjectCommand({
+            Bucket: this.bucketName,
+            Key: fileKey,
+            Body: buffer,
+            ContentType: contentType
+        });
+        await this.client.send(command);
+        
+        Logger.info(`[R2] Uploaded file with key: ${fileKey}`);
+        return fileKey;
+    } catch (e) {
+        Logger.error(`[R2] Upload with key failed: ${e.message}`);
+        throw e;
     }
   }
 }

@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/shared/components/ui/card";
 import { Loader2, Rocket, Upload, Image as ImageIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import api from "@/shared/lib/axios";
 import { uploadFileToCloudinary } from "@/services/cloudinaryService";
 import { printerService } from "@/services/printerService";

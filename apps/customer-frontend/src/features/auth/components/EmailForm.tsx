@@ -7,7 +7,7 @@ import { Input } from "@/shared/components/ui/input";
 import { SocialButton } from "@/shared/components/ui/SocialButton";
 import { Link } from "react-router-dom";
 import { useTurnstile } from "@/hooks/useTurnstile";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { cn } from "@/shared/lib/utils";
 import type { AuthFlowValues } from "../utils/auth-helpers";
 

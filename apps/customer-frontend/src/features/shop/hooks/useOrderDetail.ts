@@ -4,7 +4,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Order, OrderStatus } from "@/types/order";
 import { useAuthStore } from "@/stores/useAuthStore";
 import api from "@/shared/lib/axios";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import {
   Clock,
   CheckCircle,

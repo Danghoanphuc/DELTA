@@ -6,7 +6,7 @@ import { create, type UseBoundStore, type StoreApi } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { devtools } from 'zustand/middleware';
 import { EditorItem, DecalItem, GroupItem } from '@/features/editor/types/decal.types';
-import { toast } from 'sonner';
+import { toast } from "@/shared/utils/toast";
 
 export type GizmoMode = 'translate' | 'scale' | 'rotate';
 export type ToolMode = 'select' | 'pan';

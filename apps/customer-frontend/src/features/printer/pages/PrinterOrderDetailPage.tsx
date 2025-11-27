@@ -14,7 +14,7 @@ import { useOrderDetail } from "@/features/shop/hooks/useOrderDetail";
 import { OrderStatus } from "@/types/order";
 import { getStatusActions, getStatusBadge } from "@/features/printer/utils/orderHelpers";
 import api from "@/shared/lib/axios";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { ArtworkStatusBadge } from "@/features/printer/components/ArtworkStatusBadge";
 import { ProofHistory } from "@/features/printer/components/ProofHistory";
 import { UploadProofModal } from "@/features/printer/components/UploadProofModal";

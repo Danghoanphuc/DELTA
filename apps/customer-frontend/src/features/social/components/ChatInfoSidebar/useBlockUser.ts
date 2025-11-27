@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { blockUser, unblockUser, getConnectionStatus } from "@/services/api/connection.api.service";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 
 export function useBlockUser(partnerId: string | undefined, isGroup: boolean) {
   const [isBlocked, setIsBlocked] = useState(false);

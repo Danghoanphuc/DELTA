@@ -20,7 +20,7 @@ export class ConnectionService {
   async getSocketService() {
     try {
       const { socketService } = await import(
-        "../../infrastructure/realtime/socket.service.js"
+        "../../infrastructure/realtime/pusher.service.js"
       );
       return socketService;
     } catch (e) {

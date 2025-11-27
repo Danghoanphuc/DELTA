@@ -1,7 +1,8 @@
 // apps/customer-frontend/src/features/printer/components/RushOrderListener.tsx
 import { useEffect } from "react";
 import { useSocket } from "@/contexts/SocketProvider";
-import { toast } from "sonner";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { toast } from "@/shared/utils/toast";
 import { Zap, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -10,14 +11,21 @@ import { useNavigate } from "react-router-dom";
  * Hiển thị thông báo và phát âm thanh khi có đơn hàng gấp mới
  */
 export const RushOrderListener = () => {
-  const { socket, isConnected } = useSocket();
+  const { pusher, isConnected } = useSocket(); // ✅ FIX: Dùng pusher thay vì socket
+  const { user } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!socket || !isConnected) {
-      console.log("[RushOrderListener] Socket chưa kết nối, bỏ qua listener");
+    if (!pusher || !isConnected || !user) {
+      console.log("[RushOrderListener] Pusher chưa kết nối, bỏ qua listener");
       return;
     }
+
+    // ✅ FIX: Subscribe vào public channel của printer (hoặc private-user nếu backend emit từ đó)
+    // Note: Backend có thể emit từ public-printer-{printerId} hoặc private-user-{userId}
+    // Tạm thời dùng private-user channel vì backend có thể emit từ đó
+    const channelName = `private-user-${user._id}`;
+    const channel = pusher.subscribe(channelName);
 
     console.log("[RushOrderListener] Đang lắng nghe sự kiện printer:new_rush_order");
 
@@ -57,7 +65,7 @@ export const RushOrderListener = () => {
           })
         : "N/A";
 
-      toast("🔥 CÓ ĐƠN HÀNG HỎA TỐC MỚI!", {
+      toast.info("🔥 CÓ ĐƠN HÀNG HỎA TỐC MỚI!", {
         description: `Đơn #${data.orderNumber || "N/A"}: ${data.productName || "Sản phẩm"} - ${data.quantity || 1} cái. Giao trước: ${deadlineText}`,
         duration: 10000, // Hiện 10 giây
         icon: <Zap className="w-5 h-5 text-orange-500 animate-pulse" />,
@@ -75,15 +83,16 @@ export const RushOrderListener = () => {
       });
     };
 
-    // Đăng ký listener
-    socket.on("printer:new_rush_order", handleNewRushOrder);
+    // ✅ FIX: Bind Pusher event thay vì socket.on()
+    channel.bind("printer:new_rush_order", handleNewRushOrder);
 
     // Cleanup khi unmount
     return () => {
       console.log("[RushOrderListener] Cleanup: Gỡ listener");
-      socket.off("printer:new_rush_order", handleNewRushOrder);
+      channel.unbind("printer:new_rush_order", handleNewRushOrder);
+      pusher.unsubscribe(channelName);
     };
-  }, [socket, isConnected, navigate]);
+  }, [pusher, isConnected, user, navigate]);
 
   // Component không render gì
   return null;

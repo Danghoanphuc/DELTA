@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import api from "@/shared/lib/axios";
 
 // UI Components

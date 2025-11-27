@@ -9,7 +9,7 @@ import { deleteConversation, muteConversation } from "../../chat/services/chat.a
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 import { cn } from "@/shared/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { ConfirmDialog } from "@/shared/components/ui/ConfirmDialog";

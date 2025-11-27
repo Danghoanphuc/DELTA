@@ -1,413 +1,203 @@
-// src/features/chat/hooks/useChat.ts (REFACTORED - Clean Architecture)
+// apps/customer-frontend/src/features/chat/hooks/useChat.ts
 import { useState, useEffect, useCallback } from "react";
-import { toast } from "sonner";
-import { AiApiResponse, ChatMessage, TextMessage } from "@/types/chat";
+import { toast } from "@/shared/utils/toast";
+import { v4 as uuidv4 } from "uuid";
+import { ChatMessage } from "@/types/chat";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useSocket } from "@/contexts/SocketProvider";
 import * as chatApi from "../services/chat.api.service";
-
-// Import custom hooks
 import { useMessageState, WELCOME_ID } from "./useMessageState";
 import { useConversationState } from "./useConversationState";
+import { parseThinkingContent } from "../utils/textParser";
+import { translateLogToThought } from "../utils/logTranslator";
+import type { LogStep } from "../components/ThinkingConsole";
 
 export { WELCOME_ID };
 
 export const useChat = () => {
-  // State management hooks
+  // --- 1. STATE & HOOKS ---
   const messageState = useMessageState();
   const conversationState = useConversationState();
+  const { user } = useAuthStore();
+  const { pusher } = useSocket();
 
-  // UI state
-  const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [chatStatus, setChatStatus] = useState<"idle" | "sending" | "thinking" | "streaming" | "error">("idle");
+  const [thinkingLogs, setThinkingLogs] = useState<LogStep[]>([]);
   const [isChatExpanded, setIsChatExpanded] = useState(true);
-  const accessToken = useAuthStore((s) => s.accessToken);
-  const socket = useSocket();
 
-  // Load conversations on auth change
-  const { loadConversations, clearCurrentConversation, currentConversationId } = conversationState;
-  const { resetToWelcome, messages } = messageState;
+  // --- 2. SOCKET HANDLERS ---
+  const handleThinkingLog = useCallback((data: { text?: string; type?: string }) => {
+    if (!data?.text) return;
+    setChatStatus("thinking");
+    setThinkingLogs((prev) => [...prev, {
+      id: uuidv4(),
+      text: translateLogToThought(data.text || ""),
+      type: (data.type as any) || "process",
+      timestamp: Date.now(),
+    }]);
+  }, []);
 
-  // Effect 1: Reset state when user logs out
-  // ✅ FIX: Removed 'messages' from dependencies to prevent infinite loop
-  // We only need to check message count/type, not react to every message change
-  useEffect(() => {
-    if (!accessToken) {
-      const isWelcome = messages.length === 1 && messages[0]._id === WELCOME_ID;
-      const hasConversation = !!currentConversationId;
-      
-      if (!isWelcome || hasConversation) {
-        if (hasConversation) clearCurrentConversation();
-        if (!isWelcome) resetToWelcome();
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, currentConversationId]);
+  const handleStreamStart = useCallback((data: any) => {
+    if (data.conversationId !== conversationState.currentConversationId) return;
+    setChatStatus("streaming");
+    messageState.setMessages(prev => {
+      if (prev.some(m => m._id === data.messageId)) return prev;
+      return [...prev, {
+        _id: data.messageId,
+        conversationId: data.conversationId,
+        senderType: "AI" as const,
+        type: "text" as const,
+        content: { text: "" },
+        metadata: { status: "streaming" } as any,
+        createdAt: new Date().toISOString()
+      } as ChatMessage];
+    });
+  }, [conversationState.currentConversationId, messageState.setMessages]);
 
-  // Effect 2: Load conversations when user logs in
-  useEffect(() => {
-    if (accessToken) {
-      loadConversations();
-    }
-  }, [accessToken, loadConversations]);
+  const handleStreamChunk = useCallback((data: { messageId: string, text: string }) => {
+    messageState.setMessages(prev => {
+      const index = prev.findIndex(m => m._id === data.messageId);
+      if (index === -1) return prev;
+      const updated = [...prev];
+      const msg = updated[index];
+      const currentText = (msg.content as any).text || "";
+      updated[index] = {
+        ...msg,
+        content: { ...msg.content, text: currentText + data.text } as any,
+        metadata: { ...msg.metadata, status: "streaming" } as any
+      } as ChatMessage;
+      return updated;
+    });
+  }, [messageState.setMessages]);
 
-  // Effect 3: Socket listener for real-time messages (URL preview, AI responses, etc.)
-  useEffect(() => {
-    if (!socket?.socket || !socket.isConnected) return;
-
-    console.log("[useChat] ✅ Setting up socket listeners for real-time messages");
-
-    // Handler for new messages from socket (URL preview worker, AI responses, etc.)
-    const handleNewMessage = (socketMessage: any) => {
-      try {
-        console.log("[useChat] 🔔 Received socket message:", {
-          messageId: socketMessage._id,
-          conversationId: socketMessage.conversationId,
-          senderType: socketMessage.senderType,
-          type: socketMessage.type,
-        });
-
-        // ✅ Chỉ nhận messages cho conversation hiện tại
-        if (
-          socketMessage.conversationId &&
-          conversationState.currentConversationId &&
-          socketMessage.conversationId !== conversationState.currentConversationId
-        ) {
-          console.log(
-            `[useChat] ⏭️ Skipping message - different conversation. Current: ${conversationState.currentConversationId}, Message: ${socketMessage.conversationId}`
-          );
-          return;
-        }
-
-        // ✅ Kiểm tra message đã tồn tại chưa (tránh duplicate)
-        const exists = messageState.messages.some((msg) => msg._id === socketMessage._id);
-        if (exists) {
-          console.log(`[useChat] ⏭️ Message ${socketMessage._id} already exists, skipping...`);
-          return;
-        }
-
-        // ✅ Convert socket message format sang ChatMessage format
-        let chatMessage: ChatMessage;
-
-        if (socketMessage.type === "text") {
-          // ✅ Text message (có thể có fileUrl từ URL preview)
-          chatMessage = {
-            _id: socketMessage._id,
-            senderType: socketMessage.senderType || "AI",
-            sender: socketMessage.sender || null,
-            type: "text",
-            conversationId: socketMessage.conversationId?.toString() || conversationState.currentConversationId || "",
-            content: socketMessage.content || { text: "" },
-            metadata: socketMessage.metadata || null,
-            createdAt: socketMessage.createdAt || new Date().toISOString(),
-            updatedAt: socketMessage.updatedAt || new Date().toISOString(),
-          } as TextMessage;
-        } else {
-          // ✅ Fallback cho các loại message khác
-          console.warn(`[useChat] ⚠️ Unknown message type: ${socketMessage.type}, using text type`);
-          chatMessage = {
-            _id: socketMessage._id,
-            senderType: socketMessage.senderType || "AI",
-            sender: socketMessage.sender || null,
-            type: "text",
-            conversationId: socketMessage.conversationId?.toString() || conversationState.currentConversationId || "",
-            content: socketMessage.content || { text: "" },
-            metadata: socketMessage.metadata || null,
-            createdAt: socketMessage.createdAt || new Date().toISOString(),
-            updatedAt: socketMessage.updatedAt || new Date().toISOString(),
-          } as TextMessage;
-        }
-
-        // ✅ Thêm message vào state
-        console.log(`[useChat] ✅ Adding message ${chatMessage._id} to conversation ${chatMessage.conversationId}`);
-        messageState.setMessages((prev: ChatMessage[]) => {
-          // Kiểm tra lại tránh duplicate trong cùng một render cycle
-          const alreadyExists = prev.some((msg) => msg._id === chatMessage._id);
-          if (alreadyExists) {
-            console.log(`[useChat] ⏭️ Message ${chatMessage._id} already in state, skipping...`);
-            return prev;
-          }
-          return [...prev, chatMessage];
-        });
-
-        // ✅ Tắt loading khi nhận được message (có thể đang chờ AI response)
-        setIsLoadingAI(false);
-
-        console.log(`[useChat] ✅ Message ${chatMessage._id} added successfully`);
-      } catch (error: any) {
-        console.error("[useChat] ❌ Error processing socket message:", error);
-        console.error("[useChat] Error details:", {
-          message: error?.message,
-          stack: error?.stack,
-          socketMessage,
-        });
-      }
+  const handleNewMessage = useCallback((socketMessage: any) => {
+    if (socketMessage.conversationId && conversationState.currentConversationId && socketMessage.conversationId !== conversationState.currentConversationId) return;
+    
+    let rawText = typeof socketMessage.content === 'string' ? socketMessage.content : socketMessage.content?.text || "";
+    const { content } = parseThinkingContent(rawText);
+    
+    const chatMessage: ChatMessage = {
+      ...socketMessage,
+      content: { ...socketMessage.content, text: content }
     };
 
-    // ✅ Listen cho cả 2 event names (backend emit cả 2 để đảm bảo)
-    socket.socket.on("chat:message:new", handleNewMessage);
-    socket.socket.on("new_message", handleNewMessage);
+    const isThinkingMsg = (chatMessage.metadata as any)?.status === "thinking";
+    
+    messageState.setMessages((prev) => {
+      const existingIdx = prev.findIndex(m => m._id === chatMessage._id);
+      if (existingIdx !== -1) {
+        const updated = [...prev];
+        updated[existingIdx] = chatMessage;
+        return updated;
+      }
+      return [...prev, chatMessage];
+    });
+
+    if (!isThinkingMsg && chatMessage.senderType === "AI") setChatStatus("idle");
+  }, [conversationState.currentConversationId, messageState.setMessages]);
+
+  // --- 3. SETUP LISTENER ---
+  useEffect(() => {
+    if (!pusher || !user?._id) return;
+    const channelName = `private-user-${user._id}`;
+    const channel = pusher.subscribe(channelName);
+
+    channel.bind("ai:thinking:log", handleThinkingLog);
+    channel.bind("ai:stream:start", handleStreamStart);
+    channel.bind("ai:stream:chunk", handleStreamChunk);
+    channel.bind("chat:message:new", handleNewMessage);
+    channel.bind("ai:message", handleNewMessage);
 
     return () => {
-      if (socket?.socket) {
-        socket.socket.off("chat:message:new", handleNewMessage);
-        socket.socket.off("new_message", handleNewMessage);
-        console.log("[useChat] 🧹 Cleaned up socket listeners");
-      }
+      channel.unbind_all();
+      pusher.unsubscribe(channelName);
     };
-  }, [socket, conversationState.currentConversationId, messageState]);
+  }, [pusher, user?._id, handleThinkingLog, handleStreamStart, handleStreamChunk, handleNewMessage]);
 
-  // Error handler
-  const handleError = useCallback((
-    userMessageId: string,
-    error: any,
-    defaultToast: string
-  ) => {
-    toast.error(
-      error?.response?.data?.message || error?.message || defaultToast
-    );
+  // --- 4. CORE ACTIONS ---
+  const onSendText = useCallback(async (text: string, lat?: number, lng?: number) => {
+    if (!text.trim()) return;
 
-    messageState.removeMessage(userMessageId);
-    setIsLoadingAI(false);
+    // 1. Optimistic UI: Hiện tin nhắn user ngay
+    const userMessage = messageState.addUserMessage(text, conversationState.currentConversationId);
+    setChatStatus("sending");
+    setThinkingLogs([]);
+    setIsChatExpanded(true);
 
-    // Reset to welcome if this was the only message
-    if (
-      !conversationState.currentConversationId &&
-      messageState.messages.length === 1 &&
-      messageState.messages[0]._id === userMessageId
-    ) {
-      messageState.resetToWelcome();
+    try {
+      // 2. Gọi API
+      const response = await chatApi.postChatMessage(
+        text,
+        conversationState.currentConversationId,
+        lat,
+        lng
+      );
+
+      messageState.updateMessageStatus(userMessage._id, "sent");
+
+      // =========================================================
+      // 🚀 CHỐT CHẶN 1: CẬP NHẬT SIDEBAR NGAY LẬP TỨC
+      // Nếu API trả về conversation mới -> Nhét thẳng vào Sidebar
+      // =========================================================
+      if (response && response.newConversation) {
+          console.log("🚀 [useChat] Updating Sidebar Optimistically:", response.newConversation);
+          
+          // Thêm vào Sidebar ngay (không chờ Socket)
+          conversationState.addConversation(response.newConversation);
+          
+          // Nếu đang ở chat tạm (null ID), switch sang ID thật
+          if (!conversationState.currentConversationId) {
+             conversationState.selectConversation(response.newConversation._id);
+          }
+      }
+      
+    } catch (error) {
+      console.error("Send failed:", error);
+      setChatStatus("error");
+      toast.error("Gửi tin nhắn thất bại");
+      messageState.updateMessageStatus(userMessage._id, "error");
     }
   }, [conversationState, messageState]);
 
-  // Message actions
-  const onSendText = useCallback(async (
-    text: string,
-    latitude?: number,
-    longitude?: number
-  ) => {
-    const userMessage = messageState.addUserMessage(text, conversationState.currentConversationId);
-    setIsLoadingAI(true);
-    setIsChatExpanded(true);
-
-    try {
-      const aiResponse = await chatApi.postChatMessage(
-        text,
-        conversationState.currentConversationId,
-        latitude,
-        longitude
-      );
-      const aiMessage = messageState.addAiMessage(aiResponse, conversationState.currentConversationId);
-
-      // Handle new conversation
-      if (aiResponse.newConversation) {
-        conversationState.addConversation(aiResponse.newConversation);
-        conversationState.selectConversation(aiResponse.newConversation._id);
-      }
-    } catch (err) {
-      handleError(userMessage._id, err, "Gửi tin nhắn thất bại.");
-    } finally {
-      setIsLoadingAI(false);
-    }
-  }, [messageState, conversationState, handleError]);
-
-  const onSendQuickReply = useCallback(async (text: string, payload: string) => {
-    const userMessage = messageState.addUserMessage(text, conversationState.currentConversationId);
-    setIsLoadingAI(true);
-    setIsChatExpanded(true);
-
-    try {
-      const aiResponse = await chatApi.postChatMessage(
-        payload,
-        conversationState.currentConversationId
-      );
-      const aiMessage = messageState.addAiMessage(aiResponse, conversationState.currentConversationId);
-
-      // Handle new conversation
-      if (aiResponse.newConversation) {
-        conversationState.addConversation(aiResponse.newConversation);
-        conversationState.selectConversation(aiResponse.newConversation._id);
-      }
-    } catch (err) {
-      handleError(userMessage._id, err, "Gửi tin nhắn thất bại.");
-    } finally {
-      setIsLoadingAI(false);
-    }
-  }, [messageState, conversationState, handleError]);
-
   const onFileUpload = useCallback(async (file: File) => {
-    // Tạo tin nhắn giả (Optimistic UI)
-    const userMessage = messageState.addUserMessage(
-      `Đang tải lên: ${file.name}...`,
-      conversationState.currentConversationId
-    );
-    setIsLoadingAI(true);
-
+    if (!file) return;
+    setChatStatus("sending");
     try {
-      let aiResponse;
-      const isImage = file.type.startsWith("image/");
-
-      if (isImage) {
-        // --- LOGIC CŨ (CLOUDINARY) CHO ẢNH ---
-        aiResponse = await chatApi.uploadChatFile(
-          file,
-          conversationState.currentConversationId
-        );
-      } else {
-        // --- LOGIC MỚI (R2) CHO FILE TÀI LIỆU ---
-
-        // 1. Xin fileKey từ backend
-        const { fileKey } = await chatApi.getR2UploadUrl(
-          file.name,
-          file.type
-        );
-
-        // 2. Upload file lên R2 qua proxy (tránh CORS)
-        await chatApi.uploadToR2(fileKey, file);
-
-        // 3. Gửi tin nhắn báo server đã upload xong (kèm metadata R2)
-        aiResponse = await chatApi.postChatMessage(
-          `Đã gửi file: ${file.name}`,
-          conversationState.currentConversationId,
-          undefined,
-          undefined,
-          "file", // Type message
-          {
-            // Metadata
-            fileName: file.name,
-            fileSize: file.size,
-            fileKey: fileKey, // Key R2 quan trọng để download sau này
-            storage: "r2", // Đánh dấu là R2
+      const response = await chatApi.uploadChatFile(file, conversationState.currentConversationId);
+      
+      // Cập nhật Sidebar nếu tạo chat mới từ file
+      if (response && response.newConversation) {
+          conversationState.addConversation(response.newConversation);
+          if (!conversationState.currentConversationId) {
+             conversationState.selectConversation(response.newConversation._id);
           }
-        );
       }
-
-      const aiMessage = messageState.addAiMessage(
-        aiResponse,
-        conversationState.currentConversationId
-      );
-
-      // Handle new conversation
-      if (aiResponse.newConversation) {
-        conversationState.addConversation(aiResponse.newConversation);
-        conversationState.selectConversation(aiResponse.newConversation._id);
-      }
-    } catch (err) {
-      handleError(userMessage._id, err, "Upload file thất bại.");
-    } finally {
-      setIsLoadingAI(false);
+      toast.success("Đã gửi file thành công");
+      setChatStatus("idle");
+    } catch (error) {
+      console.error("Upload failed:", error);
+      toast.error("Gửi file thất bại");
+      setChatStatus("error");
     }
-  }, [messageState, conversationState, handleError]);
-
-  // Navigation actions
-  const handleNewChat = useCallback(() => {
-    messageState.resetToWelcome();
-    conversationState.clearCurrentConversation();
-    setIsChatExpanded(true);
-  }, [messageState, conversationState]);
-
-  /**
-   * ✅ PAGINATION: Handle conversation selection với pagination support
-   */
-  const handleSelectConversation = useCallback(async (conversationId: string) => {
-    if (conversationId === conversationState.currentConversationId) return;
-
-    setIsLoadingAI(true);
-    messageState.clearMessages();
-    conversationState.selectConversation(conversationId);
-    setIsChatExpanded(true);
-
-    try {
-      // ✅ PAGINATION: Fetch first page (30 messages gần nhất)
-      const result = await chatApi.fetchChatHistory(conversationId, 1, 30);
-      messageState.setMessagesFromHistory(result.messages, {
-        currentPage: result.currentPage,
-        totalPages: result.totalPages,
-      });
-    } catch (err) {
-      toast.error("Không thể tải lịch sử cuộc trò chuyện này.");
-      handleNewChat();
-    } finally {
-      setIsLoadingAI(false);
-    }
-  }, [conversationState, messageState, handleNewChat]);
-
-  /**
-   * ✅ PAGINATION: Load more messages (older messages)
-   */
-  const handleLoadMoreMessages = useCallback(async () => {
-    if (!conversationState.currentConversationId) return;
-
-    const success = await messageState.loadMoreMessages(
-      conversationState.currentConversationId,
-      chatApi.fetchChatHistory
-    );
-
-    if (!success) {
-      console.log("No more messages to load");
-    }
-  }, [conversationState.currentConversationId, messageState]);
-
-  // Conversation management
-  const handleRenameConversation = useCallback(async (id: string, newTitle: string) => {
-    conversationState.updateConversationTitle(id, newTitle);
-    const success = await chatApi.renameConversation(id, newTitle);
-    if (!success) {
-      toast.error("Không thể đổi tên, vui lòng thử lại.");
-      const convos = await chatApi.fetchChatConversations();
-      // Note: This would need to be updated to work with the new hook structure
-    }
-  }, [conversationState]);
-
-  const handleDeleteConversation = useCallback(async (id: string) => {
-    const prevConvos = [...conversationState.conversations];
-
-    conversationState.removeConversation(id);
-
-    // Reset to new chat if deleting current conversation
-    if (conversationState.currentConversationId === id) {
-      handleNewChat();
-    }
-
-    const success = await chatApi.deleteConversation(id);
-    if (!success) {
-      toast.error("Xóa thất bại.");
-      // Revert conversations
-      // Note: This would need to be updated to work with the new hook structure
-    } else {
-      toast.success("Đã xóa cuộc trò chuyện.");
-    }
-  }, [conversationState, handleNewChat]);
+  }, [conversationState, messageState]);
 
   return {
-    // Messages
-    messages: messageState.messages,
-    quickReplies: messageState.quickReplies,
-
-    // Conversations
-    conversations: conversationState.conversations,
-    currentConversationId: conversationState.currentConversationId,
-
-    // UI State
-    isLoadingAI,
+    status: chatStatus,
+    isLoadingAI: chatStatus === "sending" || chatStatus === "thinking" || chatStatus === "streaming",
+    thinkingLogs,
     isChatExpanded,
     setIsChatExpanded,
-
-    // Actions
     onSendText,
-    onSendQuickReply,
     onFileUpload,
-    handleNewChat,
-    handleSelectConversation,
-    handleRenameConversation,
-    handleDeleteConversation,
-
-    // ✅ PAGINATION: New exports
-    handleLoadMoreMessages,
-    currentPage: messageState.currentPage,
-    totalPages: messageState.totalPages,
-    hasMoreMessages: messageState.hasMoreMessages,
-    isLoadingMore: messageState.isLoadingMore,
+    onSendQuickReply: (text: string, payload: string) => onSendText(payload),
+    handleNewChat: () => {
+      messageState.resetToWelcome();
+      conversationState.clearCurrentConversation();
+      setThinkingLogs([]);
+      setChatStatus("idle");
+    },
+    handleSelectConversation: conversationState.selectConversation,
+    ...messageState,
+    ...conversationState
   };
 };
-
-export type UseChatReturn = ReturnType<typeof useChat>;

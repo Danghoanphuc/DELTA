@@ -16,7 +16,7 @@ import { OrderQuickViewModal } from "@/features/shop/components/modals/OrderQuic
 // ✅ REAL-TIME COMPONENTS
 import { SocketProvider } from "@/contexts/SocketProvider";
 import { NotificationListener } from "@/components/NotificationListener";
-import { Toaster } from "sonner"; 
+import { DynamicIsland } from "@/shared/components/ui/DynamicIsland";
 import { SocialChatSync } from "@/features/social/components/SocialChatSync";
 
 // ✅ CORE UI
@@ -134,7 +134,7 @@ function App() {
     <BrowserRouter>
       <GlobalModalProvider>
         <SocketProvider>
-          <Toaster position="top-right" richColors closeButton />
+          <DynamicIsland />
           <NotificationListener />
           <SocialChatSync />
 

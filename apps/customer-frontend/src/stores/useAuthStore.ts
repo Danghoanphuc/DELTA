@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { authService } from "@/services/authService";
 import { printerService } from "@/services/printerService";
 import type { User } from "@/types/user";

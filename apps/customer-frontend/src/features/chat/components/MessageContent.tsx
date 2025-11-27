@@ -1,14 +1,22 @@
 // src/features/chat/components/MessageContent.tsx
-// Dumb component - render nội dung message theo type
+// ✅ FULL VERSION: Render đầy đủ mọi loại tin nhắn + Tối ưu hiệu năng
 
+import { useMemo, memo } from "react";
 import { ChatMessage } from "@/types/chat";
 import { ChatProductCarousel } from "./ChatProductCarousel";
 import { ChatOrderCarousel } from "./ChatOrderCarousel";
-// ✅ ZERO-EXIT PAYMENT: Import ChatPaymentCard
+import { ChatPrinterCarousel } from "./ChatPrinterCarousel";
 import { ChatPaymentCard } from "./ChatPaymentCard";
-// ✅ RICH MESSAGES: Import Rich Message Cards
 import { ProductMessageCard } from "./messages/ProductMessageCard";
 import { OrderMessageCard } from "./messages/OrderMessageCard";
+import { MarkdownRenderer } from "./MarkdownRenderer";
+import { ThinkingAccordion } from "./ThinkingAccordion";
+import { ThinkingBubble } from "./ThinkingBubble";
+import { parseThinkingContent } from "../utils/textParser";
+import { cn } from "@/shared/lib/utils";
+
+// ✅ MEMOIZED: Chỉ render lại khi nội dung thực sự thay đổi (giúp chat mượt hơn)
+const MemoizedMarkdown = memo(MarkdownRenderer);
 
 interface MessageContentProps {
   message: ChatMessage;
@@ -17,133 +25,160 @@ interface MessageContentProps {
 export function MessageContent({ message }: MessageContentProps) {
   const isUserMessage = message.senderType === "User";
 
+  // 1. Xử lý logic hiển thị Text & Suy luận (Chain of Thought)
+  if (message.type === "text" || message.type === "ai_response") {
+      if ((message as any)?._skipRender) return null;
+
+      // Safe parse content
+      let rawText = "";
+      if (typeof message.content === "string") {
+        rawText = message.content;
+      } else if ((message.content as any)?.text) {
+        rawText = (message.content as any).text || "";
+      }
+      
+      const { thought, content } = parseThinkingContent(rawText);
+
+      // Metadata Checks
+      const metadata = message.metadata as any;
+      const isStatusThinking = metadata?.status === "thinking";
+      const isCompleted = metadata?.status === "completed" || metadata?.status === "sent";
+      
+      // ✅ LOGIC QUAN TRỌNG: Khi nào hiện Bong bóng đang nghĩ?
+      // 1. Metadata báo đang thinking
+      // 2. HOẶC Có suy luận (thought) nhưng chưa có nội dung trả lời (content) và chưa xong
+      const showThinkingBubble = isStatusThinking || (!isCompleted && thought && (!content || content.trim().length === 0));
+
+      if (showThinkingBubble) {
+        // Trích xuất dòng log cuối cùng để hiển thị cho sinh động
+        let lastLog = "Zin đang suy nghĩ...";
+        if (thought) {
+            const lines = thought.split('\n').filter(l => l.trim().length > 0);
+            if (lines.length > 0) {
+                let lastLine = lines[lines.length - 1];
+                lastLine = lastLine.replace(/^[➜\-*•]\s*/, '').replace(/^Bước \d+:\s*/i, '').trim();
+                if (lastLine.length > 50) lastLine = lastLine.substring(0, 47) + "...";
+                if (lastLine) lastLog = lastLine;
+            }
+        }
+        
+        return (
+          <ThinkingBubble 
+            customText={lastLog}
+            fullLog={thought || undefined}
+          />
+        );
+      }
+
+      return (
+        <div className="flex flex-col w-full min-w-0 gap-2">
+          {/* Phần Accordion: Hiển thị quy trình suy luận đã qua */}
+          {thought && thought.length > 0 && (
+            <ThinkingAccordion thought={thought} />
+          )}
+          
+          {/* Phần Nội dung chính: Markdown */}
+          {content && content.trim().length > 0 && (
+            <div className={cn("animate-in fade-in duration-200", isUserMessage ? "text-white" : "text-gray-800 dark:text-gray-100")}>
+              <MemoizedMarkdown
+                content={content}
+                isUserMessage={isUserMessage}
+              />
+            </div>
+          )}
+        </div>
+      );
+  }
+
+  // 2. Các loại tin nhắn khác (Rich Messages)
   switch (message.type) {
-    case "text":
-      return <TextContent content={message.content} />;
-
-    case "ai_response":
-      return <TextContent content={message.content} />;
-
-    // ✅ RICH MESSAGES: Render single product card (from backend rich messages)
     case "product":
-      if (message.metadata) {
-        return <ProductMessageCard metadata={message.metadata} isUserMessage={isUserMessage} />;
-      }
-      return <TextContent content={message.content} />;
+        if (message.metadata) return <ProductMessageCard metadata={message.metadata} isUserMessage={isUserMessage} />;
+        return null;
 
-    // ✅ RICH MESSAGES: Render single order card (from backend rich messages)
     case "order":
-      if (message.metadata) {
-        return <OrderMessageCard metadata={message.metadata} isUserMessage={isUserMessage} />;
-      }
-      return <TextContent content={message.content} />;
+        if (message.metadata) return <OrderMessageCard metadata={message.metadata} isUserMessage={isUserMessage} />;
+        return null;
 
-    // Legacy: Product carousel (AI tool response)
     case "product_selection":
-      return <ChatProductCarousel products={message.content.products || []} />;
+       return <ChatProductCarousel products={message.content.products || []} />;
 
-    // Legacy: Order carousel (AI tool response)
     case "order_selection":
-      return <ChatOrderCarousel orders={message.content.orders || []} />;
+       return <ChatOrderCarousel orders={message.content.orders || []} />;
 
-    // ✅ ZERO-EXIT PAYMENT: Render payment request card
+    case "printer_selection":
+       return <ChatPrinterCarousel printers={message.content.printers || []} />;
+
     case "payment_request":
-      return <ChatPaymentCard content={message.content} />;
+       return <ChatPaymentCard content={message.content} />;
 
-    // ✅ RICH MESSAGES: Handle image messages
     case "image":
-      return <ImageContent content={message.content} metadata={message.metadata} />;
+       return <ImageContent content={message.content} metadata={message.metadata} />;
 
-    // ✅ RICH MESSAGES: Handle file messages
     case "file":
-      return <FileContent content={message.content} metadata={message.metadata} />;
-
+       return <FileContent content={message.content} metadata={message.metadata} />;
+    
     case "error":
-      return <ErrorContent content={message.content} />;
+       return <ErrorContent content={message.content} />;
 
     default:
-      return <TextContent content={message.content} />;
+       return null;
   }
 }
 
-function TextContent({ content }: { content: any }) {
-  if (typeof content === "string") {
-    return <span>{content}</span>;
-  }
+// --- Helper Components ---
 
-  if (content?.text) {
-    return <span>{content.text}</span>;
-  }
+function ImageContent({ content, metadata }: { content: any; metadata: any }) {
+  const imageUrl = metadata?.imageUrl || content?.imageUrl || metadata?.url;
+  const alt = metadata?.description || "Ảnh đính kèm";
+  
+  if (!imageUrl) return null;
+  return (
+    <div className="mt-1">
+        <img 
+            src={imageUrl} 
+            alt={alt} 
+            className="rounded-lg max-w-xs w-full h-auto border border-gray-200 dark:border-gray-700" 
+            loading="lazy" 
+        />
+    </div>
+  );
+}
 
-  return <span>Unsupported content type</span>;
+function FileContent({ content, metadata }: { content: any; metadata: any }) {
+  const fileName = metadata?.fileName || content?.fileName || "Tệp đính kèm";
+  const fileSize = metadata?.fileSize || content?.fileSize;
+  const fileUrl = metadata?.fileUrl || content?.fileUrl;
+
+  return (
+    <a 
+        href={fileUrl || "#"} 
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-700 hover:bg-gray-100 transition-colors group text-decoration-none"
+    >
+        <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center font-bold text-xs shadow-sm group-hover:scale-105 transition-transform">
+            DOC
+        </div>
+        <div className="flex flex-col min-w-0">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate max-w-[180px]">
+                {fileName}
+            </span>
+            {fileSize && (
+                <span className="text-[10px] text-gray-400">
+                    {(fileSize / 1024).toFixed(1)} KB
+                </span>
+            )}
+        </div>
+    </a>
+  );
 }
 
 function ErrorContent({ content }: { content: any }) {
-  return (
-    <div className="text-red-600 dark:text-red-400">
-      <strong>Lỗi:</strong> {content?.message || "Đã xảy ra lỗi không xác định"}
-    </div>
-  );
-}
-
-// ✅ RICH MESSAGES: Image content component
-function ImageContent({ content, metadata }: { content: any; metadata: any }) {
-  const imageUrl = metadata?.imageUrl || metadata?.url || content?.imageUrl;
-  const description = metadata?.description || content?.text;
-
-  if (!imageUrl) {
-    return <TextContent content={content} />;
-  }
-
-  return (
-    <div className="max-w-xs">
-      <img
-        src={imageUrl}
-        alt={description || "Image"}
-        className="rounded-lg w-full h-auto"
-        loading="lazy"
-      />
-      {description && (
-        <p className="text-sm mt-2 text-gray-600 dark:text-gray-400">
-          {description}
-        </p>
-      )}
-    </div>
-  );
-}
-
-// ✅ RICH MESSAGES: File content component
-function FileContent({ content, metadata }: { content: any; metadata: any }) {
-  const fileName = metadata?.fileName || metadata?.name || content?.fileName || "File";
-  const fileUrl = metadata?.fileUrl || metadata?.url || content?.fileUrl;
-  const fileSize = metadata?.fileSize || metadata?.size;
-
-  return (
-    <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-900 rounded-lg">
-      <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded flex items-center justify-center">
-        <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{fileName}</p>
-        {fileSize && (
-          <p className="text-xs text-gray-500">
-            {(fileSize / 1024).toFixed(2)} KB
-          </p>
-        )}
-      </div>
-      {fileUrl && (
-        <a
-          href={fileUrl}
-          download={fileName}
-          className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-        </a>
-      )}
-    </div>
-  );
+    const msg = typeof content === 'string' ? content : content?.message || "Có lỗi xảy ra";
+    return (
+        <div className="text-red-500 text-sm bg-red-50 p-2 rounded border border-red-100">
+            ⚠️ {msg}
+        </div>
+    );
 }

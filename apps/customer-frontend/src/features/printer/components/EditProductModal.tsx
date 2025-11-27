@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { PrinterProduct, ProductPrice } from "@/types/product";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import api from "@/shared/lib/axios";
 import { useQueryClient } from "@tanstack/react-query";
 

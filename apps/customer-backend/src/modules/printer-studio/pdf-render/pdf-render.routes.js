@@ -6,8 +6,8 @@ import { protect } from "../../../shared/middleware/auth.middleware.js";
 // ❌ Worker không còn được gọi trực tiếp ở đây
 // import { pdfRenderer } from "../../../infrastructure/workers/pdf-renderer.worker.js";
 
-// ✅ BƯỚC 1: Import Bull Queue đã được cấu hình
-import { pdfQueue } from "../../../config/queue.config.js";
+// ✅ LAZY IMPORT: Queue sẽ được import khi cần dùng (tránh block khi import module)
+// import { pdfQueue } from "../../../config/queue.config.js";
 import {
   ValidationException,
   NotFoundException, // ✅ Import NotFoundException
@@ -41,6 +41,9 @@ router.post("/queue", protect, async (req, res, next) => {
     };
 
     // ✅ BƯỚC 3: Đẩy job vào Bull Queue (Redis)
+    // ✅ LAZY IMPORT: Import queue chỉ khi cần dùng (tránh block khi import module)
+    const { getPdfQueue } = await import("../../../config/queue.config.js");
+    const pdfQueue = getPdfQueue();
     // Đây là một lệnh I/O (gọi Redis), nó Bất đồng bộ nhưng RẤT NHANH.
     // Server sẽ không bị block.
     const job = await pdfQueue.add(jobData);
@@ -77,6 +80,9 @@ router.get("/status/:jobId", protect, async (req, res, next) => {
   try {
     const { jobId } = req.params;
 
+    // ✅ LAZY IMPORT: Import queue chỉ khi cần dùng
+    const { getPdfQueue } = await import("../../../config/queue.config.js");
+    const pdfQueue = getPdfQueue();
     // (Logic thật: await pdfQueue.getJob(jobId))
     const job = await pdfQueue.getJob(jobId);
 

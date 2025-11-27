@@ -1,6 +1,6 @@
 // apps/customer-frontend/src/features/social/components/SocialChatWindow/MessageItem.tsx
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   FileText, Download, File, FileImage, FileSpreadsheet, FileArchive, FileVideo, CheckCheck,
   type LucideIcon
@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/shared/lib/utils";
 import type { ChatMessage } from "@/types/chat";
 import { isMyMessage } from "./utils";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { useAuthStore } from "@/stores/useAuthStore";
 import api from "@/shared/lib/axios";
 import { FilePreviewModal } from "./FilePreviewModal";
@@ -70,6 +70,16 @@ export function MessageItem({
 }: MessageItemProps) {
   const isMe = isMyMessage(message, currentUserId);
   const attachments = (message.content as any)?.attachments || [];
+  
+  // ✅ LOG: Message rendering (chỉ log khi có vấn đề)
+  useEffect(() => {
+    if (attachments.length > 0) {
+      console.log(`[MessageItem] 📎 Rendering: msgId=${message._id}, attachments=${attachments.length}`);
+    } else if ((message.content as any)?.fileUrl && !(message.content as any)?.attachments) {
+      console.warn(`[MessageItem] ⚠️ Message has fileUrl but no attachments: msgId=${message._id}`);
+    }
+  }, [message._id, attachments.length]);
+  
   const [previewFile, setPreviewFile] = useState<any>(null);
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
 
@@ -182,11 +192,15 @@ export function MessageItem({
     try {
         const isR2File = file.storage === 'r2' || file.fileKey;
         let downloadUrl = "";
-        if (isR2File) {
+        if (isR2File && file.fileKey) {
             const res = await api.get('/chat/r2/download', {
                 params: { key: file.fileKey, filename: file.originalName, mode: 'attachment' }
             });
-            downloadUrl = res.data?.data?.downloadUrl;
+            // ✅ FIX: Backend trả về { data: { downloadUrl, ... } }
+            downloadUrl = res.data?.data?.downloadUrl || res.data?.downloadUrl;
+            if (!downloadUrl) {
+                throw new Error("Failed to get download URL");
+            }
         } else {
             const response = await api.get('/chat/download', {
                 params: { url: file.url, filename: file.originalName },

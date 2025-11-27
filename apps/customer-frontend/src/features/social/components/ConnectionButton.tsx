@@ -10,7 +10,7 @@ import {
   getConnectionStatus,
 } from "../../../services/api/connection.api.service";
 import { useConnectionStore } from "../../../stores/useConnectionStore";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { UserPlus, UserCheck, UserMinus, Clock, Loader2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";

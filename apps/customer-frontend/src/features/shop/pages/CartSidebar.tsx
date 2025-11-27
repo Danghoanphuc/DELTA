@@ -20,7 +20,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { LoginPopup } from "@/features/auth/components/LoginPopup";
 import { getGuestCart } from "@/shared/lib/guestCart";
 import { Link, useNavigate } from "react-router-dom"; // ✅ GĐ 5.4: Thêm useNavigate
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 
 interface CartSidebarProps {
   isOpen: boolean;

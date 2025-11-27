@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Order } from "@/types/order";
 import api from "@/shared/lib/axios";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 
 export const useOrderConfirmation = () => {
   const { orderId: orderIdFromParams } = useParams<{ orderId: string }>();

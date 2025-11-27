@@ -20,6 +20,7 @@ import { ChatMessages } from "@/features/chat/components/ChatMessages";
 import { ChatInput } from "@/features/chat/components/ChatInput";
 import { ChatWelcome } from "../components/ChatWelcome";
 import { ChatProvider, useChatContext } from "../context/ChatProvider";
+import { ChatBotSync } from "../components/ChatBotSync";
 import { Button } from "@/shared/components/ui/button";
 import { WELCOME_ID } from "../hooks/useChat";
 import { cn } from "@/shared/lib/utils";
@@ -29,6 +30,7 @@ import { FocusTrap } from "@/shared/components/ui/FocusTrap";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
 import { SocialNavSidebar } from "@/features/social/components/SocialNavSidebar";
 import { GlobalHeader } from "@/components/GlobalHeader"; 
+import { DynamicIsland } from "@/shared/components/ui/DynamicIsland";
 // Stores for Header
 import { useCartStore } from "@/stores/useCartStore";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -225,6 +227,9 @@ const ChatLayout = () => {
 
   return (
     <>
+    {/* 0. DYNAMIC ISLAND (Status Notifications) */}
+    <DynamicIsland />
+    
     {/* 1. GLOBAL HEADER (Chỉ hiện Desktop, Fixed Top) */}
     <GlobalHeader 
         cartItemCount={cartItemCount} 
@@ -321,6 +326,7 @@ const ChatLayout = () => {
 export default function ChatPage() {
   return (
     <ChatProvider>
+      <ChatBotSync />
       <ChatLayout />
     </ChatProvider>
   );

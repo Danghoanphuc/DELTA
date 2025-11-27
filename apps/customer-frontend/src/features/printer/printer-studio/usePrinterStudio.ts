@@ -4,7 +4,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import api from "@/shared/lib/axios";
 import { Product } from "@/types/product";
 import * as THREE from "three";

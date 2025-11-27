@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Button } from "@/shared/components/ui/button";
 import { Sparkles, Loader2, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import api from "@/shared/lib/axios";
 import { cn } from "@/shared/lib/utils";
 

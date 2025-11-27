@@ -1,220 +1,101 @@
-// apps/customer-backend/src/modules/chat/chat-conversation.controller.js
-import mongoose from "mongoose"; // ✅ Import mongoose
-import { SocialChatService } from "./social-chat.service.js";
-import { ChatRepository } from "./chat.repository.js";
-import { User } from "../../shared/models/user.model.js";
+import { SocialChatService } from "./social-chat.service.js"; // Static
+import { ChatRepository } from "./chat.repository.js"; // Static
 import { Conversation } from "../../shared/models/conversation.model.js";
+import { User } from "../../shared/models/user.model.js";
 import { Connection } from "../../shared/models/connection.model.js";
-import {
-  NotFoundException,
-  ValidationException,
-} from "../../shared/exceptions/index.js";
+import { ApiResponse } from "../../shared/utils/index.js";
+
+const socialService = new SocialChatService();
+const chatRepo = new ChatRepository();
 
 export class ChatConversationController {
-  constructor() {
-    this.chatRepository = new ChatRepository();
-    this.socialChatService = new SocialChatService();
-  }
-
+  
   createGroupConversation = async (req, res, next) => {
     try {
-      const currentUserId = req.user._id;
       const { title, members } = req.body;
+      const avatarUrl = req.file?.path; // Multer Cloudinary
 
-      if (!members || !Array.isArray(members) || members.length === 0) {
-        throw new ValidationException("Danh sách thành viên không hợp lệ");
-      }
-      
-      if (!title || title.trim().length === 0) {
-        throw new ValidationException("Tên nhóm không được để trống");
-      }
-
-      const group = await this.socialChatService.createGroupConversation(
-        currentUserId,
+      const group = await socialService.createGroupConversation({
         title,
-        members
-      );
-
-      res.status(201).json({
-        success: true,
-        message: "Đã tạo nhóm thành công",
-        data: { conversation: group },
+        members: typeof members === 'string' ? JSON.parse(members) : members,
+        avatarUrl,
+        creatorId: req.user._id
       });
-    } catch (error) {
-      next(error);
-    }
+
+      res.status(201).json(ApiResponse.success({ conversation: group }));
+    } catch (e) { next(e); }
   };
 
   createOrGetPrinterConversation = async (req, res, next) => {
     try {
-      const customerId = req.user._id;
       const { printerId } = req.params;
+      const customerId = req.user._id;
 
-      if (!printerId || printerId === customerId.toString()) {
-        throw new ValidationException("Printer ID không hợp lệ");
-      }
-
-      const printer = await User.findById(printerId).populate(
-        "printerProfileId"
-      );
-      if (!printer || !printer.printerProfileId) {
-        throw new NotFoundException("Không tìm thấy nhà in");
-      }
-
-      let conversation = await Conversation.findOne({
+      let conv = await Conversation.findOne({
         type: "customer-printer",
-        "participants.userId": { $all: [customerId, printerId] },
-      }).populate("participants.userId", "username displayName avatarUrl");
+        "participants.userId": { $all: [customerId, printerId] }
+      }).populate("participants.userId", "displayName avatarUrl");
 
-      if (conversation) {
-        return res.json({
-          success: true,
-          data: { conversation, isNew: false },
+      if (!conv) {
+        const printer = await User.findById(printerId).populate("printerProfileId");
+        if (!printer) throw new Error("Printer not found");
+        
+        conv = await Conversation.create({
+          type: "customer-printer",
+          title: printer.printerProfileId?.businessName || "Nhà in",
+          participants: [
+             { userId: customerId, role: "customer", isVisible: true },
+             { userId: printerId, role: "printer", isVisible: true }
+          ]
         });
       }
 
-      conversation = await Conversation.create({
-        type: "customer-printer",
-        title: `Chat với ${printer.printerProfileId.businessName}`,
-        participants: [
-          { userId: customerId, role: "customer", isVisible: true },
-          { userId: printerId, role: "printer", isVisible: true },
-        ],
-      });
-
-      await conversation.populate(
-        "participants.userId",
-        "username displayName avatarUrl"
-      );
-
-      res.status(201).json({
-        success: true,
-        message: "Đã tạo cuộc trò chuyện với nhà in",
-        data: { conversation, isNew: true },
-      });
-    } catch (error) {
-      next(error);
-    }
+      res.json(ApiResponse.success({ conversation: conv }));
+    } catch (e) { next(e); }
   };
 
   createOrGetPeerConversation = async (req, res, next) => {
     try {
-      const currentUserId = req.user._id;
-      const { userId: targetUserId } = req.params;
+       const { userId: targetId } = req.params;
+       // Check connection (friendship)
+       const isConnected = await Connection.findOne({
+           $or: [
+               { requester: req.user._id, recipient: targetId, status: 'accepted' },
+               { requester: targetId, recipient: req.user._id, status: 'accepted' }
+           ]
+       });
+       
+       if (!isConnected) throw new Error("Chưa kết bạn.");
 
-      if (!targetUserId || targetUserId === currentUserId.toString()) {
-        throw new ValidationException("User ID không hợp lệ");
-      }
+       let conv = await Conversation.findOne({
+           type: "peer-to-peer",
+           "participants.userId": { $all: [req.user._id, targetId] }
+       });
 
-      const areConnected = await Connection.areConnected(
-        currentUserId,
-        targetUserId
-      );
-      if (!areConnected) {
-        throw new ValidationException("Bạn phải kết bạn trước khi có thể chat");
-      }
+       if (!conv) {
+           conv = await Conversation.create({
+               type: "peer-to-peer",
+               participants: [
+                   { userId: req.user._id, role: "member", isVisible: true },
+                   { userId: targetId, role: "member", isVisible: true }
+               ]
+           });
+       } else {
+           // Un-hide if hidden
+           let needSave = false;
+           conv.participants.forEach(p => { 
+               if (!p.isVisible) { p.isVisible = true; needSave = true; } 
+           });
+           if (needSave) await conv.save();
+       }
 
-      const result = await this.socialChatService.createPeerConversation(
-        currentUserId,
-        targetUserId
-      );
-
-      res.status(result.isNew ? 201 : 200).json({
-        success: true,
-        message: result.isNew
-          ? "Đã tạo cuộc trò chuyện"
-          : "Đã mở cuộc trò chuyện",
-        data: result,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  getAllConversations = async (req, res, next) => {
-    try {
-      const userId = req.user._id;
-      const { type } = req.query;
-      
-      // ✅ FIXED: Chỉ lấy những cuộc trò chuyện mà user chưa xóa (isVisible: true)
-      const query = { 
-        "participants": { $elemMatch: { userId: userId, isVisible: true } },
-        isActive: true 
-      };
-      
-      if (type) query.type = type;
-
-      const conversations = await Conversation.find(query)
-        .populate("participants.userId", "username displayName avatarUrl")
-        .sort({ lastMessageAt: -1, updatedAt: -1 })
-        .lean();
-
-      res.json({
-        success: true,
-        data: { conversations, count: conversations.length },
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  /**
-   * ✅ FIXED: Ép kiểu ObjectId để updateOne hoạt động chính xác với mảng participants
-   * ✅ UPGRADE: Invalidate Cache để tránh Ghost Conversation khi reload
-   */
-  deleteConversation = async (req, res, next) => {
-    try {
-      const userId = req.user._id;
-      const { id: conversationId } = req.params;
-
-      // 1. ✅ CRITICAL FIX: Ép kiểu sang ObjectId
-      // updateOne với operator mảng ($) yêu cầu kiểu dữ liệu phải khớp chính xác
-      const userObjectId = new mongoose.Types.ObjectId(userId);
-
-      // 2. Thực hiện Soft Delete
-      const result = await Conversation.updateOne(
-        { 
-          _id: conversationId, 
-          "participants.userId": userObjectId // ✅ Dùng ObjectId thay vì String
-        },
-        { 
-          $set: { "participants.$.isVisible": false } 
-        }
-      );
-
-      // (Optional) Kiểm tra xem có update được không
-      // if (result.modifiedCount === 0) {
-      //   Logger.warn(`[Chat] Soft delete failed. User ${userId} might not be in conversation ${conversationId}`);
-      // }
-
-      // 3. Xóa Cache Redis ngay lập tức
-      await this.chatRepository.invalidateUserCache(userId);
-
-      res.json({ success: true, message: "Đã xóa cuộc trò chuyện" });
-    } catch (error) {
-      next(error);
-    }
+       res.json(ApiResponse.success({ conversation: conv }));
+    } catch (e) { next(e); }
   };
 
   markAllConversationsAsRead = async (req, res, next) => {
-    try {
-      const userId = req.user._id;
-
-      const conversations = await Conversation.find({
-        "participants.userId": userId,
-        type: { $in: ["peer-to-peer", "customer-printer", "group"] },
-        isActive: true,
-      }).select("_id");
-
-      const conversationIds = conversations.map((c) => c._id);
-
-      res.json({
-        success: true,
-        message: "Đã đánh dấu tất cả là đã đọc",
-        data: { conversationIds },
-      });
-    } catch (error) {
-      next(error);
-    }
+     // Logic đánh dấu đã đọc (đơn giản là trả về success để FE update state, 
+     // thực tế cần update field lastReadAt trong participants nếu muốn track kỹ)
+     res.json(ApiResponse.success({ message: "Marked all read" }));
   };
 }

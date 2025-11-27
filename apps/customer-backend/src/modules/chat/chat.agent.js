@@ -1,8 +1,41 @@
-// src/modules/chat/chat.agent.js
 import { ChatAiService } from "./chat.ai.service.js";
 import { ChatToolService } from "./chat.tools.service.js";
 import { ChatResponseUtil } from "./chat.response.util.js";
 import { Logger } from "../../shared/utils/index.js";
+
+// 🧠 TỪ ĐIỂN SUY NGHĨ: Map tool name -> Câu nói thân thiện
+const THOUGHT_DICTIONARY = {
+  find_products: {
+    icon: "🔍",
+    texts: [
+      "Zin đang rà soát kho sản phẩm...",
+      "Đang tìm kiếm mẫu in phù hợp cho bạn...",
+      "Chờ chút, Zin đang tra cứu danh mục..."
+    ]
+  },
+  find_printers: {
+    icon: "🏭",
+    texts: [
+      "Đang kết nối với mạng lưới nhà in...",
+      "Để Zin tìm xem nhà in nào gần bạn nhất...",
+      "Đang lọc các nhà in uy tín..."
+    ]
+  },
+  get_recent_orders: {
+    icon: "📦",
+    texts: [
+      "Đang lục lại hồ sơ đơn hàng cũ...",
+      "Zin đang kiểm tra lịch sử giao dịch..."
+    ]
+  },
+  suggest_value_added_services: {
+    icon: "✨",
+    texts: [
+      "Đang tính toán các phương án tối ưu...",
+      "Zin đang nghĩ thêm vài ý tưởng hay ho cho bạn..."
+    ]
+  }
+};
 
 export class ChatAgent {
   constructor() {
@@ -10,78 +43,89 @@ export class ChatAgent {
     this.toolService = new ChatToolService();
   }
 
-  /**
-   * Hàm điều phối chính (Main Entry Point)
-   * @param {Object} context - User context
-   * @param {Array} history - Lịch sử chat
-   * @param {String} message - Tin nhắn user
-   * @param {String} systemOverride - (Optional) Chỉ thị hệ thống (ví dụ Vision result)
-   */
-  async run(context, history, message, systemOverride = null) {
-    Logger.debug(
-      `[ChatAgent] 🧠 Processing message: "${message.substring(0, 50)}..."`
-    );
+  // Helper: Chọn ngẫu nhiên câu thoại để không nhàm chán
+  _getRandomThought(toolName) {
+    const entry = THOUGHT_DICTIONARY[toolName];
+    if (!entry) return { icon: "🤔", text: "Zin đang suy nghĩ..." };
+    const randomText = entry.texts[Math.floor(Math.random() * entry.texts.length)];
+    return { icon: entry.icon, text: randomText };
+  }
 
-    // 1. Chuẩn bị Messages cho OpenAI
-    const messages = ChatResponseUtil.prepareHistoryForOpenAI(history);
-
-    // Nếu có system override (từ Vision AI), chèn vào đầu
-    if (systemOverride) {
-      messages.push({ role: "system", content: systemOverride });
-    }
-
+  async run(context, history, message, systemOverride = null, onStream = null) {
+    const userId = context.actorId;
+    
+    // 1. Prepare Messages
+    let messages = ChatResponseUtil.prepareHistoryForOpenAI(history);
+    if (systemOverride) messages.push({ role: "system", content: systemOverride });
     messages.push({ role: "user", content: message });
 
-    // 2. Lấy Tool Definitions
-    const toolDefinitions = this.toolService.getToolDefinitions();
+    // 📣 THÔNG BÁO: Bắt đầu suy nghĩ
+    if (onStream) onStream({ type: "thinking", icon: "⚡", text: "Zin đang đọc yêu cầu..." });
 
-    // 3. Gọi AI lần 1 (Decision making)
-    const aiResponse = await this.aiService.getCompletion(
-      messages,
-      toolDefinitions,
-      context
-    );
+    // 2. Call AI (Lần 1: Quyết định Tool)
+    const toolDefinitions = this.toolService.getToolDefinitions();
+    const aiResponse = await this.aiService.getCompletion(messages, toolDefinitions, context);
     const responseMessage = aiResponse.choices[0].message;
 
-    // 4. Kiểm tra xem AI có muốn dùng Tool không
+    // 3. Handle Tool Usage
     if (responseMessage.tool_calls) {
-      Logger.info(
-        `[ChatAgent] 🛠️ Tool usage detected: ${responseMessage.tool_calls[0].function.name}`
-      );
-
-      // Push "intent" của AI vào history ảo
-      messages.push(responseMessage);
-
       const toolCall = responseMessage.tool_calls[0];
-
-      // Thực thi Tool
-      const { response, isTerminal } = await this.toolService.executeTool(
-        toolCall,
-        context
-      );
-
-      // Nếu Tool là Terminal (kết thúc luôn flow), trả về luôn
-      if (isTerminal) {
-        return response;
+      const toolName = toolCall.function.name;
+      
+      // 📣 THÔNG BÁO: Humanized Thought trước khi chạy Tool
+      const thought = this._getRandomThought(toolName);
+      if (onStream) {
+        onStream({ 
+          type: "thinking_update", // Event riêng để FE update bubble
+          icon: thought.icon, 
+          text: thought.text 
+        });
       }
 
-      // Nếu không, đưa kết quả Tool lại cho AI
-      messages.push(response.response); // response.response là message role='tool'
+      Logger.info(`[ChatAgent] 🛠️ Executing: ${toolName}`);
+      messages.push(responseMessage); 
 
-      // Gọi AI lần 2 (Summarize result)
-      const finalAiResponse = await this.aiService.getCompletion(
-        messages,
-        toolDefinitions, // Vẫn đưa tools vào phòng khi AI muốn gọi tiếp (multi-step)
-        context
-      );
+      // Execute Tool
+      const { response, isTerminal } = await this.toolService.executeTool(toolCall, context);
 
-      return ChatResponseUtil.createTextResponse(
-        finalAiResponse.choices[0].message.content,
-        true
-      );
+      // Xử lý Rich UI (Product Selection...)
+      if (response && typeof response === "object" && response.type && ["product_selection", "printer_selection", "order_selection"].includes(response.type)) {
+         // 📣 THÔNG BÁO: Đã tìm thấy
+         if (onStream) onStream({ type: "thinking_done", icon: "✅", text: "Đã tìm thấy kết quả!" });
+         
+         // Generate short text summary using AI
+         const summaryPrompt = "Hãy tạo một câu giới thiệu ngắn gọn (1 câu) cho các kết quả tìm kiếm này.";
+         const summaryRes = await this.aiService.getCompletionWithCustomPrompt(messages, summaryPrompt);
+         response.content.text = summaryRes.choices[0].message.content;
+         return response; 
+      }
+
+      if (isTerminal) return response;
+
+      // Feed tool result back to AI
+      messages.push({
+        role: "tool",
+        tool_call_id: toolCall.id,
+        content: typeof response === "string" ? response : JSON.stringify(response)
+      });
+
+      // 📣 THÔNG BÁO: Tổng hợp câu trả lời
+      if (onStream) onStream({ type: "thinking_update", icon: "✍️", text: "Đang tổng hợp thông tin..." });
+
+      // Final Answer (Streamed)
+      // Lưu ý: Hàm getCompletion cần hỗ trợ callback onToken
+      const finalRes = await this.aiService.getCompletion(messages, [], context, (token) => {
+          if (onStream) onStream({ type: "text_stream", text: token });
+      });
+      
+      return ChatResponseUtil.createTextResponse(finalRes.choices[0].message.content, true);
     }
 
-    // 5. Không dùng Tool -> Trả lời thẳng
+    // 4. No Tool -> Direct Answer (Streamed)
+    if (onStream && responseMessage.content) {
+       onStream({ type: "text_stream", text: responseMessage.content });
+    }
+
     return ChatResponseUtil.createTextResponse(responseMessage.content, true);
   }
 }

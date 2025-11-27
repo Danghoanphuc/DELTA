@@ -20,7 +20,7 @@ import {
 } from "@react-three/drei";
 import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { ViewerModel } from "./ViewerModel"; // Component con render model
 import {
   use3DInteraction,

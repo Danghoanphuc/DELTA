@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { searchMessages } from "../../../chat/services/chat.api.service";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import type { ChatMessage } from "@/types/chat";
 
 export function useSearchMessages(conversationId: string) {

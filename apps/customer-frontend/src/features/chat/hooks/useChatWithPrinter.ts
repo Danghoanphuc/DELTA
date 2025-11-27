@@ -3,7 +3,7 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { createPrinterConversation } from "../services/chat.api.service";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { useNavigate } from "react-router-dom";
 
 export const useChatWithPrinter = () => {

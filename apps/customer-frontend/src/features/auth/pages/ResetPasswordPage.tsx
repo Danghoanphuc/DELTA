@@ -7,7 +7,7 @@ import { Lock, Eye, EyeOff, Loader2, CheckCircle2, XCircle } from "lucide-react"
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Card } from "@/shared/components/ui/card";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import api from "@/shared/lib/axios";
 import { AuthLayout } from "../components/AuthLayout";
 import { z } from "zod";

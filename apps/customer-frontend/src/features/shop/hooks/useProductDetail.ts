@@ -6,7 +6,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Product, PrinterProduct } from "@/types/product";
 import { PrinterProfile } from "@/types/printerProfile";
 import api from "@/shared/lib/axios";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { useCartStore } from "@/stores/useCartStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 // (Import Logger - nếu Phúc đã tạo file logger.util.ts)

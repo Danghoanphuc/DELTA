@@ -4,7 +4,7 @@
 import api from "@/shared/lib/axios";
 import { ProductWizardFormValues } from "@/features/printer/schemas/productWizardSchema";
 import { Asset } from "@/types/asset";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query"; // ✅ Import
 
 // ✅ Tách riêng hàm gọi API

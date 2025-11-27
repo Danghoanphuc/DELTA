@@ -1,60 +1,57 @@
-// src/modules/chat/chat.tools.service.js
-// ✅ PHẪU THUẬT: Sửa lỗi import ProductRepository (dây chuyền)
-
 import { Logger } from "../../shared/utils/index.js";
 import { ChatResponseUtil } from "./chat.response.util.js";
-// ✅ SỬA LỖI 1: Import instance (chữ 'p' thường)
 import { productRepository } from "../products/product.repository.js";
-import { OrderRepository } from "../orders/order.repository.js"; // (Import này ĐÚNG vì file đó export Class)
-import { NotFoundException } from "../../shared/exceptions/index.js";
-import { findBestPriceTier } from "../../shared/utils/pricing.util.js";
-// ✅ RAG: Import Embedding Service and Product Model
+import { OrderRepository } from "../orders/order.repository.js";
 import { embeddingService } from "../../shared/services/embedding.service.js";
+import { algoliaService } from "../../infrastructure/search/algolia.service.js"; // ✅ Import Algolia
 import { Product } from "../../shared/models/product.model.js";
+import { PrinterProfile } from "../../shared/models/printer-profile.model.js";
 
-// (vasMap giữ nguyên)
-const vasMap = {
+const VAS_MAP = {
   designer: [
     { name: "Mockup 3D preview", price: 50000 },
     { name: "File nguồn AI/PSD", price: 100000 },
-    { name: "Tư vấn màu sắc miễn phí", price: 0 },
   ],
   business_owner: [
     { name: "Giao hỏa tốc 2h", price: 150000 },
-    { name: "Đóng gói cao cấp (hộp cứng)", price: 80000 },
+    { name: "Đóng gói cao cấp", price: 80000 },
   ],
   customer: [
-    { name: "Bảo hành 1 năm (1 đổi 1)", price: 30000 },
-    { name: "Giao miễn phí (cho đơn > 500k)", price: 0 },
+    { name: "Bảo hành 1 năm", price: 30000 },
+    { name: "Giao miễn phí", price: 0 },
   ],
 };
 
 export class ChatToolService {
   constructor() {
-    // ✅ SỬA LỖI 2: Dùng instance đã import, không 'new'
-    this.productRepository = productRepository;
-    this.orderRepository = new OrderRepository(); // (Hàm này ĐÚNG vì OrderRepository là Class)
+    this.orderRepository = new OrderRepository();
   }
 
-  /**
-   * (getToolDefinitions giữ nguyên)
-   */
   getToolDefinitions() {
     return [
       {
         type: "function",
         function: {
           name: "find_products",
-          description:
-            "Tìm kiếm sản phẩm trong cửa hàng dựa trên từ khóa và gợi ý (ví dụ: 'áo thun', 'card visit').",
+          description: "Tìm kiếm sản phẩm in ấn (áo thun, card visit, tờ rơi...).",
           parameters: {
             type: "object",
             properties: {
-              search_query: {
-                type: "string",
-                description:
-                  "Từ khóa tìm kiếm (ví dụ: 'áo', 'nón', 'logo công ty')",
-              },
+              search_query: { type: "string", description: "Tên sản phẩm cần tìm" },
+            },
+            required: ["search_query"],
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "find_printers",
+          description: "Tìm kiếm nhà in, tiệm in theo tên hoặc địa điểm.",
+          parameters: {
+            type: "object",
+            properties: {
+              search_query: { type: "string", description: "Từ khóa (tên nhà in, địa điểm)" },
             },
             required: ["search_query"],
           },
@@ -64,11 +61,10 @@ export class ChatToolService {
         type: "function",
         function: {
           name: "get_recent_orders",
-          description:
-            "Lấy 5 đơn hàng gần đây nhất của user. Dùng khi user hỏi 'đơn hàng của tôi', 'đặt lại đơn cũ'.",
+          description: "Lấy danh sách đơn hàng gần đây của user.",
           parameters: {
             type: "object",
-            properties: {},
+            properties: {}, 
             required: [],
           },
         },
@@ -76,40 +72,12 @@ export class ChatToolService {
       {
         type: "function",
         function: {
-          name: "reorder_from_template",
-          description:
-            "Tạo một bản tóm tắt ĐƠN HÀNG NHÁP (template) dựa trên ID của một đơn hàng cũ. Dùng khi user đã CHỈ ĐỊNH rõ một đơn hàng cũ.",
-          parameters: {
-            type: "object",
-            properties: {
-              order_id: {
-                type: "string",
-                description: "ID (MongoDB) của đơn hàng cũ cần đặt lại.",
-              },
-              new_quantity: {
-                type: "number",
-                description:
-                  "Số lượng MỚI. Nếu không cung cấp, dùng số lượng cũ.",
-              },
-            },
-            required: ["order_id"],
-          },
-        },
-      },
-      {
-        type: "function",
-        function: {
           name: "suggest_value_added_services",
-          description:
-            "Đề xuất các dịch vụ giá trị gia tăng (VAS) phù hợp dựa trên vai trò của người dùng (designer, business_owner, customer).",
+          description: "Gợi ý dịch vụ gia tăng (VAS).",
           parameters: {
             type: "object",
             properties: {
-              role: {
-                type: "string",
-                enum: ["designer", "business_owner", "customer"],
-                description: "Vai trò của người dùng từ context.",
-              },
+              role: { type: "string", enum: ["designer", "business_owner", "customer"] },
             },
             required: ["role"],
           },
@@ -118,304 +86,175 @@ export class ChatToolService {
     ];
   }
 
-  /**
-   * (executeTool giữ nguyên)
-   */
   async executeTool(toolCall, context) {
     const toolName = toolCall.function.name;
-    const args = JSON.parse(toolCall.function.arguments);
-    Logger.info(`[ChatToolSvc] Executing tool: ${toolName}`, args);
-
-    let response;
-    let isTerminal = false;
+    let args = {};
+    try { args = JSON.parse(toolCall.function.arguments); } catch (e) {}
+    
+    Logger.info(`[ChatToolSvc] 🔧 Executing: ${toolName}`, args);
 
     try {
       switch (toolName) {
         case "find_products":
-          response = await this._find_products(args, context);
-          break;
+          return await this._find_products(args);
+        case "find_printers":
+          return await this._find_printers(args, context);
         case "get_recent_orders":
-          response = await this._get_recent_orders(args, context);
-          isTerminal = true;
-          break;
-        case "reorder_from_template":
-          response = await this._reorder_from_template(args, context);
-          break;
+          return await this._get_recent_orders(context); // Terminal action
         case "suggest_value_added_services":
-          response = await this._suggest_value_added_services(args, context);
-          break;
+          return await this._suggest_value_added_services(args);
         default:
-          Logger.warn(`[ChatToolSvc] Unknown tool: ${toolName}`);
-          response = ChatResponseUtil.createToolResponse(
-            toolName,
-            "Lỗi: Tool không tồn tại."
-          );
+          return "Tool không tồn tại.";
       }
     } catch (error) {
-      Logger.error(`[ChatToolSvc] Error executing tool ${toolName}:`, error);
-      response = ChatResponseUtil.createToolResponse(
-        toolName,
-        `Lỗi thực thi tool: ${error.message}`
-      );
+      Logger.error(`[ChatToolSvc] Error ${toolName}:`, error);
+      return `Lỗi khi thực hiện ${toolName}: ${error.message}`;
     }
-
-    return { response, isTerminal };
   }
 
-  // --- LOGIC THỰC THI CÁC TOOL ---
+  // --- IMPLEMENTATION ---
 
-  /**
-   * ✅ UPGRADED: Semantic Search using MongoDB Atlas Vector Search
-   * Falls back to Regex search if vector search is unavailable
-   */
-  async _find_products(args, context) {
-    const { search_query } = args;
-    
+  async _find_products({ search_query }) {
+    if (!search_query) return "Vui lòng cung cấp từ khóa tìm kiếm.";
+
+    // ✅ 1. DÙNG ALGOLIA THAY CHO MONGO/VECTOR (Ưu tiên)
     try {
-      // Step 1: Try Vector Search first (if available)
-      if (embeddingService.isAvailable()) {
-        Logger.info(`[ChatToolSvc] Attempting vector search for: "${search_query}"`);
-        
-        try {
-          // Generate embedding for user's search query
-          const queryVector = await embeddingService.generateEmbedding(search_query);
-          
-          if (queryVector && queryVector.length === 1536) {
-            // Execute MongoDB Atlas Vector Search
-            const vectorResults = await Product.aggregate([
-              {
-                $vectorSearch: {
-                  index: "vector_index", // Atlas Vector Search Index name
-                  path: "embedding",
-                  queryVector: queryVector,
-                  numCandidates: 100, // Candidate pool for ANN search
-                  limit: 5, // Final results
-                  filter: {
-                    isActive: { $ne: false }, // Only active products
-                  },
-                },
-              },
-              {
-                $project: {
-                  name: 1,
-                  pricing: 1,
-                  description: 1,
-                  category: 1,
-                  printerProfileId: 1,
-                  basePrice: 1,
-                  score: { $meta: "vectorSearchScore" }, // Relevance score
-                },
-              },
-            ]);
-
-            if (vectorResults && vectorResults.length > 0) {
-              Logger.info(
-                `[ChatToolSvc] Vector search found ${vectorResults.length} results`
-              );
-
-              // Format results for AI context
-              const simplifiedProducts = vectorResults.map((p) => ({
-                id: p._id.toString(),
-                name: p.name,
-                category: p.category,
-                price: p.pricing[0]?.pricePerUnit || p.basePrice || "N/A",
-                minQuantity: p.pricing[0]?.minQuantity || 1,
-                relevanceScore: p.score ? p.score.toFixed(3) : "N/A",
-                description: p.description
-                  ? p.description.substring(0, 100) + "..."
-                  : "",
-              }));
-
-              const jsonResult = JSON.stringify(simplifiedProducts, null, 2);
-              return ChatResponseUtil.createToolResponse(
-                "find_products",
-                `Kết quả tìm kiếm ngữ nghĩa (Semantic Search) cho "${search_query}":\n${jsonResult}\n\n(Ghi chú: relevanceScore cao hơn = liên quan hơn)`
-              );
-            } else {
-              Logger.info(
-                `[ChatToolSvc] Vector search returned no results, falling back to regex`
-              );
-            }
-          } else {
-            Logger.warn(
-              `[ChatToolSvc] Failed to generate query vector, falling back to regex`
-            );
-          }
-        } catch (vectorError) {
-          Logger.error(
-            `[ChatToolSvc] Vector search error: ${vectorError.message}`,
-            vectorError
-          );
-          // Continue to fallback
-        }
-      }
-
-      // Step 2: Fallback to Regex Search
-      Logger.info(`[ChatToolSvc] Using regex fallback search for: "${search_query}"`);
+      const hits = await algoliaService.searchProducts(search_query);
       
-      const products = await this.productRepository.find(
-        {
-          $and: [
-            {
-              $or: [
-                { name: new RegExp(search_query, "i") },
-                { description: new RegExp(search_query, "i") },
-                { category: new RegExp(search_query, "i") },
-              ],
-            },
-            {
-              $or: [
-                { isActive: true },
-                { isActive: { $exists: false } },
-                { isActive: null },
-              ],
-            },
-          ],
-        },
-        { limit: 5 }
-      );
-
-      if (!products || products.length === 0) {
-        return ChatResponseUtil.createToolResponse(
-          "find_products",
-          `Không tìm thấy sản phẩm nào khớp với "${search_query}". Vui lòng thử từ khóa khác.`
-        );
+      if (hits && hits.length > 0) {
+        // Map lại cấu trúc dữ liệu từ Algolia về format chat cần
+        const products = hits.map(h => ({
+          _id: h.objectID, // Algolia dùng objectID thay vì _id
+          name: h.name,
+          pricing: [{ pricePerUnit: h.price }], // Giả lập cấu trúc pricing
+          images: [{ url: h.image }],
+          category: h.category,
+          printerProfileId: null, // Algolia không lưu printerProfileId, có thể thêm sau
+        }));
+        
+        return ChatResponseUtil.createProductResponse(products, search_query);
       }
-
-      const simplifiedProducts = products.map((p) => ({
-        id: p._id.toString(),
-        name: p.name,
-        category: p.category,
-        price: p.pricing[0]?.pricePerUnit || p.basePrice || "N/A",
-        minQuantity: p.pricing[0]?.minQuantity || 1,
-      }));
-
-      const jsonResult = JSON.stringify(simplifiedProducts, null, 2);
-      return ChatResponseUtil.createToolResponse(
-        "find_products",
-        `Kết quả tìm kiếm (Regex) cho "${search_query}":\n${jsonResult}`
-      );
-    } catch (error) {
-      Logger.error(`[ChatToolSvc] Error in _find_products: ${error.message}`, error);
-      return ChatResponseUtil.createToolResponse(
-        "find_products",
-        `Lỗi khi tìm sản phẩm: ${error.message}`
-      );
+    } catch (e) {
+      Logger.error("[ChatToolSvc] Algolia search failed, fallback to MongoDB", e);
     }
+
+    // ⬇️ 2. FALLBACK: Vector Search (nếu Algolia fail)
+    if (embeddingService.isAvailable()) {
+      try {
+        const queryVector = await embeddingService.generateEmbedding(search_query);
+        const vectorResults = await Product.aggregate([
+          {
+            $vectorSearch: {
+              index: "vector_index",
+              path: "embedding",
+              queryVector: queryVector,
+              numCandidates: 50,
+              limit: 5,
+              filter: { isActive: { $ne: false } }
+            }
+          }
+        ]);
+
+        if (vectorResults.length > 0) {
+          return ChatResponseUtil.createProductResponse(this._formatProducts(vectorResults), search_query);
+        }
+      } catch (e) { 
+        Logger.warn("[ChatToolSvc] Vector search failed, falling back to regex", e); 
+      }
+    }
+
+    // ⬇️ 3. FALLBACK: Regex Search (MongoDB)
+    const products = await Product.find({
+      $or: [
+        { name: { $regex: search_query, $options: "i" } },
+        { category: { $regex: search_query, $options: "i" } }
+      ],
+      isActive: true
+    }).limit(5).lean();
+
+    // Xử lý không tìm thấy -> Tìm sản phẩm phổ biến
+    if (products.length === 0) {
+       const popular = await Product.find({ isActive: true }).sort({ views: -1 }).limit(3).lean();
+       return {
+         type: "product_selection",
+         content: {
+           text: `Không tìm thấy "${search_query}". Dưới đây là các sản phẩm phổ biến:`,
+           products: this._formatProducts(popular),
+           isNoResults: true,
+           originalQuery: search_query
+         }
+       };
+    }
+
+    return ChatResponseUtil.createProductResponse(this._formatProducts(products), search_query);
   }
 
-  /**
-   * ✅ FIX: Tool _get_recent_orders - Transform MasterOrder data
-   */
-  async _get_recent_orders(args, context) {
-    if (context.actorType === "Guest") {
-      return ChatResponseUtil.createNeedsAuthResponse(
-        "Vui lòng đăng nhập để xem đơn hàng."
-      );
-    }
-    const orders = await this.orderRepository.findByCustomerId(
-      context.actorId,
-      { limit: 5, sort: "-createdAt" }
-    );
-    if (!orders || orders.length === 0) {
-      return ChatResponseUtil.createTextResponse("Bạn chưa có đơn hàng nào.");
-    }
-    
-    // ✅ FIX: Transform MasterOrder to SimplifiedOrder format
-    const transformedOrders = orders.map(order => ({
-      _id: order._id.toString(),
-      orderNumber: order.orderNumber,
-      status: order.masterStatus || "pending",
-      total: order.totalAmount || 0,
-      items: (order.printerOrders && order.printerOrders[0]?.items) 
-        ? order.printerOrders[0].items.map(item => ({
-            productId: item.productId?.toString() || "",
-            productName: item.productName || "Sản phẩm",
-            quantity: item.quantity || 1,
-          }))
-        : [],
-      createdAt: order.createdAt || new Date().toISOString(),
+  _formatProducts(products) {
+    return products.map(p => ({
+      _id: p._id.toString(),
+      name: p.name,
+      pricing: p.pricing || [],
+      images: p.images || [],
+      printerId: p.printerProfileId?.toString() || "",
+      category: p.category || ""
     }));
+  }
+
+  async _find_printers({ search_query }, context) {
+    // Logic tìm nhà in (giữ nguyên logic query, bỏ log rườm rà)
+    const regex = new RegExp(search_query, "i");
+    let printers = await PrinterProfile.find({
+      $or: [
+        { businessName: regex },
+        { "shopAddress.city": regex },
+        { specialties: regex }
+      ],
+      isActive: true,
+      isVerified: true
+    }).sort({ rating: -1 }).limit(5).lean();
+
+    if (printers.length === 0) {
+      // Fallback: Top rated
+      printers = await PrinterProfile.find({ isActive: true, isVerified: true })
+        .sort({ rating: -1 }).limit(3).lean();
+        
+      return {
+          type: "printer_selection",
+          content: {
+              text: `Không tìm thấy nhà in "${search_query}". Gợi ý các nhà in uy tín:`,
+              printers: printers,
+              isNoResults: true,
+              originalQuery: search_query
+          }
+      };
+    }
+
+    return ChatResponseUtil.createPrinterResponse(printers, search_query);
+  }
+
+  async _get_recent_orders(context) {
+    if (context.actorType === "Guest") return "Vui lòng đăng nhập để xem đơn hàng.";
     
-    return ChatResponseUtil.createOrderCarouselResponse(transformedOrders);
-  }
+    const orders = await this.orderRepository.findByCustomerId(context.actorId, { limit: 5, sort: "-createdAt" });
+    
+    // Transform nhẹ nhàng
+    const formattedOrders = orders.map(o => ({
+      _id: o._id.toString(),
+      orderNumber: o.orderNumber,
+      status: o.masterStatus,
+      total: o.totalAmount,
+      items: o.printerOrders?.[0]?.items || []
+    }));
 
-  /**
-   * (Tool _reorder_from_template giữ nguyên)
-   */
-  async _reorder_from_template(args, context) {
-    const { order_id, new_quantity } = args;
-    if (context.actorType === "Guest") {
-      return ChatResponseUtil.createNeedsAuthResponse(
-        "Vui lòng đăng nhập để đặt lại đơn."
-      );
-    }
-    // 1. Lấy đơn hàng cũ
-    const oldOrder = await this.orderRepository.findById(order_id);
-    if (!oldOrder || oldOrder.customerId.toString() !== context.actorId) {
-      throw new NotFoundException("Không tìm thấy đơn hàng cũ.");
-    }
-
-    // 2. Lấy sản phẩm (để check giá MỚI)
-    const oldItem = oldOrder.items[0];
-    // ✅ SỬA LỖI 4: Dùng this.productRepository (instance)
-    const product = await this.productRepository.findById(oldItem.productId);
-    if (!product || !product.isActive) {
-      // (Sửa 'status' thành 'isActive' cho khớp model)
-      throw new Error(`Sản phẩm "${oldItem.productName}" không còn tồn tại.`);
-    }
-
-    // 3. Tính toán (ĐÃ NÂNG CẤP)
-    const quantity = new_quantity || oldItem.quantity;
-
-    const priceTier = findBestPriceTier(product.pricing, quantity);
-
-    if (!priceTier) {
-      throw new Error(
-        `Sản phẩm "${product.name}" không có bậc giá hợp lệ cho số lượng ${quantity}.`
-      );
-    }
-
-    const pricePerUnit = priceTier.pricePerUnit;
-    const estimatedPrice = quantity * pricePerUnit;
-
-    const summary = {
-      productName: product.name,
-      oldQuantity: oldItem.quantity,
-      newQuantity: quantity,
-      estimatedPrice: estimatedPrice,
-      payload: {
-        productId: product._id,
-        quantity: quantity,
-        pricePerUnit: pricePerUnit,
-        customization: oldItem.customization,
-      },
+    return { 
+      type: "order_selection", 
+      content: { orders: formattedOrders },
+      isTerminal: true // Dừng flow AI, trả về UI luôn
     };
-
-    return ChatResponseUtil.createToolResponse(
-      "reorder_from_template",
-      `Đã tạo tóm tắt đơn hàng nháp: ${JSON.stringify(summary)}`
-    );
   }
 
-  /**
-   * (Tool _suggest_value_added_services giữ nguyên)
-   */
-  async _suggest_value_added_services(args, context) {
-    const { role } = args;
-    const suggestions = vasMap[role] || vasMap.customer;
-
-    const formattedSuggestions = suggestions.map(
-      (s) => `${s.name} (+${s.price.toLocaleString("vi-VN")}đ)`
-    );
-
-    const resultText = `Dựa trên vai trò '${role}', đây là các gợi ý VAS: ${formattedSuggestions.join(
-      ", "
-    )}`;
-
-    return ChatResponseUtil.createToolResponse(
-      "suggest_value_added_services",
-      resultText
-    );
+  async _suggest_value_added_services({ role }) {
+    const suggestions = VAS_MAP[role] || VAS_MAP.customer;
+    return `Gợi ý dịch vụ: ${suggestions.map(s => s.name).join(", ")}`;
   }
 }

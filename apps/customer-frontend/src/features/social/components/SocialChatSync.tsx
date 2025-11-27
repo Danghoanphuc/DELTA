@@ -9,10 +9,10 @@ import { useSocialChatStore } from "../hooks/useSocialChatStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchConversationById } from "../../chat/services/chat.api.service";
-import { toast } from "sonner"; // Thêm toast để báo user
+import { toast } from "@/shared/utils/toast"; // Thêm toast để báo user
 
 export function SocialChatSync() {
-  const { socket } = useSocket();
+  const { pusher } = useSocket(); // ✅ FIX: Dùng pusher thay vì socket
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const location = useLocation();
@@ -35,14 +35,47 @@ export function SocialChatSync() {
     }
   }, [location.pathname, activeConversationId, setActiveConversation]);
 
-  // 2. LOGIC LẮNG NGHE SOCKET (ĐÃ NÂNG CẤP)
+  // 2. LOGIC LẮNG NGHE PUSHER (ĐÃ NÂNG CẤP)
   useEffect(() => {
-    if (!socket || !user) return;
+    if (!pusher || !user) {
+      console.warn("[SocialChatSync] Pusher or user not available", { pusher: !!pusher, user: !!user });
+      return;
+    }
+
+    // ✅ FIX: Subscribe vào private channel của user
+    const channelName = `private-user-${user._id}`;
+    console.log(`[SocialChatSync] Subscribing to channel: ${channelName}`);
+    
+    const channel = pusher.subscribe(channelName);
+
+    // ✅ Handle subscription events
+    channel.bind("pusher:subscription_succeeded", () => {
+      console.log(`✅ [SocialChatSync] Successfully subscribed to ${channelName}`);
+    });
+
+    channel.bind("pusher:subscription_error", (err: any) => {
+      console.error(`❌ [SocialChatSync] Subscription error for ${channelName}:`, err);
+      // JWT expired - có thể cần refresh token hoặc đăng nhập lại
+      if (err.status === 403 || err.status === 401) {
+        console.warn("[SocialChatSync] Auth failed - token may be expired. Please refresh page or login again.");
+      }
+    });
 
     // --- A. Xử lý tin nhắn mới (Giữ nguyên) ---
     const onNewMessage = async (message: any) => {
-      if (message.sender === user._id || message.sender?._id === user._id) return;
-      if (message.senderType === "AI") return;
+      // ✅ LOG: Chỉ log thông tin quan trọng
+      console.log(`[SocialChatSync] 📨 Received: msgId=${message._id}, type=${message.type}, attachments=${message.content?.attachments?.length || 0}`);
+      
+      // ✅ Bỏ qua messages từ chính mình (đã có optimistic update)
+      if (message.sender === user._id || message.sender?._id === user._id) {
+        console.log("[SocialChatSync] ⏭️ Ignoring own message");
+        return;
+      }
+      
+      if (message.senderType === "AI") {
+        console.log("[SocialChatSync] ⏭️ Ignoring AI message");
+        return;
+      }
 
       // Nếu chưa có hội thoại trong Store thì fetch về
       const conversationExists = conversations.find(
@@ -97,25 +130,27 @@ export function SocialChatSync() {
       }
     };
 
-    // Đăng ký sự kiện
-    socket.on("new_message", onNewMessage);
-    socket.on("conversation_updated", onConversationUpdated); // 🔥 Mới
-    socket.on("conversation_removed", onConversationRemoved); // 🔥 Mới
+    // ✅ FIX: Bind Pusher events thay vì socket.on()
+    channel.bind("new_message", onNewMessage);
+    channel.bind("conversation_updated", onConversationUpdated);
+    channel.bind("conversation_removed", onConversationRemoved);
 
     return () => {
-      socket.off("new_message", onNewMessage);
-      socket.off("conversation_updated", onConversationUpdated);
-      socket.off("conversation_removed", onConversationRemoved);
+      // ✅ FIX: Unbind và unsubscribe khi cleanup
+      channel.unbind("new_message", onNewMessage);
+      channel.unbind("conversation_updated", onConversationUpdated);
+      channel.unbind("conversation_removed", onConversationRemoved);
+      pusher.unsubscribe(channelName);
     };
   }, [
-    socket, 
+    pusher, // ✅ FIX: Dùng pusher thay vì socket
     user, 
     handleSocketMessage, 
     activeConversationId, 
     queryClient, 
     conversations, 
     addConversation, 
-    removeConversation, // Nhớ đảm bảo Store có hàm này (đã check ở bước trước)
+    removeConversation,
     location.pathname,
     navigate, 
     setActiveConversation

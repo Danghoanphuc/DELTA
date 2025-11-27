@@ -3,7 +3,7 @@
 
 import { useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { PrinterProduct } from "@/types/product";
 import * as productService from "@/services/productService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; // ✅ Import

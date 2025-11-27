@@ -3,7 +3,7 @@
 
 import api from "@/shared/lib/axios";
 import { uploadFileToCloudinary } from "@/services/cloudinaryService";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 
 export interface MediaAsset {
   _id: string;

@@ -51,10 +51,26 @@ export const useMessageState = () => {
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
   const addAiMessage = useCallback((response: AiApiResponse, currentConversationId: string | null) => {
+    // ✅ SKIP: Bỏ qua response null hoặc không hợp lệ
+    if (!response || !response.type) {
+      console.warn("[useMessageState] ⚠️ Invalid response, skipping:", response);
+      return null;
+    }
+
     let aiMessage: ChatMessage;
 
+    // 🔥 FIX: Ưu tiên dùng _id từ response (ID thật từ MongoDB) thay vì tạo uuid mới
+    // Nếu backend không trả về _id (hiếm), mới fallback sang uuidv4()
+    const realId = (response as any)._id || uuidv4();
+    
+    if ((response as any)._id) {
+      console.log("[useMessageState] ✅ Sử dụng ID thật từ Backend:", (response as any)._id);
+    } else {
+      console.log("[useMessageState] ⚠️ Backend không trả về _id, tạo ID mới:", realId);
+    }
+
     const baseMessage = {
-      _id: uuidv4(),
+      _id: realId, // ✅ SỬA DÒNG NÀY: Dùng ID thật từ Backend
       senderType: "AI" as const,
       conversationId: response.newConversation?._id || currentConversationId || "error",
     };
@@ -71,6 +87,9 @@ export const useMessageState = () => {
         break;
       case "order_selection":
         aiMessage = { ...baseMessage, type: "order_selection", content: response.content as OrderSelectionContent };
+        break;
+      case "printer_selection":
+        aiMessage = { ...baseMessage, type: "printer_selection", content: response.content as any };
         break;
       case "payment_request":
         aiMessage = { ...baseMessage, type: "payment_request", content: response.content as PaymentRequestContent };
@@ -108,9 +127,9 @@ export const useMessageState = () => {
         aiMessage = { ...baseMessage, type: "error", content: response.content as TextMessageContent };
         break;
       default:
-        // Fallback for unknown types, or throw an error
-        aiMessage = { ...baseMessage, type: "text", content: { text: "Unknown message type" } };
-        break;
+        // ✅ SKIP: Không tạo message với "Unknown message type", log warning và return null
+        console.warn(`[useMessageState] ⚠️ Unknown message type: ${response.type}, skipping message creation`);
+        return null;
     }
 
     flushSync(() => {

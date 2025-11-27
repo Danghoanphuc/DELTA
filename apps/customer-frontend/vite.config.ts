@@ -20,6 +20,11 @@ export default defineConfig(({ mode }) => {
           find: /^mapbox-gl$/,
           replacement: path.resolve(__dirname, "node_modules/mapbox-gl/dist/mapbox-gl.js"),
         },
+        // ✅ FIX: Alias cho zod/v4/core - @hookform/resolvers cần import này
+        {
+          find: /^zod\/v4\/core$/,
+          replacement: "zod",
+        },
       ],
       // ✅ FIX: Đảm bảo resolve đúng các package
       dedupe: ["react", "react-dom"],
@@ -44,9 +49,14 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // ✅ FIX: Proxy config để đảm bảo cookies được forward đúng cách
         "/api": {
-          target: env.VITE_BACKEND_URL || "http://localhost:8000",
+          // ✅ FIX: Luôn dùng localhost:8000 trong dev mode (backend mặc định)
+          target: mode === "development" 
+            ? "http://localhost:8000" 
+            : (env.VITE_BACKEND_URL || "http://localhost:8000"),
           changeOrigin: true,
           secure: false,
+          // ✅ FIX: Thêm timeout và retry để tránh lỗi khi backend chưa sẵn sàng
+          timeout: 30000,
           // ✅ FIX: Đảm bảo cookies được forward
           cookieDomainRewrite: "",
           cookiePathRewrite: "/",
@@ -65,6 +75,19 @@ export default defineConfig(({ mode }) => {
                 res.setHeader('Set-Cookie', setCookieHeaders);
               }
             });
+            // ✅ FIX: Xử lý lỗi proxy một cách graceful
+            proxy.on('error', (err, req, res) => {
+              console.error('[Vite Proxy] Error:', err.message);
+              if (!res.headersSent) {
+                res.writeHead(503, {
+                  'Content-Type': 'application/json',
+                });
+                res.end(JSON.stringify({
+                  error: 'Service Unavailable',
+                  message: 'Backend server is not ready. Please wait a moment and refresh.',
+                }));
+              }
+            });
           },
         },
       },
@@ -80,6 +103,10 @@ export default defineConfig(({ mode }) => {
       esbuildOptions: {
         // ✅ FIX: Đảm bảo resolve đúng các package có vấn đề với exports
         mainFields: ["module", "main", "browser"],
+        // ✅ FIX: Thêm alias cho zod/v4/core trong esbuild để resolve đúng khi pre-bundle
+        alias: {
+          "zod/v4/core": "zod",
+        },
       },
     },
 

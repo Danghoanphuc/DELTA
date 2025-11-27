@@ -1,6 +1,6 @@
 // src/features/printer/components/SupportFormCard.tsx
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";

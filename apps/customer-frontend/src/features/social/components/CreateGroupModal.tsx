@@ -11,7 +11,7 @@ import { getFriends } from "@/services/api/connection.api.service";
 import { createGroupConversation } from "../../chat/services/chat.api.service";
 import { useSocialChatStore } from "../hooks/useSocialChatStore";
 import { cn } from "@/shared/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { useAuthStore } from "@/stores/useAuthStore";

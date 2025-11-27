@@ -12,6 +12,10 @@ import {
 
 // ✅ RAG: Import Embedding Service
 import { embeddingService } from "../../shared/services/embedding.service.js";
+// ✅ Algolia: Import Algolia Service để sync
+import { algoliaService } from "../../infrastructure/search/algolia.service.js";
+// ✅ Logger
+import { Logger } from "../../shared/utils/index.js";
 
 /**
  * Service này CHỈ dành cho Nhà in (Printer) đã xác thực
@@ -190,7 +194,16 @@ class ProductService {
       }
     }
 
-    return productRepository.create(productData);
+    const product = await productRepository.create(productData);
+    
+    // ✅ SYNC NGAY: Bắn lên Algolia (async, không block)
+    if (product && product.isActive) {
+      algoliaService.syncProduct(product.toObject ? product.toObject() : product).catch(err => {
+        Logger.error("[ProductService] Algolia sync failed on create:", err);
+      });
+    }
+    
+    return product;
   }
 
   /**
@@ -237,6 +250,19 @@ class ProductService {
     }
 
     await product.save();
+    
+    // ✅ SYNC UPDATE: Cập nhật lên Algolia (async, không block)
+    if (product.isActive) {
+      algoliaService.syncProduct(product.toObject ? product.toObject() : product).catch(err => {
+        Logger.error("[ProductService] Algolia sync failed on update:", err);
+      });
+    } else {
+      // Nếu sản phẩm bị deactivate, xóa khỏi Algolia
+      algoliaService.deleteProduct(product._id.toString()).catch(err => {
+        Logger.error("[ProductService] Algolia delete failed:", err);
+      });
+    }
+    
     return product;
   }
 
@@ -249,6 +275,12 @@ class ProductService {
 
     // 2. Xóa
     await productRepository.deleteById(productId);
+    
+    // ✅ SYNC DELETE: Xóa khỏi Algolia (async, không block)
+    algoliaService.deleteProduct(productId.toString()).catch(err => {
+      Logger.error("[ProductService] Algolia delete failed:", err);
+    });
+    
     return { message: "Đã xóa sản phẩm thành công." };
   }
 

@@ -68,16 +68,21 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
       const messageCountIncreased = messages.length > lastMessageCountRef.current;
       
       if (messageCountIncreased) {
-        // Calculate new scroll position to maintain visual position
-        const newScrollHeight = scrollEl.scrollHeight;
-        const scrollHeightDiff = newScrollHeight - previousScrollHeight;
-        
-        // Restore scroll position
-        scrollEl.scrollTop = scrollHeightDiff;
-        
-        // Reset loading state
-        setIsLoadingMore(false);
-        lastMessageCountRef.current = messages.length;
+        // ✅ FIX: Use requestAnimationFrame to ensure DOM is updated before scrolling
+        requestAnimationFrame(() => {
+          if (!scrollEl) return;
+          
+          // Calculate new scroll position to maintain visual position
+          const newScrollHeight = scrollEl.scrollHeight;
+          const scrollHeightDiff = newScrollHeight - previousScrollHeight;
+          
+          // Restore scroll position
+          scrollEl.scrollTop = scrollHeightDiff;
+          
+          // Reset loading state
+          setIsLoadingMore(false);
+          lastMessageCountRef.current = messages.length;
+        });
       }
     }, [messages.length, isLoadingMore, previousScrollHeight]);
 
@@ -92,11 +97,18 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
         // 2. User sent the message OR user is near bottom
         if (isNewMessage && !isLoadingMore) {
           const scrollEl = scrollRef.current;
+          if (!scrollEl) return;
+          
           const isNearBottom = 
             scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 200;
           
           if (lastMessage.senderType === "User" || isNearBottom) {
-            scrollEl.scrollTop = scrollEl.scrollHeight;
+            // ✅ FIX: Use requestAnimationFrame for smooth scrolling
+            requestAnimationFrame(() => {
+              if (scrollEl) {
+                scrollEl.scrollTop = scrollEl.scrollHeight;
+              }
+            });
           }
           
           lastMessageCountRef.current = messages.length;

@@ -1,5 +1,5 @@
 // apps/customer-frontend/src/contexts/SocketProvider.tsx
-// ✅ FIXED: Join User Room to receive Realtime Messages & Notifications
+// ✅ Pusher Provider - Thay thế Socket.io
 
 import React, {
   createContext,
@@ -8,106 +8,121 @@ import React, {
   useState,
   useRef,
 } from "react";
-import { io, Socket } from "socket.io-client";
+import Pusher from "pusher-js";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 interface SocketContextType {
-  socket: Socket | null;
+  pusher: Pusher | null;
   isConnected: boolean;
+  // ✅ Tương thích ngược: Giữ socket property để code cũ vẫn chạy
+  socket: {
+    socket: Pusher | null;
+  } | null;
 }
 
-const SocketContext = createContext<SocketContextType>({
-  socket: null,
-  isConnected: false,
-});
+const SocketContext = createContext<SocketContextType | null>(null);
 
-export const useSocket = () => useContext(SocketContext);
+export const useSocket = () => {
+  const context = useContext(SocketContext);
+  if (!context) {
+    throw new Error("useSocket must be used within SocketProvider");
+  }
+  return context;
+};
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [pusher, setPusher] = useState<Pusher | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const { accessToken, user } = useAuthStore();
-
-  const socketRef = useRef<Socket | null>(null);
+  const { user, accessToken } = useAuthStore(); // ✅ Lấy token từ store thay vì localStorage
+  const pusherRef = useRef<Pusher | null>(null);
 
   useEffect(() => {
-    // Chỉ kết nối khi có Token và User ID
-    if (!accessToken || !user) {
-      if (socketRef.current) {
-        console.log("[Socket] Disconnecting due to logout...");
-        socketRef.current.disconnect();
-        socketRef.current = null;
-        setSocket(null);
+    if (!user || !accessToken) {
+      if (pusherRef.current) {
+        console.log("[Pusher] Disconnecting due to logout or missing token...");
+        pusherRef.current.disconnect();
+        pusherRef.current = null;
+        setPusher(null);
         setIsConnected(false);
       }
       return;
     }
 
-    // Singleton Socket Instance
-    if (!socketRef.current) {
-      // Lấy URL từ env hoặc fallback local
-      const SOCKET_URL =
-        import.meta.env.VITE_SOCKET_URL ||
-        import.meta.env.VITE_API_URL ||
-        "http://localhost:5000"; // Đổi port 8000 hay 5000 tùy backend của bạn
-
-      console.log("[Socket] Initializing connection to:", SOCKET_URL);
-
-      socketRef.current = io(SOCKET_URL, {
-        auth: { token: accessToken },
-        transports: ["websocket"],
-        reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 1000,
-      });
-
-      const socketInstance = socketRef.current;
-
-      socketInstance.on("connect", () => {
-        console.log("✅ [Socket] Connected ID:", socketInstance.id);
-        setIsConnected(true);
-
-        // 🔥 QUAN TRỌNG: Join room riêng của user để nhận tin nhắn cá nhân
-        // Backend emit tới recipientId, nên socket phải join room có tên là userId
-        socketInstance.emit("join_user_room", user._id);
-      });
-
-      socketInstance.on("disconnect", (reason) => {
-        console.warn("❌ [Socket] Disconnected:", reason);
-        setIsConnected(false);
-      });
-
-      socketInstance.on("connect_error", (err) => {
-        console.error("⚠️ [Socket] Connection Error:", err.message);
-      });
-
-      setSocket(socketInstance);
-    } else {
-      // Update token nếu thay đổi
-      socketRef.current.auth = { token: accessToken };
+    // ✅ Reinitialize Pusher khi token thay đổi
+    if (pusherRef.current) {
+      console.log("[Pusher] Token changed, reinitializing...");
+      pusherRef.current.disconnect();
+      pusherRef.current = null;
     }
 
-    // Xử lý Background Throttling (Khi tab bị ẩn/hiện)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && socketRef.current) {
-        if (!socketRef.current.connected) {
-          console.log("🔄 [Socket] Tab active, reconnecting...");
-          socketRef.current.connect();
-        }
+    const PUSHER_KEY = import.meta.env.VITE_PUSHER_KEY;
+    const PUSHER_CLUSTER = import.meta.env.VITE_PUSHER_CLUSTER || "ap1";
+
+    if (!PUSHER_KEY) {
+      console.error("[Pusher] VITE_PUSHER_KEY is missing");
+      return;
+    }
+
+    console.log("[Pusher] Initializing connection...");
+
+    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+    // ✅ Auth endpoint cho private channels - dùng token từ store
+    pusherRef.current = new Pusher(PUSHER_KEY, {
+      cluster: PUSHER_CLUSTER,
+      authEndpoint: `${API_URL}/api/auth/pusher/auth`,
+      auth: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // ✅ Dùng token từ store
+        },
+      },
+    });
+
+    const pusherInstance = pusherRef.current;
+
+    pusherInstance.connection.bind("connected", () => {
+      console.log("✅ [Pusher] Connected");
+      setIsConnected(true);
+    });
+
+    pusherInstance.connection.bind("disconnected", () => {
+      console.warn("❌ [Pusher] Disconnected");
+      setIsConnected(false);
+    });
+
+    pusherInstance.connection.bind("error", (err: any) => {
+      console.error("⚠️ [Pusher] Connection Error:", err);
+      setIsConnected(false);
+    });
+
+    // ✅ Handle subscription errors (JWT expired, etc.)
+    pusherInstance.connection.bind("state_change", (states: any) => {
+      console.log(`[Pusher] State changed: ${states.previous} -> ${states.current}`);
+      if (states.current === "connected") {
+        setIsConnected(true);
+      } else if (states.current === "disconnected" || states.current === "failed") {
+        setIsConnected(false);
+      }
+    });
+
+    setPusher(pusherInstance);
+
+    // Cleanup on unmount
+    return () => {
+      if (pusherRef.current) {
+        pusherRef.current.disconnect();
+        pusherRef.current = null;
       }
     };
+  }, [user, accessToken]); // ✅ Re-run khi token thay đổi
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [accessToken, user]);
+  // ✅ Tương thích ngược: Giữ socket property để code cũ vẫn chạy
+  const socketCompatible = pusher ? { socket: pusher } : null;
 
   return (
-    <SocketContext.Provider value={{ socket, isConnected }}>
+    <SocketContext.Provider value={{ pusher, isConnected, socket: socketCompatible }}>
       {children}
     </SocketContext.Provider>
   );

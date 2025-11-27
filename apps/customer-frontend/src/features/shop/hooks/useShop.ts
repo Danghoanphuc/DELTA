@@ -5,7 +5,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { Product, PrinterProduct } from "@/types/product";
 import api from "@/shared/lib/axios";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { categoryIcons } from "../utils/categoryIcons"; // ✅ Import
 
 // (Định nghĩa Taxonomy và categories)

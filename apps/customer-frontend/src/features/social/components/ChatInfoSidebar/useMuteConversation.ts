@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { muteConversation } from "../../../chat/services/chat.api.service";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 
 export function useMuteConversation(conversation: any) {
   const [isMuted, setIsMuted] = useState(false);

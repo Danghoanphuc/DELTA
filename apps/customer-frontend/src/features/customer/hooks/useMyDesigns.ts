@@ -1,7 +1,7 @@
 // src/features/customer/hooks/useMyDesigns.ts
 import { useState, useEffect } from "react";
 import api from "@/shared/lib/axios"; //
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 
 // Định nghĩa 1 kiểu dữ liệu đơn giản cho thiết kế
 // (Bạn có thể tạo file src/types/design.ts nếu muốn)

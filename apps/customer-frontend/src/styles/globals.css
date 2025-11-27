@@ -234,4 +234,14 @@
     font-family: "JetBrains Mono", "Fira Code", monospace; 
     letter-spacing: -0.02em;
   }
+
+  /* 4. Scrollbar Hide Utility - Ẩn scrollbar nhưng vẫn có thể scroll */
+  .scrollbar-hide {
+    /* Chrome, Safari, Edge */
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
 }

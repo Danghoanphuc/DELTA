@@ -1,0 +1,58 @@
+// apps/customer-backend/src/modules/chat/services/browser.service.js
+// ✅ PATCH: Disable preInitialize() method
+
+// Tìm hàm preInitialize() (khoảng dòng 110-135):
+
+// ❌ CODE CŨ (Gây crash):
+/*
+  async preInitialize() {
+    if (puppeteerModule) {
+      Logger.info('[BrowserService] Already pre-initialized');
+      return;
+    }
+
+    Logger.info('[BrowserService] 🚀 Pre-initializing Puppeteer at server startup...');
+    
+    try {
+      // ✅ Import Puppeteer TRƯỚC KHI có bất kỳ job nào
+      await this._getPuppeteer();
+      
+      // ✅ Pre-launch browser để sẵn sàng ngay
+      Logger.info('[BrowserService] 🚀 Pre-launching browser...');
+      await this.getBrowser();
+      
+      Logger.info('[BrowserService] ✅ Pre-initialization completed successfully');
+    } catch (error) {
+      Logger.error('[BrowserService] ❌ Pre-initialization failed:', {
+        message: error?.message || 'Unknown',
+        name: error?.name || 'Error',
+        code: error?.code || 'NO_CODE',
+      });
+      // ✅ Không throw để server vẫn có thể start
+      Logger.warn('[BrowserService] ⚠️ Browser will be initialized on first use');
+    }
+  }
+*/
+
+// ✅ CODE MỚI (Không làm gì cả):
+
+  /**
+   * @deprecated Không dùng nữa - gây crash server khi import Puppeteer
+   * Browser sẽ được khởi tạo lazy khi cần thiết (khi có job đầu tiên)
+   */
+  async preInitialize() {
+    Logger.warn('[BrowserService] ⚠️ preInitialize() is deprecated and does nothing');
+    Logger.info('[BrowserService] 🌐 Browser will be initialized on first use (lazy load)');
+    
+    // ✅ Không import Puppeteer ở đây nữa
+    // ✅ Puppeteer sẽ được import lần đầu trong _getPuppeteer() khi getBrowser() được gọi
+    // ✅ Điều này tránh crash server khi start
+    
+    return Promise.resolve();
+  }
+
+// ✅ KẾT QUẢ:
+// - Server start thành công không bị treo
+// - Puppeteer được import lần đầu khi user gửi URL
+// - Lần gửi URL đầu tiên sẽ chậm hơn (15-20s) do phải import Puppeteer
+// - Các lần sau nhanh hơn vì đã có browser instance

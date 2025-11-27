@@ -3,7 +3,7 @@
 import { cn } from "@/shared/lib/utils";
 import { Paperclip, Send, X } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { ChatMessage, QuickReply } from "@/types/chat";
 import { ChatMessages } from "./ChatMessages";
 import { ChatWelcome } from "./ChatWelcome";

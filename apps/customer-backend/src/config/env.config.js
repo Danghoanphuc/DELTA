@@ -24,7 +24,7 @@ const envVarsSchema = Joi.object()
       .default("development"),
     SERVER_URL: Joi.string().uri().required(),
     CLIENT_URL: Joi.string().uri().required(),
-    CLIENT_URLS: Joi.string(),
+    CLIENT_URLS: Joi.string().allow("").optional(), // Allow empty
 
     // Database
     MONGODB_CONNECTIONSTRING: Joi.string().required(),
@@ -47,17 +47,17 @@ const envVarsSchema = Joi.object()
     CLOUDINARY_API_KEY: Joi.string().required(),
     CLOUDINARY_API_SECRET: Joi.string().required(),
 
-    // --- CẤU HÌNH STRIPE (GĐ 5.R2) ---
-    STRIPE_PUBLISHABLE_KEY: Joi.string().required(),
-    STRIPE_SECRET_KEY: Joi.string().required(),
-    STRIPE_WEBHOOK_SECRET: Joi.string().required(),
+    // --- CẤU HÌNH STRIPE (Cho phép optional để dev không bị chặn) ---
+    STRIPE_PUBLISHABLE_KEY: Joi.string().allow("").optional(),
+    STRIPE_SECRET_KEY: Joi.string().allow("").optional(),
+    STRIPE_WEBHOOK_SECRET: Joi.string().allow("").optional(),
 
-    // --- CẤU HÌNH VNPAY (GĐ 5.R2) ---
-    VNP_TMN_CODE: Joi.string().required(),
-    VNP_HASH_SECRET: Joi.string().required(),
-    VNP_URL: Joi.string().uri().required(),
-    VNP_RETURN_URL: Joi.string().uri().required(),
-    VNP_IPN_URL: Joi.string().uri().required(),
+    // --- CẤU HÌNH VNPAY (Cho phép optional để dev không bị chặn) ---
+    VNP_TMN_CODE: Joi.string().allow("").optional(),
+    VNP_HASH_SECRET: Joi.string().allow("").optional(),
+    VNP_URL: Joi.string().uri().allow("").optional(),
+    VNP_RETURN_URL: Joi.string().uri().allow("").optional(),
+    VNP_IPN_URL: Joi.string().uri().allow("").optional(),
 
     // --- CẤU HÌNH MOMO ---
     MOMO_PARTNER_CODE: Joi.string().allow("").optional(),
@@ -71,6 +71,25 @@ const envVarsSchema = Joi.object()
     PAYOS_CLIENT_ID: Joi.string().allow("").optional(),
     PAYOS_API_KEY: Joi.string().allow("").optional(),
     PAYOS_CHECKSUM_KEY: Joi.string().allow("").optional(),
+
+    // --- PUSHER (Real-time communication) ---
+    PUSHER_APP_ID: Joi.string().allow("").optional(),
+    PUSHER_KEY: Joi.string().allow("").optional(),
+    PUSHER_SECRET: Joi.string().allow("").optional(),
+    PUSHER_CLUSTER: Joi.string().allow("").optional(),
+
+    // --- ALGOLIA (Search service) ---
+    ALGOLIA_APP_ID: Joi.string().allow("").optional(),
+    ALGOLIA_ADMIN_KEY: Joi.string().allow("").optional(),
+
+    // --- SENTRY (Error tracking) ---
+    SENTRY_DSN: Joi.string().uri().allow("").optional(),
+
+    // --- NOVU (Notifications) ---
+    NOVU_API_KEY: Joi.string().allow("").optional(),
+
+    // --- APIFLASH (URL Screenshot) ---
+    APIFLASH_API_KEY: Joi.string().allow("").optional(),
   })
   .unknown(); // Cho phép các biến env khác không được định nghĩa
 
@@ -83,9 +102,13 @@ const { value: envVars, error } = envVarsSchema
   .validate(process.env);
 
 if (error) {
-  throw new Error(
-    `[Config Validation Error] Lỗi cấu hình .env: ${error.message}`
-  );
+  // 🚨 QUAN TRỌNG: Log lỗi ra console trước khi throw để thấy được trên terminal
+  console.error("\n\n========================================================");
+  console.error("❌ FATAL ERROR: LỖI CẤU HÌNH MÔI TRƯỜNG (.env)");
+  console.error("--------------------------------------------------------");
+  console.error(error.message);
+  console.error("========================================================\n\n");
+  throw new Error(`[Config Validation Error] ${error.message}`);
 }
 
 const normalizeClientUrls = () => {
@@ -101,7 +124,7 @@ const normalizeClientUrls = () => {
   }
 
   // Thêm các origin dev mặc định để tránh quên cấu hình
-  ["http://localhost:5173", "http://localhost:3000"].forEach((url) => {
+  ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"].forEach((url) => {
     if (envVars.NODE_ENV !== "production") {
       urls.add(url);
     }
@@ -182,5 +205,34 @@ export const config = {
     clientId: envVars.PAYOS_CLIENT_ID,
     apiKey: envVars.PAYOS_API_KEY,
     checksumKey: envVars.PAYOS_CHECKSUM_KEY,
+  },
+
+  // --- PUSHER (Real-time communication) ---
+  pusher: {
+    appId: envVars.PUSHER_APP_ID,
+    key: envVars.PUSHER_KEY,
+    secret: envVars.PUSHER_SECRET,
+    cluster: envVars.PUSHER_CLUSTER || "ap1",
+  },
+
+  // --- ALGOLIA (Search service) ---
+  algolia: {
+    appId: envVars.ALGOLIA_APP_ID,
+    adminKey: envVars.ALGOLIA_ADMIN_KEY,
+  },
+
+  // --- SENTRY (Error tracking) ---
+  sentry: {
+    dsn: envVars.SENTRY_DSN,
+  },
+
+  // --- NOVU (Notifications) ---
+  novu: {
+    apiKey: envVars.NOVU_API_KEY,
+  },
+
+  // --- APIFLASH (URL Screenshot) ---
+  apiflash: {
+    apiKey: envVars.APIFLASH_API_KEY,
   },
 };

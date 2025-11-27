@@ -9,7 +9,7 @@ import {
 } from "../../../services/api/connection.api.service";
 import { useConnectionStore } from "../../../stores/useConnectionStore";
 import { useEffect } from "react";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { Loader2, UserCheck, UserX } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 

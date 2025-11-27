@@ -26,7 +26,7 @@ import {
   QrCode,
   ChevronDown,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { useSocket } from "@/contexts/SocketProvider";
 import api from "@/shared/lib/axios";
 import { useIsMobile } from "@/shared/hooks/useMediaQuery";
@@ -43,7 +43,7 @@ interface ChatPaymentCardProps {
  * Features:
  * - Adaptive UI: Mobile shows "Open App" button, Desktop shows QR code
  * - Mini Invoice: Shows order context before payment
- * - Real-time Updates: Listens to Socket.io for payment confirmation
+ * - Real-time Updates: Listens to Pusher for payment confirmation
  * - Secure: Verifies payment with backend before updating UI
  */
 export function ChatPaymentCard({ content }: ChatPaymentCardProps) {
@@ -52,7 +52,7 @@ export function ChatPaymentCard({ content }: ChatPaymentCardProps) {
   );
   const [isVerifying, setIsVerifying] = useState(false);
   const [isQRExpanded, setIsQRExpanded] = useState(false);
-  const { socket, isConnected } = useSocket();
+  const { pusher, isConnected } = useSocket();
   const isMobile = useIsMobile();
 
   // Format currency
@@ -60,9 +60,9 @@ export function ChatPaymentCard({ content }: ChatPaymentCardProps) {
     return amount.toLocaleString("vi-VN") + " đ";
   };
 
-  // ✅ REAL-TIME: Listen for payment confirmation via Socket.io
+  // ✅ REAL-TIME: Listen for payment confirmation via Pusher
   useEffect(() => {
-    if (!socket || !isConnected || status === "paid") {
+    if (!pusher || !isConnected || status === "paid") {
       return;
     }
 
@@ -99,7 +99,7 @@ export function ChatPaymentCard({ content }: ChatPaymentCardProps) {
           }
         } catch (error) {
           console.error("[ChatPaymentCard] Error verifying payment:", error);
-          // Still update UI based on socket event (fail-safe)
+          // Still update UI based on Pusher event (fail-safe)
           setStatus("paid");
           toast.success("✅ Thanh toán thành công!");
         } finally {
@@ -111,15 +111,18 @@ export function ChatPaymentCard({ content }: ChatPaymentCardProps) {
       }
     };
 
-    // Register event listener
-    socket.on("customer:order_update", handleOrderUpdate);
+    // ✅ Subscribe vào channel public để nhận order updates
+    // Channel có thể là "public-order-{orderId}" hoặc "private-user-{userId}" tùy backend
+    const channel = pusher.subscribe("public-order-updates");
+    channel.bind("customer:order_update", handleOrderUpdate);
 
     // Cleanup on unmount
     return () => {
-      socket.off("customer:order_update", handleOrderUpdate);
-      console.log("[ChatPaymentCard] Cleaned up event listener");
+      channel.unbind("customer:order_update", handleOrderUpdate);
+      pusher.unsubscribe("public-order-updates");
+      console.log("[ChatPaymentCard] Cleaned up Pusher listener");
     };
-  }, [socket, isConnected, content.orderId, content.orderNumber, status]);
+  }, [pusher, isConnected, content.orderId, content.orderNumber, status]);
 
   // Handle copy QR code
   const handleCopyQR = () => {

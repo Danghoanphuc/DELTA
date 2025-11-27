@@ -2,7 +2,7 @@
 import { Button } from "@/shared/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { cn } from "@/shared/lib/utils";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";

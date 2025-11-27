@@ -12,6 +12,7 @@ export interface ChatConversation {
   title: string; // Tên do AI tự động đặt (hoặc do người dùng sửa)
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null; // ✅ NEW: Soft delete timestamp
   lastMessageAt?: string; // ✅ NEW: Timestamp of the last message
   type?: "customer-bot" | "peer-to-peer" | "customer-printer" | "group"; // ✅ FIXED: Đúng với backend enum
   avatarUrl?: string; // ✅ NEW: Avatar URL cho group chat
@@ -45,6 +46,11 @@ export interface ProductSelectionContent {
 export interface OrderSelectionContent {
   text: string;
   orders: Order[];
+}
+
+export interface PrinterSelectionContent {
+  text: string;
+  printers: any[]; // PrinterProfile[]
 }
 
 export interface AiResponseContent {
@@ -124,7 +130,7 @@ interface BaseMessage {
   conversationId: string;
   
   // ✅ RICH MESSAGES: Thêm type và metadata từ backend
-  type?: "text" | "image" | "file" | "product" | "order" | "system" | "ai_response" | "product_selection" | "order_selection" | "payment_request" | "error";
+  type?: "text" | "image" | "file" | "product" | "order" | "system" | "ai_response" | "product_selection" | "order_selection" | "printer_selection" | "payment_request" | "error";
   metadata?: MessageMetadata;
 
   // ✅ ENTERPRISE: Delivery tracking
@@ -157,6 +163,12 @@ export interface OrderSelectionMessage extends BaseMessage {
   type: "order_selection";
   senderType: "AI";
   content: OrderSelectionContent;
+}
+
+export interface PrinterSelectionMessage extends BaseMessage {
+  type: "printer_selection";
+  senderType: "AI";
+  content: PrinterSelectionContent;
 }
 
 // ✅ ZERO-EXIT PAYMENT: Payment request message
@@ -211,6 +223,7 @@ export type ChatMessage =
   | AiResponseMessage
   | ProductSelectionMessage
   | OrderSelectionMessage
+  | PrinterSelectionMessage
   | PaymentRequestMessage
   | ImageMessage
   | FileMessage
@@ -229,6 +242,7 @@ export interface AiApiResponse {
     | AiResponseContent
     | ProductSelectionContent
     | OrderSelectionContent
+    | PrinterSelectionContent
     | PaymentRequestContent; // ✅ Add payment request
   quickReplies?: QuickReply[];
   isGuest?: boolean;

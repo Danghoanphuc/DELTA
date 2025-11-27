@@ -19,7 +19,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Button } from '@/shared/components/ui/button';
 import { MapPin, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from "@/shared/utils/toast";
 import {
   VIETNAM_LOCATIONS,
   getDistrictsByCity,

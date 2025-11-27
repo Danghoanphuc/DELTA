@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { uploadFileDirectly } from "@/services/cloudinaryService";
 import { getR2UploadUrl, uploadToR2 } from "@/features/chat/services/chat.api.service";
 
@@ -101,11 +101,17 @@ export const useSmartFileUpload = () => {
           });
           result = { url: cloudinaryResult.url };
         } else {
-          const { fileKey } = await getR2UploadUrl(stagedFile.file.name, stagedFile.file.type);
-          await uploadToR2(fileKey, stagedFile.file, (percent) => {
-             setStagedFiles(prev => prev.map(f => f.id === stagedFile.id ? { ...f, progress: percent } : f));
+          // ✅ FIX: Lấy presigned upload URL và fileKey từ backend
+          const { uploadUrl, fileKey } = await getR2UploadUrl(stagedFile.file.name, stagedFile.file.type);
+          
+          // ✅ FIX: Upload qua backend proxy (tránh CORS) với fileKey từ presigned URL
+          // Backend sẽ dùng fileKey này để upload lên R2 (không tạo key mới)
+          const uploadResult = await uploadToR2(fileKey, stagedFile.file, (percent) => {
+            setStagedFiles(prev => prev.map(f => f.id === stagedFile.id ? { ...f, progress: percent } : f));
           });
-          result = { fileKey };
+          
+          // ✅ Backend trả về { fileKey, url }, dùng fileKey từ response
+          result = { fileKey: uploadResult?.fileKey || fileKey };
         }
 
         setStagedFiles(prev => prev.map(f => f.id === stagedFile.id ? { ...f, status: "done", serverUrl: result.url } : f));

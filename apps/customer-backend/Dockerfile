@@ -1,16 +1,7 @@
-# Sử dụng Node 20 (Debian based - ổn định hơn Alpine cho Puppeteer)
+# Sử dụng Node 20 (Debian based)
 FROM node:20-slim
 
-# 1. CÀI ĐẶT THƯ VIỆN CHO CHROME/PUPPETEER
-# Đây là phần quan trọng nhất để fix lỗi "Shared object file not found"
-RUN apt-get update \
-    && apt-get install -y wget gnupg \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
-      --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+# ✅ Đã bỏ phần cài Chrome/Puppeteer - Giờ dùng ApiFlash API (nhẹ hơn ~500MB RAM)
 
 # Thiết lập thư mục làm việc
 WORKDIR /app

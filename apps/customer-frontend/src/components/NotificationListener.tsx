@@ -3,14 +3,14 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { useSocket } from "@/contexts/SocketProvider";
-import { toast } from "sonner";
+import { toast } from "@/shared/utils/toast";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useLocation } from "react-router-dom";
 import { UserPlus, MessageCircle, Package, Bell } from "lucide-react";
 
 export function NotificationListener() {
-  const { socket, isConnected } = useSocket();
+  const { pusher, isConnected } = useSocket(); // ✅ FIX: Dùng pusher thay vì socket
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -89,7 +89,11 @@ export function NotificationListener() {
   );
 
   useEffect(() => {
-    if (!socket || !isConnected) return;
+    if (!pusher || !isConnected || !user) return;
+
+    // ✅ FIX: Subscribe vào private channel của user
+    const channelName = `private-user-${user._id}`;
+    const channel = pusher.subscribe(channelName);
 
     // ✅ HANDLER CHUNG CHO SỰ KIỆN 'notification' TỪ BACKEND
     const handleGeneralNotification = (data: any) => {
@@ -109,13 +113,8 @@ export function NotificationListener() {
       // Render Rich Toast tùy theo loại
       const Icon = getIconByType(data.type);
 
-      toast(data.title, {
+      toast.info(data.title, {
         description: data.message,
-        icon: <Icon className="w-5 h-5 text-blue-600" />,
-        action: {
-          label: "Xem",
-          onClick: () => handleToastClick(data),
-        },
         duration: 4000,
       });
     };
@@ -139,18 +138,20 @@ export function NotificationListener() {
       });
     };
 
-    // Lắng nghe sự kiện
-    socket.on("notification", handleGeneralNotification); // 🔥 QUAN TRỌNG NHẤT
-    socket.on("connection:request", handleConnectionRequest);
-    socket.on("connection:accepted", handleConnectionAccepted);
+    // ✅ FIX: Bind Pusher events thay vì socket.on()
+    channel.bind("notification", handleGeneralNotification);
+    channel.bind("connection:request", handleConnectionRequest);
+    channel.bind("connection:accepted", handleConnectionAccepted);
 
     return () => {
-      socket.off("notification", handleGeneralNotification);
-      socket.off("connection:request", handleConnectionRequest);
-      socket.off("connection:accepted", handleConnectionAccepted);
+      // ✅ FIX: Unbind và unsubscribe khi cleanup
+      channel.unbind("notification", handleGeneralNotification);
+      channel.unbind("connection:request", handleConnectionRequest);
+      channel.unbind("connection:accepted", handleConnectionAccepted);
+      pusher.unsubscribe(channelName);
     };
   }, [
-    socket,
+    pusher,
     isConnected,
     user,
     location,
