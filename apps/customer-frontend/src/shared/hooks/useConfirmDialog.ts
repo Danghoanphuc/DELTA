@@ -9,6 +9,17 @@ interface ConfirmOptions {
   confirmText?: string;
   cancelText?: string;
   variant?: "danger" | "warning" | "info";
+  onConfirm?: () => void | Promise<void>;
+}
+
+interface DialogState {
+  isOpen: boolean;
+  title: string;
+  description: string;
+  confirmText: string;
+  cancelText: string;
+  variant: "danger" | "warning" | "info";
+  onConfirm: () => void;
 }
 
 export function useConfirmDialog() {
@@ -20,10 +31,11 @@ export function useConfirmDialog() {
     cancelText: "Hủy",
     variant: "warning",
   });
-  const [onConfirmCallback, setOnConfirmCallback] = useState<(() => void) | null>(null);
+  const [onConfirmCallback, setOnConfirmCallback] = useState<(() => void | Promise<void>) | null>(null);
 
+  // API cũ: confirm(opts, onConfirm) - dùng cho các component cũ
   const confirm = useCallback(
-    (opts: ConfirmOptions, onConfirm: () => void) => {
+    (opts: ConfirmOptions, onConfirm: () => void | Promise<void>) => {
       setOptions(opts);
       setOnConfirmCallback(() => onConfirm);
       setIsOpen(true);
@@ -31,9 +43,16 @@ export function useConfirmDialog() {
     []
   );
 
-  const handleConfirm = useCallback(() => {
+  // API mới: openDialog({ ...opts, onConfirm }) - dùng cho ChatHistorySidebar
+  const openDialog = useCallback((opts: ConfirmOptions) => {
+    setOptions(opts);
+    setOnConfirmCallback(() => opts.onConfirm || (() => {}));
+    setIsOpen(true);
+  }, []);
+
+  const handleConfirm = useCallback(async () => {
     if (onConfirmCallback) {
-      onConfirmCallback();
+      await onConfirmCallback();
     }
     setIsOpen(false);
     setOnConfirmCallback(null);
@@ -44,11 +63,32 @@ export function useConfirmDialog() {
     setOnConfirmCallback(null);
   }, []);
 
+  const closeDialog = useCallback(() => {
+    setIsOpen(false);
+    setOnConfirmCallback(null);
+  }, []);
+
+  // DialogState cho API mới
+  const dialogState: DialogState = {
+    isOpen,
+    title: options.title,
+    description: options.description,
+    confirmText: options.confirmText || "Xác nhận",
+    cancelText: options.cancelText || "Hủy",
+    variant: options.variant || "warning",
+    onConfirm: handleConfirm,
+  };
+
   return {
+    // API cũ (backward compatible)
     isOpen,
     options,
     confirm,
     handleConfirm,
     handleClose,
+    // API mới (cho ChatHistorySidebar)
+    dialogState,
+    openDialog,
+    closeDialog,
   };
 }

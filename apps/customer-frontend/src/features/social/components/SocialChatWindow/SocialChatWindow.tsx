@@ -1,3 +1,5 @@
+// apps/customer-frontend/src/features/social/components/SocialChatWindow/SocialChatWindow.tsx
+
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "@/shared/utils/toast";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -19,7 +21,7 @@ import { useDropzone } from "react-dropzone";
 import { useSmartFileUpload } from "./hooks/useSmartFileUpload";
 import { FileStagingArea } from "./FileStagingArea";
 import { UploadCloud } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion"; // ✅ Thêm Animation
+import { motion, AnimatePresence } from "framer-motion"; 
 
 interface SocialChatWindowProps {
   conversation: any;
@@ -44,6 +46,7 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
     messages.length
   );
 
+  // Hook xử lý file staging (Queue đợi gửi)
   const { 
     stagedFiles, 
     addFiles, 
@@ -59,9 +62,11 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
     addFiles(acceptedFiles);
   }, [addFiles]);
 
+  // ✅ FIX: Lấy hàm 'open' từ useDropzone để truyền xuống ChatInput
+  // Hàm này sẽ kích hoạt dialog chọn file của trình duyệt
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
-    noClick: true,
+    noClick: true, // Tắt click trên vùng container (để tránh conflict click message)
     noKeyboard: true,
     accept: {
         'image/*': [],
@@ -73,6 +78,7 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
     }
   });
 
+  // Effect: Play sound & Scroll logic
   useEffect(() => {
     if (!isReady || messages.length <= prevMessagesLength.current) return;
     const lastMsg = messages[messages.length - 1];
@@ -82,14 +88,17 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
     prevMessagesLength.current = messages.length;
   }, [messages, currentUser?._id, isReady, playReceiveSound, prevMessagesLength]);
 
+  // Handle Send Message
   const handleSend = async (content: string) => {
     const filesToProcess = stagedFiles.length > 0;
     
+    // Validate: Không gửi nếu rỗng và không có file
     if ((!content.trim() && !filesToProcess) || sending || isUploading) return;
 
     playSendSound();
     setSending(true);
 
+    // 1. Tạo tin nhắn tạm (Optimistic UI)
     const tempId = `temp-${Date.now()}`;
     const tempMsg: ChatMessage = {
       _id: tempId,
@@ -114,6 +123,7 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
     addMessage(conversation._id, tempMsg);
     prevMessagesLength.current += 1;
     
+    // Scroll xuống dưới
     setTimeout(() => {
       if (scrollRef.current && containerRef.current) {
         scrollRef.current.scrollIntoView({ behavior: "smooth" });
@@ -122,6 +132,7 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
 
     let uploadedAttachments: any[] = [];
     try {
+      // 2. Upload Files (Nếu có)
       if (filesToProcess) {
           uploadedAttachments = await uploadAllFiles(); 
           if (uploadedAttachments.length === 0 && stagedFiles.length > 0) {
@@ -133,6 +144,7 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
 
       const finalContent = content || (uploadedAttachments.length > 0 ? "Đã gửi file" : "");
 
+      // 3. Gọi API gửi tin nhắn thật
       const res = await postSocialChatMessage(
         finalContent,
         conversation._id,
@@ -140,13 +152,14 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
       );
       
       if (res) {
+        // Update tin nhắn thật từ server
         const realMsg: ChatMessage = {
           ...res,
           sender: res.sender ?? currentUser?._id,
           status: "sent",
         };
         updateMessageId(conversation._id, tempId, realMsg);
-        clearStaging();
+        clearStaging(); // Xóa queue file
       }
     } catch (e) {
       toast.error("Gửi thất bại.");
@@ -164,7 +177,7 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
     >
       <input {...getInputProps()} className="hidden" />
 
-      {/* ✅ WOW DROP OVERLAY: Glassmorphism & Minimal */}
+      {/* OVERLAY KHI KÉO FILE VÀO */}
       <AnimatePresence>
         {isDragActive && (
           <motion.div 
@@ -221,24 +234,28 @@ export function SocialChatWindow({ conversation, onBack }: SocialChatWindowProps
         unreadCount={unreadCounts[conversation._id] || 0}
       />
 
+      {/* Khu vực hiển thị file đang chờ gửi */}
       <FileStagingArea 
          files={stagedFiles} 
          onRemove={removeFile} 
          onContextChange={updateFileContext}
       />
 
-<ChatInput 
-  isLoading={sending} // Đổi từ sending -> isLoading
-  onSendText={handleSend} // Đổi từ onSend -> onSendText
-  
-  // Các props Social vẫn giữ nguyên, component mới đã hỗ trợ
-  hasFiles={stagedFiles.length > 0} 
-  onPasteFile={addFiles}
-  onAddLink={addLink}
-  onAddDriveFile={addFiles}
-  
-  // ⚠️ BỎ onFileClick={open} vì ChatInput mới tự handle Dropzone
-/>
+      {/* Input Chat */}
+      <ChatInput 
+        isLoading={sending}
+        onSendText={handleSend}
+        
+        // --- Props cho tính năng Social (External Queue) ---
+        hasFiles={stagedFiles.length > 0} 
+        onPasteFile={addFiles}
+        onAddLink={addLink}
+        onAddDriveFile={addFiles}
+        
+        // ✅ QUAN TRỌNG: Truyền hàm 'open' vào đây
+        // Khi user bấm nút kẹp ghim/ảnh trong ChatInput -> gọi hàm này -> mở File Dialog
+        onFileClick={open}
+      />
 
       <EditGroupModal
         isOpen={isEditGroupOpen}
