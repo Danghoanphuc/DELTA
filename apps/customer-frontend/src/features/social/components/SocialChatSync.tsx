@@ -38,7 +38,10 @@ export function SocialChatSync() {
   // 2. LOGIC LẮNG NGHE PUSHER (ĐÃ NÂNG CẤP)
   useEffect(() => {
     if (!pusher || !user) {
-      console.warn("[SocialChatSync] Pusher or user not available", { pusher: !!pusher, user: !!user });
+      // ✅ Chỉ log ở dev mode và không làm phiền user
+      if (import.meta.env.DEV) {
+        console.debug("[SocialChatSync] Pusher or user not available - waiting for auth", { pusher: !!pusher, user: !!user });
+      }
       return;
     }
 

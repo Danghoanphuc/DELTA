@@ -38,6 +38,7 @@ import SignUpPage from "@/features/auth/pages/SignUpPage";
 import VerifyEmailPage from "@/features/auth/pages/VerifyEmailPage";
 import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
 import CheckEmailPage from "@/features/auth/pages/CheckEmailPage";
+import { GoogleOneTapListener } from "@/features/auth/components/GoogleOneTapListener";
 
 // Helper for lazy loading
 function lazyWorkaround<T extends ComponentType<any>>(
@@ -137,7 +138,7 @@ function App() {
           <DynamicIsland />
           <NotificationListener />
           <SocialChatSync />
-
+          <GoogleOneTapListener />
           {/* 1. GLOBAL SPLASH SCREEN */}
           <PageLoader mode="splash" isLoading={authLoading} />
           

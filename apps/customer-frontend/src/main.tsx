@@ -1,39 +1,52 @@
 import { createRoot } from "react-dom/client";
 import "./styles/globals.css";
-// ✅ FIX: Import mapbox-gl CSS - Vite sẽ tự resolve từ node_modules
-// Lưu ý: Alias chỉ áp dụng cho JS imports, không ảnh hưởng CSS
 import "mapbox-gl/dist/mapbox-gl.css";
 import App from "./App";
-// ✅ 1. Import
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-// ✅ Sentry - Import trước tất cả
 import * as Sentry from "@sentry/react";
+// 👇 1. Thêm Import này
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
-// ✅ Sentry Init
+
+// Sentry Init (Giữ nguyên)
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   integrations: [
     Sentry.browserTracingIntegration(),
     Sentry.replayIntegration(),
   ],
-  tracesSampleRate: 1.0, // Capture 100% transactions for dev
-  replaysSessionSampleRate: 0.1, // Capture 10% of sessions
-  replaysOnErrorSampleRate: 1.0, // Capture 100% of error sessions
+  tracesSampleRate: 1.0,
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1.0,
 });
 
-// ✅ 2. Tạo một client duy nhất
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 phút
+      staleTime: 1000 * 60 * 5,
       refetchOnWindowFocus: true,
     },
   },
 });
 
+// 👇 2. Lấy Client ID từ biến môi trường
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+// Check nhanh để debug nếu quên set env
+if (!GOOGLE_CLIENT_ID) {
+  console.error("🚨 VITE_GOOGLE_CLIENT_ID is missing in .env file!");
+} else if (import.meta.env.DEV) {
+  // Debug info trong dev mode
+  console.log(`🔑 [Google OAuth] Client ID: ${GOOGLE_CLIENT_ID.substring(0, 30)}...`);
+  console.log(`🌐 [Google OAuth] Current Origin: ${window.location.origin}`);
+}
+
 createRoot(document.getElementById("root")!).render(
-  // ✅ 3. Bọc <App />
   <QueryClientProvider client={queryClient}>
-    <App />
+    {/* 👇 3. Bọc App bằng GoogleOAuthProvider */}
+    
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <App />
+    </GoogleOAuthProvider>
   </QueryClientProvider>
 );

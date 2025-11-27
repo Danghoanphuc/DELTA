@@ -3,10 +3,10 @@
 
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { config } from "../../config/env.config.js";
 import { User } from "../../shared/models/user.model.js";
 import { CustomerProfile } from "../../shared/models/customer-profile.model.js";
-import { generateUniqueUsername } from "../../shared/utils/username.util.js";
-import { config } from "../../config/env.config.js";
+import { generateUniqueUsername } from "../../shared/utils/username.util.js"; 
 
 /**
  * Find or create user from Google profile
@@ -36,7 +36,6 @@ const findOrCreateUser = async (profile) => {
           `⚠️ [Passport] User ${user.email} has different googleId. Current: ${user.googleId}, New: ${profile.id}`
         );
         // Vẫn cho phép đăng nhập nhưng không cập nhật googleId (giữ nguyên)
-        // Điều này xử lý trường hợp user có nhiều Google account cùng email
       } else if (!user.googleId) {
         // ✅ CRITICAL: Nếu user đăng ký bằng local, thêm googleId để có thể đăng nhập bằng Google sau này
         user.googleId = profile.id;
@@ -45,13 +44,9 @@ const findOrCreateUser = async (profile) => {
       }
 
       // ✅ FIXED: Cập nhật authMethod nếu user đang dùng local
-      // Cho phép user đăng nhập bằng cả local và Google
       if (user.authMethod === "local") {
-        // Có thể giữ "local" hoặc đổi sang "google" tùy business logic
-        // Ở đây giữ "local" để user vẫn có thể đăng nhập bằng password
         console.log(`📝 [Passport] User ${user.email} can now login with both local and Google`);
       } else if (!user.authMethod) {
-        // Legacy data có thể không có authMethod
         user.authMethod = "google";
         updated = true;
         console.log(`📝 [Passport] Set authMethod to 'google' for ${user.email}`);
@@ -186,7 +181,7 @@ const findOrCreateUser = async (profile) => {
 };
 
 /**
- * Configure Passport Google Strategy
+ * Config Passport Google Strategy
  */
 passport.use(
   new GoogleStrategy(
@@ -194,7 +189,7 @@ passport.use(
       clientID: config.oauth.google.clientId,
       clientSecret: config.oauth.google.clientSecret,
       callbackURL: `${config.serverUrl}/api/auth/google/callback`,
-      passReqToCallback: true,
+      passReqToCallback: true, // Để truy cập req trong callback
     },
     async (req, accessToken, refreshToken, profile, done) => {
       try {
@@ -216,7 +211,5 @@ passport.use(
     }
   )
 );
-
-// No serialize/deserialize needed (we don't use sessions)
 
 export default passport;

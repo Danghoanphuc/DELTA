@@ -2,12 +2,21 @@
 import { AuthService } from "./auth.service.js";
 import { ApiResponse } from "../../shared/utils/index.js";
 import { API_CODES } from "../../shared/constants/index.js";
+import { OAuth2Client } from "google-auth-library";
+import { config } from "../../config/env.config.js";
+import { User } from "../../shared/models/user.model.js";
+import { CustomerProfile } from "../../shared/models/customer-profile.model.js";
+import { generateUniqueUsername } from "../../shared/utils/username.util.js";
+import crypto from "crypto";
 
 const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 days
 
 export class AuthController {
   constructor() {
     this.authService = new AuthService();
+    // Khởi tạo Google Client
+    // Lưu ý: Đảm bảo biến GOOGLE_CLIENT_ID đã có trong .env và config
+    this.googleClient = new OAuth2Client(config.oauth?.google?.clientId || process.env.GOOGLE_CLIENT_ID);
   }
 
   signUp = async (req, res, next) => {
@@ -22,12 +31,9 @@ export class AuthController {
           )
         );
     } catch (error) {
-      next(error); // Chuyển lỗi cho middleware xử lý
+      next(error);
     }
   };
-
-  // ❌ REMOVED: signUpPrinter method - Printer registration is now handled via onboarding flow
-  // Use /api/printers/onboarding instead
 
   verifyEmail = async (req, res, next) => {
     try {
@@ -69,15 +75,12 @@ export class AuthController {
         secure: process.env.NODE_ENV === "production",
         sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: REFRESH_TOKEN_TTL,
-        path: "/", // ✅ FIX: Đảm bảo cookie có path rõ ràng
+        path: "/",
       };
 
       res.cookie("refreshToken", refreshToken, cookieOptions);
       
-      // ✅ DEBUG: Log để kiểm tra cookie có được set không
-      console.log("✅ [Auth SignIn] Đã set refresh token cookie với options:", cookieOptions);
-      console.log("✅ [Auth SignIn] Request origin:", req.headers.origin);
-      console.log("✅ [Auth SignIn] User:", user.email);
+      console.log("✅ [Auth SignIn] User signed in:", user.email);
 
       res
         .status(API_CODES.SUCCESS)
@@ -92,12 +95,188 @@ export class AuthController {
     }
   };
 
+  /**
+   * ✅ NEW: Xác thực Google ID Token (Client-side retrieval)
+   * Thay thế cho luồng Redirect cũ
+   */
+  verifyGoogleToken = async (req, res, next) => {
+    try {
+      const { credential, role = 'customer' } = req.body;
+
+      if (!credential) {
+         return res.status(400).json(ApiResponse.error("Thiếu Google Token (credential)"));
+      }
+
+      // 1. Verify token với Google
+      const ticket = await this.googleClient.verifyIdToken({
+          idToken: credential,
+          audience: config.oauth?.google?.clientId || process.env.GOOGLE_CLIENT_ID,
+      });
+      const payload = ticket.getPayload();
+      
+      if (!payload) throw new Error("Token không hợp lệ");
+
+      const { email, name, picture, sub: googleId } = payload;
+      console.log(`🔐 [Auth Google] Verifying user: ${email}`);
+
+      // 2. Tìm hoặc Tạo User (Logic tương tự passport-setup.js nhưng clean hơn)
+      // ✅ FIX: Tìm cả bằng email và googleId để tránh duplicate
+      let user = await User.findOne({
+        $or: [{ email }, { googleId }]
+      });
+      let isNewUser = false;
+
+      if (!user) {
+        // --- Tạo User mới ---
+        console.log(`➕ [Auth Google] Creating new user: ${email}`);
+        
+        // ✅ FIX: Generate unique username
+        const username = await generateUniqueUsername(email);
+        
+        // Tạo User
+        user = new User({
+          email,
+          username,
+          displayName: name || email.split("@")[0],
+          avatarUrl: picture || "",
+          googleId: googleId,
+          role: role,
+          isVerified: true,
+          authMethod: 'google',
+          isActive: true,
+          lastLoginAt: new Date()
+        });
+
+        // Tạo Profile tương ứng
+        // ✅ FIX: Luôn tạo CustomerProfile (role printer sẽ được xử lý sau khi onboarding)
+        const newProfile = new CustomerProfile({
+          userId: user._id,
+          savedAddresses: []
+        });
+        await newProfile.save();
+        
+        // Link profile to user
+        if (user.schema.path('customerProfileId')) {
+          user.customerProfileId = newProfile._id;
+        } else {
+          user.customerProfile = newProfile._id;
+        }
+        
+        await user.save();
+        isNewUser = true;
+      } else {
+        // --- Update User cũ ---
+        let updated = false;
+        
+        // ✅ FIX: Link Google account nếu chưa có
+        if (!user.googleId) {
+          console.log(`🔗 [Auth Google] Linking Google account to existing user: ${email}`);
+          user.googleId = googleId;
+          updated = true;
+        }
+        
+        // ✅ FIX: Update authMethod nếu cần
+        if (user.authMethod === 'local' || !user.authMethod) {
+          // Cho phép user đăng nhập bằng cả local và Google
+          if (!user.authMethod) {
+            user.authMethod = 'google';
+            updated = true;
+          }
+        }
+        
+        // Update avatar nếu chưa có
+        if (!user.avatarUrl && picture) {
+          user.avatarUrl = picture;
+          updated = true;
+        }
+        
+        // Update displayName nếu chưa có
+        if (!user.displayName && name) {
+          user.displayName = name;
+          updated = true;
+        }
+        
+        // Update last login
+        user.lastLoginAt = new Date();
+        updated = true;
+        
+        if (updated) {
+          await user.save();
+        }
+        
+        // ✅ FIX: Đảm bảo user có CustomerProfile
+        if (!user.customerProfileId) {
+          console.log(`📝 [Auth Google] User ${email} missing CustomerProfile, creating...`);
+          const existingProfile = await CustomerProfile.findOne({ userId: user._id });
+          
+          if (existingProfile) {
+            user.customerProfileId = existingProfile._id;
+            await user.save();
+            console.log(`✅ [Auth Google] Linked existing CustomerProfile for ${email}`);
+          } else {
+            const newProfile = new CustomerProfile({
+              userId: user._id,
+              savedAddresses: []
+            });
+            await newProfile.save();
+            user.customerProfileId = newProfile._id;
+            await user.save();
+            console.log(`✅ [Auth Google] Created CustomerProfile for ${email}`);
+          }
+        }
+      }
+
+      // 3. Tạo Session & Tokens
+      // (Tái sử dụng các hàm tiện ích của AuthService để đảm bảo nhất quán)
+      
+      // Tạo Access Token
+      const accessToken = this.authService.generateAccessToken(user._id);
+      
+      // Tạo Refresh Token
+      const refreshToken = crypto.randomBytes(64).toString("hex");
+
+      // Lưu Session vào DB (Truy cập trực tiếp Repository thông qua Service)
+      // Lưu ý: Đây là cách truy cập nhanh, ideal là viết method createSession trong Service
+      await this.authService.authRepository.createSession({
+        userId: user._id,
+        refreshToken,
+        expireAt: new Date(Date.now() + REFRESH_TOKEN_TTL),
+      });
+
+      // 4. Set Cookie
+      const cookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        maxAge: REFRESH_TOKEN_TTL,
+        path: "/",
+      };
+
+      res.cookie("refreshToken", refreshToken, cookieOptions);
+
+      // 5. Trả về kết quả
+      // Lấy full profile để trả về FE
+      const userWithProfile = await this.authService.authRepository.findUserById(user._id);
+
+      console.log(`✅ [Auth Google] Success for user: ${email}`);
+
+      res.status(200).json(
+        ApiResponse.success(
+          { accessToken, user: userWithProfile },
+          isNewUser ? "Đăng ký thành công bằng Google!" : "Đăng nhập Google thành công!"
+        )
+      );
+
+    } catch (error) {
+      console.error("❌ [Auth Google] Verification Error:", error);
+      next(error);
+    }
+  };
+
   refresh = async (req, res, next) => {
     try {
-      // ✅ FIX: Đọc refresh token từ cookies hoặc headers (fallback)
       let refreshToken = req.cookies?.refreshToken;
       
-      // ✅ FIX: Nếu không có trong cookies, thử parse từ headers
       if (!refreshToken && req.headers.cookie) {
         const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
           const [key, value] = cookie.trim().split('=');
@@ -109,20 +288,7 @@ export class AuthController {
         refreshToken = cookies.refreshToken;
       }
 
-      // ✅ DEBUG: Log để kiểm tra cookie có được gửi không
-      console.log("🔄 [Auth Refresh] Request cookies:", req.cookies);
-      console.log("🔄 [Auth Refresh] Request headers:", {
-        cookie: req.headers.cookie,
-        origin: req.headers.origin,
-        referer: req.headers.referer,
-      });
-      console.log("🔄 [Auth Refresh] Extracted refreshToken:", refreshToken ? "✅ Found" : "❌ Not found");
-      
-      // ✅ FIX: Validate refresh token trước khi gọi service
       if (!refreshToken) {
-        console.error("❌ [Auth Refresh] Không tìm thấy refresh token");
-        console.error("   - req.cookies:", req.cookies);
-        console.error("   - req.headers.cookie:", req.headers.cookie);
         return res.status(401).json(
           ApiResponse.error("Không có refresh token. Vui lòng đăng nhập lại.", 401)
         );
@@ -131,23 +297,18 @@ export class AuthController {
       const { accessToken, refreshToken: newRefreshToken } =
         await this.authService.refresh(refreshToken);
 
-      // ✅ FIXED: Cập nhật cookie với refresh token mới (token rotation)
       const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: REFRESH_TOKEN_TTL,
-        path: "/", // ✅ FIX: Đảm bảo cookie có path rõ ràng
+        path: "/",
       };
 
-      // ✅ FIX: Luôn set cookie mới (kể cả khi không có newRefreshToken, vẫn set lại để refresh expiry)
       if (newRefreshToken) {
         res.cookie("refreshToken", newRefreshToken, cookieOptions);
-        console.log("✅ [Auth Refresh] Đã set cookie mới với options:", cookieOptions);
       } else {
-        // Nếu không có newRefreshToken (token rotation không tạo mới), vẫn set lại cookie cũ để refresh expiry
         res.cookie("refreshToken", refreshToken, cookieOptions);
-        console.log("✅ [Auth Refresh] Đã refresh cookie expiry");
       }
 
       res
@@ -163,7 +324,6 @@ export class AuthController {
       const refreshToken = req.cookies?.refreshToken;
       await this.authService.signOut(refreshToken);
 
-      // ✅ FIX: Clear cookie với cùng options như khi set để đảm bảo cookie được xóa đúng
       res.clearCookie("refreshToken", {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",

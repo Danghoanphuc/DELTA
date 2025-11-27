@@ -35,7 +35,7 @@ import { config } from "./config/env.config.js";
 import { errorHandler } from "./shared/middleware/error-handler.middleware.js";
 import { Logger } from "./shared/utils/index.js";
 import { NotFoundException } from "./shared/exceptions/index.js";
-import { isPrinter, protect } from "./shared/middleware/index.js";
+import { isPrinter, protect, optionalAuth } from "./shared/middleware/index.js";
 
 // (Import passport config)
 import "./infrastructure/auth/passport.config.js";
@@ -451,6 +451,20 @@ async function startServer() {
       Logger.info("[ChatRoutes] Test route called");
       res.json({ success: true, message: "Chat routes are working" });
     });
+    
+    // ✅ FIX PRODUCTION: Tách route /chat/stream, /chat/message và /chat/upload ra khỏi protect
+    // vì chúng sử dụng optionalAuth (cho phép guest users)
+    // Phải mount TRƯỚC route /chat với protect để Express match đúng
+    const { chatRateLimiter } = await import("./shared/middleware/rate-limit.middleware.js");
+    const { ChatController } = await import("./modules/chat/chat.controller.js");
+    const { uploadMixed } = await import("./infrastructure/storage/multer.config.js");
+    const { handleUploadError } = await import("./shared/middleware/index.js");
+    const chatController = new ChatController();
+    
+    // Mount các route không cần protect TRƯỚC
+    apiRouter.post("/chat/stream", chatRateLimiter, optionalAuth, chatController.handleChatStream);
+    apiRouter.post("/chat/message", chatRateLimiter, optionalAuth, chatController.handleChatMessage);
+    apiRouter.post("/chat/upload", optionalAuth, uploadMixed.single("file"), handleUploadError, chatController.handleChatUpload);
     
     // Các route chat khác vẫn cần protect
     apiRouter.use("/chat", protect, chatRoutes);

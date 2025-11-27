@@ -61,7 +61,8 @@ const signInRateLimit = createRateLimitMiddleware(
 
 // Public routes for authentication
 // ✅ SECURITY: Rate limiting applied to prevent brute force attacks
-
+// Thêm route mới này vào
+router.post("/google-verify", authController.verifyGoogleToken);
 router.post("/signup", authRateLimit, authController.signUp);
 router.post("/signin", signInRateLimit, authController.signIn);
 router.post("/signout", authController.signOut);
