@@ -25,11 +25,13 @@ let _urlPreviewQueue = null;
 export function getUrlPreviewQueue() {
   if (!_urlPreviewQueue) {
     try {
+      // ✅ Parse REDIS_URL hoặc fallback về REDIS_HOST/REDIS_PORT
+      // Bull v4 hỗ trợ URL string (bao gồm rediss://) tốt hơn object config
+      const { getBullRedisConfig } = await import("../../infrastructure/cache/redis-connection.helper.js");
+      const redisConfig = getBullRedisConfig();
+      
       _urlPreviewQueue = new Queue("url-preview", {
-        redis: {
-          host: process.env.REDIS_HOST || "localhost",
-          port: process.env.REDIS_PORT || 6379,
-        },
+        redis: redisConfig,
       settings: {
         // ✅ Stalled interval: Thời gian chờ trước khi coi job là stalled
         stalledInterval: 30000, // 30 giây (mặc định)

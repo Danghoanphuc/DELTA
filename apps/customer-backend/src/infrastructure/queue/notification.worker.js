@@ -5,12 +5,10 @@
 import { Worker } from 'bullmq';
 import { novuService } from '../notifications/novu.service.js';
 import { Logger } from '../../shared/utils/index.js';
+import { getRedisConnectionConfig } from '../cache/redis-connection.helper.js';
 
-const redisConnection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379', 10),
-  password: process.env.REDIS_PASSWORD || undefined,
-};
+// ✅ Parse REDIS_URL hoặc fallback về REDIS_HOST/REDIS_PORT
+const redisConnection = getRedisConnectionConfig();
 
 // Hàm xử lý chính
 const processor = async (job) => {

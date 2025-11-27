@@ -33,9 +33,20 @@ async function checkNotificationSetup() {
     console.error('   → Thêm NOVU_API_KEY vào .env file\n');
   }
 
-  const redisHost = process.env.REDIS_HOST || 'localhost';
-  const redisPort = process.env.REDIS_PORT || '6379';
-  console.log(`✅ Redis Config: ${redisHost}:${redisPort}\n`);
+  // Parse REDIS_URL để hiển thị config
+  const redisUrl = process.env.REDIS_URL;
+  if (redisUrl) {
+    try {
+      const url = new URL(redisUrl);
+      console.log(`✅ Redis Config: ${url.hostname}:${url.port || '6379'} (${url.protocol === 'rediss:' ? 'SSL' : 'Non-SSL'})\n`);
+    } catch {
+      console.log(`✅ Redis Config: Using REDIS_URL\n`);
+    }
+  } else {
+    const redisHost = process.env.REDIS_HOST || 'localhost';
+    const redisPort = process.env.REDIS_PORT || '6379';
+    console.log(`✅ Redis Config: ${redisHost}:${redisPort}\n`);
+  }
 
   // Check 3: Queue Status
   console.log('📋 Check 3: Queue Status...');

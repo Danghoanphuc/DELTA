@@ -28,11 +28,13 @@ const PDF_QUEUE_CONCURRENCY = Math.max(
 export function getPdfQueue() {
   if (!_pdfQueue) {
     try {
+      // ✅ Parse REDIS_URL hoặc fallback về REDIS_HOST/REDIS_PORT
+      // Bull v4 hỗ trợ URL string (bao gồm rediss://) tốt hơn object config
+      const { getBullRedisConfig } = await import("../infrastructure/cache/redis-connection.helper.js");
+      const redisConfig = getBullRedisConfig();
+      
       _pdfQueue = new Queue("pdf-rendering", {
-        redis: {
-          host: process.env.REDIS_HOST || "localhost",
-          port: process.env.REDIS_PORT || 6379,
-        },
+        redis: redisConfig,
       });
 
     // Worker process

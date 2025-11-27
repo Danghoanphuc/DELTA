@@ -4,13 +4,10 @@
 
 import { Queue } from 'bullmq';
 import { Logger } from '../../shared/utils/index.js';
+import { getRedisConnectionConfig } from '../cache/redis-connection.helper.js';
 
-// Cấu hình Redis (Lấy từ env hoặc mặc định localhost cho dev)
-const redisConnection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379', 10),
-  password: process.env.REDIS_PASSWORD || undefined,
-};
+// ✅ Parse REDIS_URL hoặc fallback về REDIS_HOST/REDIS_PORT
+const redisConnection = getRedisConnectionConfig();
 
 // 1. Khởi tạo Queue tên là 'notifications'
 // ✅ FIX: Wrap trong try-catch để không crash khi Redis không có
