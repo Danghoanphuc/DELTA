@@ -32,7 +32,6 @@ export const GoogleLoginButton = () => {
             toast.success(`Chào mừng ${user?.displayName || 'bạn'}!`);
             navigate('/app');
           } catch (err: any) {
-            console.error('Google login error:', err);
             const errorMsg = err.response?.data?.message || 'Lỗi xác thực Google';
             toast.error(errorMsg);
           }
@@ -77,7 +76,6 @@ export const GoogleLoginButtonSimple = () => {
             toast.success('Đăng nhập thành công!');
             navigate('/app');
           } catch (err: any) {
-            console.error('Google login error:', err);
             const errorMsg = err.response?.data?.message || 'Lỗi đăng nhập';
             toast.error(errorMsg);
           }

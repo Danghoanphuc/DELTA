@@ -32,13 +32,9 @@ const queryClient = new QueryClient({
 // 👇 2. Lấy Client ID từ biến môi trường
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-// Check nhanh để debug nếu quên set env
-if (!GOOGLE_CLIENT_ID) {
+// Check nhanh để debug nếu quên set env (chỉ log ở dev)
+if (!GOOGLE_CLIENT_ID && import.meta.env.DEV) {
   console.error("🚨 VITE_GOOGLE_CLIENT_ID is missing in .env file!");
-} else if (import.meta.env.DEV) {
-  // Debug info trong dev mode
-  console.log(`🔑 [Google OAuth] Client ID: ${GOOGLE_CLIENT_ID.substring(0, 30)}...`);
-  console.log(`🌐 [Google OAuth] Current Origin: ${window.location.origin}`);
 }
 
 createRoot(document.getElementById("root")!).render(
