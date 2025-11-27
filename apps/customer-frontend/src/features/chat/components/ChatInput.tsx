@@ -130,7 +130,7 @@ export function ChatInput({
   });
 
   const { openDrivePicker } = useGoogleDrive({
-    onPick: (files) => {
+    onPick: (files: File[]) => {
         if (!accessToken) return setShowLoginPopup(true);
         if (isBotMode) addInternalFiles(files);
         else if (onAddDriveFile) onAddDriveFile(files);
@@ -172,7 +172,7 @@ export function ChatInput({
     }
 
     if (isBotMode) {
-        internalFiles.forEach(f => onFileUpload && onFileUpload(f));
+        internalFiles.forEach((f: File) => onFileUpload && onFileUpload(f));
         clearInternalFiles();
         if (textToSend) onSendText(textToSend);
     } else {
@@ -242,7 +242,7 @@ export function ChatInput({
             <AnimatePresence>
                 {isBotMode && internalFiles.length > 0 && (
                     <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="flex gap-1 overflow-hidden pr-1">
-                        {internalFiles.map((f, i) => <FileThumbnail key={i} file={f} onRemove={() => removeInternalFile(i)} />)}
+                        {internalFiles.map((f: File, i: number) => <FileThumbnail key={i} file={f} onRemove={() => removeInternalFile(i)} />)}
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -328,7 +328,7 @@ export function ChatInput({
         </div>
       </div>
 
-      <AddLinkModal isOpen={isLinkModalOpen} onClose={() => setIsLinkModalOpen(false)} type={linkType} onAdd={(url) => {
+      <AddLinkModal isOpen={isLinkModalOpen} onClose={() => setIsLinkModalOpen(false)} type={linkType} onAdd={(url: string) => {
           if (onAddLink) onAddLink(url, linkType);
           else setMessage(prev => prev + (prev ? "\n" : "") + url);
       }} />
