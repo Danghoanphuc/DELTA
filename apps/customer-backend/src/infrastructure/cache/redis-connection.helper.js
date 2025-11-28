@@ -1,74 +1,65 @@
 // apps/customer-backend/src/infrastructure/cache/redis-connection.helper.js
-// ✅ Helper để parse REDIS_URL và tạo connection config cho Bull/BullMQ
+// ✅ Helper để tạo IORedis connection cho Bull/BullMQ
+// Thay vì parse URL thủ công, để IORedis tự xử lý SSL/TLS
+
+import IORedis from 'ioredis';
 
 /**
- * Parse REDIS_URL thành connection config
- * Hỗ trợ cả redis:// và rediss:// (SSL)
- * Format: redis[s]://[username:password@]host[:port][/database]
+ * Tạo và trả về một instance IORedis đã được cấu hình chuẩn cho BullMQ.
+ * Thay vì trả về object config, ta trả về luôn Instance kết nối
+ * để tận dụng khả năng tự động xử lý SSL/TLS của IORedis.
  * 
  * ✅ QUAN TRỌNG: Redis 6+ (như Upstash) yêu cầu cả username và password
  * Format: rediss://default:password@host:port
+ * IORedis sẽ tự động parse và xử lý đúng format này
  * 
- * @returns {object} Connection config cho Bull/BullMQ
+ * @returns {IORedis} IORedis instance đã được cấu hình
  */
 export function getRedisConnectionConfig() {
   const redisUrl = process.env.REDIS_URL;
   
-  // Nếu có REDIS_URL, parse nó
+  // Nếu có REDIS_URL (Trường hợp Production/Render/Upstash)
   if (redisUrl) {
-    try {
-      const url = new URL(redisUrl);
-      
-      const config = {
-        host: url.hostname,
-        port: parseInt(url.port || '6379', 10),
-        username: url.username || undefined, // ✅ QUAN TRỌNG: Phải lấy cả Username (thường là 'default' cho Upstash)
-        password: url.password || undefined,
-      };
-      
-      // ✅ Hỗ trợ SSL cho rediss:// (BullMQ hỗ trợ TLS trong connection config)
-      if (url.protocol === 'rediss:') {
-        config.tls = {
-          rejectUnauthorized: false, // Render/Upstash chấp nhận kết nối SSL
-        };
+    console.log('🔌 [BullMQ] Creating connection from REDIS_URL...');
+    
+    // Khởi tạo trực tiếp từ URL string -> IORedis tự lo phần SSL/TLS (rediss://)
+    return new IORedis(redisUrl, {
+      maxRetriesPerRequest: null, // ⚠️ BẮT BUỘC cho BullMQ
+      enableReadyCheck: false,    // Tối ưu cho Upstash/Serverless
+      // Nếu vẫn bị lỗi SSL, dòng dưới sẽ ép buộc chấp nhận (thường không cần nếu dùng URL chuẩn)
+      tls: {
+        rejectUnauthorized: false 
       }
-      
-      return config;
-    } catch (error) {
-      console.warn('⚠️ [Redis] Failed to parse REDIS_URL, falling back to REDIS_HOST/REDIS_PORT');
-    }
+    });
   }
   
-  // Fallback về REDIS_HOST/REDIS_PORT nếu không có REDIS_URL
-  return {
+  // Fallback cho Local (nếu không có REDIS_URL)
+  console.log('🔌 [BullMQ] Creating connection from REDIS_HOST/REDIS_PORT...');
+  return new IORedis({
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
-    username: process.env.REDIS_USERNAME || undefined, // Optional: Hỗ trợ env rời
     password: process.env.REDIS_PASSWORD || undefined,
-  };
+    username: process.env.REDIS_USERNAME || undefined,
+    maxRetriesPerRequest: null, // ⚠️ BẮT BUỘC cho BullMQ
+  });
 }
 
 /**
- * Get Redis config cho Bull (v4) - có thể dùng URL string hoặc IORedis instance
- * Bull v4 không hỗ trợ TLS trực tiếp trong redis config object
- * Nên dùng URL string hoặc IORedis instance với TLS
+ * Get Redis config cho Bull (v4) - trả về IORedis instance
+ * Bull v4 hỗ trợ IORedis instance trong redis config
+ * 
+ * @returns {IORedis} IORedis instance đã được cấu hình
  */
 export function getBullRedisConfig() {
-  const redisUrl = process.env.REDIS_URL;
-  
-  // Nếu có REDIS_URL, dùng trực tiếp (Bull hỗ trợ URL string)
-  if (redisUrl) {
-    return redisUrl;
-  }
-  
-  // Fallback về object config
+  // Trả về kết quả của hàm trên luôn cho đồng bộ
   return getRedisConnectionConfig();
 }
 
 /**
  * Get Redis URL string (dùng cho IORedis hoặc Bull nếu hỗ trợ)
+ * 
+ * @returns {string} Redis URL string
  */
 export function getRedisUrl() {
   return process.env.REDIS_URL || 'redis://localhost:6379';
 }
-
