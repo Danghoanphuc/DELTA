@@ -127,6 +127,10 @@ export class ChatRepository {
   }
   
   async createConversation(userId) {
+      // ✅ FIX: Không cho phép tạo conversation nếu không có userId
+      if (!userId) {
+          throw new Error("Cannot create conversation without userId. Guest users must login first.");
+      }
       return Conversation.create({
           type: "customer-bot",
           participants: [{ userId, role: "customer", isVisible: true }]

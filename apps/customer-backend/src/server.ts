@@ -59,108 +59,35 @@ async function startServer() {
     console.log("[Server] ✅ Redis connected");
     Logger.info("✅ Đã kết nối Database & Redis thành công.");
 
-    // ✅ URL Preview: Sử dụng ApiFlash API (nhẹ nhàng, không cần Puppeteer)
-    Logger.info('[Server] 🌐 URL Preview service ready (ApiFlash API)');
-
+    // =========================================================================
+    // ✅ URL PREVIEW WORKER (SỬA LẠI: Dùng Worker của BullMQ)
+    // =========================================================================
+    // Logic cũ dùng .process() sẽ gây crash với BullMQ.
+    // Chúng ta thay thế bằng cách khởi động Worker độc lập.
     try {
-      Logger.info('[Server] 📦 Đang import url-preview.queue.js...');
-      const { getUrlPreviewQueue } = await import("./infrastructure/queue/url-preview.queue.js");
-      Logger.info('[Server] ✅ Đã import url-preview.queue.js');
-      const urlPreviewQueue = await getUrlPreviewQueue();
-      if (urlPreviewQueue) {
-        Logger.info('[Server] ✅ Đã khởi tạo urlPreviewQueue');
+      Logger.info('[Server] 📦 Đang import url-preview.worker.js...');
+      
+      // Import hàm khởi động từ file hạ tầng (infrastructure) chúng ta vừa tạo
+      const { startUrlPreviewWorker } = await import("./infrastructure/queue/url-preview.worker.js");
+      Logger.info('[Server] ✅ Đã import url-preview.worker.js');
+
+      // Khởi chạy Worker
+      const urlWorker = startUrlPreviewWorker();
+      
+      if (urlWorker) {
+        Logger.info("✅ URL Preview Worker đã sẵn sàng (concurrency: 1)");
       } else {
-        Logger.warn('[Server] ⚠️ urlPreviewQueue không khởi tạo được (Redis có thể không có)');
+        Logger.warn("⚠️ URL Preview Worker không khởi động được (Redis issue?)");
       }
-      
-      Logger.info('[Server] 📦 Đang import url-processor.worker.js...');
-      const { urlProcessorWorker } = await import("./modules/chat/workers/url-processor.worker.js");
-      Logger.info('[Server] ✅ Đã import url-processor.worker.js');
-
-      if (!urlProcessorWorker) {
-        throw new Error("urlProcessorWorker is undefined");
-      }
-
-      // ✅ CRITICAL: Worker wrapper với complete domain isolation
-      const safeProcessJob = async (job: any) => {
-        const jobId = job.id;
-        const jobData = job.data;
-        const jobStartTime = Date.now();
-        
-        // ✅ CRITICAL: Heartbeat để track job progress
-        const heartbeatInterval = setInterval(() => {
-          const elapsed = ((Date.now() - jobStartTime) / 1000).toFixed(1);
-          Logger.info(`[URL Preview Worker] 💓 Job ${jobId} đang chạy... (${elapsed}s)`);
-        }, 10000);
-
-        try {
-          Logger.info(`[URL Preview Worker] 📋 Processing job ${jobId}`);
-          Logger.info(`[URL Preview Worker] Job data:`, JSON.stringify(jobData, null, 2));
-          
-          // ✅ CRITICAL: Wrap trong Promise với comprehensive error handling
-          const result = await new Promise(async (resolve, reject) => {
-            // ✅ Inner timeout để đảm bảo không bao giờ hang
-            // Tăng timeout lên 90s để phù hợp với jobTimeout và AI analysis có thể mất 30-40s
-            const timeout = setTimeout(() => {
-              Logger.error(`[URL Preview Worker] ⏱️ Internal timeout cho job ${jobId} sau 90s`);
-              reject(new Error(`Worker internal timeout for job ${jobId}`));
-            }, 90000); // 90s (dưới job timeout 90s)
-
-            try {
-              Logger.info(`[URL Preview Worker] 🔄 Gọi urlProcessorWorker.processUrlJob cho job ${jobId}...`);
-              const processResult = await urlProcessorWorker.processUrlJob(job);
-              clearTimeout(timeout);
-              Logger.info(`[URL Preview Worker] ✅ processUrlJob hoàn thành cho job ${jobId}`);
-              resolve(processResult);
-            } catch (processError: any) {
-              clearTimeout(timeout);
-              Logger.error(`[URL Preview Worker] ❌ processUrlJob failed cho job ${jobId}:`, {
-                message: processError?.message || 'Unknown error',
-                name: processError?.name || 'Unknown',
-                stack: processError?.stack || 'No stack'
-              });
-              reject(processError);
-            }
-          });
-
-          clearInterval(heartbeatInterval);
-          const duration = ((Date.now() - jobStartTime) / 1000).toFixed(2);
-          Logger.info(`[URL Preview Worker] ✅ Job ${jobId} completed trong ${duration}s`);
-          return result;
-          
-        } catch (workerError: any) {
-          clearInterval(heartbeatInterval);
-          const duration = ((Date.now() - jobStartTime) / 1000).toFixed(2);
-          
-          // ✅ CRITICAL: Log đầy đủ nhưng KHÔNG crash server
-          Logger.error(`[URL Preview Worker] ❌ Error in job ${jobId} sau ${duration}s:`, {
-            message: workerError?.message || 'Unknown error',
-            name: workerError?.name || 'Unknown',
-            code: workerError?.code || 'N/A',
-            stack: workerError?.stack || 'No stack',
-            jobData: jobData
-          });
-          
-          // ✅ CRITICAL: Đảm bảo error được log trước khi throw
-          console.error(`[URL Preview Worker] CRITICAL ERROR in job ${jobId}:`, workerError);
-          
-          // ✅ Re-throw để Bull đánh dấu failed (sẽ retry)
-          throw workerError;
-        }
-      };
-
-      // ✅ Register worker với concurrency 1
-      urlPreviewQueue.process(1, safeProcessJob);
-      
-      Logger.info("✅ URL Preview Worker đã sẵn sàng (concurrency: 1)");
 
     } catch (queueError) {
       Logger.error("❌ Lỗi khi khởi chạy URL Preview Worker:", queueError);
-      Logger.error("Stack:", queueError instanceof Error ? queueError.stack : 'No stack');
-      Logger.warn("⚠️ Server sẽ tiếp tục khởi động nhưng URL Preview sẽ không hoạt động");
+      // Không throw để server vẫn chạy tiếp
     }
 
-    // ✅ Notification Worker: Xử lý notification bất đồng bộ (Novu, email, etc.)
+    // =========================================================================
+    // ✅ Notification Worker (Đoạn này OK - Giữ nguyên)
+    // =========================================================================
     try {
       Logger.info('[Server] 📦 Đang import notification.worker.js...');
       const { startNotificationWorker } = await import("./infrastructure/queue/notification.worker.js");

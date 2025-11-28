@@ -70,14 +70,14 @@ const protect = async (req, res, next) => {
 };
 
 /**
- * ✅ SỬA LỖI TẠI ĐÂY
+ * ✅ SỬA LỖI: Khi token hết hạn, trả về 401 để frontend có thể refresh token
  */
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
 
-    // 1. Không có token - tiếp tục với req.user = null
+    // 1. Không có token - tiếp tục với req.user = null (cho phép guest)
     if (!token) {
       req.user = null;
       return next(); // Dừng và đi tiếp
@@ -100,11 +100,19 @@ const optionalAuth = async (req, res, next) => {
         req.user = null;
       }
     } catch (err) {
-      // Token không hợp lệ hoặc hết hạn
+      // ✅ FIX QUAN TRỌNG: Khi token hết hạn, trả về 401 để frontend refresh token
+      if (err.name === "TokenExpiredError") {
+        return res.status(401).json({
+          success: false,
+          message: "Token đã hết hạn",
+          requiresRefresh: true,
+        });
+      }
+      // Token không hợp lệ (không phải hết hạn) - cho phép tiếp tục như guest
       req.user = null;
     }
 
-    // 3. Chỉ gọi next() ở đây nếu token không hợp lệ / user không active
+    // 3. Chỉ gọi next() ở đây nếu token không hợp lệ / user không active (nhưng không phải hết hạn)
     next();
   } catch (error) {
     // Lỗi bất ngờ

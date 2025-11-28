@@ -1,33 +1,37 @@
 import { ChatService } from "./chat.service.js";
 import { SocialChatService } from "./social-chat.service.js";
-import { r2Service } from "./r2.service.js"; // Singleton export
+import { r2Service } from "./r2.service.js"; 
 import { ApiResponse, Logger } from "../../shared/utils/index.js";
 import { API_CODES } from "../../shared/constants/index.js";
 import { Conversation } from "../../shared/models/conversation.model.js";
 import { NotFoundException } from "../../shared/exceptions/index.js";
-// ✅ STATIC IMPORT: Chuyển từ dynamic import sang static để tránh conflict với Sentry
-import { streamText, tool } from "ai";
+
+// ✅ AI SDK Imports
+import { streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
-import { z } from "zod"; // ✅ Dùng zod 3.23.8 (tương thích với Vercel AI SDK v4.x)
 import { config } from "../../config/env.config.js";
 
-// ✅ INSTANTIATE ONCE (Singleton)
+// ✅ Instantiate Services (Singleton)
 const chatService = new ChatService();
 const socialService = new SocialChatService();
 
 export class ChatController {
   
+  // =========================================================================
+  // 1. STANDARD CHAT HANDLERS (Giữ nguyên logic cũ)
+  // =========================================================================
+
   handleChatMessage = async (req, res, next) => {
     try {
       const { conversationId } = req.body;
       const isGuest = !req.user;
       
-      // Parse metadata if needed
+      // Parse metadata nếu là string (do formData gửi lên)
       if (req.body.metadata && typeof req.body.metadata === 'string') {
         try { req.body.metadata = JSON.parse(req.body.metadata); } catch(e){}
       }
 
-      // Check Conversation Type
+      // Check Conversation Type để route sang Social hoặc Bot
       let isSocialChat = false;
       if (conversationId) {
         const conv = await Conversation.findById(conversationId).select("type");
@@ -50,7 +54,6 @@ export class ChatController {
     try {
       if (!req.file) return res.status(API_CODES.BAD_REQUEST).json(ApiResponse.error("Thiếu file"));
       
-      // ✅ LOG: File upload info (chỉ log thông tin quan trọng)
       Logger.info(`[ChatController] 📎 File upload: ${req.file.originalname}, size=${req.file.size}, type=${req.file.mimetype}`);
       
       req.body = { ...req.body, fileUrl: req.file.path, fileName: req.file.originalname, fileType: req.file.mimetype };
@@ -136,11 +139,14 @@ export class ChatController {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 50;
       
-      // ✅ FIX: Dùng getPaginatedMessages thay vì findMessagesByConversationId (không tồn tại)
       const result = await chatService.chatRepository.getPaginatedMessages(conversationId, page, limit);
       res.status(API_CODES.SUCCESS).json(ApiResponse.success(result));
     } catch (e) { next(e); }
   };
+
+  // =========================================================================
+  // 2. R2 STORAGE HANDLERS (Giữ nguyên)
+  // =========================================================================
 
   getUploadUrl = async (req, res, next) => {
     try {
@@ -156,12 +162,11 @@ export class ChatController {
         return res.status(API_CODES.BAD_REQUEST).json(ApiResponse.error("No file provided"));
       }
       
-      // ✅ FIX: Dùng fileKey từ formData (từ presigned upload URL) để đảm bảo key khớp
+      // Dùng fileKey từ formData (từ presigned upload URL) để đảm bảo key khớp
       const fileKeyFromForm = req.body?.fileKey;
       
       if (!fileKeyFromForm) {
-        Logger.warn(`[ChatController] R2 upload: No fileKey provided, creating new key`);
-        // Fallback: Tạo key mới nếu không có (legacy support)
+        // Fallback legacy
         const newFileKey = await r2Service.uploadFile(req.file.buffer, req.file.originalname, req.file.mimetype);
         return res.status(API_CODES.SUCCESS).json(ApiResponse.success({ 
           fileKey: newFileKey,
@@ -169,16 +174,13 @@ export class ChatController {
         }));
       }
       
-      // ✅ FIX: Upload với fileKey đã có (từ presigned URL) - đảm bảo key khớp với DB
+      // Upload với fileKey đã có
       const fileKey = await r2Service.uploadFileWithKey(
         req.file.buffer, 
         fileKeyFromForm, 
         req.file.mimetype
       );
       
-      Logger.info(`[ChatController] R2 upload: fileKey=${fileKey}, fileName=${req.file.originalname}`);
-      
-      // ✅ FIX: Trả về fileKey để frontend lưu vào DB
       res.status(API_CODES.SUCCESS).json(ApiResponse.success({ 
         fileKey: fileKey,
         url: `${req.protocol}://${req.get('host')}/api/chat/r2/download?key=${encodeURIComponent(fileKey)}&filename=${encodeURIComponent(req.file.originalname)}`
@@ -194,24 +196,15 @@ export class ChatController {
       const { key, filename, mode } = req.query;
       
       if (!key) {
-        Logger.warn(`[ChatController] R2 download: missing key param`);
         return res.status(API_CODES.BAD_REQUEST).json(ApiResponse.error("key parameter is required"));
       }
       
-      // ✅ Decode URL-encoded key (giữ nguyên toàn bộ key, không cắt)
       const fileKey = decodeURIComponent(key);
       const finalFileName = filename ? decodeURIComponent(filename) : fileKey.split('/').pop() || 'file';
       const finalMode = mode || 'inline';
       
-      Logger.info(`[ChatController] R2 download: key=${fileKey}, filename=${finalFileName}, mode=${finalMode}`);
-      
-      // ✅ FIX: Truyền filename và mode vào getPresignedDownloadUrl
       const presignedUrl = await r2Service.getPresignedDownloadUrl(fileKey, finalFileName, finalMode);
       
-      Logger.info(`[ChatController] R2 download: Generated presigned URL for key=${fileKey.substring(0, 50)}...`);
-      
-      // ✅ FIX: Trả về JSON với downloadUrl (thay vì redirect) để frontend có thể xử lý
-      // Frontend có thể dùng URL này để preview (inline) hoặc download (attachment)
       res.status(API_CODES.SUCCESS).json(ApiResponse.success({ 
         downloadUrl: presignedUrl,
         fileKey,
@@ -221,21 +214,19 @@ export class ChatController {
     } catch (e) { 
       Logger.error(`[ChatController] R2 download error:`, e.message);
       if (e.message?.includes('NoSuchKey') || e.message?.includes('does not exist')) {
-        Logger.error(`[ChatController] R2 download: File key does not exist in bucket. Key=${req.query.key}`);
         return res.status(API_CODES.NOT_FOUND).json(ApiResponse.error("File not found in storage"));
       }
       res.status(API_CODES.INTERNAL_ERROR).json(ApiResponse.error("Failed to generate download URL: " + e.message));
     }
   };
 
-  /**
-   * 🚀 NÂNG CẤP: Stream thông minh với Tools support
-   * POST /chat/stream
-   * Sử dụng Vercel AI SDK để tự động xử lý Function Calling
-   */
+  // =========================================================================
+  // 3. AI STREAM HANDLER (🌟 REFACTORED VERSION)
+  // Sử dụng Vercel AI SDK + Tools từ ChatToolService
+  // =========================================================================
+
   handleChatStream = async (req, res, next) => {
     try {
-      // ✅ STATIC IMPORT: Đã import ở đầu file, không cần dynamic import nữa
       const { messages, conversationId } = req.body;
       const user = req.user;
       const isGuest = !user;
@@ -250,130 +241,87 @@ export class ChatController {
         return res.status(API_CODES.BAD_REQUEST).json(ApiResponse.error("Last message must be from user"));
       }
 
-      // 1. Setup Context & Conversation như cũ
+      // --- 1. Setup Context & Conversation ---
+      // ✅ FIX: Yêu cầu đăng nhập để chat với AI
+      if (isGuest) {
+        return res.status(API_CODES.UNAUTHORIZED).json(ApiResponse.error("Vui lòng đăng nhập để chat với AI"));
+      }
+
       let conversation = conversationId
-        ? await chatService.chatRepository.findConversationById(conversationId, user?._id)
+        ? await chatService.chatRepository.findConversationById(conversationId, user._id)
         : null;
 
       let isNewConversation = false;
       if (!conversation) {
-        conversation = await chatService.chatRepository.createConversation(user?._id);
+        conversation = await chatService.chatRepository.createConversation(user._id);
         isNewConversation = true;
         
-        // 🔥 WOW FIX: Bắn Socket conversation_created NGAY LẬP TỨC
-        if (user?._id) {
-          try {
-            const { socketService } = await import("../../infrastructure/realtime/pusher.service.js");
-            await conversation.populate("participants.userId", "username displayName avatarUrl isOnline");
-            const conversationToEmit = conversation.toObject ? conversation.toObject() : conversation;
-            const formattedConversation = {
-              ...conversationToEmit,
-              _id: conversationToEmit._id?.toString() || conversationToEmit._id,
-              title: conversationToEmit.title || "Đoạn chat mới",
-              type: conversationToEmit.type || "customer-bot",
-              createdAt: conversationToEmit.createdAt || new Date().toISOString(),
-              updatedAt: conversationToEmit.updatedAt || new Date().toISOString(),
-              lastMessageAt: conversationToEmit.lastMessageAt || null,
-              isActive: conversationToEmit.isActive !== undefined ? conversationToEmit.isActive : true
-            };
-            Logger.info(`[ChatController] 🔥 Emitting conversation_created to user ${user._id}, conversationId: ${formattedConversation._id}`);
-            socketService.emitToUser(user._id.toString(), 'conversation_created', formattedConversation);
-          } catch (emitError) {
-            Logger.error("[ChatController] Failed to emit conversation_created:", emitError);
-          }
+        // 🔥 Socket báo tạo mới NGAY LẬP TỨC
+        try {
+          const { socketService } = await import("../../infrastructure/realtime/pusher.service.js");
+          await conversation.populate("participants.userId", "username displayName avatarUrl isOnline");
+          const conversationToEmit = conversation.toObject ? conversation.toObject() : conversation;
+          const formattedConversation = {
+            ...conversationToEmit,
+            _id: conversationToEmit._id?.toString() || conversationToEmit._id,
+            title: conversationToEmit.title || "Đoạn chat mới",
+            type: conversationToEmit.type || "customer-bot",
+            createdAt: conversationToEmit.createdAt || new Date().toISOString(),
+            updatedAt: conversationToEmit.updatedAt || new Date().toISOString(),
+            lastMessageAt: conversationToEmit.lastMessageAt || null,
+            isActive: conversationToEmit.isActive !== undefined ? conversationToEmit.isActive : true
+          };
+          socketService.emitToUser(user._id.toString(), 'conversation_created', formattedConversation);
+        } catch (emitError) {
+          Logger.error("[ChatController] Failed to emit conversation_created:", emitError);
         }
       }
 
-      // 2. Lưu tin nhắn User
+      // --- 2. Lưu tin nhắn User vào DB ---
       await chatService.chatRepository.createMessage({
         conversationId: conversation._id,
         senderType: "User",
-        sender: user?._id || null,
+        sender: user._id,
         content: { text: lastMessage.content },
         type: "text",
       });
 
-      // 3. Setup context cho tools
+      // --- 3. Setup context cho tools ---
       const context = {
         user,
-        actorId: user?._id || null,
-        actorType: isGuest ? "Guest" : "User",
+        actorId: user._id,
+        actorType: "User",
         conversationId: conversation._id.toString(),
       };
 
-      // 4. Định nghĩa Tools bằng Zod (Chuẩn nhất với Vercel AI SDK)
-      const tools = {
-        find_products: tool({
-          description: "Tìm kiếm sản phẩm in ấn (áo thun, card visit, tờ rơi...).",
-          parameters: z.object({
-            search_query: z.string().describe("Tên sản phẩm cần tìm"),
-          }),
-          execute: async ({ search_query }) => {
-            Logger.info(`[ChatController] 🔧 Tool: find_products - ${search_query}`);
-            const result = await chatService.agent.toolService._find_products({ search_query });
-            return typeof result === "string" ? result : JSON.stringify(result);
-          },
-        }),
+      // ✅ GET TOOLS TỪ SERVICE (CODE SIÊU GỌN)
+      // Inject chatRepository vào để browse_page tool dùng
+      const tools = chatService.agent.toolService.getVercelTools(context, {
+        chatRepository: chatService.chatRepository
+      });
 
-        find_printers: tool({
-          description: "Tìm kiếm nhà in, tiệm in theo tên hoặc địa điểm.",
-          parameters: z.object({
-            search_query: z.string().describe("Từ khóa (tên nhà in, địa điểm)"),
-          }),
-          execute: async ({ search_query }) => {
-            Logger.info(`[ChatController] 🔧 Tool: find_printers - ${search_query}`);
-            const result = await chatService.agent.toolService._find_printers({ search_query }, context);
-            return typeof result === "string" ? result : JSON.stringify(result);
-          },
-        }),
-
-        get_recent_orders: tool({
-          description: "Lấy danh sách đơn hàng gần đây của user.",
-          parameters: z.object({}), // Object rỗng cho hàm không tham số
-          execute: async () => {
-            Logger.info(`[ChatController] 🔧 Tool: get_recent_orders`);
-            const result = await chatService.agent.toolService._get_recent_orders(context);
-            return typeof result === "string" ? result : JSON.stringify(result);
-          },
-        }),
-
-        suggest_value_added_services: tool({
-          description: "Gợi ý dịch vụ gia tăng (VAS).",
-          parameters: z.object({
-            role: z.enum(["designer", "business_owner", "customer"]).describe("Vai trò của user"),
-          }),
-          execute: async ({ role }) => {
-            Logger.info(`[ChatController] 🔧 Tool: suggest_value_added_services - ${role}`);
-            const result = await chatService.agent.toolService._suggest_value_added_services({ role });
-            return typeof result === "string" ? result : JSON.stringify(result);
-          },
-        }),
-      };
-
-      // 5. Kiểm tra OpenAI API key
+      // Check API Key
       if (!config.apiKeys?.openai) {
-        Logger.error("[ChatController] OpenAI API key is not configured");
-        res.status(API_CODES.INTERNAL_ERROR).json(ApiResponse.error("AI service is not available"));
-        return;
+        return res.status(API_CODES.INTERNAL_ERROR).json(ApiResponse.error("AI service is not available"));
       }
 
-      // 6. Khởi tạo OpenAI provider với API key
       const openaiProvider = createOpenAI({
         apiKey: config.apiKeys.openai,
       });
 
-      // 7. Gọi AI Stream với Tools (v4.x cần await)
+      // --- 4. STREAMING ---
       const result = await streamText({
-        model: openaiProvider("gpt-4o-mini"), // Dùng model nhẹ cho nhanh
-        system: "Bạn là Zin, trợ lý AI của Printz.vn. Bạn giúp user tìm sản phẩm, nhà in. Trước khi trả lời, hãy suy nghĩ trong thẻ <think>...</think> nếu cần thiết.",
+        model: openaiProvider("gpt-4o-mini"),
+        system: "Bạn là Zin, trợ lý AI của Printz.vn. Bạn giúp user tìm sản phẩm, nhà in. Nếu user gửi link, hãy dùng tool 'browse_page'. Trước khi trả lời, hãy suy nghĩ trong thẻ <think>...</think>.",
         messages: messages.map((msg) => ({
           role: msg.role,
           content: msg.content,
         })),
-        tools, // 👈 Inject Tools vào đây
-        maxSteps: 5, // Cho phép AI gọi tool tối đa 5 bước (VD: Tìm sp -> Không thấy -> Tìm lại)
+        tools, // 👈 Inject Tools gọn gàng
+        maxSteps: 5,
+        
         async onFinish({ text, toolCalls, toolResults }) {
-          // 8. Lưu kết quả AI vào DB khi stream xong
+          // --- 5. Lưu kết quả AI vào DB khi stream xong ---
           try {
             // Detect message type dựa trên tool calls
             let messageType = "text";
@@ -396,47 +344,36 @@ export class ChatController {
               type: messageType,
             });
 
-            Logger.info(`[ChatController] Stream completed for conversation: ${conversation._id}, toolCalls: ${toolCalls?.length || 0}`);
-
-            // 🔥 WOW FIX: Emit conversation_updated sau khi lưu message xong
-            if (user?._id) {
-              try {
-                const { socketService } = await import("../../infrastructure/realtime/pusher.service.js");
+            // 🔥 Socket Update & Auto-Naming (Fire & Forget)
+            try {
+              const { socketService } = await import("../../infrastructure/realtime/pusher.service.js");
+              const updatedConversation = await chatService.chatRepository.findConversationById(conversation._id, user._id);
+              
+              if (updatedConversation) {
+                // Emit update sidebar
+                await updatedConversation.populate("participants.userId", "username displayName avatarUrl isOnline");
+                // Format chuẩn JSON
+                const conversationObj = updatedConversation.toObject ? updatedConversation.toObject() : updatedConversation;
                 
-                // Reload conversation để lấy lastMessageAt mới nhất
-                const updatedConversation = await chatService.chatRepository.findConversationById(conversation._id, user._id);
-                if (updatedConversation) {
-                  await updatedConversation.populate("participants.userId", "username displayName avatarUrl isOnline");
-                  const conversationToEmit = updatedConversation.toObject ? updatedConversation.toObject() : updatedConversation;
-                  const formattedConversation = {
-                    ...conversationToEmit,
-                    _id: conversationToEmit._id?.toString() || conversationToEmit._id,
-                    title: conversationToEmit.title || "Đoạn chat mới",
-                    type: conversationToEmit.type || "customer-bot",
-                    createdAt: conversationToEmit.createdAt || new Date().toISOString(),
-                    updatedAt: conversationToEmit.updatedAt || new Date().toISOString(),
-                    lastMessageAt: conversationToEmit.lastMessageAt || null,
-                    isActive: conversationToEmit.isActive !== undefined ? conversationToEmit.isActive : true
-                  };
-                  
-                  // Emit conversation_updated để frontend update sidebar
-                  socketService.emitToUser(user._id.toString(), 'conversation_updated', formattedConversation);
-                  
-                  // 🔥 WOW FIX: Trigger Auto-Naming chạy ngầm (Fire & Forget)
-                  // Chỉ chạy nếu là đoạn chat mới hoặc chưa có tên custom
-                  if (isNewConversation || !updatedConversation.title || updatedConversation.title === "Đoạn chat mới") {
-                    const userMessage = lastMessage.content || "";
-                    // Gọi private method qua reflection (hoặc tạo public method)
-                    if (typeof chatService._generateWowTitle === 'function') {
-                      chatService._generateWowTitle(conversation._id, user._id, userMessage, text).catch((e) => {
-                        Logger.error("[ChatController] Auto-title failed silently", e);
-                      });
-                    }
+                 socketService.emitToUser(user._id.toString(), 'conversation_updated', {
+                  ...conversationObj,
+                  _id: conversationObj._id.toString(),
+                  createdAt: conversationObj.createdAt.toISOString(),
+                  updatedAt: conversationObj.updatedAt.toISOString(),
+                });
+                
+                // Auto-title trigger
+                if (isNewConversation || !updatedConversation.title || updatedConversation.title === "Đoạn chat mới") {
+                  const userMessage = lastMessage.content || "";
+                  if (typeof chatService._generateWowTitle === 'function') {
+                    chatService._generateWowTitle(conversation._id, user._id, userMessage, text).catch((e) => {
+                      Logger.error("[ChatController] Auto-title failed silently", e);
+                    });
                   }
                 }
-              } catch (emitError) {
-                Logger.error("[ChatController] Failed to emit conversation_updated:", emitError);
               }
+            } catch (emitError) {
+              Logger.error("[ChatController] Failed to emit conversation_updated:", emitError);
             }
           } catch (error) {
             Logger.error("[ChatController] Error saving AI message:", error);
@@ -444,10 +381,9 @@ export class ChatController {
         },
       });
 
-      // 9. Pipe stream thẳng về client (Vercel AI SDK v4.x dùng pipeDataStreamToResponse)
+      // --- 6. PIPE RESPONSE ---
       result.pipeDataStreamToResponse(res, {
         headers: {
-          // ✅ Dùng text/plain cho v4 để tránh buffering
           "Content-Type": "text/plain; charset=utf-8",
           "Cache-Control": "no-cache",
           "Connection": "keep-alive",

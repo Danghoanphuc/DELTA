@@ -31,6 +31,8 @@ import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
 import { SocialNavSidebar } from "@/features/social/components/SocialNavSidebar";
 import { GlobalHeader } from "@/components/GlobalHeader"; 
 import { DynamicIsland } from "@/shared/components/ui/DynamicIsland";
+// ❌ XÓA IMPORT NÀY
+// import { DeepResearchSidebar } from "@/features/chat/components/DeepResearchSidebar";
 // Stores for Header
 import { useCartStore } from "@/stores/useCartStore";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -319,6 +321,9 @@ const ChatLayout = () => {
             </div>
         </main>
     </div>
+
+    {/* ❌ XÓA HOẶC COMMENT DÒNG NÀY: Đây là cái xác Sidebar vẫn đang nằm chờ lệnh hiển thị */}
+    {/* <DeepResearchSidebar /> */}
     </>
   );
 };

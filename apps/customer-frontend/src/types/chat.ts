@@ -129,6 +129,9 @@ interface BaseMessage {
   // ✅ THÊM: Liên kết tin nhắn với cuộc trò chuyện
   conversationId: string;
   
+  // 🔥 NÂNG CẤP: clientSideId để khớp tin nhắn Optimistic (No-Flicker)
+  clientSideId?: string;
+  
   // ✅ RICH MESSAGES: Thêm type và metadata từ backend
   type?: "text" | "image" | "file" | "product" | "order" | "system" | "ai_response" | "product_selection" | "order_selection" | "printer_selection" | "payment_request" | "error";
   metadata?: MessageMetadata;

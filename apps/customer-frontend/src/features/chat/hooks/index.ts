@@ -9,4 +9,5 @@ export { useMessageState } from "./useMessageState";
 export { useResponsiveChat } from "./useResponsiveChat";
 export { useChatPerformance } from "./useChatPerformance";
 export { useChat as useChatEnterprise } from "./useChat.enterprise";
+export { useChatSocket } from "./useChatSocket";
 

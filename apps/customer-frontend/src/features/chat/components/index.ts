@@ -27,6 +27,7 @@ export { ChatErrorBoundary } from "./ChatErrorBoundary";
 export { BusinessComboGrid } from "./BusinessComboGrid";
 export { ChatProductCarousel } from "./ChatProductCarousel";
 export { ChatOrderCarousel } from "./ChatOrderCarousel";
+export { ChatPrinterCarousel } from "./ChatPrinterCarousel";
 
 // ===== HERO/BANNER =====
 export { BannerHero } from "./BannerHero";

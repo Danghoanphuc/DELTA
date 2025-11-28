@@ -4,10 +4,42 @@ import api from "@/shared/lib/axios";
 import { AiApiResponse, ChatMessage, ChatConversation } from "@/types/chat";
 import { Order } from "@/types/order";
 
-// ✅ CẬP NHẬT: Thêm tham số filters
+// 🔥 HÀM CHUẨN HÓA DỮ LIỆU (MỚI)
+const normalizeMessage = (msg: any): ChatMessage => {
+  // 1. Ép kiểu senderType nếu thiếu
+  let finalSenderType = msg.senderType;
+  
+  if (!finalSenderType) {
+      if (msg.role === 'user') finalSenderType = 'User';
+      else if (msg.role === 'assistant' || msg.role === 'system') finalSenderType = 'AI';
+      else if (msg.isBot === true) finalSenderType = 'AI';
+      else if (msg.isBot === false) finalSenderType = 'User';
+      else finalSenderType = 'AI'; // Fallback an toàn
+  }
+
+  // 2. Ép kiểu type nếu thiếu
+  let finalType = msg.type;
+  if (!finalType) {
+      if (finalSenderType === 'AI') {
+          if (msg.content?.products) finalType = "product_selection";
+          else if (msg.content?.orders) finalType = "order_selection";
+          else if (msg.content?.qrCode) finalType = "payment_request";
+          else finalType = "ai_response";
+      } else {
+          finalType = "text";
+      }
+  }
+
+  return {
+      ...msg,
+      senderType: finalSenderType,
+      type: finalType,
+      content: msg.content || { text: "" } 
+  } as ChatMessage;
+};
+
 export const fetchChatConversations = async (filters?: { type?: string }): Promise<ChatConversation[]> => {
   try {
-    // Truyền filters vào params của axios
     const res = await api.get("/chat/conversations", { params: filters });
     return Array.isArray(res.data?.data?.conversations)
       ? res.data.data.conversations
@@ -15,38 +47,6 @@ export const fetchChatConversations = async (filters?: { type?: string }): Promi
   } catch (err) {
     console.error("Error fetching conversations:", err);
     return [];
-  }
-};
-
-// ... Các hàm khác giữ nguyên ...
-
-export const getConversationBusinessContext = async (conversationId: string) => {
-  try {
-    const res = await api.get(`/chat/conversations/${conversationId}/business-context`);
-    return res.data?.data || { activeOrders: [], designFiles: [] };
-  } catch (error) {
-    console.warn("Failed to fetch business context, using fallback", error);
-    return {
-      activeOrders: [],
-      designFiles: []
-    };
-  }
-};
-
-export const createQuote = async (conversationId: string, quoteData: any) => {
-  const res = await api.post(`/chat/conversations/${conversationId}/quote`, quoteData);
-  return res.data?.data;
-};
-
-export const fetchConversationById = async (
-  conversationId: string
-): Promise<ChatConversation | null> => {
-  try {
-    const res = await api.get(`/chat/conversations/${conversationId}`);
-    return res.data?.data?.conversation || null;
-  } catch (err) {
-    console.error(`Error fetching conversation ${conversationId}:`, err);
-    return null;
   }
 };
 
@@ -78,17 +78,8 @@ export const fetchChatHistory = async (
       }
     }
 
-    const transformedMessages: ChatMessage[] = rawMessages.map((msg) => {
-      if (msg.type) return msg as ChatMessage;
-      let type: ChatMessage["type"] = "text";
-      if (msg.senderType === "AI") {
-        if (msg.content.products) type = "product_selection";
-        else if (msg.content.orders) type = "order_selection";
-        else if (msg.content.qrCode) type = "payment_request";
-        else type = "ai_response";
-      }
-      return { ...msg, type } as ChatMessage;
-    });
+    // 🔥 Áp dụng chuẩn hóa cho từng tin nhắn
+    const transformedMessages: ChatMessage[] = rawMessages.map(normalizeMessage);
 
     return {
       messages: transformedMessages,
@@ -109,7 +100,8 @@ export const postChatMessage = async (
   longitude?: number,
   type?: ChatMessage["type"],
   metadata?: any,
-  displayText?: string
+  displayText?: string,
+  clientSideId?: string
 ): Promise<AiApiResponse> => {
   const payload = {
     message,
@@ -119,22 +111,8 @@ export const postChatMessage = async (
     longitude,
     type,
     metadata,
+    clientSideId,
   };
-  const res = await api.post("/chat/message", payload);
-  return res.data?.data;
-};
-
-export const postSocialChatMessage = async (
-  message: string,
-  conversationId: string,
-  attachments?: any[]
-): Promise<ChatMessage> => {
-  const payload = {
-    message,
-    conversationId,
-    attachments,
-  };
-
   const res = await api.post("/chat/message", payload);
   return res.data?.data;
 };
@@ -154,64 +132,21 @@ export const uploadChatFile = async (
   return res.data?.data;
 };
 
-export const getR2UploadUrl = async (fileName: string, fileType: string) => {
-  const res = await api.post("/chat/r2/upload-url", { fileName, fileType });
-  return res.data?.data;
+// ... (Giữ nguyên các hàm fetchConversationById, renameConversation, deleteConversation... như cũ)
+export const fetchConversationById = async (id: string) => {
+    try { const res = await api.get(`/chat/conversations/${id}`); return res.data?.data?.conversation || null; }
+    catch (e) { return null; }
 };
-
-export const uploadToR2 = async (fileKey: string, file: File, onProgress?: (percent: number) => void) => {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("fileKey", fileKey);
-
-  const res = await api.post("/chat/r2/upload", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-    onUploadProgress: (progressEvent) => {
-      if (progressEvent.total && onProgress) {
-        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        onProgress(percent);
-      }
-    },
-  });
-  
-  return res.data?.data;
+export const renameConversation = async (id: string, title: string) => {
+    try { await api.patch(`/chat/conversations/${id}`, { title }); return true; } catch { return false; }
 };
-
-export const fetchOrderDetails = async (orderId: string): Promise<Order> => {
-  const res = await api.get(`/orders/${orderId}`);
-  return res.data.data.order;
+export const deleteConversation = async (id: string) => {
+    try { await api.delete(`/chat/conversations/${id}`); return true; } catch { return false; }
 };
-
-export const renameConversation = async (
-  conversationId: string,
-  newTitle: string
-): Promise<boolean> => {
-  try {
-    await api.patch(`/chat/conversations/${conversationId}`, {
-      title: newTitle,
-    });
-    return true;
-  } catch (err) {
-    return false;
-  }
-};
-
-export const deleteConversation = async (
-  conversationId: string
-): Promise<boolean> => {
-  try {
-    await api.delete(`/chat/conversations/${conversationId}`);
-    return true;
-  } catch (err) {
-    return false;
-  }
-};
-
 export const createPrinterConversation = async (printerId: string) => {
   const res = await api.post(`/chat/conversations/printer/${printerId}`);
   return res.data;
 };
-
 export const createPeerConversation = async (userId: string) => {
   const res = await api.post(`/chat/conversations/peer/${userId}`);
   return res.data;
@@ -248,6 +183,21 @@ export const createGroupConversation = async (params: CreateGroupParams) => {
   return res.data;
 };
 
+export const muteConversation = async (
+  conversationId: string,
+  isMuted: boolean
+): Promise<boolean> => {
+  try {
+    await api.patch(`/chat/conversations/${conversationId}/mute`, {
+      isMuted,
+    });
+    return true;
+  } catch (err) {
+    console.error("Error muting conversation:", err);
+    return false;
+  }
+};
+
 export interface UpdateGroupParams {
   conversationId: string;
   title?: string;
@@ -280,34 +230,46 @@ export const updateGroupConversation = async (params: UpdateGroupParams) => {
   return res.data;
 };
 
-export const getConversationMedia = async (conversationId: string) => {
-  const res = await api.get(`/chat/conversations/${conversationId}/media`);
-  return res.data?.data?.media || [];
+export const getR2UploadUrl = async (fileName: string, fileType: string) => {
+  const res = await api.post("/chat/r2/upload-url", { fileName, fileType });
+  return res.data?.data;
 };
 
-export const getConversationFiles = async (conversationId: string) => {
-  const res = await api.get(`/chat/conversations/${conversationId}/files`);
-  return res.data?.data?.files || [];
+export const uploadToR2 = async (
+  fileKey: string,
+  file: File,
+  onProgress?: (percent: number) => void
+) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("fileKey", fileKey);
+
+  const res = await api.post("/chat/r2/upload", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress: (progressEvent) => {
+      if (progressEvent.total && onProgress) {
+        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onProgress(percent);
+      }
+    },
+  });
+  
+  return res.data?.data;
 };
 
-export const markAllConversationsAsRead = async () => {
-  const res = await api.post("/chat/conversations/mark-all-read");
-  return res.data;
-};
-
-export const muteConversation = async (
+export const postSocialChatMessage = async (
+  message: string,
   conversationId: string,
-  isMuted: boolean
-): Promise<boolean> => {
-  try {
-    await api.patch(`/chat/conversations/${conversationId}/mute`, {
-      isMuted,
-    });
-    return true;
-  } catch (err) {
-    console.error("Error muting conversation:", err);
-    return false;
-  }
+  attachments?: any[]
+): Promise<ChatMessage> => {
+  const payload = {
+    message,
+    conversationId,
+    attachments,
+  };
+
+  const res = await api.post("/chat/message", payload);
+  return res.data?.data;
 };
 
 export const searchMessages = async (
@@ -325,12 +287,42 @@ export const searchMessages = async (
   }
 };
 
-export const generateConversationTitle = async (conversationId: string): Promise<string | null> => {
+export const getConversationBusinessContext = async (conversationId: string) => {
   try {
-    const res = await api.post(`/chat/conversations/${conversationId}/title`);
-    return res.data?.data?.title || null;
-  } catch (err) {
-    console.error("Failed to generate title:", err);
-    return null;
+    const res = await api.get(`/chat/conversations/${conversationId}/business-context`);
+    return res.data?.data || { activeOrders: [], designFiles: [] };
+  } catch (error) {
+    console.warn("Failed to fetch business context, using fallback", error);
+    return {
+      activeOrders: [],
+      designFiles: []
+    };
   }
+};
+
+export const getConversationMedia = async (conversationId: string) => {
+  const res = await api.get(`/chat/conversations/${conversationId}/media`);
+  return res.data?.data?.media || [];
+};
+
+export const getConversationFiles = async (conversationId: string) => {
+  const res = await api.get(`/chat/conversations/${conversationId}/files`);
+  return res.data?.data?.files || [];
+};
+
+// ✅ Hàm fetch chi tiết đơn hàng dùng cho GlobalModalProvider
+export const fetchOrderDetails = async (orderId: string): Promise<Order> => {
+  const res = await api.get(`/orders/${orderId}`);
+  // Backend có thể trả về theo nhiều cấu trúc khác nhau, nên fallback linh hoạt
+  const order =
+    res.data?.data?.order ||
+    res.data?.order ||
+    res.data?.data ||
+    res.data;
+
+  if (!order) {
+    throw new Error("Không tìm thấy đơn hàng");
+  }
+
+  return order as Order;
 };

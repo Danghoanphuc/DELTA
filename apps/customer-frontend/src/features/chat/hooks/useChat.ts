@@ -10,7 +10,7 @@ import { useMessageState, WELCOME_ID } from "./useMessageState";
 import { useConversationState } from "./useConversationState";
 import { parseThinkingContent } from "../utils/textParser";
 import { translateLogToThought } from "../utils/logTranslator";
-import type { LogStep } from "../components/ThinkingConsole";
+import type { LogStep } from "../stores/useChatStore";
 
 export { WELCOME_ID };
 

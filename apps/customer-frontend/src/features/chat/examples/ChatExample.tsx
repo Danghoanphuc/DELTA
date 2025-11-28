@@ -50,7 +50,8 @@ export function MinimalChatExample() {
   const { onSendText, messages, isLoadingAI } = useChatContext();
 
   const handleQuickSend = () => {
-    onSendText("Hello AI!", 10.123, 106.456);
+    // onSendText hiện tại chỉ nhận 1 tham số text, nên bỏ toạ độ mẫu đi để khớp type
+    onSendText("Hello AI!");
   };
 
   return (

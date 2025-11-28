@@ -4,11 +4,10 @@ import { useRef, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChatMessage } from "@/types/chat";
 import { cn } from "@/shared/lib/utils";
-import { useChatContext } from "../context/ChatProvider";
-
-// Components
+import { useAuthStore } from "@/stores/useAuthStore";
+import { BotAvatar } from "./BotAvatar"; 
+import { UserAvatarComponent } from "./UserAvatarComponent"; 
 import { MessageBubble } from "./MessageBubble";
-import { ThinkingBubble } from "./ThinkingBubble";
 
 interface ChatMessagesProps {
   messages: ChatMessage[];
@@ -21,57 +20,46 @@ export function ChatMessages({
   isLoadingAI,
   scrollContainerRef 
 }: ChatMessagesProps) {
-  const chatContext = useChatContext();
-  // ✅ Type-safe access: currentThought có thể không có trong tất cả các hook
-  const currentThought = (chatContext as any)?.currentThought;
-  const isContextLoading = chatContext?.isLoadingAI;
-
-  // Trạng thái loading tổng hợp
-  const isThinking = !!currentThought || isContextLoading || isLoadingAI;
-
+  const { user } = useAuthStore();
+  
   const fallbackRef = useRef<HTMLDivElement>(null);
   const parentRef = scrollContainerRef || fallbackRef;
 
-  // Virtualizer setup
   const virtualizer = useVirtualizer({
     count: messages.length, 
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 100,
+    estimateSize: () => 80, 
     overscan: 5,
   });
 
-  // ✅ LOGIC CHẶT CHẼ HƠN: Fix Double Bubble
-  // 1. Kiểm tra tin nhắn cuối cùng có phải là AI đang trả lời không?
-  const lastMessage = messages[messages.length - 1];
-  const isAiResponding = lastMessage?.senderType === 'AI';
-  
-  // 2. Chỉ hiện Sticky Bubble khi:
-  // - Đang có tín hiệu loading/thinking từ context
-  // - VÀ AI CHƯA xuất hiện trong danh sách tin nhắn (nghĩa là đang chờ packet đầu tiên)
-  const showStickyBubble = (!!currentThought || isLoadingAI || isContextLoading) && !isAiResponding;
-
-  // Auto-scroll logic
+  // Auto Scroll Logic
   useEffect(() => {
     const scrollElement = parentRef.current;
     if (!scrollElement) return;
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage) return;
 
-    const checkNearBottom = () => {
-      const { scrollHeight, scrollTop, clientHeight } = scrollElement;
-      return scrollHeight - scrollTop - clientHeight < 300;
-    };
+    const isUser = lastMessage.senderType === 'User';
+    const meta = lastMessage.metadata as any;
+    const isAiActive = lastMessage.senderType === 'AI' && 
+        (meta?.status === 'thinking' || meta?.status === 'streaming' || meta?.status === 'pending');
 
-    if (checkNearBottom() || isThinking) {
-      setTimeout(() => {
-        scrollElement.scrollTo({ top: scrollElement.scrollHeight, behavior: 'smooth' });
-      }, 100);
+    if (isUser || isAiActive) {
+         requestAnimationFrame(() => {
+             const { scrollHeight, scrollTop, clientHeight } = scrollElement;
+             const isNearBottom = scrollHeight - scrollTop - clientHeight < 300;
+             if (isNearBottom || isUser) {
+                scrollElement.scrollTo({ top: scrollElement.scrollHeight, behavior: 'smooth' });
+             }
+         });
     }
-  }, [messages.length, isThinking, currentThought]); 
+  }, [messages, parentRef]);
 
   return (
     <div 
       ref={!scrollContainerRef ? fallbackRef : undefined}
       className={cn(
-        "relative w-full",
+        "relative w-full px-2", 
         !scrollContainerRef && "h-full overflow-y-auto custom-scrollbar"
       )}
     >
@@ -84,34 +72,77 @@ export function ChatMessages({
       >
         {virtualizer.getVirtualItems().map((virtualItem) => {
           const message = messages[virtualItem.index];
+          const nextMessage = messages[virtualItem.index + 1]; 
+          const prevMessage = messages[virtualItem.index - 1]; 
+
+          const msgSenderId = typeof message.sender === 'object' && message.sender !== null 
+              ? message.sender._id 
+              : message.sender;
+          
+          const isUser = 
+              (message.senderType?.toLowerCase() === "user") || 
+              (!!user?._id && msgSenderId === user._id) || 
+              message._id.startsWith("temp_");
+
+          const isSameSenderAsPrev = prevMessage?.senderType === message.senderType;
+          const isSameSenderAsNext = nextMessage?.senderType === message.senderType;
+
+          // 🔥 FIX 2: Logic Avatar hiển thị
+          const isLastMessage = virtualItem.index === messages.length - 1;
+          // Hiện avatar nếu: Tin tiếp theo khác người gửi HOẶC đây là tin cuối cùng của list
+          const showAvatar = !isSameSenderAsNext || isLastMessage;
+
           return (
             <div
               key={message._id}
               ref={virtualizer.measureElement}
               data-index={virtualItem.index}
-              className="absolute top-0 left-0 w-full px-4"
+              className={cn(
+                "absolute top-0 left-0 w-full px-2 md:px-4",
+                isSameSenderAsPrev ? "pt-1" : "pt-4"
+              )}
               style={{ transform: `translateY(${virtualItem.start}px)` }}
             >
-               <div className="py-3">
-                  <MessageBubble message={message} />
+               <div className={cn(
+                   "flex gap-3 max-w-3xl mx-auto items-end",
+                   isUser ? "flex-row-reverse" : "flex-row"
+               )}>
+                  
+                  {/* CỘT AVATAR */}
+                  <div className="flex-shrink-0 w-10 min-w-[40px] flex flex-col justify-end"> 
+                      {showAvatar ? (
+                          isUser ? (
+                              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden shadow-sm ring-1 ring-gray-100">
+                                  <UserAvatarComponent />
+                              </div>
+                          ) : (
+                              <BotAvatar 
+                                 isThinking={(message.metadata as any)?.status === 'thinking'}
+                                 className="w-8 h-8 md:w-10 md:h-10" 
+                              />
+                          )
+                      ) : (
+                          <div className="w-8 md:w-10 min-w-[32px]" /> 
+                      )}
+                  </div>
+
+                  {/* CỘT NỘI DUNG */}
+                  <div className={cn(
+                      "flex flex-col min-w-0 max-w-[85%] md:max-w-[80%]", 
+                      isUser ? "items-end" : "items-start"
+                  )}> 
+                      <MessageBubble 
+                          message={message} 
+                          isUser={isUser}
+                          isFirst={!isSameSenderAsPrev}
+                          isLast={!isSameSenderAsNext}
+                      />
+                  </div>
                </div>
             </div>
           );
         })}
       </div>
-
-      {/* ✅ STICKY BUBBLE: Chỉ hiện khi AI chưa kịp đẩy tin nhắn nào vào list */}
-      {showStickyBubble && (
-         <div className="px-4 py-2 animate-in fade-in slide-in-from-bottom-2 duration-300 mt-2">
-             <ThinkingBubble 
-                icon={currentThought?.icon || "⚡"} 
-                text={currentThought?.text || "Zin đang kết nối..."} 
-             />
-         </div>
-      )}
-      
-      {/* Spacer chỉ hiện khi Bubble hiện */}
-      {showStickyBubble && <div className="h-16" />}
     </div>
   );
 }

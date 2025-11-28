@@ -1,78 +1,86 @@
-// src/features/chat/hooks/useConversationState.ts
-import { useState, useCallback } from "react";
+// apps/customer-frontend/src/features/chat/hooks/useConversationState.ts
+import { create } from 'zustand'; // ✅ Dùng Zustand để đồng bộ dữ liệu toàn app
 import { ChatConversation } from "@/types/chat";
 import * as chatApi from "../services/chat.api.service";
 
-export const useConversationState = () => {
-  const [conversations, setConversations] = useState<ChatConversation[]>([]);
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+interface ConversationStore {
+  conversations: ChatConversation[];
+  currentConversationId: string | null;
+  isLoadingConversations: boolean;
+  
+  // Actions
+  loadConversations: (filters?: { type?: string }) => Promise<ChatConversation[]>;
+  addConversation: (incomingConvo: Partial<ChatConversation>) => void;
+  updateConversationTitle: (id: string, newTitle: string) => void;
+  removeConversation: (id: string) => void;
+  selectConversation: (id: string) => void;
+  clearCurrentConversation: () => void;
+}
 
-  // ✅ LOAD WITH FILTERS (Giữ logic Bot/Social)
-  const loadConversations = useCallback(async (filters?: { type?: string }) => {
-    setIsLoadingConversations(true);
+// ✅ CHUYỂN THÀNH GLOBAL STORE (Không phải Hook thường nữa)
+export const useConversationState = create<ConversationStore>((set, get) => ({
+  conversations: [],
+  currentConversationId: null,
+  isLoadingConversations: false,
+
+  loadConversations: async (filters) => {
+    set({ isLoadingConversations: true });
     try {
       const convos = await chatApi.fetchChatConversations(filters);
+      // Sort: Mới nhất lên đầu
       const valid = convos
         .filter(c => c && !c.deletedAt)
         .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());
       
-      setConversations(valid);
+      set({ conversations: valid });
       return valid;
     } catch (error) {
       console.error("Failed to load conversations:", error);
       return [];
     } finally {
-      setIsLoadingConversations(false);
+      set({ isLoadingConversations: false });
     }
-  }, []);
+  },
 
-  // ✅ SAFE UPSERT & MERGE
-  const addConversation = useCallback((incomingConvo: Partial<ChatConversation>) => {
-    setConversations((prev) => {
-      const existingIndex = prev.findIndex((c) => c._id === incomingConvo._id);
+  addConversation: (incomingConvo) => {
+    set((state) => {
+      const prev = state.conversations;
+      // Dùng _id hoặc id hoặc conversationId
+      const targetId = incomingConvo._id || (incomingConvo as any).id || (incomingConvo as any).conversationId;
+      
+      const existingIndex = prev.findIndex((c) => c._id === targetId);
       
       let newConversation: ChatConversation;
       let otherConversations = [...prev];
 
       if (existingIndex !== -1) {
-        // Merge: Giữ lại dữ liệu gốc (quan trọng nhất là createdAt)
-        newConversation = { ...prev[existingIndex], ...incomingConvo } as ChatConversation;
+        // Merge data
+        newConversation = { ...prev[existingIndex], ...incomingConvo, _id: targetId } as ChatConversation;
         otherConversations.splice(existingIndex, 1);
       } else {
-        newConversation = incomingConvo as ChatConversation;
+        newConversation = { ...incomingConvo, _id: targetId } as ChatConversation;
       }
 
       // Move to Top
-      return [newConversation, ...otherConversations];
+      return { conversations: [newConversation, ...otherConversations] };
     });
-  }, []);
+  },
 
-  const updateConversationTitle = useCallback((id: string, newTitle: string) => {
-    addConversation({ _id: id, title: newTitle });
-  }, [addConversation]);
+  updateConversationTitle: (id, newTitle) => {
+    get().addConversation({ _id: id, title: newTitle });
+  },
 
-  const removeConversation = useCallback((id: string) => {
-    setConversations((prev) => prev.filter((c) => c._id !== id));
-  }, []);
+  removeConversation: (id) => {
+    set((state) => ({
+      conversations: state.conversations.filter((c) => c._id !== id)
+    }));
+  },
 
-  const selectConversation = useCallback((id: string) => {
-    setCurrentConversationId(id);
-  }, []);
+  selectConversation: (id) => {
+    set({ currentConversationId: id });
+  },
 
-  const clearCurrentConversation = useCallback(() => {
-    setCurrentConversationId(null);
-  }, []);
-
-  return {
-    conversations,
-    currentConversationId,
-    isLoadingConversations,
-    loadConversations,
-    addConversation,
-    updateConversationTitle,
-    removeConversation,
-    selectConversation,
-    clearCurrentConversation,
-  };
-};
+  clearCurrentConversation: () => {
+    set({ currentConversationId: null });
+  },
+}));

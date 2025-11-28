@@ -1,74 +1,114 @@
-// src/features/chat/components/ChatBotSync.tsx
+// apps/customer-frontend/src/features/chat/components/ChatBotSync.tsx
 import { useEffect, useRef } from "react";
 import { useSocket } from "@/contexts/SocketProvider";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useChatContext } from "../context/ChatProvider";
-import * as chatApi from "../services/chat.api.service";
+import { useConversationState } from "../hooks/useConversationState";
+import { Logger } from "@/shared/utils/logger.util"; 
 
-export function ChatBotSync() {
+export const ChatBotSync = () => {
   const { pusher } = useSocket();
-  const user = useAuthStore((state) => state.user);
-  const chatContext = useChatContext();
-  const contextRef = useRef(chatContext);
+  const { user } = useAuthStore();
+  
+  // Lấy các hàm từ Store
+  const { 
+    addConversation, 
+    updateConversationTitle, 
+    loadConversations 
+  } = useConversationState();
+
+  // Ref luôn giữ phiên bản mới nhất của các hàm trong Store
+  const storeActionsRef = useRef({
+    addConversation,
+    updateConversationTitle,
+    loadConversations
+  });
 
   useEffect(() => {
-    contextRef.current = chatContext;
-  }, [chatContext]);
+    storeActionsRef.current = {
+      addConversation,
+      updateConversationTitle,
+      loadConversations
+    };
+  }, [addConversation, updateConversationTitle, loadConversations]);
 
   useEffect(() => {
     if (!pusher || !user?._id) return;
 
     const channelName = `private-user-${user._id}`;
-    const channel = pusher.subscribe(channelName);
-    console.log(`[ChatBotSync] 📡 Connected: ${channelName}`);
+    let channel = pusher.channel(channelName);
 
-    const normalizePayload = (data: any) => {
-        if (!data) return null;
-        return data.conversation || data.data || data;
-    };
+    if (!channel) {
+      Logger.info(`[ChatBotSync] 🔌 Subscribing to ${channelName}`);
+      channel = pusher.subscribe(channelName);
+    }
 
-    // Lấy dữ liệu tươi từ API để đảm bảo tên chuẩn
-    const fetchFreshData = async (id: string) => {
-        try {
-            const freshConvo = await chatApi.fetchConversationById(id);
-            if (freshConvo) {
-                console.log(`[ChatBotSync] 🔄 Synced Title: "${freshConvo.title}"`);
-                // Update vào State
-                contextRef.current?.addConversation(freshConvo);
-            }
-        } catch (err) {
-            console.error("[ChatBotSync] Failed to sync", err);
-        }
-    };
-
-    const handleUpsert = (rawPayload: any, source: string) => {
-      const data = normalizePayload(rawPayload);
+    // --- Handler: Khi có hội thoại mới ---
+    const handleConversationCreated = (data: any) => {
+      Logger.info(`[ChatBotSync] 🆕 Conversation Created Data:`, data);
       
-      if (data && data._id) {
-          // 1. Update ngay lập tức (Optimistic)
-          contextRef.current?.addConversation(data);
+      const actions = storeActionsRef.current;
+      if (actions.addConversation && typeof actions.addConversation === 'function') {
+        
+        // 🔥 FIX QUAN TRỌNG: Backend trả về _id, không phải conversationId
+        // Data từ backend: { _id: "...", title: "...", ... }
+        // Ta cần map đúng trường để Sidebar hiển thị được
+        const conversationData = {
+          ...data,
+          // Ưu tiên lấy _id, nếu không có thì fallback sang conversationId hoặc id
+          _id: data._id || data.conversationId || data.id, 
+          title: data.title || "Đoạn chat mới",
+          updatedAt: data.updatedAt || new Date().toISOString(),
+          lastMessageAt: data.lastMessageAt || new Date().toISOString(),
+        };
+
+        if (conversationData._id) {
+            actions.addConversation(conversationData as any);
+        } else {
+            Logger.warn("[ChatBotSync] Received conversation without ID", data);
+        }
+
+      } else {
+        Logger.warn(`[ChatBotSync] addConversation not ready, reloading list...`);
+        actions.loadConversations?.({ type: 'customer-bot' });
+      }
+    };
+
+    // --- Handler: Khi hội thoại update (đổi tên, tin nhắn mới) ---
+    const handleConversationUpdated = (data: any) => {
+      // Logger.info(`[ChatBotSync] ♻️ Conversation Updated:`, data);
+      
+      const actions = storeActionsRef.current;
+      const conversationId = data._id || data.conversationId; // Handle cả 2 trường hợp
+
+      if (conversationId) {
+          // Case 1: Update title (quan trọng nhất)
+          if (data.title && actions.updateConversationTitle) {
+            actions.updateConversationTitle(conversationId, data.title);
+          }
           
-          // 2. Nếu là UPDATE (Đổi tên) -> Gọi API xác thực
-          if (source === "UPDATED") {
-             fetchFreshData(data._id);
+          // Case 2: Nếu có lastMessageAt mới -> Cần update để nó nhảy lên đầu
+          // (addConversation có logic merge và sort nên gọi nó cũng an toàn)
+          if (data.lastMessageAt && actions.addConversation) {
+             actions.addConversation({
+                 ...data,
+                 _id: conversationId
+             } as any);
           }
       }
     };
 
-    channel.bind("conversation_created", (d: any) => handleUpsert(d, "CREATED"));
-    channel.bind("conversation_updated", (d: any) => handleUpsert(d, "UPDATED"));
-    channel.bind("conversation_removed", (d: any) => {
-       const data = normalizePayload(d);
-       if (data?.conversationId || data?._id) {
-           contextRef.current?.removeConversation(data.conversationId || data._id);
-       }
-    });
+    // Bind events
+    channel.bind("conversation_created", handleConversationCreated);
+    channel.bind("conversation_updated", handleConversationUpdated);
 
+    // Cleanup
     return () => {
-      channel.unbind_all();
-      pusher.unsubscribe(channelName);
+      if (channel) {
+        channel.unbind("conversation_created", handleConversationCreated);
+        channel.unbind("conversation_updated", handleConversationUpdated);
+      }
     };
   }, [pusher, user?._id]);
 
   return null;
-}
+};

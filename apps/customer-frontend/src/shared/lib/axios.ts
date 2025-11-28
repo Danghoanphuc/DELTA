@@ -91,8 +91,17 @@ api.interceptors.response.use(
           failedQueue.push({ resolve, reject });
         })
           .then((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return api(originalRequest);
+            // ✅ FIX: Đảm bảo request retry dùng token mới từ queue
+            if (token) {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+            }
+            return api({
+              ...originalRequest,
+              headers: {
+                ...originalRequest.headers,
+                Authorization: `Bearer ${token}`,
+              },
+            });
           })
           .catch((err) => Promise.reject(err));
       }
@@ -129,11 +138,25 @@ api.interceptors.response.use(
         }
 
         console.log("✅ [Frontend] Token refreshed successfully");
+        
+        // ✅ FIX: Cập nhật token vào store TRƯỚC khi retry request
         useAuthStore.getState().setAccessToken(newAccessToken);
+        
+        // ✅ FIX: Đảm bảo request retry dùng token mới
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-
+        
+        // ✅ FIX: Process queue với token mới để các request đang chờ cũng dùng token mới
         processQueue(null, newAccessToken);
-        return api(originalRequest);
+        
+        // ✅ FIX: Retry request ban đầu với token mới
+        // Đảm bảo không dùng interceptor request (đã set header trực tiếp)
+        return api({
+          ...originalRequest,
+          headers: {
+            ...originalRequest.headers,
+            Authorization: `Bearer ${newAccessToken}`,
+          },
+        });
       } catch (refreshError: any) {
         const errorMessage = refreshError.response?.data?.message || refreshError.message;
         const errorCode = refreshError.response?.status;

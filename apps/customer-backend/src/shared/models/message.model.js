@@ -20,6 +20,14 @@ const messageSchema = new mongoose.Schema(
       required: true,
     },
     
+    // 🔥 NÂNG CẤP 1: clientSideId để khớp tin nhắn Optimistic
+    clientSideId: {
+      type: String,
+      unique: true,
+      sparse: true, // Cho phép null (đối với tin nhắn cũ hoặc tin nhắn hệ thống)
+      index: true,
+    },
+    
     // 🔥 FIX: Thêm đầy đủ các type mới để tránh lỗi ValidatorError
     type: {
       type: String,

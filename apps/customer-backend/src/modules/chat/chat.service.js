@@ -8,6 +8,7 @@ import { socketService } from "../../infrastructure/realtime/pusher.service.js";
 import { novuService } from "../../infrastructure/notifications/novu.service.js";
 import { Logger } from "../../shared/utils/index.js";
 import { ChatResponseUtil } from "./chat.response.util.js";
+import { getUrlPreviewQueue } from "../../infrastructure/queue/url-preview.queue.js"; // ✅ Thêm import này
 
 export class ChatService {
   constructor() {
@@ -16,13 +17,16 @@ export class ChatService {
     this.aiService = new ChatAiService();
   }
 
+  // ✅ REFACTOR: Tách logic save User Message ra xử lý trước
   async handleBotMessage(user, body, isGuest = false) {
-    const { message, displayText, fileUrl, conversationId, type, metadata } = body;
+    // 🔥 Hứng clientSideId từ Frontend gửi lên
+    const { message, displayText, fileUrl, conversationId, type, metadata, clientSideId } = body;
     const userId = user ? user._id : null;
     
     const textToShow = displayText || message;
     const textToProcess = message;
 
+    // 1. Tìm hoặc Tạo hội thoại
     let conversation = conversationId 
       ? await this.chatRepository.findConversationById(conversationId, userId)
       : null;
@@ -31,41 +35,7 @@ export class ChatService {
     if (!conversation) {
       conversation = await this.chatRepository.createConversation(userId);
       isNewConversation = true;
-      
-      // 🔥 WOW FIX 1: Bắn Socket báo tạo mới NGAY LẬP TỨC
-      if (userId) {
-        try {
-          // Populate participants để format giống API response
-          await conversation.populate("participants.userId", "username displayName avatarUrl isOnline");
-          
-          // Convert sang plain object với format giống API response
-          const conversationToEmit = conversation.toObject ? conversation.toObject() : conversation;
-          
-          // Đảm bảo có đầy đủ fields cần thiết
-          const formattedConversation = {
-            ...conversationToEmit,
-            _id: conversationToEmit._id?.toString() || conversationToEmit._id,
-            title: conversationToEmit.title || "Đoạn chat mới",
-            type: conversationToEmit.type || "customer-bot",
-            createdAt: conversationToEmit.createdAt || new Date().toISOString(),
-            updatedAt: conversationToEmit.updatedAt || new Date().toISOString(),
-            lastMessageAt: conversationToEmit.lastMessageAt || null,
-            isActive: conversationToEmit.isActive !== undefined ? conversationToEmit.isActive : true
-          };
-          
-          Logger.info(`[ChatService] 🔥 Emitting conversation_created to user ${userId}, conversationId: ${formattedConversation._id}`);
-          socketService.emitToUser(userId.toString(), 'conversation_created', formattedConversation);
-        } catch (emitError) {
-          Logger.error("[ChatService] Failed to emit conversation_created:", emitError);
-        }
-      }
-    }
-
-    const urlRegex = /https?:\/\/[^\s]+(?<![.,;!?])/g;
-    const detectedUrls = textToProcess ? textToProcess.match(urlRegex) : [];
-
-    if (detectedUrls?.length > 0 && !fileUrl) {
-       return this._handleUrlPreview(userId, conversation, detectedUrls[0], textToShow, isNewConversation);
+      if (userId) this._emitConversationCreated(userId, conversation);
     }
 
     const context = {
@@ -76,8 +46,37 @@ export class ChatService {
       fileUrl
     };
 
+    // 2. 🔥 SAVE USER MESSAGE VỚI CLIENT_SIDE_ID
+    let userMsg = null;
+    if (textToShow || fileUrl) {
+       userMsg = await this.chatRepository.createMessage({
+          conversationId: conversation._id,
+          sender: userId,
+          senderType: userId ? "User" : "Guest",
+          content: { text: textToShow, fileUrl },
+          metadata: metadata || {},
+          clientSideId: clientSideId // <-- LƯU VÀO DB
+      });
+
+      // Emit lại message vừa tạo (Frontend sẽ dùng clientSideId để khớp và xóa trạng thái pending)
+      if (userId) {
+         socketService.emitToUser(userId.toString(), 'chat:message:new', userMsg);
+      }
+    }
+
+    // 3. Xử lý URL Preview (nếu có) - Chạy async, không block
+    const urlRegex = /https?:\/\/[^\s]+(?<![.,;!?])/g;
+    const detectedUrls = textToProcess ? textToProcess.match(urlRegex) : [];
+    if (detectedUrls?.length > 0 && !fileUrl) {
+       // Fire & Forget logic URL Preview
+       this._handleUrlPreview(userId, conversation, detectedUrls[0], textToShow, isNewConversation).catch(console.error);
+       return { conversationId: conversation._id, userMessage: userMsg };
+    }
+
+    // 4. Chuẩn bị AI Stream
     const aiMessageId = new mongoose.Types.ObjectId(); 
     
+    // Emit event báo hiệu AI bắt đầu nghĩ (để UI hiện bubble rỗng hoặc loading)
     if (userId) {
         socketService.emitToUser(userId.toString(), 'ai:stream:start', {
             messageId: aiMessageId.toString(),
@@ -88,159 +87,107 @@ export class ChatService {
 
     const onStream = (payload) => {
         if (!userId) return;
-
         if (payload.type === 'text_stream') {
             socketService.emitToUser(userId.toString(), 'ai:stream:chunk', {
                 conversationId: conversation._id.toString(),
+                messageId: aiMessageId.toString(), // Quan trọng để UI biết đang stream cho message nào
                 text: payload.text
             });
         } else {
+            // Thinking process
             socketService.emitToUser(userId.toString(), 'ai:thinking:update', {
                 conversationId: conversation._id.toString(),
+                messageId: aiMessageId.toString(),
                 icon: payload.icon,
-                text: payload.text
+                text: payload.text,
+                isThinking: true
             });
         }
     };
 
-    let responsePayload;
-    try {
-      const historyData = await this.chatRepository.getPaginatedMessages(conversation._id, 1, 10);
-      const history = historyData.messages || [];
-
-      if (fileUrl) {
-         const analysis = await this.aiService.getVisionCompletion(fileUrl, "Phân tích ảnh này và gợi ý in ấn.", context);
-         const visionPrompt = `[SYSTEM] User gửi ảnh. AI Vision đã thấy: "${analysis}". Hãy tư vấn dựa trên đó.`;
-         responsePayload = await this.agent.run(context, history, textToProcess || "Gửi ảnh", visionPrompt, onStream);
-      } else if (type === "product" && metadata?.productId) {
-         responsePayload = await this._handleProductContext(metadata.productId);
-      } else {
-         responsePayload = await this.agent.run(context, history, textToProcess, null, onStream);
-      }
-    } catch (error) {
-      Logger.error("[ChatService] Agent Error:", error);
-      responsePayload = ChatResponseUtil.createTextResponse("Xin lỗi, hệ thống đang bận.");
-    }
-
-    await this._saveChatHistory(
-        conversation._id, 
-        userId, 
-        { text: textToShow, fileUrl }, 
-        responsePayload, 
-        aiMessageId,
-        metadata
-    );
-
-    // 🔥 WOW FIX 2: Trigger Auto-Naming chạy ngầm (Fire & Forget)
-    // Chỉ chạy nếu là đoạn chat mới hoặc chưa có tên custom
-    if (userId && (isNewConversation || !conversation.title || conversation.title === "Đoạn chat mới")) {
-      this._generateWowTitle(conversation._id, userId, textToShow, responsePayload?.content?.text).catch((e) => {
-        Logger.error("[ChatService] Auto-title failed silently", e);
-      });
-    }
-
-    if (userId) {
+    // 5. Chạy AI (Async background)
+    // Chúng ta KHÔNG dùng await để block response HTTP.
+    // HTTP trả về ngay sau khi lưu User Message. AI chạy ngầm.
+    (async () => {
       try {
-        // ✅ FIX: Removed 'as any' TypeScript syntax
-        const messageText = responsePayload.content?.text || textToShow;
-        await novuService.triggerChatNotification(
-          userId.toString(),
-          messageText.substring(0, 100),
-          conversation._id.toString()
-        );
-      } catch (error) {
-        Logger.error("[ChatService] Novu trigger failed:", error);
-      }
-    }
+        const historyData = await this.chatRepository.getPaginatedMessages(conversation._id, 1, 10);
+        const history = historyData.messages || [];
 
-    return {
-      ...responsePayload,
-      _id: aiMessageId,
-      conversationId: conversation._id,
-      newConversation: isNewConversation ? conversation : null,
-    };
-  }
-
-  async _handleUrlPreview(userId, conversation, url, userText, isNew) {
-    await this.chatRepository.createMessage({
-        conversationId: conversation._id,
-        sender: userId,
-        senderType: userId ? "User" : "Guest",
-        content: { text: userText },
-        type: "text",
-        metadata: { urlPreview: url }
-    });
-
-    const aiMsg = await this.chatRepository.createMessage({
-        conversationId: conversation._id,
-        senderType: "AI",
-        content: { text: `Đang phân tích liên kết... \n<think>Đang truy cập ${url}...</think>` },
-        metadata: { source: "url-preview", status: "thinking", originalUrl: url }
-    });
-
-    const { getUrlPreviewQueue } = await import("../../infrastructure/queue/url-preview.queue.js");
-    const urlPreviewQueue = getUrlPreviewQueue();
-    await urlPreviewQueue.add({
-        url,
-        conversationId: conversation._id.toString(),
-        userId: userId?.toString(),
-        thinkingMessageId: aiMsg._id.toString()
-    });
-
-    return { ...aiMsg.toObject(), conversationId: conversation._id, newConversation: isNew ? conversation : null };
-  }
-
-  async _handleProductContext(productId) {
-    const product = await productRepository.findById(productId);
-    if (!product) return ChatResponseUtil.createTextResponse("Sản phẩm không tồn tại.");
-    
-    return {
-        type: "product",
-        content: { text: `Tôi có thể giúp gì về sản phẩm "${product.name}"?` },
-        _messageMetadata: {
-            productId: product._id,
-            productName: product.name,
-            price: product.pricing?.[0]?.price || 0,
-            image: product.images?.[0]
+        let responsePayload;
+        if (fileUrl) {
+           const analysis = await this.aiService.getVisionCompletion(fileUrl, "Phân tích ảnh này và gợi ý in ấn.", context);
+           const visionPrompt = `[SYSTEM] User gửi ảnh. AI Vision đã thấy: "${analysis}". Hãy tư vấn dựa trên đó.`;
+           responsePayload = await this.agent.run(context, history, textToProcess || "Gửi ảnh", visionPrompt, onStream);
+        } else if (type === "product" && metadata?.productId) {
+           responsePayload = await this._handleProductContext(metadata.productId);
+        } else {
+           responsePayload = await this.agent.run(context, history, textToProcess, null, onStream);
         }
+
+        // 6. Lưu AI Message & Emit Final Socket
+        const savedAiMsg = await this.chatRepository.createMessage({
+            _id: aiMessageId,
+            conversationId: conversation._id,
+            senderType: "AI",
+            type: responsePayload.type || "ai_response",
+            content: responsePayload.content,
+            metadata: { 
+              ...responsePayload._messageMetadata,
+              status: "sent" // Đánh dấu đã xong
+            }
+        });
+
+        if (userId) {
+           // Emit bản final để UI replace cái streaming text bằng nội dung đầy đủ
+           socketService.emitToUser(userId.toString(), 'chat:message:updated', savedAiMsg);
+        }
+
+        // 7. Auto Title & Notification (ĐÃ CÓ HÀM _generateWowTitle Ở DƯỚI)
+        if (userId && (isNewConversation || !conversation.title || conversation.title === "Đoạn chat mới")) {
+          this._generateWowTitle(conversation._id, userId, textToShow, responsePayload?.content?.text).catch(e => Logger.error("Auto-title error", e));
+        }
+
+        if (userId) {
+           const messageText = responsePayload.content?.text || "Tin nhắn mới từ Zin";
+           await novuService.triggerChatNotification(userId.toString(), messageText.substring(0, 100), conversation._id.toString());
+        }
+
+      } catch (error) {
+        Logger.error("[ChatService] Async AI Error:", error);
+        if (userId) {
+             socketService.emitToUser(userId.toString(), 'chat:message:updated', {
+                 _id: aiMessageId.toString(),
+                 conversationId: conversation._id,
+                 senderType: "AI",
+                 type: "error",
+                 content: { text: "Hệ thống đang bận, vui lòng thử lại sau." },
+                 metadata: { status: "error" }
+             });
+        }
+      }
+    })();
+
+    // ✅ Return ngay lập tức thông tin cơ bản
+    return {
+      success: true,
+      conversationId: conversation._id,
+      userMessage: userMsg, // Trả về để Client map tempId
+      aiMessageId: aiMessageId // Trả về để Client biết trước ID của câu trả lời sắp tới
     };
   }
 
-  async _saveChatHistory(conversationId, userId, userContent, aiResponse, aiMsgId, userMetadata) {
-    if (userContent.text || userContent.fileUrl) {
-        await this.chatRepository.createMessage({
-            conversationId,
-            sender: userId,
-            senderType: userId ? "User" : "Guest",
-            content: userContent,
-            metadata: userMetadata
-        });
-    }
-
-    await this.chatRepository.createMessage({
-        _id: aiMsgId,
-        conversationId,
-        senderType: "AI",
-        type: aiResponse.type || "ai_response",
-        content: aiResponse.content,
-        metadata: aiResponse._messageMetadata
-    });
-  }
-
-  // ✅ HÀM MỚI: Tự động đặt tên "Giật tít"
+  // ✅ HÀM MỚI 1: Tự động đặt tên "Giật tít"
   async _generateWowTitle(conversationId, userId, userMessage, aiMessage) {
     try {
-      // Prompt "thần thánh" để tạo title hay
+      if (!userMessage && !aiMessage) return;
+      
       const prompt = `
 Dựa trên cuộc hội thoại này:
-
-User: "${userMessage}"
-
-AI: "${aiMessage}"
+User: "${userMessage?.substring(0, 100)}"
+AI: "${aiMessage?.substring(0, 100)}"
 
 Hãy đặt một tiêu đề cực ngắn (dưới 6 từ), thú vị, trendy, có tính gợi mở. 
-Không dùng dấu ngoặc kép. Ví dụ: "Ý tưởng in áo thun", "Thiết kế logo coffee".
-`;
+Không dùng dấu ngoặc kép. Ví dụ: "Ý tưởng in áo thun", "Thiết kế logo coffee".`;
 
       const titleRes = await this.aiService.getCompletionWithCustomPrompt([], prompt);
       const newTitle = titleRes.choices[0]?.message?.content?.trim().replace(/^["']|["']$/g, '') || "Đoạn chat mới";
@@ -250,13 +197,64 @@ Không dùng dấu ngoặc kép. Ví dụ: "Ý tưởng in áo thun", "Thiết k
 
       // 🔥 Bắn Socket: Hiệu ứng đổi tên Realtime
       socketService.emitToUser(userId.toString(), 'conversation_updated', {
-        _id: conversationId.toString(),
+        conversationId: conversationId.toString(),
         title: newTitle,
-        isAutoGenerated: true // Cờ này để Frontend làm hiệu ứng lấp lánh
       });
-
     } catch (e) {
-      Logger.error("[ChatService] Auto-title failed", e);
+      Logger.error("[ChatService] _generateWowTitle failed", e);
     }
+  }
+
+  // ✅ HÀM MỚI 2: Xử lý URL Preview
+  async _handleUrlPreview(userId, conversation, url, textToShow, isNewConversation) {
+    const queue = await getUrlPreviewQueue();
+    if (queue) {
+        await queue.add('url-preview', {
+            url,
+            conversationId: conversation._id.toString(),
+            userId: userId.toString(),
+        });
+        
+        // Emit thinking state giả lập
+        socketService.emitToUser(userId.toString(), 'ai:thinking:update', {
+            conversationId: conversation._id.toString(),
+            icon: '📸',
+            text: `Đang chụp ảnh ${url}...`,
+            isThinking: true
+        });
+    }
+  }
+
+  // ✅ HÀM MỚI 3: Xử lý Product Context
+  async _handleProductContext(productId) {
+    try {
+        const product = await productRepository.findById(productId);
+        if (!product) return ChatResponseUtil.createTextResponse("Sản phẩm không tồn tại.");
+        
+        // Trả về dạng Product Card
+        return {
+            type: "product",
+            content: { text: `Tôi quan tâm đến sản phẩm ${product.name}` },
+            _messageMetadata: { 
+                productId: product._id,
+                productName: product.name,
+                price: product.pricing?.[0]?.pricePerUnit,
+                image: product.images?.[0]?.url,
+                category: product.category
+            }
+        };
+    } catch (e) {
+        return ChatResponseUtil.createTextResponse("Lỗi khi lấy thông tin sản phẩm.");
+    }
+  }
+
+  // Helper emit conversation created (giữ nguyên)
+  async _emitConversationCreated(userId, conversation) {
+     try {
+        await conversation.populate("participants.userId", "username displayName avatarUrl isOnline");
+        const conversationToEmit = conversation.toObject ? conversation.toObject() : conversation;
+        const formatted = { ...conversationToEmit, _id: conversationToEmit._id.toString(), isActive: true };
+        socketService.emitToUser(userId.toString(), 'conversation_created', formatted);
+     } catch (e) { Logger.error("Emit created failed", e); }
   }
 }

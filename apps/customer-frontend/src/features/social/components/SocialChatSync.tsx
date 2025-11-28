@@ -116,7 +116,36 @@ export function SocialChatSync() {
     };
 
     // --- C. ✅ NEW: Xử lý khi Nhóm bị Xóa (hoặc bị kick) ---
-    const onConversationRemoved = ({ conversationId }: { conversationId: string }) => {
+    const onConversationRemoved = async ({ conversationId }: { conversationId: string }) => {
+      // ✅ FIX: Chỉ xử lý SOCIAL conversations (group, peer-to-peer)
+      // Bỏ qua chatbot conversations (customer-bot) vì chúng được xử lý bởi ChatBotSync
+      
+      // Check trong store trước (nhanh nhất)
+      const existingConv = conversations.find(c => c._id === conversationId);
+      if (existingConv) {
+        if (existingConv.type === 'customer-bot') {
+          // Không log để tránh noise
+          return;
+        }
+        // Nếu là social conversation, tiếp tục xử lý
+      } else {
+        // Nếu không có trong store, fetch từ API để check type
+        try {
+          const conversation = await fetchConversationById(conversationId);
+          if (conversation && conversation.type === 'customer-bot') {
+            // Không log để tránh noise
+            return;
+          }
+        } catch (error) {
+          // Nếu fetch fail (có thể conversation đã bị xóa),
+          // Vì chatbot conversations thường không có trong SocialChatStore,
+          // nên ta giả định là chatbot conversation và bỏ qua
+          // Điều này an toàn hơn vì chatbot conversations được xử lý bởi ChatBotSync
+          return;
+        }
+      }
+      
+      // Chỉ log khi đã confirm là social conversation
       console.log("❌ [Sync] Conversation Removed:", conversationId);
       
       // 1. Xóa khỏi Store (Sidebar sẽ tự biến mất item này)

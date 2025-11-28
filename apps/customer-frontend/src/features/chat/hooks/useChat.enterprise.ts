@@ -1,30 +1,15 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { toast } from "@/shared/utils/toast";
+// src/features/chat/hooks/useChat.enterprise.ts
+import { useState, useEffect, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { ChatMessage, TypingState, QueuedMessage } from "@/types/chat";
+import { ChatMessage } from "@/types/chat";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useSocket } from "@/contexts/SocketProvider";
 import * as chatApi from "../services/chat.api.service";
-import { messageQueue } from "../utils/messageQueue";
-import { crossTabSync } from "../utils/crossTabSync";
 import { useMessageState, WELCOME_ID } from "./useMessageState";
 import { useConversationState } from "./useConversationState";
+import { useChatStore } from "../stores/useChatStore";
 
 export { WELCOME_ID };
-
-function useDebounce<T extends (...args: any[]) => any>(
-  callback: T,
-  delay: number
-): (...args: Parameters<T>) => void {
-  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
-  return useCallback(
-    (...args: Parameters<T>) => {
-      if (timeoutRef.current !== undefined) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => callback(...args), delay);
-    },
-    [callback, delay]
-  );
-}
 
 export const useChat = () => {
   const messageState = useMessageState();
@@ -33,60 +18,132 @@ export const useChat = () => {
   const [isChatExpanded, setIsChatExpanded] = useState(true);
   const { user } = useAuthStore();
   const { pusher } = useSocket();
-
-  const [typingState, setTypingState] = useState<TypingState | null>(null);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   
-  // ✅ STATE MỚI: Trạng thái suy nghĩ (Thought Process)
+  // Trạng thái suy nghĩ hiển thị (Sticky Bubble nếu cần)
   const [currentThought, setCurrentThought] = useState<{icon: string, text: string} | null>(null);
+  
+  // Lấy store actions từ ChatStore (cho Sidebar Deep Research)
+  const { 
+      addResearchStep, 
+      updateCurrentStep, 
+      completeResearch, 
+      resetResearch 
+  } = useChatStore();
 
-  // ... (Giữ nguyên phần sendQueuedMessage và useEffect online/offline)
-  const sendQueuedMessage = useCallback(async (queuedMessage: QueuedMessage): Promise<boolean> => {
-      // (Code cũ giữ nguyên)
-      return true; 
-  }, []); 
+  const handleCompletion = useCallback(() => {
+      const currentStore = useChatStore.getState();
+      if (currentStore.isDeepResearchOpen) {
+          currentStore.updateCurrentStep("Hoàn tất xử lý.", 'completed', 'success');
+          currentStore.completeResearch();
+      }
+      setCurrentThought(null);
+      setIsLoadingAI(false);
+  }, []);
 
-  useEffect(() => { /* (Code cũ giữ nguyên) */ }, []);
+  // Helper: Xử lý text suy nghĩ để tạo step trong Sidebar
+  const processThinkingStep = useCallback((text: string) => {
+      const keywords = [
+          { key: "tìm", title: "Tìm kiếm thông tin & Sản phẩm" },
+          { key: "search", title: "Tìm kiếm thông tin & Sản phẩm" },
+          { key: "phân tích", title: "Phân tích yêu cầu kỹ thuật" },
+          { key: "analyze", title: "Phân tích yêu cầu kỹ thuật" },
+          { key: "giá", title: "Tính toán chi phí & Báo giá" },
+          { key: "thiết kế", title: "Khởi tạo môi trường thiết kế" },
+      ];
+
+      const match = keywords.find(k => text.toLowerCase().includes(k.key));
+      if (match) {
+          addResearchStep(match.title);
+      }
+      updateCurrentStep(text, undefined, 'process');
+  }, [addResearchStep, updateCurrentStep]);
 
   // ===================================
-  // EFFECT 2: Pusher Event Listeners
+  // SOCKET HANDLERS
   // ===================================
   useEffect(() => {
     if (!pusher || !user) return;
-
-    // Subscribe vào kênh riêng của user (private channel - cần auth)
     const channelName = `private-user-${user._id}`;
     const channel = pusher.subscribe(channelName);
 
-    // ✅ HANDLER: Nhận trạng thái suy nghĩ từ Backend
+    // 🔥 HÀM CHUẨN HÓA DỮ LIỆU SOCKET
+    const normalizeSocketData = (msg: any): ChatMessage => {
+        let finalSenderType = msg.senderType;
+        if (!finalSenderType) {
+            if (msg.role === 'assistant' || msg.role === 'system') finalSenderType = 'AI';
+            else if (msg.role === 'user') finalSenderType = 'User';
+            else if (msg.isBot === true) finalSenderType = 'AI';
+            else if (msg.isBot === false) finalSenderType = 'User';
+        }
+        if (finalSenderType?.toUpperCase() === 'AI') finalSenderType = 'AI';
+        if (finalSenderType?.toLowerCase() === 'user') finalSenderType = 'User';
+        return { ...msg, senderType: finalSenderType };
+    };
+
+    // 1. AI Thinking Update
     const handleThinkingUpdate = (data: { icon: string; text: string; type?: string }) => {
-        // Nếu type là 'thinking_done', có thể tắt luôn hoặc chờ text stream
+        // --- A. Logic Sidebar ---
         if (data.type === 'thinking_done') {
-             // Optional: Giữ hiện thị 'Đã xong' một chút
-             setCurrentThought({ icon: data.icon, text: data.text });
+             completeResearch();
+             // Không set currentThought = null vội để tránh mất chữ đột ngột
         } else {
+             const store = useChatStore.getState();
+             if (store.researchSteps.length === 0) {
+                 addResearchStep("Khởi tạo tác vụ..."); 
+             }
+             processThinkingStep(data.text);
              setIsLoadingAI(true);
              setCurrentThought({ icon: data.icon, text: data.text });
         }
+
+        // --- B. 🔥 UPDATE MESSAGE METADATA TRONG LIST (QUAN TRỌNG) ---
+        // Cập nhật text suy nghĩ trực tiếp vào tin nhắn đang pending/thinking
+        messageState.setMessages((prev) => {
+            const lastAiIndex = prev.findLastIndex(m => 
+                m.senderType === 'AI' && 
+                ((m.metadata as any)?.status === 'thinking' || (m.metadata as any)?.status === 'pending')
+            );
+
+            if (lastAiIndex !== -1) {
+                const msg = prev[lastAiIndex];
+                // Chỉ update nếu text thay đổi để tránh re-render
+                if ((msg.metadata as any)?.thinkingText !== data.text) {
+                    const updated = [...prev];
+                    updated[lastAiIndex] = {
+                        ...msg,
+                        metadata: {
+                            ...(msg.metadata as any),
+                            status: 'thinking',
+                            thinkingText: data.text, // <--- Key fix: Sync text vào message bubble
+                            icon: data.icon
+                        }
+                    };
+                    return updated;
+                }
+            }
+            return prev;
+        });
     };
 
-    // ✅ HANDLER: Nhận Chunk Text -> Tắt bong bóng suy nghĩ
+    // 2. Stream Chunk
     const handleStreamChunk = (data: { conversationId: string; text: string }) => {
-        // Chỉ xử lý nếu là conversation hiện tại
         if (data.conversationId !== conversationState.currentConversationId) return;
         
-        // Khi chữ bắt đầu chạy ra, tắt bong bóng suy nghĩ ngay lập tức
+        // Nếu đang có research chạy thì hoàn tất nó
+        const steps = useChatStore.getState().researchSteps;
+        if (steps.some(s => s.status === 'running')) {
+            handleCompletion();
+        }
+        
         setCurrentThought(null);
-        setIsLoadingAI(false); // Tắt loading spinner nếu có
+        setIsLoadingAI(false);
 
-        // Update message content (Logic nối chuỗi)
         messageState.setMessages(prev => {
-            // Tìm tin nhắn AI cuối cùng đang stream hoặc thinking
             const lastAiMsgIndex = prev.findLastIndex((msg) => {
               if (msg.senderType !== "AI") return false;
               if (msg.conversationId !== data.conversationId) return false;
               const meta = msg.metadata as any;
+              // Chấp nhận cả status thinking chuyển sang streaming
               return meta?.status === "streaming" || meta?.status === "thinking";
             });
 
@@ -100,24 +157,22 @@ export const useChat = () => {
                 content: { ...msg.content, text: currentText + data.text } as any,
                 metadata: { ...(msg.metadata as any), status: "streaming" }
               };
-              
               return updated;
             }
-            
             return prev;
         });
     };
 
-    // Handler nhận Message hoàn chỉnh (Kết thúc turn)
-    const handleNewMessage = (socketMessage: any) => {
+    // 3. New Message
+    const handleNewMessage = (rawMsg: any) => {
+        const socketMessage = normalizeSocketData(rawMsg);
         if (socketMessage.conversationId !== conversationState.currentConversationId) return;
         
-        // Đảm bảo tắt suy nghĩ khi nhận tin nhắn cuối
-        setCurrentThought(null);
-        setIsLoadingAI(false);
-
+        if (socketMessage.senderType === 'AI') {
+            handleCompletion();
+        }
+        
         messageState.setMessages((prev) => {
-            // Logic merge/update tin nhắn cũ
             const idx = prev.findIndex(m => m._id === socketMessage._id);
             if (idx !== -1) {
                 const updated = [...prev];
@@ -128,55 +183,114 @@ export const useChat = () => {
         });
     };
 
-    // Đăng ký events với Pusher
+    // 4. Message Updated (Xử lý đồng bộ 2 chiều Sidebar <-> List)
+    const handleMessageUpdated = (rawMsg: any) => {
+         const updatedMsg = normalizeSocketData(rawMsg); 
+         const meta = updatedMsg.metadata as any || {};
+
+         // --- A. LOGIC SIDEBAR & BUBBLE ---
+         let computedThinkingText = meta.thinkingText;
+
+         if (updatedMsg.senderType === 'AI' && (meta.status === 'thinking' || meta.thinkingText)) {
+             const store = useChatStore.getState();
+             
+             // Init Sidebar nếu chưa có
+             if (store.researchSteps.length === 0) {
+                  addResearchStep("Phân tích dữ liệu...");
+             }
+
+             // Fallback text nếu null
+             if (!computedThinkingText) {
+                 const lastStep = store.researchSteps[store.researchSteps.length - 1];
+                 computedThinkingText = lastStep ? lastStep.title : "Đang xử lý...";
+             }
+
+             // Update Log Sidebar
+             const lastStep = store.researchSteps[store.researchSteps.length - 1];
+             const lastLog = lastStep?.logs[lastStep.logs.length - 1];
+             if (!lastLog || lastLog.text !== computedThinkingText) {
+                 updateCurrentStep(computedThinkingText, 'running', 'process');
+             }
+
+             setCurrentThought({ icon: meta.icon || "⚡", text: computedThinkingText });
+         }
+
+         // --- B. CẬP NHẬT VÀO LIST ---
+         messageState.setMessages((prev) => {
+            const idx = prev.findIndex(m => m._id === updatedMsg._id);
+            if (idx !== -1) {
+                const updated = [...prev];
+                // Merge metadata cũ + mới + thinkingText tính toán được
+                const newMetadata = { 
+                    ...(updated[idx].metadata || {}), 
+                    ...meta,
+                    thinkingText: computedThinkingText 
+                };
+
+                updated[idx] = { 
+                    ...updated[idx], 
+                    ...updatedMsg,
+                    metadata: newMetadata
+                };
+                return updated;
+            }
+            return prev;
+         });
+         
+         if (updatedMsg.senderType === 'AI' && meta.status === 'sent') {
+             handleCompletion();
+         }
+    };
+
     channel.bind("ai:thinking:update", handleThinkingUpdate);
     channel.bind("ai:stream:chunk", handleStreamChunk);
     channel.bind("chat:message:new", handleNewMessage);
     channel.bind("ai:message", handleNewMessage);
+    channel.bind("chat:message:updated", handleMessageUpdated);
 
     return () => {
-      // Unbind tất cả events và unsubscribe channel
       channel.unbind_all();
       pusher.unsubscribe(channelName);
     };
-  }, [pusher, user, conversationState.currentConversationId, messageState]);
+  }, [pusher, user, conversationState.currentConversationId, messageState, processThinkingStep, addResearchStep, updateCurrentStep, completeResearch, handleCompletion]);
 
-  // ... (Các phần còn lại: Typing emit, Cross-tab sync giữ nguyên)
+  // Chỉ update phần onSendText ở cuối file
 
-  // Action: Send Text
+  // ===================================
+  // ACTION: SEND TEXT
+  // ===================================
   const onSendText = useCallback(async (text: string, latitude?: number, longitude?: number, type?: any, metadata?: any) => {
-      const tempId = uuidv4();
-      const userMessage = messageState.addUserMessage(text, conversationState.currentConversationId, {
-        tempId, status: "pending", type, metadata
-      });
+    const tempId = uuidv4();
+    resetResearch();
 
-      // Reset trạng thái UI
-      setIsLoadingAI(true); 
-      setCurrentThought({ icon: "⚡", text: "Đang gửi..." }); // Feedback tức thì
+    // 1. Optimistic Update (Tạo tin nhắn User)
+    messageState.addUserMessage(text, conversationState.currentConversationId, {
+      tempId, status: "pending", type, metadata
+    });
 
-      try {
-        messageState.updateMessageStatus(tempId, "sending");
-        const aiResponse = await chatApi.postChatMessage(text, conversationState.currentConversationId, latitude, longitude, type, metadata);
-        
-        // Xử lý response sơ bộ (nếu có)
-        const realId = aiResponse?.newConversation?._id || conversationState.currentConversationId || uuidv4();
-        messageState.updateMessageStatus(tempId, "sent", { realId });
+    // 2. 🔥 FIX: Bật trạng thái loading ngay lập tức
+    setIsLoadingAI(true); 
+    setCurrentThought({ icon: "⚡", text: "Đang kết nối..." }); 
 
-        // Nếu AI trả lời ngay lập tức (không stream), tắt loading
-        if (aiResponse && !(aiResponse as any)?._id) { 
-             setCurrentThought(null);
-             setIsLoadingAI(false);
-        }
-      } catch (error) {
-        // Error handling
-        messageState.updateMessageStatus(tempId, "error", { error: "Gửi thất bại" });
-        setCurrentThought(null);
-        setIsLoadingAI(false);
+    try {
+      messageState.updateMessageStatus(tempId, "sending");
+      const aiResponse = await chatApi.postChatMessage(text, conversationState.currentConversationId, latitude, longitude, type, metadata);
+      
+      const realId = aiResponse?.newConversation?._id || conversationState.currentConversationId || uuidv4();
+      messageState.updateMessageStatus(tempId, "sent", { realId });
+
+      if (aiResponse && !(aiResponse as any)?._id) { 
+           handleCompletion();
       }
-  }, [messageState, conversationState]);
+    } catch (error) {
+      messageState.updateMessageStatus(tempId, "error", { error: "Gửi thất bại" });
+      handleCompletion();
+    }
+}, [messageState, conversationState, resetResearch, handleCompletion]);
+
+
 
   return {
-    // State từ hooks
     messages: messageState.messages,
     quickReplies: messageState.quickReplies,
     hasMoreMessages: messageState.hasMoreMessages,
@@ -185,16 +299,9 @@ export const useChat = () => {
     isLoadingAI,
     isChatExpanded,
     setIsChatExpanded,
-    
-    // ✅ EXPORT STATE MỚI
     currentThought, 
-
-    // Actions
     onSendText,
-    onSendQuickReply: async (text: string, payload: string) => { 
-      // Logic tương tự onSendText
-      return onSendText(payload, undefined, undefined, undefined, undefined);
-    },
+    onSendQuickReply: async (text: string, payload: string) => onSendText(payload, undefined, undefined, undefined, undefined),
     handleNewChat: conversationState.clearCurrentConversation,
     handleSelectConversation: conversationState.selectConversation,
   };
