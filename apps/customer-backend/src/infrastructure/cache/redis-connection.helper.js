@@ -4,7 +4,10 @@
 /**
  * Parse REDIS_URL thành connection config
  * Hỗ trợ cả redis:// và rediss:// (SSL)
- * Format: redis[s]://[:password@]host[:port][/database]
+ * Format: redis[s]://[username:password@]host[:port][/database]
+ * 
+ * ✅ QUAN TRỌNG: Redis 6+ (như Upstash) yêu cầu cả username và password
+ * Format: rediss://default:password@host:port
  * 
  * @returns {object} Connection config cho Bull/BullMQ
  */
@@ -19,13 +22,14 @@ export function getRedisConnectionConfig() {
       const config = {
         host: url.hostname,
         port: parseInt(url.port || '6379', 10),
+        username: url.username || undefined, // ✅ QUAN TRỌNG: Phải lấy cả Username (thường là 'default' cho Upstash)
         password: url.password || undefined,
       };
       
       // ✅ Hỗ trợ SSL cho rediss:// (BullMQ hỗ trợ TLS trong connection config)
       if (url.protocol === 'rediss:') {
         config.tls = {
-          rejectUnauthorized: false, // Render.com Redis có thể dùng self-signed cert
+          rejectUnauthorized: false, // Render/Upstash chấp nhận kết nối SSL
         };
       }
       
@@ -39,6 +43,7 @@ export function getRedisConnectionConfig() {
   return {
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    username: process.env.REDIS_USERNAME || undefined, // Optional: Hỗ trợ env rời
     password: process.env.REDIS_PASSWORD || undefined,
   };
 }
