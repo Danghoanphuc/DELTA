@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/config/queue.config.js
 // ✅ BÀN GIAO: Tích hợp Bull-Board UI
 
@@ -25,7 +26,7 @@ const PDF_QUEUE_CONCURRENCY = Math.max(
  * ✅ Lazy getter cho pdfQueue - chỉ tạo khi cần dùng
  * Đảm bảo Redis đã kết nối trước khi tạo queue
  */
-export function getPdfQueue() {
+export async function getPdfQueue() {
   if (!_pdfQueue) {
     try {
       // ✅ Parse REDIS_URL hoặc fallback về REDIS_HOST/REDIS_PORT
@@ -99,9 +100,9 @@ serverAdapter.setBasePath("/admin/queues");
 // Không tạo board ngay khi import để tránh block
 let _bullBoardInitialized = false;
 
-function initializeBullBoard() {
+async function initializeBullBoard() {
   if (!_bullBoardInitialized) {
-    const pdfQueue = getPdfQueue();
+    const pdfQueue = await getPdfQueue();
     if (pdfQueue) {
       createBullBoard({
         queues: [new BullAdapter(pdfQueue)],
@@ -116,7 +117,7 @@ function initializeBullBoard() {
 
 // ✅ BƯỚC 3: EXPORT ROUTER CỦA ADAPTER (LAZY)
 // Router sẽ được khởi tạo sau khi queue được tạo
-export function getBullBoardRouter() {
-  initializeBullBoard();
+export async function getBullBoardRouter() {
+  await initializeBullBoard();
   return serverAdapter.getRouter();
 }

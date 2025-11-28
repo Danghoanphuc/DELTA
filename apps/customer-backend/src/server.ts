@@ -66,7 +66,7 @@ async function startServer() {
       Logger.info('[Server] 📦 Đang import url-preview.queue.js...');
       const { getUrlPreviewQueue } = await import("./infrastructure/queue/url-preview.queue.js");
       Logger.info('[Server] ✅ Đã import url-preview.queue.js');
-      const urlPreviewQueue = getUrlPreviewQueue();
+      const urlPreviewQueue = await getUrlPreviewQueue();
       if (urlPreviewQueue) {
         Logger.info('[Server] ✅ Đã khởi tạo urlPreviewQueue');
       } else {
@@ -490,7 +490,8 @@ async function startServer() {
     // ✅ QUEUE MONITORING: Bull Board UI (Admin only - có thể thêm protect middleware sau)
     try {
       const { getBullBoardRouter } = await import('./config/queue.config.js');
-      app.use("/admin/queues", getBullBoardRouter());
+      const bullBoardRouter = await getBullBoardRouter();
+      app.use("/admin/queues", bullBoardRouter);
       Logger.info("✅ Bull Board UI available at /admin/queues");
     } catch (error) {
       Logger.warn("⚠️ Bull Board router not available:", error);
@@ -537,6 +538,27 @@ async function startServer() {
       Logger.info(`🚀 Server đang chạy tại http://localhost:${PORT}`);
       Logger.info(`🚀 Server đang chạy tại http://127.0.0.1:${PORT}`);
       Logger.info(`🔌 Pusher ready for real-time communication`);
+    });
+
+    // ✅ FIX: Xử lý lỗi port đã được sử dụng
+    server.on("error", (error: NodeJS.ErrnoException) => {
+      if (error.code === "EADDRINUSE") {
+        Logger.error(`❌ [Server] Port ${PORT} đã được sử dụng!`);
+        Logger.error(`💡 Giải pháp:`);
+        Logger.error(`   1. Kill process cũ: node scripts/kill-port.js ${PORT}`);
+        Logger.error(`   2. Hoặc thay đổi PORT trong .env file`);
+        Logger.error(`   3. Hoặc tìm và kill process thủ công:`);
+        if (process.platform === "win32") {
+          Logger.error(`      Windows: netstat -ano | findstr :${PORT}`);
+          Logger.error(`      Sau đó: taskkill /PID <pid> /F`);
+        } else {
+          Logger.error(`      Linux/Mac: lsof -ti :${PORT} | xargs kill -9`);
+        }
+        process.exit(1);
+      } else {
+        Logger.error(`❌ [Server] Lỗi khi khởi động server:`, error);
+        throw error;
+      }
     });
 
     // ✅ Health check endpoint for real-time services

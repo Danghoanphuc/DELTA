@@ -4,6 +4,9 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "noEmit": false, // ✅ FIX: Override noEmit để cho phép emit files khi build
-    "types": ["node", "bull", "connect-mongo"]
-  }
+    "types": ["node", "bull", "connect-mongo"],
+    "allowJs": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.js"],
+  "exclude": ["node_modules", "dist", "src/modules/payos"]
 }

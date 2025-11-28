@@ -43,7 +43,7 @@ router.post("/queue", protect, async (req, res, next) => {
     // ✅ BƯỚC 3: Đẩy job vào Bull Queue (Redis)
     // ✅ LAZY IMPORT: Import queue chỉ khi cần dùng (tránh block khi import module)
     const { getPdfQueue } = await import("../../../config/queue.config.js");
-    const pdfQueue = getPdfQueue();
+    const pdfQueue = await getPdfQueue();
     // Đây là một lệnh I/O (gọi Redis), nó Bất đồng bộ nhưng RẤT NHANH.
     // Server sẽ không bị block.
     const job = await pdfQueue.add(jobData);
@@ -82,7 +82,7 @@ router.get("/status/:jobId", protect, async (req, res, next) => {
 
     // ✅ LAZY IMPORT: Import queue chỉ khi cần dùng
     const { getPdfQueue } = await import("../../../config/queue.config.js");
-    const pdfQueue = getPdfQueue();
+    const pdfQueue = await getPdfQueue();
     // (Logic thật: await pdfQueue.getJob(jobId))
     const job = await pdfQueue.getJob(jobId);
 

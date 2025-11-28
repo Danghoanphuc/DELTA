@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/infrastructure/queue/url-preview.queue.js
 // ✅ Queue Infrastructure cho URL Preview Processing
 // Sử dụng Bull Queue với Redis để xử lý bất đồng bộ việc chụp ảnh website
@@ -22,7 +23,7 @@ let _urlPreviewQueue = null;
  * ✅ Lazy getter cho urlPreviewQueue - chỉ tạo khi cần dùng
  * Đảm bảo Redis đã kết nối trước khi tạo queue
  */
-export function getUrlPreviewQueue() {
+export async function getUrlPreviewQueue() {
   if (!_urlPreviewQueue) {
     try {
       // ✅ Parse REDIS_URL hoặc fallback về REDIS_HOST/REDIS_PORT

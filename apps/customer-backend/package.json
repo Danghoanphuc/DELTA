@@ -10,6 +10,7 @@
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "lint": "eslint .",
+    "kill:port": "node scripts/kill-port.js",
     "check:ngrok": "node scripts/check-ngrok.js",
     "setup:ngrok": "node scripts/setup-ngrok-only.js",
     "setup:cloudflare": "node scripts/start-cloudflare-tunnel.js",
