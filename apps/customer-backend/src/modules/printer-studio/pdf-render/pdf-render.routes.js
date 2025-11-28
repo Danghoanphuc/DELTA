@@ -98,12 +98,15 @@ router.get("/status/:jobId", protect, async (req, res, next) => {
       delayed: "delayed",
     };
 
+    // ✅ BullMQ: getState() trả về Promise, returnvalue và failedReason là properties
+    const jobState = await job.getState();
+    
     res.json({
       success: true,
       data: {
         jobId: job.id,
-        status: statusMap[await job.getState()],
-        progress: job.progress,
+        status: statusMap[jobState] || jobState, // Fallback nếu không có trong map
+        progress: job.progress || 0,
         result: job.returnvalue || null, // Kết quả khi hoàn thành
         error: job.failedReason || null, // Lỗi nếu có
       },
