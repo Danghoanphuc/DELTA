@@ -15,6 +15,7 @@ import { getRedisConnectionConfig } from "../infrastructure/cache/redis-connecti
 let _pdfQueue = null;
 let _pdfWorker = null; // Giữ reference để worker không bị garbage collected
 let _bullBoardInitialized = false;
+let _bullBoardWarnedOnce = false;
 
 // Config Concurrency
 const PDF_QUEUE_CONCURRENCY = Math.max(
@@ -98,28 +99,42 @@ serverAdapter.setBasePath("/admin/queues");
 async function initializeBullBoard() {
   if (!_bullBoardInitialized) {
     try {
-        const pdfQueue = await getPdfQueue();
-        
-        // Chúng ta cũng cần lấy URL Preview Queue để hiển thị lên Board cho đủ bộ
-        // (Dynamic import để tránh circular dependency)
-        const { getUrlPreviewQueue } = await import("../infrastructure/queue/url-preview.queue.js");
-        const urlQueue = getUrlPreviewQueue(); // getUrlPreviewQueue() không phải async
+      const pdfQueue = await getPdfQueue();
 
-        const queues = [];
-        
-        if (pdfQueue) queues.push(new BullMQAdapter(pdfQueue));
-        if (urlQueue) queues.push(new BullMQAdapter(urlQueue));
+      // Chúng ta cũng cần lấy URL Preview Queue để hiển thị lên Board cho đủ bộ
+      // (Dynamic import để tránh circular dependency)
+      const { getUrlPreviewQueue } = await import(
+        "../infrastructure/queue/url-preview.queue.js"
+      );
+      const urlQueue = await getUrlPreviewQueue();
 
-        if (queues.length > 0) {
-            createBullBoard({
-                queues: queues,
-                serverAdapter: serverAdapter,
-            });
-            _bullBoardInitialized = true;
-            Logger.info("✅ [Bull Board] UI initialized at /admin/queues");
+      const queues = [];
+
+      if (pdfQueue) queues.push(new BullMQAdapter(pdfQueue));
+      if (urlQueue) queues.push(new BullMQAdapter(urlQueue));
+
+      // Nếu không có queue nào (Redis down / config lỗi) -> không init BullBoard, log 1 lần
+      if (queues.length === 0) {
+        if (!_bullBoardWarnedOnce) {
+          Logger.warn(
+            "⚠️ [Bull Board] No queues available (Redis may be offline). Skipping Bull Board initialization."
+          );
+          _bullBoardWarnedOnce = true;
         }
+        return;
+      }
+
+      createBullBoard({
+        queues: queues,
+        serverAdapter: serverAdapter,
+      });
+      _bullBoardInitialized = true;
+      Logger.info("✅ [Bull Board] UI initialized at /admin/queues");
     } catch (error) {
+      if (!_bullBoardWarnedOnce) {
         Logger.warn(`⚠️ [Bull Board] Init failed: ${error.message}`);
+        _bullBoardWarnedOnce = true;
+      }
     }
   }
 }
