@@ -39,16 +39,30 @@ export class SocialChatService {
     }
     return this._socketService;
   }
-  
+
   /**
    * ✅ Xử lý tin nhắn social chat (peer-to-peer, group, customer-printer)
    */
   async handleSocialMessage(user, body) {
-    const { message, displayText, fileUrl, conversationId, type, metadata, fileName, fileType, attachments } = body;
+    const {
+      message,
+      displayText,
+      fileUrl,
+      conversationId,
+      type,
+      metadata,
+      fileName,
+      fileType,
+      attachments,
+    } = body;
     const userId = user?._id || null;
 
     // ✅ LOG: Input data (chỉ log thông tin quan trọng)
-    Logger.info(`[SocialChat] 📨 handleSocialMessage: conv=${conversationId}, user=${userId}, hasFile=${!!fileUrl}, hasAttachments=${!!attachments && attachments.length > 0}, attachmentsCount=${attachments?.length || 0}`);
+    Logger.debug(
+      `[SocialChat] 📨 handleSocialMessage: conv=${conversationId}, user=${userId}, hasFile=${!!fileUrl}, hasAttachments=${
+        !!attachments && attachments.length > 0
+      }, attachmentsCount=${attachments?.length || 0}`
+    );
 
     if (!conversationId) {
       throw new ValidationException("conversationId is required");
@@ -70,11 +84,15 @@ export class SocialChatService {
 
     // 2. Kiểm tra user có trong participants không
     const isParticipant = conversation.participants.some(
-      (p) => p.userId._id?.toString() === userId?.toString() || p.userId.toString() === userId?.toString()
+      (p) =>
+        p.userId._id?.toString() === userId?.toString() ||
+        p.userId.toString() === userId?.toString()
     );
 
     if (!isParticipant && userId) {
-      throw new ValidationException("You are not a participant of this conversation");
+      throw new ValidationException(
+        "You are not a participant of this conversation"
+      );
     }
 
     // 3. Lưu tin nhắn vào DB
@@ -90,60 +108,78 @@ export class SocialChatService {
     // ✅ FIX: Xử lý file từ attachments array (frontend gửi) hoặc fileUrl trực tiếp (legacy)
     if (attachments && Array.isArray(attachments) && attachments.length > 0) {
       // ✅ Frontend đã gửi attachments array - dùng trực tiếp
-      Logger.info(`[SocialChat] 📎 Processing ${attachments.length} attachment(s) from frontend`);
-      
+      Logger.info(
+        `[SocialChat] 📎 Processing ${attachments.length} attachment(s) from frontend`
+      );
+
       messageData.content.attachments = attachments.map((att) => ({
         url: att.url,
         fileUrl: att.url, // Giữ cả 2 để tương thích
         originalName: att.originalName || att.fileName || "file",
         fileName: att.originalName || att.fileName || "file", // Giữ cả 2 để tương thích
-        type: att.type || (att.fileType?.startsWith("image/") ? "image" : "file"),
+        type:
+          att.type || (att.fileType?.startsWith("image/") ? "image" : "file"),
         fileType: att.fileType || att.type || "application/octet-stream",
         fileKey: att.fileKey, // Giữ fileKey nếu có (cho R2)
         storage: att.storage, // Giữ storage info nếu có
-        size: att.size
+        size: att.size,
       }));
-      
+
       // ✅ Nếu có ảnh thì set type = "image"
-      const hasImage = messageData.content.attachments.some((a) => a.type === "image" || a.fileType?.startsWith("image/"));
+      const hasImage = messageData.content.attachments.some(
+        (a) => a.type === "image" || a.fileType?.startsWith("image/")
+      );
       if (hasImage) {
         messageData.type = "image";
       } else {
         messageData.type = "file";
       }
-      
-      Logger.info(`[SocialChat] 📎 Formatted ${messageData.content.attachments.length} attachment(s), type=${messageData.type}`);
+
+      Logger.info(
+        `[SocialChat] 📎 Formatted ${messageData.content.attachments.length} attachment(s), type=${messageData.type}`
+      );
     } else if (fileUrl) {
       // ✅ Legacy: Xử lý fileUrl trực tiếp (từ multer upload)
       const finalFileName = metadata?.fileName || fileName || "file";
-      const finalFileType = metadata?.fileType || fileType || "application/octet-stream";
+      const finalFileType =
+        metadata?.fileType || fileType || "application/octet-stream";
       const isImage = finalFileType.startsWith("image/");
-      
+
       // ✅ LOG: File processing (legacy)
-      Logger.info(`[SocialChat] 📎 Processing file (legacy): ${finalFileName}, type=${finalFileType}, isImage=${isImage}`);
-      
+      Logger.info(
+        `[SocialChat] 📎 Processing file (legacy): ${finalFileName}, type=${finalFileType}, isImage=${isImage}`
+      );
+
       // ✅ Frontend mong đợi: content.attachments = [{ url, originalName, type, fileKey? }]
-      messageData.content.attachments = [{
-        url: fileUrl,
-        fileUrl: fileUrl, // Giữ cả 2 để tương thích
-        originalName: finalFileName,
-        fileName: finalFileName, // Giữ cả 2 để tương thích
-        type: isImage ? "image" : "file",
-        fileType: finalFileType, // Giữ cả 2 để tương thích
-      }];
-      
+      messageData.content.attachments = [
+        {
+          url: fileUrl,
+          fileUrl: fileUrl, // Giữ cả 2 để tương thích
+          originalName: finalFileName,
+          fileName: finalFileName, // Giữ cả 2 để tương thích
+          type: isImage ? "image" : "file",
+          fileType: finalFileType, // Giữ cả 2 để tương thích
+        },
+      ];
+
       // ✅ Nếu là ảnh thì set type = "image" để frontend hiển thị đúng
       if (isImage) {
         messageData.type = "image";
       }
-      
-      Logger.info(`[SocialChat] 📎 Formatted attachment (legacy), type=${messageData.type}`);
+
+      Logger.info(
+        `[SocialChat] 📎 Formatted attachment (legacy), type=${messageData.type}`
+      );
     }
 
     const savedMessage = await this.chatRepository.createMessage(messageData);
-    
+
     // ✅ LOG: Message saved
-    Logger.info(`[SocialChat] 💾 Message saved: id=${savedMessage._id}, type=${savedMessage.type}, attachments=${savedMessage.content?.attachments?.length || 0}`);
+    Logger.info(
+      `[SocialChat] 💾 Message saved: id=${savedMessage._id}, type=${
+        savedMessage.type
+      }, attachments=${savedMessage.content?.attachments?.length || 0}`
+    );
 
     // 4. Populate sender info để gửi đi
     const populatedMessage = await Message.findById(savedMessage._id)
@@ -154,25 +190,38 @@ export class SocialChatService {
     if (!populatedMessage) {
       throw new Error("Failed to save message");
     }
-    
+
     // ✅ LOG: Populated message (chỉ log thông tin quan trọng)
-    Logger.info(`[SocialChat] 📤 Populated message: id=${populatedMessage._id}, type=${populatedMessage.type}, attachments=${populatedMessage.content?.attachments?.length || 0}`);
+    Logger.info(
+      `[SocialChat] 📤 Populated message: id=${populatedMessage._id}, type=${
+        populatedMessage.type
+      }, attachments=${populatedMessage.content?.attachments?.length || 0}`
+    );
 
     // ✅ FIX: Đảm bảo attachments được format đúng khi emit qua Pusher
     // Nếu message có fileUrl nhưng chưa có attachments array, format lại
-    if (populatedMessage.content?.fileUrl && !populatedMessage.content?.attachments) {
-      const finalFileName = populatedMessage.content?.fileName || fileName || "file";
-      const finalFileType = populatedMessage.content?.fileType || fileType || "application/octet-stream";
-      
-      populatedMessage.content.attachments = [{
-        url: populatedMessage.content.fileUrl,
-        fileUrl: populatedMessage.content.fileUrl,
-        originalName: finalFileName,
-        fileName: finalFileName,
-        type: finalFileType.startsWith("image/") ? "image" : "file",
-        fileType: finalFileType,
-      }];
-      
+    if (
+      populatedMessage.content?.fileUrl &&
+      !populatedMessage.content?.attachments
+    ) {
+      const finalFileName =
+        populatedMessage.content?.fileName || fileName || "file";
+      const finalFileType =
+        populatedMessage.content?.fileType ||
+        fileType ||
+        "application/octet-stream";
+
+      populatedMessage.content.attachments = [
+        {
+          url: populatedMessage.content.fileUrl,
+          fileUrl: populatedMessage.content.fileUrl,
+          originalName: finalFileName,
+          fileName: finalFileName,
+          type: finalFileType.startsWith("image/") ? "image" : "file",
+          fileType: finalFileType,
+        },
+      ];
+
       // ✅ Nếu là ảnh thì set type = "image"
       if (finalFileType.startsWith("image/")) {
         populatedMessage.type = "image";
@@ -184,8 +233,9 @@ export class SocialChatService {
     const participants = conversation.participants || [];
 
     for (const participant of participants) {
-      const participantId = participant.userId?._id?.toString() || participant.userId?.toString();
-      
+      const participantId =
+        participant.userId?._id?.toString() || participant.userId?.toString();
+
       if (!participantId) continue;
 
       // ✅ Emit event new_message cho TẤT CẢ participants (bao gồm cả sender)
@@ -194,24 +244,33 @@ export class SocialChatService {
         ...populatedMessage,
         conversationId: conversation._id.toString(),
       };
-      
+
       socketService.emitToUser(participantId, "new_message", emitPayload);
-      Logger.info(`[SocialChat] 📡 Emitted to user ${participantId}: msgId=${emitPayload._id}, type=${emitPayload.type}, attachments=${emitPayload.content?.attachments?.length || 0}`);
+      Logger.info(
+        `[SocialChat] 📡 Emitted to user ${participantId}: msgId=${
+          emitPayload._id
+        }, type=${emitPayload.type}, attachments=${
+          emitPayload.content?.attachments?.length || 0
+        }`
+      );
 
       // ✅ Push Notification (Dùng Queue thay vì gọi trực tiếp)
       if (participantId !== userId?.toString()) {
-        const senderName = user?.displayName || user?.username || "Một người bạn";
+        const senderName =
+          user?.displayName || user?.username || "Một người bạn";
         // 🔥 Gửi job vào Redis -> Server trả response ngay lập tức
-        addNotificationJob('chat-notify', {
+        addNotificationJob("chat-notify", {
           userId: participantId,
           message: displayText || message || "Đã gửi tệp đính kèm",
           conversationId: conversation._id.toString(),
-          senderName: senderName
+          senderName: senderName,
         });
       }
     }
 
-    Logger.info(`[SocialChat] Message sent: ${savedMessage._id} in conversation ${conversationId}`);
+    Logger.info(
+      `[SocialChat] Message sent: ${savedMessage._id} in conversation ${conversationId}`
+    );
 
     return {
       ...populatedMessage,
@@ -222,7 +281,15 @@ export class SocialChatService {
   /**
    * ✅ Tạo nhóm chat mới
    */
-  async createGroupConversation({ title, description, members, avatarUrl, avatarFile, context, creatorId }) {
+  async createGroupConversation({
+    title,
+    description,
+    members,
+    avatarUrl,
+    avatarFile,
+    context,
+    creatorId,
+  }) {
     // Implementation giữ nguyên từ code cũ
     const conversation = await Conversation.create({
       type: "group",
@@ -239,7 +306,11 @@ export class SocialChatService {
     // Emit event conversation_created
     const socketService = await this.getSocketService();
     for (const member of members) {
-      socketService.emitToUser(member.toString(), "conversation_created", conversation.toObject());
+      socketService.emitToUser(
+        member.toString(),
+        "conversation_created",
+        conversation.toObject()
+      );
     }
 
     return conversation;
@@ -248,7 +319,11 @@ export class SocialChatService {
   /**
    * ✅ Cập nhật nhóm chat (Cũng dùng cho đổi tên - Rename)
    */
-  async updateGroupConversation(conversationId, userId, { title, avatarFile, membersToRemove, membersToAdd }) {
+  async updateGroupConversation(
+    conversationId,
+    userId,
+    { title, avatarFile, membersToRemove, membersToAdd }
+  ) {
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) throw new NotFoundException("Conversation not found");
 
@@ -264,13 +339,19 @@ export class SocialChatService {
     const participants = conversation.participants || [];
     for (const participant of participants) {
       const participantId = participant.userId?.toString();
-      socketService.emitToUser(participantId, "conversation_updated", conversation.toObject());
+      socketService.emitToUser(
+        participantId,
+        "conversation_updated",
+        conversation.toObject()
+      );
     }
 
     // 🔥 FIX 1: Xóa Cache của user thực hiện để lần sau fetch lại dữ liệu mới
     // Lưu ý: Đúng ra nên xóa cache của TẤT CẢ participants, nhưng ít nhất phải xóa của người đang thao tác
-    const participantIds = participants.map(p => p.userId?.toString()).filter(id => id);
-    
+    const participantIds = participants
+      .map((p) => p.userId?.toString())
+      .filter((id) => id);
+
     // Gọi hàm invalidate cache hàng loạt (đã có sẵn trong ChatRepository)
     await this.chatRepository.invalidateParticipantsCache(participantIds);
 
@@ -296,10 +377,10 @@ export class SocialChatService {
     for (const participant of participants) {
       const participantId = participant.userId?.toString();
       if (participantId) {
-          participantIds.push(participantId);
-          socketService.emitToUser(participantId, "conversation_removed", {
-            conversationId: conversation._id.toString(),
-          });
+        participantIds.push(participantId);
+        socketService.emitToUser(participantId, "conversation_removed", {
+          conversationId: conversation._id.toString(),
+        });
       }
     }
 
@@ -314,8 +395,8 @@ export class SocialChatService {
    * ✅ Tạo hoặc lấy peer conversation
    */
   async createPeerConversation(userId, otherUserId) {
-      let conversation = await Conversation.findOne({
-        type: "peer-to-peer",
+    let conversation = await Conversation.findOne({
+      type: "peer-to-peer",
       "participants.userId": { $all: [userId, otherUserId] },
       isActive: true,
     });

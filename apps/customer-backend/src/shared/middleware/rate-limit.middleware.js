@@ -18,42 +18,69 @@ let generalLimiter = null;
  */
 function initializeLimiters() {
   const redisClient = getRedisClient();
-  
-  if (redisClient && redisClient.status === "ready") {
-    Logger.info("[RateLimit] Using Redis for rate limiting");
-    
-    // Chat Rate Limiter: 10 requests per minute
-    chatLimiter = new RateLimiterRedis({
-      storeClient: redisClient,
-      keyPrefix: "rl:chat",
-      points: 10, // Number of requests
-      duration: 60, // Per 60 seconds (1 minute)
-      blockDuration: 60, // Block for 60 seconds if exceeded
-    });
 
-    // Upload Rate Limiter: 20 uploads per hour
-    uploadLimiter = new RateLimiterRedis({
-      storeClient: redisClient,
-      keyPrefix: "rl:upload",
-      points: 20,
-      duration: 3600, // Per 3600 seconds (1 hour)
-      blockDuration: 300, // Block for 5 minutes if exceeded
-    });
+  try {
+    if (redisClient && redisClient.status === "ready") {
+      Logger.info("[RateLimit] Using Redis for rate limiting");
 
-    // General API Rate Limiter: 100 requests per minute
-    generalLimiter = new RateLimiterRedis({
-      storeClient: redisClient,
-      keyPrefix: "rl:general",
-      points: 100,
-      duration: 60,
-      blockDuration: 60,
-    });
-  } else {
-    Logger.warn(
-      "[RateLimit] Redis not available, using in-memory rate limiting (not distributed)"
-    );
-    
-    // Fallback to in-memory limiters
+      // Chat Rate Limiter: 10 requests per minute
+      chatLimiter = new RateLimiterRedis({
+        storeClient: redisClient,
+        keyPrefix: "rl:chat",
+        points: 10, // Number of requests
+        duration: 60, // Per 60 seconds (1 minute)
+        blockDuration: 60, // Block for 60 seconds if exceeded
+      });
+
+      // Upload Rate Limiter: 20 uploads per hour
+      uploadLimiter = new RateLimiterRedis({
+        storeClient: redisClient,
+        keyPrefix: "rl:upload",
+        points: 20,
+        duration: 3600, // Per 3600 seconds (1 hour)
+        blockDuration: 300, // Block for 5 minutes if exceeded
+      });
+
+      // General API Rate Limiter: 100 requests per minute
+      generalLimiter = new RateLimiterRedis({
+        storeClient: redisClient,
+        keyPrefix: "rl:general",
+        points: 100,
+        duration: 60,
+        blockDuration: 60,
+      });
+    } else {
+      Logger.warn(
+        "[RateLimit] Redis not available, using in-memory rate limiting (not distributed)"
+      );
+
+      // Fallback to in-memory limiters
+      chatLimiter = new RateLimiterMemory({
+        keyPrefix: "rl:chat",
+        points: 10,
+        duration: 60,
+        blockDuration: 60,
+      });
+
+      uploadLimiter = new RateLimiterMemory({
+        keyPrefix: "rl:upload",
+        points: 20,
+        duration: 3600,
+        blockDuration: 300,
+      });
+
+      generalLimiter = new RateLimiterMemory({
+        keyPrefix: "rl:general",
+        points: 100,
+        duration: 60,
+        blockDuration: 60,
+      });
+    }
+  } catch (error) {
+    Logger.error("[RateLimit] Error initializing limiters:", error.message);
+    Logger.warn("[RateLimit] Falling back to in-memory rate limiting");
+
+    // Fallback to in-memory limiters on error
     chatLimiter = new RateLimiterMemory({
       keyPrefix: "rl:chat",
       points: 10,
@@ -88,7 +115,7 @@ function getRateLimitKey(req, prefix = "global") {
   if (req.user && req.user._id) {
     return `${prefix}:user:${req.user._id}`;
   }
-  
+
   // Fallback to IP address
   const ip = req.ip || req.connection.remoteAddress || "unknown";
   return `${prefix}:ip:${ip}`;
@@ -126,7 +153,14 @@ export function createRateLimitMiddleware(limiter, name = "API") {
       // Rate limit exceeded
       if (rejRes instanceof Error) {
         // Error consuming rate limit (e.g., Redis connection issue)
-        Logger.error(`[RateLimit] Error in ${name} limiter:`, rejRes.message);
+        // Use debounced logging to avoid spam (log once per minute)
+        Logger.debounced(
+          `ratelimit-error-${name}`,
+          60000, // 1 minute
+          Logger.error,
+          `[RateLimit] Error in ${name} limiter:`,
+          rejRes.message
+        );
         // Allow request to proceed if rate limiter fails
         return next();
       }
@@ -143,8 +177,12 @@ export function createRateLimitMiddleware(limiter, name = "API") {
         ).toISOString(),
       });
 
-      Logger.warn(
-        `[RateLimit] ${name} limit exceeded for key: ${key.substring(0, 30)}...`
+      // Use debounced logging for rate limit exceeded (log once per 5 minutes per limiter)
+      Logger.debounced(
+        `ratelimit-exceeded-${name}`,
+        300000, // 5 minutes
+        Logger.warn,
+        `[RateLimit] ${name} limit exceeded (logged once per 5min)`
       );
 
       return res.status(429).json({
@@ -203,4 +241,3 @@ export function initRateLimiters() {
   initializeLimiters();
   Logger.success("[RateLimit] Rate limiters initialized");
 }
-

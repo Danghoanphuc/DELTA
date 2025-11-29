@@ -71,7 +71,8 @@ class SocketService {
 
     const channel = `private-user-${userId}`;
 
-    Logger.info(`[Pusher] 📤 Emitting ${eventName} to ${channel}`, {
+    // Only log in development or when LOG_LEVEL=DEBUG
+    Logger.debug(`[Pusher] 📤 Emitting ${eventName} to ${channel}`, {
       dataKeys: Object.keys(data || {}),
       messageId: data?._id || data?.messageId,
       conversationId: data?.conversationId,
@@ -80,7 +81,7 @@ class SocketService {
     this.pusher
       .trigger(channel, eventName, data)
       .then(() => {
-        Logger.info(
+        Logger.debug(
           `[Pusher] ✅ Successfully emitted ${eventName} to ${channel}`
         );
       })

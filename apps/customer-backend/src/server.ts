@@ -54,10 +54,18 @@ async function startServer() {
     console.log("[Server] 📡 Connecting to database...");
     await connectDB();
     console.log("[Server] ✅ Database connected");
+
     console.log("[Server] 📡 Connecting to Redis...");
-    await connectToRedis();
-    console.log("[Server] ✅ Redis connected");
-    Logger.info("✅ Đã kết nối Database & Redis thành công.");
+    const redisClient = await connectToRedis();
+    if (redisClient) {
+      console.log("[Server] ✅ Redis connected");
+      Logger.info("✅ Đã kết nối Database & Redis thành công.");
+    } else {
+      console.log("[Server] ⚠️ Redis unavailable - continuing without Redis");
+      Logger.warn(
+        "⚠️ Redis không khả dụng. Server sẽ chạy với chức năng hạn chế (no caching, no rate limiting, no queues)."
+      );
+    }
 
     // =========================================================================
     // ❌ URL PREVIEW WORKER - DISABLED (Upstash quota exceeded)
@@ -297,14 +305,25 @@ async function startServer() {
 
     // ---------------------------------------------------------
     // 1. LOGGER MIDDLEWARE
-    // Giúp bạn thấy ngay lập tức khi có request bay vào
+    // Request logging - only in development or when LOG_LEVEL=INFO
     // ---------------------------------------------------------
     app.use((req: Request, res: Response, next: NextFunction) => {
-      console.log(`👉 [REQUEST] ${req.method} ${req.url}`);
-      Logger.info(`[REQUEST] ${req.method} ${req.url}`, {
-        ip: req.ip,
-        userAgent: req.get("user-agent"),
-      });
+      // Skip logging for health checks and static assets
+      if (req.url === "/health" || req.url.startsWith("/static")) {
+        return next();
+      }
+
+      // Only log in development or when explicitly enabled
+      if (
+        process.env.NODE_ENV !== "production" ||
+        process.env.LOG_LEVEL === "INFO"
+      ) {
+        console.log(`👉 [REQUEST] ${req.method} ${req.url}`);
+        Logger.info(`[REQUEST] ${req.method} ${req.url}`, {
+          ip: req.ip,
+          userAgent: req.get("user-agent"),
+        });
+      }
       next();
     });
     const corsOptions: CorsOptions = {

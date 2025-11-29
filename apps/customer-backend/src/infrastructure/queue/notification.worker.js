@@ -61,6 +61,14 @@ const processor = async (job) => {
 // Hàm khởi động Worker (Gọi ở file server.ts)
 export const startNotificationWorker = () => {
   try {
+    // Check if Redis connection is available
+    if (!redisConnection) {
+      Logger.warn(
+        "⚠️ [Notification Worker] Redis not available. Worker disabled."
+      );
+      return null;
+    }
+
     const worker = new Worker("notifications", processor, {
       connection: redisConnection,
       concurrency: 3,
