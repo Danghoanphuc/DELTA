@@ -60,59 +60,50 @@ async function startServer() {
     Logger.info("✅ Đã kết nối Database & Redis thành công.");
 
     // =========================================================================
-    // ✅ URL PREVIEW WORKER (SỬA LẠI: Dùng Worker của BullMQ)
+    // ❌ URL PREVIEW WORKER - DISABLED (Upstash quota exceeded)
     // =========================================================================
-    // Logic cũ dùng .process() sẽ gây crash với BullMQ.
-    // Chúng ta thay thế bằng cách khởi động Worker độc lập.
-    try {
-      Logger.info("[Server] 📦 Đang import url-preview.worker.js...");
+    // Tạm thời tắt để tiết kiệm Redis quota
+    // Sẽ bật lại khi: 1) Đầu tháng sau (quota reset) hoặc 2) Upgrade Redis plan
+    Logger.warn("⚠️ [Server] URL Preview Worker DISABLED to save Redis quota");
 
-      // Import hàm khởi động từ file hạ tầng (infrastructure) chúng ta vừa tạo
-      const { startUrlPreviewWorker } = await import(
-        "./infrastructure/queue/url-preview.worker.js"
-      );
-      Logger.info("[Server] ✅ Đã import url-preview.worker.js");
-
-      // Khởi chạy Worker
-      const urlWorker = startUrlPreviewWorker();
-
-      if (urlWorker) {
-        Logger.info("✅ URL Preview Worker đã sẵn sàng (concurrency: 1)");
-      } else {
-        Logger.warn(
-          "⚠️ URL Preview Worker không khởi động được (Redis issue?)"
-        );
-      }
-    } catch (queueError) {
-      Logger.error("❌ Lỗi khi khởi chạy URL Preview Worker:", queueError);
-      // Không throw để server vẫn chạy tiếp
-    }
+    // try {
+    //   Logger.info("[Server] 📦 Đang import url-preview.worker.js...");
+    //   const { startUrlPreviewWorker } = await import(
+    //     "./infrastructure/queue/url-preview.worker.js"
+    //   );
+    //   Logger.info("[Server] ✅ Đã import url-preview.worker.js");
+    //   const urlWorker = startUrlPreviewWorker();
+    //   if (urlWorker) {
+    //     Logger.info("✅ URL Preview Worker đã sẵn sàng (concurrency: 1)");
+    //   } else {
+    //     Logger.warn("⚠️ URL Preview Worker không khởi động được (Redis issue?)");
+    //   }
+    // } catch (queueError) {
+    //   Logger.error("❌ Lỗi khi khởi chạy URL Preview Worker:", queueError);
+    // }
 
     // =========================================================================
-    // ✅ Notification Worker (Đoạn này OK - Giữ nguyên)
+    // ❌ NOTIFICATION WORKER - DISABLED (Upstash quota exceeded)
     // =========================================================================
-    try {
-      Logger.info("[Server] 📦 Đang import notification.worker.js...");
-      const { startNotificationWorker } = await import(
-        "./infrastructure/queue/notification.worker.js"
-      );
-      Logger.info("[Server] ✅ Đã import notification.worker.js");
-
-      const worker = startNotificationWorker();
-      if (worker) {
-        Logger.info("✅ Notification Worker đã sẵn sàng (concurrency: 5)");
-      } else {
-        Logger.warn(
-          "⚠️ Notification Worker không khởi động được (Redis có thể không có)"
-        );
-      }
-    } catch (notificationWorkerError) {
-      Logger.error(
-        "❌ Lỗi khi khởi chạy Notification Worker:",
-        notificationWorkerError
-      );
-      Logger.error(
-        "Stack:",
+    // Tạm thời tắt để tiết kiệm Redis quota
+    // Sẽ bật lại khi: 1) Đầu tháng sau (quota reset) hoặc 2) Upgrade Redis plan
+    Logger.warn("⚠️ [Server] Notification Worker DISABLED to save Redis quota");
+    
+    // try {
+    //   Logger.info("[Server] 📦 Đang import notification.worker.js...");
+    //   const { startNotificationWorker } = await import(
+    //     "./infrastructure/queue/notification.worker.js"
+    //   );
+    //   Logger.info("[Server] ✅ Đã import notification.worker.js");
+    //   const worker = startNotificationWorker();
+    //   if (worker) {
+    //     Logger.info("✅ Notification Worker đã sẵn sàng (concurrency: 5)");
+    //   } else {
+    //     Logger.warn("⚠️ Notification Worker không khởi động được (Redis có thể không có)");
+    //   }
+    // } catch (notificationWorkerError) {
+    //   Logger.error("❌ Lỗi khi khởi chạy Notification Worker:", notificationWorkerError);
+    //   Logger.error("Stack:",
         notificationWorkerError instanceof Error
           ? notificationWorkerError.stack
           : "No stack"

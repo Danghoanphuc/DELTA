@@ -55,9 +55,6 @@ class CircuitBreaker {
   }
 
   onFailure(error) {
-    this.failureCount++;
-    this.lastFailureTime = Date.now();
-
     // Chỉ mở circuit nếu là lỗi Redis
     const isRedisError =
       error.message?.includes("max requests limit") ||
@@ -66,8 +63,13 @@ class CircuitBreaker {
 
     if (!isRedisError) {
       // Lỗi khác (network, API) không trigger circuit breaker
+      // Không tăng failureCount
       return;
     }
+
+    // Chỉ tăng count cho Redis errors
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
 
     if (this.failureCount >= this.failureThreshold) {
       this.state = "OPEN";
