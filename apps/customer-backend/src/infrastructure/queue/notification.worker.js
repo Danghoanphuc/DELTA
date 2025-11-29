@@ -6,11 +6,18 @@ import { Worker } from "bullmq";
 import { novuService } from "../notifications/novu.service.js";
 import { Logger } from "../../shared/utils/index.js";
 import { getRedisConnectionConfig } from "../cache/redis-connection.helper.js";
+import { getCircuitBreaker } from "./circuit-breaker.js";
 
 // ✅ Parse REDIS_URL hoặc fallback về REDIS_HOST/REDIS_PORT
 const redisConnection = getRedisConnectionConfig();
 
-// Hàm xử lý chính
+// Circuit breaker để ngăn spam Redis khi gặp lỗi
+const circuitBreaker = getCircuitBreaker("notification-worker", {
+  failureThreshold: 3,
+  resetTimeout: 120000,
+});
+
+// Hàm xử lý chính với circuit breaker
 const processor = async (job) => {
   const { type } = job;
   const data = job.data;
@@ -18,27 +25,34 @@ const processor = async (job) => {
   Logger.info(`[Worker] ⚙️ Processing job ${job.id} (${job.name})...`);
 
   try {
-    switch (job.name) {
-      case "chat-notify":
-        // Gọi Novu Service (cái chúng ta đã fix ở bước trước)
-        await novuService.triggerChatNotification(
-          data.userId,
-          data.message,
-          data.conversationId,
-          data.senderName
-        );
-        break;
+    return await circuitBreaker.execute(async () => {
+      switch (job.name) {
+        case "chat-notify":
+          // Gọi Novu Service (cái chúng ta đã fix ở bước trước)
+          await novuService.triggerChatNotification(
+            data.userId,
+            data.message,
+            data.conversationId,
+            data.senderName
+          );
+          break;
 
-      case "order-notify":
-        // Sau này mở rộng cho đơn hàng
-        // await novuService.triggerOrderNotification(...)
-        Logger.info(`[Worker] Order notification not implemented yet`);
-        break;
+        case "order-notify":
+          // Sau này mở rộng cho đơn hàng
+          // await novuService.triggerOrderNotification(...)
+          Logger.info(`[Worker] Order notification not implemented yet`);
+          break;
 
-      default:
-        Logger.warn(`[Worker] Unknown job type: ${job.name}`);
-    }
+        default:
+          Logger.warn(`[Worker] Unknown job type: ${job.name}`);
+      }
+    });
   } catch (error) {
+    // Nếu circuit breaker OPEN, không retry
+    if (error.message?.includes("Circuit breaker")) {
+      Logger.warn(`[Notification Worker] ${error.message}`);
+      throw new Error("CIRCUIT_BREAKER_OPEN");
+    }
     Logger.error(`[Worker] ❌ Job ${job.id} failed: ${error.message}`);
     throw error; // Ném lỗi để BullMQ biết mà retry
   }
@@ -57,6 +71,11 @@ export const startNotificationWorker = () => {
         maxStalledCount: 1,
         lockRenewTime: 10000,
       },
+      // Giảm số lần retry khi gặp lỗi
+      limiter: {
+        max: 3, // Xử lý tối đa 3 jobs/lần
+        duration: 2000, // Đợi 2s giữa các batch
+      },
     });
 
     worker.on("completed", (job) => {
@@ -64,6 +83,10 @@ export const startNotificationWorker = () => {
     });
 
     worker.on("failed", (job, err) => {
+      // Không log nếu là circuit breaker open
+      if (err.message === "CIRCUIT_BREAKER_OPEN") {
+        return;
+      }
       Logger.warn(
         `[Worker] ⚠️ Job ${job?.id || "unknown"} failed. Retrying... Reason: ${
           err.message
@@ -72,6 +95,16 @@ export const startNotificationWorker = () => {
     });
 
     worker.on("error", (error) => {
+      // Chỉ log lỗi Redis limit 1 lần
+      if (error.message?.includes("max requests limit")) {
+        const state = circuitBreaker.getState();
+        if (state.failureCount === 1) {
+          Logger.error(
+            `❌ [ERROR] [Notification Worker] Redis limit exceeded. Circuit breaker activating...`
+          );
+        }
+        return;
+      }
       // ✅ FIX: Chỉ log warning cho Redis connection errors, không throw
       if (error.code === "ECONNREFUSED") {
         Logger.warn(

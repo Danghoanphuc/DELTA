@@ -35,7 +35,11 @@ export async function getUrlPreviewQueue() {
             age: 24 * 3600,
             count: 20,
           },
-          attempts: 2,
+          attempts: 1, // Giảm từ 2 xuống 1 để tránh spam
+          backoff: {
+            type: "exponential",
+            delay: 5000, // Bắt đầu với 5s
+          },
         },
       });
 
