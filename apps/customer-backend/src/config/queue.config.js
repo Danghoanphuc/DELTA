@@ -32,57 +32,54 @@ export async function getPdfQueue() {
     try {
       // 1. Lấy Connection cho Queue (Producer)
       const queueConnection = getRedisConnectionConfig();
-      
+
       _pdfQueue = new Queue("pdf-rendering", {
         connection: queueConnection,
         defaultJobOptions: {
-            removeOnComplete: true, // Xóa job xong cho nhẹ Redis
-            removeOnFail: { count: 20, age: 24 * 3600 },
-            attempts: 1 // Render PDF nặng, lỗi thì thôi, ko retry tự động tránh tốn tiền server
-        }
+          removeOnComplete: true, // Xóa job xong cho nhẹ Redis
+          removeOnFail: { count: 20, age: 24 * 3600 },
+          attempts: 1, // Render PDF nặng, lỗi thì thôi, ko retry tự động tránh tốn tiền server
+        },
       });
 
-      // 2. Khởi chạy Worker (Consumer) ngay tại đây
-      // (Vì kiến trúc cũ của bạn để worker chung config, ta giữ nguyên behavior này)
-      if (!_pdfWorker) {
-          const workerConnection = getRedisConnectionConfig(); // Connection riêng cho Worker
-          
-          _pdfWorker = new Worker("pdf-rendering", async (job) => {
-             Logger.info(`[PDF Worker] 🎨 Processing job ${job.id}...`);
-             const { baseProductId, editorData, dielineSvgUrl, specifications } = job.data;
-             
-             // Gọi Logic Render
-             return await pdfRenderer.renderPDF({
-                baseProductId,
-                editorData,
-                dielineSvgUrl,
-                specifications,
-             });
-          }, {
-              connection: workerConnection,
-              concurrency: PDF_QUEUE_CONCURRENCY,
-              lockDuration: 60000, // 60s
-          });
+      // ❌ DISABLED: PDF Worker tạm thời tắt để tiết kiệm Redis requests
+      // PDF rendering sẽ được xử lý sync hoặc bật lại khi upgrade Redis plan
+      Logger.warn(
+        `⚠️ [PDF Worker] DISABLED to save Redis quota. Enable when needed.`
+      );
 
-          // Lắng nghe sự kiện Worker
-          _pdfWorker.on("completed", (job) => {
-              Logger.info(`✅ [PDF Worker] Job ${job.id} completed`);
-          });
-          
-          _pdfWorker.on("failed", (job, err) => {
-              Logger.error(`❌ [PDF Worker] Job ${job.id} failed: ${err.message}`);
-          });
-
-          _pdfWorker.on("error", (err) => {
-              if (err.code === 'ECONNREFUSED') return;
-              Logger.error(`[PDF Worker] Error: ${err.message}`);
-          });
-          
-          Logger.info(`✅ [PDF Worker] Started with concurrency: ${PDF_QUEUE_CONCURRENCY}`);
-      }
-
+      // if (!_pdfWorker) {
+      //     const workerConnection = getRedisConnectionConfig();
+      //     _pdfWorker = new Worker("pdf-rendering", async (job) => {
+      //        Logger.info(`[PDF Worker] 🎨 Processing job ${job.id}...`);
+      //        const { baseProductId, editorData, dielineSvgUrl, specifications } = job.data;
+      //        return await pdfRenderer.renderPDF({
+      //           baseProductId,
+      //           editorData,
+      //           dielineSvgUrl,
+      //           specifications,
+      //        });
+      //     }, {
+      //         connection: workerConnection,
+      //         concurrency: PDF_QUEUE_CONCURRENCY,
+      //         lockDuration: 60000,
+      //     });
+      //     _pdfWorker.on("completed", (job) => {
+      //         Logger.info(`✅ [PDF Worker] Job ${job.id} completed`);
+      //     });
+      //     _pdfWorker.on("failed", (job, err) => {
+      //         Logger.error(`❌ [PDF Worker] Job ${job.id} failed: ${err.message}`);
+      //     });
+      //     _pdfWorker.on("error", (err) => {
+      //         if (err.code === 'ECONNREFUSED') return;
+      //         Logger.error(`[PDF Worker] Error: ${err.message}`);
+      //     });
+      //     Logger.info(`✅ [PDF Worker] Started with concurrency: ${PDF_QUEUE_CONCURRENCY}`);
+      // }
     } catch (error) {
-      Logger.warn(`⚠️ [PDF Queue] Failed to create queue/worker: ${error.message}`);
+      Logger.warn(
+        `⚠️ [PDF Queue] Failed to create queue/worker: ${error.message}`
+      );
       return null;
     }
   }

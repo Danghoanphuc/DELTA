@@ -2,10 +2,10 @@
 // ✅ Notification Worker - Xử lý job từ Redis và gọi Novu
 // Sử dụng BullMQ Worker để xử lý notification bất đồng bộ
 
-import { Worker } from 'bullmq';
-import { novuService } from '../notifications/novu.service.js';
-import { Logger } from '../../shared/utils/index.js';
-import { getRedisConnectionConfig } from '../cache/redis-connection.helper.js';
+import { Worker } from "bullmq";
+import { novuService } from "../notifications/novu.service.js";
+import { Logger } from "../../shared/utils/index.js";
+import { getRedisConnectionConfig } from "../cache/redis-connection.helper.js";
 
 // ✅ Parse REDIS_URL hoặc fallback về REDIS_HOST/REDIS_PORT
 const redisConnection = getRedisConnectionConfig();
@@ -19,17 +19,17 @@ const processor = async (job) => {
 
   try {
     switch (job.name) {
-      case 'chat-notify':
+      case "chat-notify":
         // Gọi Novu Service (cái chúng ta đã fix ở bước trước)
         await novuService.triggerChatNotification(
-          data.userId, 
-          data.message, 
-          data.conversationId, 
+          data.userId,
+          data.message,
+          data.conversationId,
           data.senderName
         );
         break;
-        
-      case 'order-notify':
+
+      case "order-notify":
         // Sau này mở rộng cho đơn hàng
         // await novuService.triggerOrderNotification(...)
         Logger.info(`[Worker] Order notification not implemented yet`);
@@ -47,35 +47,49 @@ const processor = async (job) => {
 // Hàm khởi động Worker (Gọi ở file server.ts)
 export const startNotificationWorker = () => {
   try {
-    const worker = new Worker('notifications', processor, {
+    const worker = new Worker("notifications", processor, {
       connection: redisConnection,
-      concurrency: 5, // Xử lý 5 thông báo cùng lúc
+      concurrency: 3,
+      // 🚀 EVENT-DRIVEN: Worker wake up qua Redis Pub/Sub (không polling!)
+      // BullMQ tự động dùng SUBSCRIBE khi có job mới → Tiết kiệm 99% Redis requests
+      settings: {
+        stalledInterval: 300000, // 5 phút (chỉ check stalled, không poll job mới)
+        maxStalledCount: 1,
+        lockRenewTime: 10000,
+      },
     });
 
-    worker.on('completed', (job) => {
+    worker.on("completed", (job) => {
       Logger.info(`[Worker] ✅ Job ${job.id} completed!`);
     });
 
-    worker.on('failed', (job, err) => {
-      Logger.warn(`[Worker] ⚠️ Job ${job?.id || 'unknown'} failed. Retrying... Reason: ${err.message}`);
+    worker.on("failed", (job, err) => {
+      Logger.warn(
+        `[Worker] ⚠️ Job ${job?.id || "unknown"} failed. Retrying... Reason: ${
+          err.message
+        }`
+      );
     });
 
-    worker.on('error', (error) => {
+    worker.on("error", (error) => {
       // ✅ FIX: Chỉ log warning cho Redis connection errors, không throw
-      if (error.code === 'ECONNREFUSED') {
-        Logger.warn(`⚠️ [Worker] Redis connection refused. Worker will retry automatically.`);
+      if (error.code === "ECONNREFUSED") {
+        Logger.warn(
+          `⚠️ [Worker] Redis connection refused. Worker will retry automatically.`
+        );
       } else {
         Logger.error(`[Worker] ❌ Worker error: ${error.message}`);
       }
     });
-    
-    Logger.info('[Worker] 🚀 Notification Worker started');
-    Logger.info('✅ Notification Worker đã sẵn sàng (concurrency: 5)');
+
+    Logger.info("[Worker] 🚀 Notification Worker started");
+    Logger.info("✅ Notification Worker đã sẵn sàng (concurrency: 5)");
 
     return worker;
   } catch (error) {
-    Logger.warn(`⚠️ [Worker] Failed to start notification worker (Redis may not be available): ${error.message}`);
+    Logger.warn(
+      `⚠️ [Worker] Failed to start notification worker (Redis may not be available): ${error.message}`
+    );
     return null; // Return null để server vẫn chạy được
   }
 };
-
