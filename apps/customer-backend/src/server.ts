@@ -83,27 +83,31 @@ async function startServer() {
     // }
 
     // =========================================================================
-    // ❌ NOTIFICATION WORKER - DISABLED (Upstash quota exceeded)
+    // ✅ NOTIFICATION WORKER - RE-ENABLED with Circuit Breaker
     // =========================================================================
-    // Tạm thời tắt để tiết kiệm Redis quota
-    // Sẽ bật lại khi: 1) Đầu tháng sau (quota reset) hoặc 2) Upgrade Redis plan
-    Logger.warn("⚠️ [Server] Notification Worker DISABLED to save Redis quota");
-    
-    // try {
-    //   Logger.info("[Server] 📦 Đang import notification.worker.js...");
-    //   const { startNotificationWorker } = await import(
-    //     "./infrastructure/queue/notification.worker.js"
-    //   );
-    //   Logger.info("[Server] ✅ Đã import notification.worker.js");
-    //   const worker = startNotificationWorker();
-    //   if (worker) {
-    //     Logger.info("✅ Notification Worker đã sẵn sàng (concurrency: 5)");
-    //   } else {
-    //     Logger.warn("⚠️ Notification Worker không khởi động được (Redis có thể không có)");
-    //   }
-    // } catch (notificationWorkerError) {
-    //   Logger.error("❌ Lỗi khi khởi chạy Notification Worker:", notificationWorkerError);
-    //   Logger.error("Stack:",
+    try {
+      Logger.info("[Server] 📦 Đang import notification.worker.js...");
+      const { startNotificationWorker } = await import(
+        "./infrastructure/queue/notification.worker.js"
+      );
+      Logger.info("[Server] ✅ Đã import notification.worker.js");
+      const worker = startNotificationWorker();
+      if (worker) {
+        Logger.info(
+          "✅ Notification Worker đã sẵn sàng (with circuit breaker)"
+        );
+      } else {
+        Logger.warn(
+          "⚠️ Notification Worker không khởi động được (Redis có thể không có)"
+        );
+      }
+    } catch (notificationWorkerError) {
+      Logger.error(
+        "❌ Lỗi khi khởi chạy Notification Worker:",
+        notificationWorkerError
+      );
+      Logger.error(
+        "Stack:",
         notificationWorkerError instanceof Error
           ? notificationWorkerError.stack
           : "No stack"
