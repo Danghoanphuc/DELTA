@@ -95,7 +95,9 @@ export function ChatInterface({
               {quickReplies.map((reply: any, idx: number) => (
                 <button
                   key={idx}
-                  onClick={() => onSendQuickReply(reply.text, reply.payload)}
+                  onClick={() =>
+                    onSendQuickReply(reply.text, reply.payload || reply.text)
+                  }
                   className="flex-shrink-0 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all whitespace-nowrap active:scale-95"
                 >
                   {reply.text}

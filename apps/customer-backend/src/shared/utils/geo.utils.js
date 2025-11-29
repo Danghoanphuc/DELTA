@@ -45,4 +45,28 @@ export const isWithinRadius = (point, center, radiusKm) => {
 };
 
 /**
- * Calculate esti
+ * Normalize point to [lng, lat] array
+ * @param {Array|Object} point - Point in various formats
+ * @returns {Array} [lng, lat]
+ */
+const normalizePoint = (point) => {
+  if (Array.isArray(point)) {
+    return point;
+  }
+  if (point.coordinates) {
+    return point.coordinates;
+  }
+  if (point.lng !== undefined && point.lat !== undefined) {
+    return [point.lng, point.lat];
+  }
+  throw new Error("Invalid point format");
+};
+
+/**
+ * Convert degrees to radians
+ * @param {Number} degrees
+ * @returns {Number} radians
+ */
+const toRad = (degrees) => {
+  return (degrees * Math.PI) / 180;
+};

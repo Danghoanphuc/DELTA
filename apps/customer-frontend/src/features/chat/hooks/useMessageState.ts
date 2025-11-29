@@ -37,7 +37,7 @@ interface MessageState {
   resetState: () => void;
 }
 
-export const useMessageState = create<MessageState>()(
+export const useMessageState: () => MessageState = create<MessageState>()(
   immer((set) => ({
     messages: [],
     quickReplies: [],

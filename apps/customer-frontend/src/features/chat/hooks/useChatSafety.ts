@@ -21,23 +21,23 @@ export const useChatSafety = () => {
   const handleTimeout = useCallback(() => {
     console.log("[ChatSafety] ⏰ Timeout triggered");
     setStatus("error");
-    messageState.setMessages((prev) =>
-      prev.map((m) => {
-        const meta = m.metadata as any;
-        // ✅ TỐI GIẢN HÓA: Chỉ cần check 'streaming'
-        if (meta?.status === "streaming") {
-          return {
-            ...m,
-            content: {
-              text: "⚠️ Hệ thống phản hồi quá lâu. Vui lòng kiểm tra lại kết nối.",
-            },
-            type: "text",
-            metadata: { ...meta, status: "error" },
-          };
-        }
-        return m;
-      })
-    );
+    const currentMessages = messageState.messages;
+    const updatedMessages = currentMessages.map((m: any) => {
+      const meta = m.metadata as any;
+      // ✅ TỐI GIẢN HÓA: Chỉ cần check 'streaming'
+      if (meta?.status === "streaming") {
+        return {
+          ...m,
+          content: {
+            text: "⚠️ Hệ thống phản hồi quá lâu. Vui lòng kiểm tra lại kết nối.",
+          },
+          type: "text",
+          metadata: { ...meta, status: "error" },
+        };
+      }
+      return m;
+    });
+    messageState.setMessages(updatedMessages as any);
   }, [messageState]);
 
   const startSafetyTimer = useCallback(() => {

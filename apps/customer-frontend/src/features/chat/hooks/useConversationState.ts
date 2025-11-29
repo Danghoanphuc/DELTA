@@ -62,7 +62,9 @@ export const useConversationState = create<ConversationStore>((set, get) => ({
       // ✅ Áp dụng làm sạch và cắt ngắn title khi tải lịch sử
       const sanitizedValid = valid.map((c) => ({
         ...c,
-        title: sanitizeAndShortenTitle(c.title || c.lastMessage?.content?.text), // Thử dùng lastMessage nếu title rỗng
+        title: sanitizeAndShortenTitle(
+          c.title || (c.lastMessage?.content as any)?.text || "Cuộc trò chuyện"
+        ), // Thử dùng lastMessage nếu title rỗng
       })) as ChatConversation[];
 
       set({ conversations: sanitizedValid });

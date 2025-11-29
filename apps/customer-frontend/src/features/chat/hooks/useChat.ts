@@ -27,8 +27,8 @@ export const useChat = () => {
   );
 
   const onSendQuickReply = useCallback(
-    (qr: { text: string; payload?: string }) => {
-      onSendText(qr.payload ?? qr.text);
+    (text: string, payload: string) => {
+      onSendText(payload || text);
     },
     [onSendText]
   );

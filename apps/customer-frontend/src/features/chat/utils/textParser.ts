@@ -107,7 +107,7 @@ export const parseMessageDisplay = (
 
   // E. 🔥 LỌC LOG (Sử dụng Regex tập trung)
   const lines = content.split("\n");
-  const cleanLines = lines.filter((line) => {
+  const cleanLines = lines.filter((line: string) => {
     const trimmed = line.trim();
     if (!trimmed) return false; // Bỏ dòng trống
     // Nếu dòng dính log -> Coi như là thought (suy nghĩ) -> Đẩy vào thoughts

@@ -12,7 +12,7 @@ interface ChatContextType {
   conversations: any[];
   currentConversationId: string | null;
   onSendText: (text: string) => void;
-  onSendQuickReply: (qr: { text: string; payload?: string }) => void;
+  onSendQuickReply: (text: string, payload: string) => void;
   onFileUpload: (file: File) => void;
   handleNewChat: () => void;
   handleSelectConversation: (id: string) => void;
