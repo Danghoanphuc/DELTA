@@ -18,7 +18,10 @@ export default defineConfig(({ mode }) => {
         // ✅ FIX: Alias cho mapbox-gl JS - chỉ match exact "mapbox-gl", không match "mapbox-gl/dist/..."
         {
           find: /^mapbox-gl$/,
-          replacement: path.resolve(__dirname, "node_modules/mapbox-gl/dist/mapbox-gl.js"),
+          replacement: path.resolve(
+            __dirname,
+            "node_modules/mapbox-gl/dist/mapbox-gl.js"
+          ),
         },
         // ✅ FIX: Alias cho zod/v4/core - @hookform/resolvers cần import này
         {
@@ -49,10 +52,11 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // ✅ FIX: Proxy config để đảm bảo cookies được forward đúng cách
         "/api": {
-          // ✅ FIX: Luôn dùng localhost:8000 trong dev mode (backend mặc định)
-          target: mode === "development" 
-            ? "http://localhost:8000" 
-            : (env.VITE_BACKEND_URL || "http://localhost:8000"),
+          // ✅ FIX: Luôn dùng localhost:5001 trong dev mode (backend mặc định)
+          target:
+            mode === "development"
+              ? "http://localhost:5001"
+              : env.VITE_BACKEND_URL || "http://localhost:5001",
           changeOrigin: true,
           secure: false,
           // ✅ FIX: Thêm timeout và retry để tránh lỗi khi backend chưa sẵn sàng
@@ -62,30 +66,33 @@ export default defineConfig(({ mode }) => {
           cookiePathRewrite: "/",
           // ✅ FIX: Forward credentials
           configure: (proxy, _options) => {
-            proxy.on('proxyReq', (proxyReq, req, _res) => {
+            proxy.on("proxyReq", (proxyReq, req, _res) => {
               // Forward cookies từ request
               if (req.headers.cookie) {
-                proxyReq.setHeader('Cookie', req.headers.cookie);
+                proxyReq.setHeader("Cookie", req.headers.cookie);
               }
             });
-            proxy.on('proxyRes', (proxyRes, req, res) => {
+            proxy.on("proxyRes", (proxyRes, req, res) => {
               // Forward Set-Cookie headers từ response
-              const setCookieHeaders = proxyRes.headers['set-cookie'];
+              const setCookieHeaders = proxyRes.headers["set-cookie"];
               if (setCookieHeaders) {
-                res.setHeader('Set-Cookie', setCookieHeaders);
+                res.setHeader("Set-Cookie", setCookieHeaders);
               }
             });
             // ✅ FIX: Xử lý lỗi proxy một cách graceful
-            proxy.on('error', (err, req, res) => {
-              console.error('[Vite Proxy] Error:', err.message);
+            proxy.on("error", (err, req, res) => {
+              console.error("[Vite Proxy] Error:", err.message);
               if (!res.headersSent) {
                 res.writeHead(503, {
-                  'Content-Type': 'application/json',
+                  "Content-Type": "application/json",
                 });
-                res.end(JSON.stringify({
-                  error: 'Service Unavailable',
-                  message: 'Backend server is not ready. Please wait a moment and refresh.',
-                }));
+                res.end(
+                  JSON.stringify({
+                    error: "Service Unavailable",
+                    message:
+                      "Backend server is not ready. Please wait a moment and refresh.",
+                  })
+                );
               }
             });
           },
@@ -95,10 +102,7 @@ export default defineConfig(({ mode }) => {
 
     // ✅ FIX: Optimize dependencies - Không include react-map-gl vì có vấn đề với exports
     optimizeDeps: {
-      include: [
-        "mapbox-gl",
-        "react-intersection-observer",
-      ],
+      include: ["mapbox-gl", "react-intersection-observer"],
       // ✅ KHÔNG exclude react-map-gl - để Vite tự resolve khi runtime
       esbuildOptions: {
         // ✅ FIX: Đảm bảo resolve đúng các package có vấn đề với exports

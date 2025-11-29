@@ -65,21 +65,24 @@ async function startServer() {
     // Logic cũ dùng .process() sẽ gây crash với BullMQ.
     // Chúng ta thay thế bằng cách khởi động Worker độc lập.
     try {
-      Logger.info('[Server] 📦 Đang import url-preview.worker.js...');
-      
+      Logger.info("[Server] 📦 Đang import url-preview.worker.js...");
+
       // Import hàm khởi động từ file hạ tầng (infrastructure) chúng ta vừa tạo
-      const { startUrlPreviewWorker } = await import("./infrastructure/queue/url-preview.worker.js");
-      Logger.info('[Server] ✅ Đã import url-preview.worker.js');
+      const { startUrlPreviewWorker } = await import(
+        "./infrastructure/queue/url-preview.worker.js"
+      );
+      Logger.info("[Server] ✅ Đã import url-preview.worker.js");
 
       // Khởi chạy Worker
       const urlWorker = startUrlPreviewWorker();
-      
+
       if (urlWorker) {
         Logger.info("✅ URL Preview Worker đã sẵn sàng (concurrency: 1)");
       } else {
-        Logger.warn("⚠️ URL Preview Worker không khởi động được (Redis issue?)");
+        Logger.warn(
+          "⚠️ URL Preview Worker không khởi động được (Redis issue?)"
+        );
       }
-
     } catch (queueError) {
       Logger.error("❌ Lỗi khi khởi chạy URL Preview Worker:", queueError);
       // Không throw để server vẫn chạy tiếp
@@ -89,36 +92,50 @@ async function startServer() {
     // ✅ Notification Worker (Đoạn này OK - Giữ nguyên)
     // =========================================================================
     try {
-      Logger.info('[Server] 📦 Đang import notification.worker.js...');
-      const { startNotificationWorker } = await import("./infrastructure/queue/notification.worker.js");
-      Logger.info('[Server] ✅ Đã import notification.worker.js');
-      
+      Logger.info("[Server] 📦 Đang import notification.worker.js...");
+      const { startNotificationWorker } = await import(
+        "./infrastructure/queue/notification.worker.js"
+      );
+      Logger.info("[Server] ✅ Đã import notification.worker.js");
+
       const worker = startNotificationWorker();
       if (worker) {
         Logger.info("✅ Notification Worker đã sẵn sàng (concurrency: 5)");
       } else {
-        Logger.warn("⚠️ Notification Worker không khởi động được (Redis có thể không có)");
+        Logger.warn(
+          "⚠️ Notification Worker không khởi động được (Redis có thể không có)"
+        );
       }
     } catch (notificationWorkerError) {
-      Logger.error("❌ Lỗi khi khởi chạy Notification Worker:", notificationWorkerError);
-      Logger.error("Stack:", notificationWorkerError instanceof Error ? notificationWorkerError.stack : 'No stack');
-      Logger.warn("⚠️ Server sẽ tiếp tục khởi động nhưng Notification sẽ không hoạt động");
+      Logger.error(
+        "❌ Lỗi khi khởi chạy Notification Worker:",
+        notificationWorkerError
+      );
+      Logger.error(
+        "Stack:",
+        notificationWorkerError instanceof Error
+          ? notificationWorkerError.stack
+          : "No stack"
+      );
+      Logger.warn(
+        "⚠️ Server sẽ tiếp tục khởi động nhưng Notification sẽ không hoạt động"
+      );
     }
 
     // ✅ CRITICAL: Global error handlers (nằm NGOÀI try-catch trên)
     // Đặt sau worker registration để bắt mọi unhandled errors
-    process.on('unhandledRejection', (reason, promise) => {
+    process.on("unhandledRejection", (reason, promise) => {
       Logger.error(`[Process] ⚠️ Unhandled Rejection:`, {
         reason: reason,
-        promise: promise
+        promise: promise,
       });
       // ✅ KHÔNG exit - chỉ log
     });
 
-    process.on('uncaughtException', (error) => {
+    process.on("uncaughtException", (error) => {
       Logger.error(`[Process] ⚠️ Uncaught Exception:`, {
         message: error.message,
-        stack: error.stack
+        stack: error.stack,
       });
       // ✅ KHÔNG exit - chỉ log
     });
@@ -126,7 +143,7 @@ async function startServer() {
     // ✅ IMPORT QUEUES & WORKERS (sau khi Redis đã kết nối)
     // Import queue.config.js để có Bull Board UI và PDF Queue
     try {
-      await import('./config/queue.config.js');
+      await import("./config/queue.config.js");
       Logger.info("✅ Đã khởi chạy Queue Workers (PDF Renderer, URL Preview).");
     } catch (queueConfigError) {
       Logger.error("❌ Lỗi khi import queue.config.js:", queueConfigError);
@@ -170,51 +187,97 @@ async function startServer() {
     // --- 2. IMPORT ROUTES (DYNAMIC IMPORT) ---
     Logger.info("📦 [Server] Bắt đầu import routes...");
     // Khai báo các biến routes ở ngoài để có thể sử dụng sau
-    let authRoutes, oauthRoutes, userRoutes, connectionRoutes, printerRoutes;
+    let authRoutes,
+      oauthRoutes,
+      userRoutes,
+      connectionRoutes,
+      printerRoutes,
+      locationRoutes;
     let productRoutes, assetRoutes, mediaAssetRoutes, designRoutes;
     let cartRoutes, orderRoutes, studioRoutes, pdfRenderRoutes;
-    let chatRoutes, uploadRoutes, customerRoutes, checkoutRoutes;
+    let chatRoutes,
+      uploadRoutes,
+      customerRoutes,
+      checkoutRoutes,
+      customerProfileRoutes;
     let stripeOnboardingRoutes, stripeWebhookRoutes, momoRoutes, payosRoutes;
-    let notificationRoutes, aiRoutes, walletRoutes, rushRoutes, printerDashboardRoutes;
-    
+    let notificationRoutes,
+      aiRoutes,
+      walletRoutes,
+      rushRoutes,
+      printerDashboardRoutes;
+
     try {
       Logger.info("📦 [Server] Importing auth routes...");
       authRoutes = (await import("./modules/auth/auth.routes.js")).default;
-      oauthRoutes = (await import("./modules/auth/auth-oauth.routes.js")).default;
+      oauthRoutes = (await import("./modules/auth/auth-oauth.routes.js"))
+        .default;
       Logger.info("📦 [Server] Importing user routes...");
       userRoutes = (await import("./modules/users/user.routes.js")).default;
-      connectionRoutes = (await import("./modules/connections/connection.routes.js")).default;
-      printerRoutes = (await import("./modules/printers/printer.routes.js")).default;
+      connectionRoutes = (
+        await import("./modules/connections/connection.routes.js")
+      ).default;
+      printerRoutes = (await import("./modules/printers/printer.routes.js"))
+        .default;
       Logger.info("📦 [Server] Importing product routes...");
-      productRoutes = (await import("./modules/products/product.routes.js")).default;
+      productRoutes = (await import("./modules/products/product.routes.js"))
+        .default;
       assetRoutes = (await import("./modules/assets/asset.routes.js")).default;
-      mediaAssetRoutes = (await import("./modules/media-assets/media-asset.routes.js")).default;
-      designRoutes = (await import("./modules/designs/design.routes.js")).default;
+      mediaAssetRoutes = (
+        await import("./modules/media-assets/media-asset.routes.js")
+      ).default;
+      designRoutes = (await import("./modules/designs/design.routes.js"))
+        .default;
       Logger.info("📦 [Server] Importing cart & order routes...");
       cartRoutes = (await import("./modules/cart/cart.routes.js")).default;
       orderRoutes = (await import("./modules/orders/order.routes.js")).default;
-      studioRoutes = (await import("./modules/printer-studio/studio.routes.js")).default;
-      pdfRenderRoutes = (await import("./modules/printer-studio/pdf-render/pdf-render.routes.js")).default;
+      studioRoutes = (await import("./modules/printer-studio/studio.routes.js"))
+        .default;
+      pdfRenderRoutes = (
+        await import("./modules/printer-studio/pdf-render/pdf-render.routes.js")
+      ).default;
       Logger.info("📦 [Server] Importing chat routes...");
       chatRoutes = (await import("./modules/chat/chat.routes.js")).default;
-      uploadRoutes = (await import("./modules/uploads/upload.routes.js")).default;
-      customerRoutes = (await import("./modules/customer/customer.routes.js")).default;
-      checkoutRoutes = (await import("./modules/checkout/checkout.routes.js")).default;
+      uploadRoutes = (await import("./modules/uploads/upload.routes.js"))
+        .default;
+      customerRoutes = (await import("./modules/customer/customer.routes.js"))
+        .default;
+      checkoutRoutes = (await import("./modules/checkout/checkout.routes.js"))
+        .default;
+      customerProfileRoutes = (
+        await import("./modules/customer-profile/customer-profile.routes.js")
+      ).default;
       Logger.info("📦 [Server] Importing payment routes...");
-      stripeOnboardingRoutes = (await import("./modules/payments/stripe.onboarding.routes.js")).default;
-      stripeWebhookRoutes = (await import("./modules/payments/stripe.webhook.routes.js")).default;
-      momoRoutes = (await import("./modules/payments/momo/momo.routes.js")).default;
-      payosRoutes = (await import("./modules/payments/payos/payos.routes.js")).default;
+      stripeOnboardingRoutes = (
+        await import("./modules/payments/stripe.onboarding.routes.js")
+      ).default;
+      stripeWebhookRoutes = (
+        await import("./modules/payments/stripe.webhook.routes.js")
+      ).default;
+      momoRoutes = (await import("./modules/payments/momo/momo.routes.js"))
+        .default;
+      payosRoutes = (await import("./modules/payments/payos/payos.routes.js"))
+        .default;
       Logger.info("📦 [Server] Importing notification & AI routes...");
-      notificationRoutes = (await import("./modules/notifications/notification.routes.js")).default;
+      notificationRoutes = (
+        await import("./modules/notifications/notification.routes.js")
+      ).default;
       aiRoutes = (await import("./modules/ai/ai.routes.js")).default;
-      walletRoutes = (await import("./modules/wallet/wallet.routes.js")).default;
+      walletRoutes = (await import("./modules/wallet/wallet.routes.js"))
+        .default;
       rushRoutes = (await import("./modules/rush/rush.routes.js")).default;
-      printerDashboardRoutes = (await import("./modules/printer-studio/printer-dashboard.routes.js")).default;
+      printerDashboardRoutes = (
+        await import("./modules/printer-studio/printer-dashboard.routes.js")
+      ).default;
+      locationRoutes = (await import("./modules/location/location.routes.js"))
+        .default;
       Logger.info("✅ [Server] Đã import tất cả routes thành công!");
     } catch (routeError) {
       Logger.error("❌ Lỗi khi import routes:", routeError);
-      Logger.error("Stack trace:", routeError instanceof Error ? routeError.stack : "No stack trace");
+      Logger.error(
+        "Stack trace:",
+        routeError instanceof Error ? routeError.stack : "No stack trace"
+      );
       throw routeError; // Re-throw để catch block bên ngoài xử lý
     }
 
@@ -230,11 +293,12 @@ async function startServer() {
     server.headersTimeout = 186000; // Slightly higher than keepAliveTimeout
 
     // ✅ Initialize Pusher Service (no-op, giữ lại để tương thích)
-    const { socketService } = await import("./infrastructure/realtime/pusher.service.js");
+    const { socketService } = await import(
+      "./infrastructure/realtime/pusher.service.js"
+    );
     socketService.initialize(server);
 
     app.set("trust proxy", 1);
-
 
     // ---------------------------------------------------------
     // 1. LOGGER MIDDLEWARE
@@ -309,7 +373,7 @@ async function startServer() {
 
     // ✅ SECURITY: Apply general rate limiting globally (before routes)
     app.use(generalRateLimiter);
-    
+
     // ✅ Tăng limit cho body parser (50MB) vì upload nhiều ảnh
     app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
@@ -373,34 +437,62 @@ async function startServer() {
     apiRouter.use("/orders", protect, orderRoutes);
     apiRouter.use("/studio", protect, isPrinter, studioRoutes);
     apiRouter.use("/pdf-render", protect, isPrinter, pdfRenderRoutes);
-    
+
     // ✅ FIX: Tách route test ra ngoài để không bị chặn bởi protect middleware
     // Route test không cần authentication
     apiRouter.get("/chat/test", (req: Request, res: Response) => {
       Logger.info("[ChatRoutes] Test route called");
       res.json({ success: true, message: "Chat routes are working" });
     });
-    
+
     // ✅ FIX PRODUCTION: Tách route /chat/stream, /chat/message và /chat/upload ra khỏi protect
     // vì chúng sử dụng optionalAuth (cho phép guest users)
     // Phải mount TRƯỚC route /chat với protect để Express match đúng
-    const { chatRateLimiter } = await import("./shared/middleware/rate-limit.middleware.js");
-    const { ChatController } = await import("./modules/chat/chat.controller.js");
-    const { uploadMixed } = await import("./infrastructure/storage/multer.config.js");
+    const { chatRateLimiter } = await import(
+      "./shared/middleware/rate-limit.middleware.js"
+    );
+    const { ChatController } = await import(
+      "./modules/chat/chat.controller.js"
+    );
+    const { uploadMixed } = await import(
+      "./infrastructure/storage/multer.config.js"
+    );
     const { handleUploadError } = await import("./shared/middleware/index.js");
     const chatController = new ChatController();
-    
+
     // Mount các route không cần protect TRƯỚC
-    apiRouter.post("/chat/stream", chatRateLimiter, optionalAuth, chatController.handleChatStream);
-    apiRouter.post("/chat/message", chatRateLimiter, optionalAuth, chatController.handleChatMessage);
-    apiRouter.post("/chat/upload", optionalAuth, uploadMixed.single("file"), handleUploadError, chatController.handleChatUpload);
-    
+    apiRouter.post(
+      "/chat/stream",
+      chatRateLimiter,
+      optionalAuth,
+      chatController.handleChatStream
+    );
+    apiRouter.post(
+      "/chat/message",
+      chatRateLimiter,
+      optionalAuth,
+      chatController.handleChatMessage
+    );
+    apiRouter.post(
+      "/chat/upload",
+      optionalAuth,
+      uploadMixed.single("file"),
+      handleUploadError,
+      chatController.handleChatUpload
+    );
+
     // Các route chat khác vẫn cần protect
     apiRouter.use("/chat", protect, chatRoutes);
     apiRouter.use("/uploads", protect, uploadRoutes);
     apiRouter.use("/customer", protect, customerRoutes);
     apiRouter.use("/checkout", protect, checkoutRoutes);
-    apiRouter.use("/printer-stripe", protect, isPrinter, stripeOnboardingRoutes);
+    apiRouter.use("/customer-profile", protect, customerProfileRoutes);
+    apiRouter.use(
+      "/printer-stripe",
+      protect,
+      isPrinter,
+      stripeOnboardingRoutes
+    );
     apiRouter.use("/payments/momo", momoRoutes);
     apiRouter.use("/payments/payos", payosRoutes);
     apiRouter.use("/payos", payosRoutes); // ✅ Alias để tương thích với frontend
@@ -411,12 +503,14 @@ async function startServer() {
     apiRouter.use("/ai", aiRoutes);
     // ✅ RUSH ORDER: Rush order routes
     apiRouter.use("/rush", rushRoutes);
+    // ✅ LOCATION: Geocoding routes (public)
+    apiRouter.use("/location", locationRoutes);
 
     app.use("/api", apiRouter);
 
     // ✅ QUEUE MONITORING: Bull Board UI (Admin only - có thể thêm protect middleware sau)
     try {
-      const { getBullBoardRouter } = await import('./config/queue.config.js');
+      const { getBullBoardRouter } = await import("./config/queue.config.js");
       const bullBoardRouter = await getBullBoardRouter();
       app.use("/admin/queues", bullBoardRouter);
       Logger.info("✅ Bull Board UI available at /admin/queues");
@@ -472,7 +566,9 @@ async function startServer() {
       if (error.code === "EADDRINUSE") {
         Logger.error(`❌ [Server] Port ${PORT} đã được sử dụng!`);
         Logger.error(`💡 Giải pháp:`);
-        Logger.error(`   1. Kill process cũ: node scripts/kill-port.js ${PORT}`);
+        Logger.error(
+          `   1. Kill process cũ: node scripts/kill-port.js ${PORT}`
+        );
         Logger.error(`   2. Hoặc thay đổi PORT trong .env file`);
         Logger.error(`   3. Hoặc tìm và kill process thủ công:`);
         if (process.platform === "win32") {
@@ -491,7 +587,9 @@ async function startServer() {
     // ✅ Health check endpoint for real-time services
     app.get("/api/realtime/health", async (req: Request, res: Response) => {
       try {
-        const { socketService } = await import("./infrastructure/realtime/pusher.service.js");
+        const { socketService } = await import(
+          "./infrastructure/realtime/pusher.service.js"
+        );
         res.status(200).json({
           status: "ok",
           pusher: {

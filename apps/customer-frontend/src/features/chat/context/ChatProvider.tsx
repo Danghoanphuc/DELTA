@@ -1,12 +1,9 @@
-// apps/customer-frontend/src/features/chat/context/ChatProvider.tsx
-import React, { createContext, useContext, useCallback, useState, useEffect } from "react";
-import { useStableChat } from "../hooks/useStableChat";
-import { useConversationState } from "../hooks/useConversationState";
-import { WELCOME_MESSAGE } from "../hooks/useMessageState";
+import React, { createContext, useContext, useEffect } from "react";
+import { useChat } from "../hooks/useChat";
 import * as chatApi from "../services/chat.api.service";
 import { useStatusStore } from "@/stores/useStatusStore";
-import { toast } from "@/shared/utils/toast";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useConversationState } from "../hooks/useConversationState";
 
 interface ChatContextType {
   messages: any[];
@@ -14,9 +11,8 @@ interface ChatContextType {
   isLoadingAI: boolean;
   conversations: any[];
   currentConversationId: string | null;
-  // Cho phép truyền thêm lat/lng trong tương lai, nhưng không bắt buộc
-  onSendText: (text: string, lat?: number, lng?: number) => void;
-  onSendQuickReply: (text: string, payload: string) => void;
+  onSendText: (text: string) => void;
+  onSendQuickReply: (qr: { text: string; payload?: string }) => void;
   onFileUpload: (file: File) => void;
   handleNewChat: () => void;
   handleSelectConversation: (id: string) => void;
@@ -24,8 +20,6 @@ interface ChatContextType {
   handleDeleteConversation: (id: string) => Promise<void>;
   hasMoreMessages: boolean;
   handleLoadMoreMessages: () => void;
-  input: string;
-  handleInputChange: (e: any) => void;
   isChatExpanded: boolean;
   setIsChatExpanded: (expanded: boolean) => void;
 }
@@ -40,73 +34,61 @@ export const useChatContext = () => {
   return context;
 };
 
-export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const chatLogic = useChat();
   const conversationState = useConversationState();
-  const stableChat = useStableChat();
   const { showStatus } = useStatusStore();
   const { accessToken } = useAuthStore();
-  const [isChatExpanded, setIsChatExpanded] = useState(true);
 
-  // 🔥 FIX: Tải danh sách chat khi App mount hoặc User login
   useEffect(() => {
     if (accessToken) {
-      conversationState.loadConversations({ type: 'customer-bot' })
-        .catch(err => console.error("Failed to load conversations:", err));
+      conversationState
+        .loadConversations({ type: "customer-bot" })
+        .catch((err) => console.error("Failed to load conversations:", err));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
 
-  // Handle rename conversation
-  const handleRenameConversation = useCallback(async (id: string, newTitle: string) => {
+  const handleRenameConversation = async (id: string, newTitle: string) => {
     conversationState.updateConversationTitle(id, newTitle);
     try {
-      const success = await chatApi.renameConversation(id, newTitle);
-      if (!success) await conversationState.loadConversations({ type: 'customer-bot' });
+      await chatApi.renameConversation(id, newTitle);
+      showStatus("success", "Đã đổi tên cuộc trò chuyện");
     } catch (error) {
-      await conversationState.loadConversations({ type: 'customer-bot' });
+      showStatus("error", "Không thể đổi tên");
+      conversationState.loadConversations({ type: "customer-bot" });
     }
-  }, [conversationState]);
+  };
 
-  // Handle delete conversation
-  const handleDeleteConversation = useCallback(async (id: string) => {
+  const handleDeleteConversation = async (id: string) => {
     conversationState.removeConversation(id);
-    if (conversationState.currentConversationId === id) conversationState.clearCurrentConversation();
+    if (conversationState.currentConversationId === id) {
+      chatLogic.handleNewChat();
+    }
     try {
       const success = await chatApi.deleteConversation(id);
-      if (success) showStatus('success', 'Đã xóa cuộc trò chuyện');
-      else {
-          showStatus('error', 'Không thể xóa');
-          await conversationState.loadConversations({ type: 'customer-bot' });
+      if (success) {
+        showStatus("success", "Đã xóa cuộc trò chuyện");
+      } else {
+        showStatus("error", "Không thể xóa");
+        conversationState.loadConversations({ type: "customer-bot" });
       }
     } catch (error) {
-      showStatus('error', 'Lỗi khi xóa');
-      await conversationState.loadConversations({ type: 'customer-bot' });
+      showStatus("error", "Lỗi khi xóa");
+      conversationState.loadConversations({ type: "customer-bot" });
     }
-  }, [conversationState, showStatus]);
+  };
 
   const contextValue: ChatContextType = {
-    messages: stableChat.messages.length > 0 ? stableChat.messages : [WELCOME_MESSAGE],
-    quickReplies: [],
-    isLoadingAI: stableChat.isLoading,
-    conversations: conversationState.conversations,
-    currentConversationId: conversationState.currentConversationId,
-    onSendText: stableChat.onSendText,
-    onSendQuickReply: (text: string, payload: string) => stableChat.onSendText(payload),
-    onFileUpload: () => toast.info("Tính năng gửi file đang được nâng cấp"),
-    handleNewChat: conversationState.clearCurrentConversation,
-    handleSelectConversation: conversationState.selectConversation,
+    ...chatLogic,
     handleRenameConversation,
     handleDeleteConversation,
-    hasMoreMessages: false,
-    handleLoadMoreMessages: () => {},
-    input: stableChat.input,
-    handleInputChange: stableChat.handleInputChange,
-    isChatExpanded,
-    setIsChatExpanded,
+    handleLoadMoreMessages: chatLogic.loadMoreMessages,
   };
 
   return (
-    <ChatContext.Provider value={contextValue}>
-      {children}
-    </ChatContext.Provider>
+    <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>
   );
 };

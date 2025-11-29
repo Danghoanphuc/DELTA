@@ -1,104 +1,93 @@
-// src/features/chat/components/ThinkingBubble.tsx
-import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/shared/lib/utils";
-import { Sparkles, BrainCircuit, Loader2, Search, Database, Globe, Zap, CheckCircle2 } from "lucide-react";
+// apps/customer-frontend/src/features/chat/components/ThinkingBubble.tsx
+import { useState, useEffect } from "react";
 
-interface ThinkingBubbleProps {
-  icon?: string;
-  text?: string;
-  customText?: string;
-  className?: string;
-  onClick?: () => void;
-  variant?: "default" | "inline"; // ✅ Thêm variant: default (có khung) vs inline (trong suốt)
-}
+// Bộ từ điển "diễn sâu" - Client tự random
+const FAKE_LOGS = [
+  "Đang phân tích yêu cầu...",
+  "Đang tìm kiếm dữ liệu...",
+  "Đang tổng hợp thông tin...",
+  "Đang soạn thảo câu trả lời...",
+  "Đang kiểm tra kho hàng...",
+  "Đang xử lý hình ảnh...",
+  "Đang phân tích thiết kế...",
+  "Đang tạo gợi ý cho bạn...",
+];
 
-export const ThinkingBubble = ({ 
-  icon, 
-  text, 
-  customText,
-  className,
-  onClick,
-  variant = "default" 
-}: ThinkingBubbleProps) => {
-  const displayText = customText || text || "Zin đang phân tích...";
-  const isInline = variant === "inline";
-  
-  // Logic chọn icon sinh động
-  const getIcon = () => {
-     const lowerText = displayText.toLowerCase();
-     if (lowerText.includes("hoàn tất") || lowerText.includes("xong")) return <CheckCircle2 size={14} className="text-green-500" />;
-     if (lowerText.includes("tìm")) return <Search size={14} className="text-blue-500" />;
-     if (lowerText.includes("dữ liệu") || lowerText.includes("kho")) return <Database size={14} className="text-cyan-500" />;
-     if (lowerText.includes("kết nối") || lowerText.includes("web")) return <Globe size={14} className="text-green-500" />;
-     if (lowerText.includes("tính") || lowerText.includes("giá")) return <Zap size={14} className="text-yellow-500" />;
-     if (icon === "sparkles") return <Sparkles size={14} className="text-purple-500 animate-pulse" />;
-     if (icon === "loader") return <Loader2 size={14} className="text-gray-500 animate-spin" />;
-     return <BrainCircuit size={14} className="text-indigo-500 animate-pulse" />;
-  };
+export const ThinkingBubble = () => {
+  const [logIndex, setLogIndex] = useState(0);
 
-  const Wrapper = onClick ? motion.button : motion.div;
+  useEffect(() => {
+    // Tự động đổi câu mỗi 2.5 giây -> Tạo cảm giác AI đang làm việc
+    const interval = setInterval(() => {
+      setLogIndex((prev) => (prev + 1) % FAKE_LOGS.length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <div className={cn("relative group max-w-full", className)}>
-      
-      {/* Glow Effect chỉ hiện ở chế độ default (stand-alone) */}
-      {!isInline && (
-        <div className="pointer-events-none absolute -inset-1 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full blur opacity-0 group-hover:opacity-100 transition duration-1000"></div>
-      )}
-      
-      <Wrapper
-        onClick={onClick}
-        className={cn(
-          "relative z-10 flex items-center gap-2.5 transition-all",
-          // ✅ Style Variant: "inline" sẽ nhẹ nhàng hơn, không có border cứng
-          isInline 
-            ? "px-0 py-1 bg-transparent border-none shadow-none" 
-            : "px-3 py-2 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md rounded-2xl border border-blue-100/50 dark:border-gray-700 shadow-sm",
-          onClick && !isInline && "cursor-pointer hover:bg-white hover:border-blue-200 active:scale-95"
-        )}
-      >
-        {/* Icon Container */}
-        <div className={cn(
-            "relative flex items-center justify-center rounded-full shrink-0 transition-colors",
-            isInline ? "w-6 h-6 bg-blue-50/80 dark:bg-gray-800" : "w-5 h-5 bg-blue-50 dark:bg-gray-800"
-        )}>
-           <AnimatePresence mode="wait">
-             <motion.div
-                key={displayText.split(" ")[0]} 
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.5, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-             >
-               {getIcon()}
-             </motion.div>
-           </AnimatePresence>
+    <div className="relative p-[2px] rounded-2xl rounded-tl-none w-fit overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+      {/* Animated Gradient Border */}
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 opacity-30 animate-pulse" />
+      <div
+        className="absolute inset-0 opacity-40"
+        style={{
+          background:
+            "linear-gradient(90deg, #60a5fa, #a78bfa, #f472b6, #60a5fa)",
+          backgroundSize: "200% 100%",
+          animation: "gradient-shift 3s ease infinite",
+        }}
+      />
+
+      <div className="relative flex items-center justify-center px-4 py-2.5 bg-white dark:bg-gray-900 rounded-[14px]">
+        {/* Loading Dots with Gradient */}
+        <div className="mr-3 flex space-x-1">
+          <span className="w-2 h-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full animate-bounce [animation-delay:-0.3s] shadow-sm"></span>
+          <span className="w-2 h-2 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full animate-bounce [animation-delay:-0.15s] shadow-sm"></span>
+          <span className="w-2 h-2 bg-gradient-to-r from-pink-500 to-pink-600 rounded-full animate-bounce shadow-sm"></span>
         </div>
 
-        {/* Text Container - Hiệu ứng Ticker chạy chữ */}
-        <div className="flex flex-col justify-center min-w-0 overflow-hidden flex-1">
-            <AnimatePresence mode="popLayout">
-                <motion.span
-                    key={displayText}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -5 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className={cn(
-                        "font-medium truncate",
-                        isInline ? "text-[13px] text-gray-500 dark:text-gray-400" : "text-xs text-gray-600 dark:text-gray-300"
-                    )}
-                >
-                    {displayText}
-                </motion.span>
-            </AnimatePresence>
-        </div>
+        {/* Animated Text with Gradient */}
+        <span
+          key={logIndex}
+          className="text-sm font-medium bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent min-w-[140px] animate-in fade-in slide-in-from-bottom-1 duration-300"
+          style={{
+            backgroundSize: "200% 100%",
+            animation: "gradient-shift 4s ease infinite",
+          }}
+        >
+          {FAKE_LOGS[logIndex]}
+        </span>
+      </div>
+
+      <style>{`
+        @keyframes gradient-shift {
+          0%, 100% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+        }
         
-        {/* Chỉ thị click (chỉ hiện ở default mode) */}
-        {onClick && !isInline && (
-            <div className="w-1 h-1 bg-blue-400 rounded-full ml-1 opacity-50" />
-        )}
-      </Wrapper>
+        @keyframes shimmer {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(100%);
+          }
+        }
+      `}</style>
+
+      {/* Shimmer Effect */}
+      <div
+        className="absolute inset-0 opacity-20"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent)",
+          animation: "shimmer 2s infinite",
+        }}
+      />
     </div>
   );
 };

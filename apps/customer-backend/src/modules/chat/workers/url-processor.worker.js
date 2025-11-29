@@ -1,14 +1,16 @@
-import axios from 'axios';
-import { Logger } from '../../../shared/utils/index.js';
-import { socketService } from '../../../infrastructure/realtime/pusher.service.js';
-import { ChatAiService } from '../chat.ai.service.js';
-import { r2Service } from '../r2.service.js';
+import axios from "axios";
+import { Logger } from "../../../shared/utils/index.js";
+import { socketService } from "../../../infrastructure/realtime/pusher.service.js";
+import { ChatAiService } from "../chat.ai.service.js";
+import { r2Service } from "../r2.service.js";
 
 const aiService = new ChatAiService();
 
 export class UrlProcessorWorker {
   constructor() {
-    try { socketService.initializeWorker(); } catch (e) {}
+    try {
+      socketService.initializeWorker();
+    } catch (e) {}
   }
 
   _notifyUser(userId, event, data) {
@@ -20,18 +22,15 @@ export class UrlProcessorWorker {
     }
   }
 
-  /**
-   * Update message with thinking state
-   */
   async _updateMessageThinking(chatRepo, messageId, thinkingText, progress) {
     try {
       await chatRepo.updateMessage(messageId, {
-        content: { 
+        content: {
           text: thinkingText,
           isThinking: true,
-          progress: progress
+          progress: progress,
         },
-        metadata: { status: 'thinking' }
+        metadata: { status: "thinking" },
       });
     } catch (err) {
       Logger.warn(`[UrlWorker] Failed to update thinking: ${err.message}`);
@@ -40,193 +39,193 @@ export class UrlProcessorWorker {
 
   async processUrlJob(job) {
     const { url, conversationId, userId } = job.data;
-    
     let messageId = null;
-    
+
     try {
-      const { ChatRepository } = await import('../chat.repository.js');
+      const { ChatRepository } = await import("../chat.repository.js");
       const chatRepo = new ChatRepository();
-      
-      // ✅ 1. Create SINGLE message with initial thinking
+
+      // 1. Create message
       const initialMsg = await chatRepo.createMessage({
         conversationId: conversationId,
         senderType: "AI",
-        content: { 
-          text: `🔍 Đang chuẩn bị phân tích ${url}...`,
+        content: {
+          text: `🔍 Đang truy cập liên kết ${url}...`,
           isThinking: true,
-          progress: 10
+          progress: 10,
         },
-        metadata: { 
-          source: "url-preview", 
-          status: "thinking", 
-          originalUrl: url 
-        }
+        metadata: {
+          source: "url-preview",
+          status: "thinking",
+          originalUrl: url,
+        },
       });
-      
+
       messageId = initialMsg._id.toString();
-      
-      // Emit NEW message
-      const msgPayload = initialMsg.toObject ? initialMsg.toObject() : initialMsg;
-      this._notifyUser(userId, 'chat:message:new', msgPayload);
-      
-      // ✅ 2. Update: Đang chụp ảnh
+      const msgPayload = initialMsg.toObject
+        ? initialMsg.toObject()
+        : initialMsg;
+      this._notifyUser(userId, "chat:message:new", msgPayload);
+
+      // 2. Update status
       await this._updateMessageThinking(
-        chatRepo, 
-        messageId, 
-        `📸 Đang chụp ảnh website ${url}...`,
+        chatRepo,
+        messageId,
+        `📸 Đang đợi website tải nét căng...`,
         30
       );
-      
-      this._notifyUser(userId, 'chat:message:updated', {
-        _id: messageId,
-        conversationId: conversationId,
-        content: {
-          text: `📸 Đang chụp ảnh website ${url}...`,
-          isThinking: true,
-          progress: 30
-        }
-      });
 
-      // ✅ 3. ApiFlash screenshot
+      // 3. ApiFlash screenshot (BẢN CHUẨN)
       const API_KEY = process.env.APIFLASH_ACCESS_KEY;
       if (!API_KEY) throw new Error("Missing APIFLASH_ACCESS_KEY");
-      
-      const response = await axios.get('https://api.apiflash.com/v1/urltoimage', {
-        params: {
-          access_key: API_KEY,
-          url: url,
-          format: 'jpeg',
-          quality: 80,
-          width: 1920,
-          height: 1080,
-          response_type: 'image',
-          wait_until: 'page_loaded',
-          no_ads: true,
-          no_cookie_banners: true,
-          fail_on_status: '400,404,500'
-        },
-        responseType: 'arraybuffer',
-        timeout: 30000
-      });
-      
+
+      // CSS này sẽ ẩn các thành phần UI rác (Header, Footer, Cookie, Popup quảng cáo)
+      // Giúp ảnh chỉ tập trung vào nội dung thiết kế chính
+      const cleanUpCSS = `
+        header, footer, nav, 
+        #onetrust-banner-sdk, .cookie-banner, 
+        [role="banner"], [role="contentinfo"], 
+        [class*="BottomBar"], [class*="SignUp"], 
+        [aria-label="cookie"], .intercom-lightweight-app { 
+          display: none !important; 
+        }
+        body { overflow: hidden !important; }
+      `;
+
+      const response = await axios.get(
+        "https://api.apiflash.com/v1/urltoimage",
+        {
+          params: {
+            access_key: API_KEY,
+            url: url,
+
+            // --- CẤU HÌNH CHỤP ẢNH NÉT ---
+            format: "jpeg",
+            quality: 100, // Max chất lượng
+            width: 1920, // Full HD để AI nhìn rõ chi tiết nhỏ
+            height: 1080,
+
+            // Wait until: "network_idle" là chìa khóa. Nó đợi khi mạng "im lặng" hoàn toàn
+            wait_until: "network_idle",
+
+            // Delay: Thêm 6s "vùng đệm" để Canvas render xong hiệu ứng/ảnh nặng
+            delay: 6,
+
+            // Fresh: Bắt buộc chụp mới, không lấy ảnh cache cũ bị mờ
+            fresh: true,
+
+            // --- CẤU HÌNH DỌN RÁC UI (CROP) ---
+            // Tiêm CSS để ẩn thanh công cụ, quảng cáo
+            css: cleanUpCSS,
+
+            // Tự động chặn quảng cáo & cookie banner (lớp bảo vệ 1)
+            no_ads: true,
+            no_cookie_banners: true,
+
+            // Giả lập màn hình Desktop chuẩn
+            user_agent:
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+
+            fail_on_status: "400,404,500",
+          },
+          responseType: "arraybuffer",
+          timeout: 60000, // Tăng timeout lên 60s vì mình delay khá lâu
+        }
+      );
+
       const imageBuffer = Buffer.from(response.data);
 
-      // ✅ 4. Update: Đang lưu ảnh
+      // 4. Update status
       await this._updateMessageThinking(
         chatRepo,
         messageId,
-        '☁️ Đang lưu ảnh...',
-        50
+        "☁️ Đang lưu ảnh vào hệ thống...",
+        60
       );
-      
-      this._notifyUser(userId, 'chat:message:updated', {
-        _id: messageId,
-        conversationId: conversationId,
-        content: {
-          text: '☁️ Đang lưu ảnh...',
-          isThinking: true,
-          progress: 50
-        }
-      });
-      
+
       const fileName = `url-preview-${Date.now()}.jpg`;
       const fileKey = `chat/url-previews/${fileName}`;
-      
-      await r2Service.uploadFile(imageBuffer, fileKey, 'image/jpeg');
-      const imageUrl = await r2Service.getPresignedDownloadUrl(fileKey, fileName, 'inline');
 
-      // ✅ 5. Update: Đang phân tích
+      await r2Service.uploadFile(imageBuffer, fileKey, "image/jpeg");
+      const imageUrl = await r2Service.getPresignedDownloadUrl(
+        fileKey,
+        fileName,
+        "inline"
+      );
+
+      // 5. Update status
       await this._updateMessageThinking(
         chatRepo,
         messageId,
-        '🧠 Đang phân tích thiết kế...',
-        70
+        "🧠 AI đang phân tích thiết kế...",
+        80
       );
-      
-      this._notifyUser(userId, 'chat:message:updated', {
-        _id: messageId,
-        conversationId: conversationId,
-        content: {
-          text: '🧠 Đang phân tích thiết kế...',
-          isThinking: true,
-          progress: 70
-        }
-      });
-      
-      // ✅ 6. AI analysis
-      const base64Image = imageBuffer.toString('base64');
+
+      // 6. AI Analysis
+      const base64Image = imageBuffer.toString("base64");
       const base64Url = `data:image/jpeg;base64,${base64Image}`;
-      
+
       const prompt = `Phân tích thiết kế từ ảnh chụp màn hình URL: ${url}. 
+      Lưu ý: Ảnh đã được lọc bỏ giao diện thừa, hãy tập trung vào phần thiết kế chính.
 
-Hãy đưa ra:
-- Màu sắc chủ đạo
-- Phong cách thiết kế (tối giản, hiện đại, cổ điển...)
-- Bố cục và cấu trúc
-- Gợi ý sản phẩm in ấn phù hợp (card visit, tờ rơi, áo thun...)`;
+      Hãy đưa ra:
+      - Màu sắc chủ đạo (kèm mã Hex nếu đoán được)
+      - Phong cách thiết kế
+      - Bố cục và typography
+      - Gợi ý sản phẩm in ấn phù hợp nhất cho thiết kế này`;
 
-      const aiAnalysis = await aiService.getVisionCompletion(base64Url, prompt, {});
+      const aiAnalysis = await aiService.getVisionCompletion(
+        base64Url,
+        prompt,
+        {}
+      );
 
-      // ✅ 7. FINAL update - replace thinking with result
+      // 7. Final Update
       const updatedMsg = await chatRepo.updateMessage(messageId, {
         type: "ai_response",
-        content: { 
+        content: {
           text: aiAnalysis,
           fileUrl: imageUrl,
-          isThinking: false
+          isThinking: false,
         },
-        metadata: { 
-          source: "url-preview", 
-          originalUrl: url, 
-          status: "completed" 
-        }
+        metadata: {
+          source: "url-preview",
+          originalUrl: url,
+          status: "completed",
+        },
       });
 
-      // ✅ 8. Emit FINAL message
-      const finalPayload = updatedMsg.toObject ? updatedMsg.toObject() : updatedMsg;
-      this._notifyUser(userId, 'chat:message:updated', finalPayload);
+      const finalPayload = updatedMsg.toObject
+        ? updatedMsg.toObject()
+        : updatedMsg;
+      finalPayload.isFinished = true;
+      this._notifyUser(userId, "chat:message:new", finalPayload);
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         analysis: aiAnalysis,
         imageUrl: imageUrl,
-        messageId: messageId
+        messageId: messageId,
       };
-
     } catch (error) {
       Logger.error(`[UrlWorker] Job ${job?.id} failed:`, error.message);
-      
-      // ✅ Update message with error
       if (messageId) {
+        // Error handling logic (giữ nguyên như cũ)
         try {
-          const { ChatRepository } = await import('../chat.repository.js');
+          const { ChatRepository } = await import("../chat.repository.js");
           const chatRepo = new ChatRepository();
-          
           const errorMsg = await chatRepo.updateMessage(messageId, {
-            content: { 
-              text: `Xin lỗi, tôi không thể truy cập trang web này. 
-
-Có thể do:
-- Link không tồn tại hoặc đã hết hạn
-- Website chặn truy cập tự động
-- Kết nối mạng không ổn định
-
-Bạn vui lòng thử lại với link khác nhé!`,
-              isThinking: false
+            content: {
+              text: `⚠️ Không thể chụp ảnh trang web này.\nLý do: ${error.message}`,
+              isThinking: false,
             },
-            metadata: { 
-              status: "error", 
-              error: error.message 
-            }
+            metadata: { status: "error", error: error.message },
           });
-          
           const errPayload = errorMsg.toObject ? errorMsg.toObject() : errorMsg;
-          this._notifyUser(userId, 'chat:message:updated', errPayload);
-        } catch (dbErr) {
-          Logger.error("[UrlWorker] DB update failed:", dbErr.message);
-        }
+          errPayload.isFinished = true;
+          this._notifyUser(userId, "chat:message:new", errPayload);
+        } catch (dbErr) {}
       }
-
       throw error;
     }
   }

@@ -7,7 +7,11 @@ import { Logger } from "../../shared/utils/index.js";
 class SocketService {
   constructor() {
     try {
-      if (process.env.PUSHER_APP_ID && process.env.PUSHER_KEY && process.env.PUSHER_SECRET) {
+      if (
+        process.env.PUSHER_APP_ID &&
+        process.env.PUSHER_KEY &&
+        process.env.PUSHER_SECRET
+      ) {
         this.pusher = new Pusher({
           appId: process.env.PUSHER_APP_ID,
           key: process.env.PUSHER_KEY,
@@ -17,7 +21,9 @@ class SocketService {
         });
         Logger.info("[Pusher] Initialized successfully");
       } else {
-        Logger.warn("[Pusher] Missing configuration (PUSHER_APP_ID, PUSHER_KEY, PUSHER_SECRET)");
+        Logger.warn(
+          "[Pusher] Missing configuration (PUSHER_APP_ID, PUSHER_KEY, PUSHER_SECRET)"
+        );
         this.pusher = null;
       }
     } catch (error) {
@@ -57,18 +63,30 @@ class SocketService {
    */
   emitToUser(userId, eventName, data) {
     if (!this.pusher || !userId) {
-      Logger.warn(`[Pusher] Cannot emit - pusher: ${!!this.pusher}, userId: ${!!userId}`);
+      Logger.warn(
+        `[Pusher] Cannot emit - pusher: ${!!this.pusher}, userId: ${!!userId}`
+      );
       return;
     }
 
-    // ✅ Dùng private channel (cần auth endpoint)
     const channel = `private-user-${userId}`;
-    
-    Logger.info(`[Pusher] Emitting ${eventName} to ${channel}`);
-    
-    this.pusher.trigger(channel, eventName, data).catch(err => {
-      Logger.error(`[Pusher] Emit Error to ${channel}:`, err);
+
+    Logger.info(`[Pusher] 📤 Emitting ${eventName} to ${channel}`, {
+      dataKeys: Object.keys(data || {}),
+      messageId: data?._id || data?.messageId,
+      conversationId: data?.conversationId,
     });
+
+    this.pusher
+      .trigger(channel, eventName, data)
+      .then(() => {
+        Logger.info(
+          `[Pusher] ✅ Successfully emitted ${eventName} to ${channel}`
+        );
+      })
+      .catch((err) => {
+        Logger.error(`[Pusher] ❌ Emit Error to ${channel}:`, err);
+      });
   }
 
   /**
@@ -89,10 +107,10 @@ class SocketService {
    */
   emitToPrinter(printerId, eventName, data) {
     if (!this.pusher || !printerId) return;
-    
+
     const channel = `public-printer-${printerId}`;
-    
-    this.pusher.trigger(channel, eventName, data).catch(err => {
+
+    this.pusher.trigger(channel, eventName, data).catch((err) => {
       Logger.error(`[Pusher] Emit Error to ${channel}:`, err);
     });
   }
@@ -105,10 +123,10 @@ class SocketService {
    */
   emitToRole(role, eventName, data) {
     if (!this.pusher || !role) return;
-    
+
     const channel = `public-role-${role}`;
-    
-    this.pusher.trigger(channel, eventName, data).catch(err => {
+
+    this.pusher.trigger(channel, eventName, data).catch((err) => {
       Logger.error(`[Pusher] Emit Error to ${channel}:`, err);
     });
   }
@@ -128,7 +146,9 @@ class SocketService {
    * @returns {Promise<boolean>} Always returns false (Pusher doesn't track connections server-side)
    */
   async isUserConnected(userId) {
-    Logger.warn("[Pusher] isUserConnected() called - Pusher doesn't track connections server-side");
+    Logger.warn(
+      "[Pusher] isUserConnected() called - Pusher doesn't track connections server-side"
+    );
     return false;
   }
 
@@ -137,7 +157,9 @@ class SocketService {
    * @returns {Promise<Object>} Empty stats object
    */
   async getStats() {
-    Logger.warn("[Pusher] getStats() called - Pusher doesn't provide connection stats");
+    Logger.warn(
+      "[Pusher] getStats() called - Pusher doesn't provide connection stats"
+    );
     return {
       totalConnections: 0,
       users: {},
@@ -159,4 +181,3 @@ class SocketService {
 }
 
 export const socketService = new SocketService();
-

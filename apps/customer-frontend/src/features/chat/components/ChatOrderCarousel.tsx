@@ -52,7 +52,7 @@ const ChatOrderCard = ({ order }: { order: SimplifiedOrder }) => {
     ? firstItem.productName +
       (order.items.length > 1 ? ` và ${order.items.length - 1} sp khác` : "")
     : "Đơn hàng";
-  
+
   // ✅ FIX: Safe total with fallback
   const orderTotal = order.total ?? 0;
 
@@ -97,6 +97,15 @@ interface ChatOrderCarouselProps {
   orders: SimplifiedOrder[];
 }
 export const ChatOrderCarousel = ({ orders }: ChatOrderCarouselProps) => {
+  // ✅ Handle empty orders
+  if (!orders || orders.length === 0) {
+    return (
+      <div className="text-sm text-gray-500 bg-gray-50 p-4 rounded-lg">
+        Bạn chưa có đơn hàng nào.
+      </div>
+    );
+  }
+
   return (
     <Carousel
       opts={{

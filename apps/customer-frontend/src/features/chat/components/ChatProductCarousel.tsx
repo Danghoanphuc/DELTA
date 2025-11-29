@@ -1,5 +1,4 @@
-// src/features/chat/components/ChatProductCarousel.tsx (ĐÃ SỬA)
-
+// apps/customer-frontend/src/features/chat/components/ChatProductCarousel.tsx
 import {
   Carousel,
   CarouselContent,
@@ -7,76 +6,47 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/shared/components/ui/carousel";
-import { Card, CardContent } from "@/shared/components/ui/card";
 import { PrinterProduct } from "@/types/product";
-import { ImageWithFallback } from "@/features/figma/ImageWithFallback";
-import { Button } from "@/shared/components/ui/button";
-// ✅ BƯỚC 1: IMPORT CONTEXT TOÀN CỤC (GLOBAL)
 import { useGlobalModalContext } from "@/contexts/GlobalModalProvider";
-// ❌ GỠ BỎ: useChatContext
+// Import Component Atomic
+import { UniversalProductCard } from "./business/UniversalProductCard";
 
-// ... (ChatProductCard giữ nguyên giao diện) ...
-const ChatProductCard = ({ product }: { product: PrinterProduct }) => {
-  // ✅ BƯỚC 2: SỬ DỤNG CONTEXT TOÀN CỤC
-  const { openQuickView } = useGlobalModalContext();
-  const primaryImage = product.images?.[0]?.url || "/placeholder-product.jpg";
-  const lowestPrice =
-    product.pricing.reduce(
-      (min, p) => Math.min(min, p.pricePerUnit),
-      Infinity
-    ) || 0;
-
-  return (
-    <Card className="overflow-hidden shadow-md border">
-      <div className="aspect-square bg-gray-100">
-        <ImageWithFallback
-          src={primaryImage}
-          alt={product.name}
-          className="w-full h-full object-cover"
-        />
-      </div>
-      <CardContent className="p-3">
-        <p className="font-semibold text-sm truncate mb-1">{product.name}</p>
-        <p className="text-xs text-gray-500 mb-2 truncate">
-          {product.printerInfo?.businessName || "Từ nhiều nhà in"}
-        </p>
-        <div className="flex items-center justify-between">
-          <span className="text-blue-600 font-bold text-sm">
-            {lowestPrice.toLocaleString("vi-VN")}đ
-          </span>
-          {/* ✅ BƯỚC 3: Kích hoạt modal toàn cục */}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => openQuickView(product._id)}
-          >
-            Xem
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-// ... (Carousel chính giữ nguyên) ...
 interface ChatProductCarouselProps {
   products: PrinterProduct[];
 }
+
 export const ChatProductCarousel = ({ products }: ChatProductCarouselProps) => {
+  const { openQuickView } = useGlobalModalContext();
+
   return (
     <Carousel
-      opts={{
-        align: "start",
-        loop: false,
-      }}
+      opts={{ align: "start", loop: false }}
       className="w-full max-w-xs md:max-w-md"
     >
       <CarouselContent className="-ml-3">
-        {products.map((product) => (
-          <CarouselItem key={product._id} className="pl-3 basis-4/5">
-            <ChatProductCard product={product} />
-          </CarouselItem>
-        ))}
+        {products.map((product) => {
+          // Adapter: Map data từ PrinterProduct sang UniversalProductProps
+          const lowestPrice =
+            product.pricing?.reduce(
+              (min, p) => Math.min(min, p.pricePerUnit),
+              Infinity
+            ) || 0;
+          const primaryImage = product.images?.[0]?.url;
+
+          return (
+            <CarouselItem key={product._id} className="pl-3 basis-4/5">
+              <UniversalProductCard
+                id={product._id}
+                name={product.name}
+                price={lowestPrice}
+                image={primaryImage}
+                printerName={product.printerInfo?.businessName}
+                layout="carousel-item" // Chế độ hiển thị dọc cho carousel
+                onOpenQuickView={openQuickView}
+              />
+            </CarouselItem>
+          );
+        })}
       </CarouselContent>
       {products.length > 1 && (
         <>

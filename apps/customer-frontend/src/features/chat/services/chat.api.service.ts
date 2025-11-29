@@ -4,9 +4,9 @@ import api from "@/shared/lib/axios";
 import { AiApiResponse, ChatMessage, ChatConversation } from "@/types/chat";
 import { Order } from "@/types/order";
 
-// 🔥 HÀM CHUẨN HÓA DỮ LIỆU (MỚI)
-const normalizeMessage = (msg: any): ChatMessage => {
-  // 1. Ép kiểu senderType nếu thiếu
+// ✅ 1. HÀM CHUẨN HÓA DỮ LIỆU (CORE)
+export const normalizeMessage = (msg: any): ChatMessage => {
+  // 1. Ép kiểu senderType
   let finalSenderType = msg.senderType;
   
   if (!finalSenderType) {
@@ -17,7 +17,7 @@ const normalizeMessage = (msg: any): ChatMessage => {
       else finalSenderType = 'AI'; // Fallback an toàn
   }
 
-  // 2. Ép kiểu type nếu thiếu
+  // 2. Ép kiểu type
   let finalType = msg.type;
   if (!finalType) {
       if (finalSenderType === 'AI') {
@@ -30,14 +30,23 @@ const normalizeMessage = (msg: any): ChatMessage => {
       }
   }
 
+  // 3. Đảm bảo content luôn có text
+  let finalContent = msg.content;
+  if (typeof finalContent === 'string') {
+      finalContent = { text: finalContent };
+  } else if (!finalContent) {
+      finalContent = { text: "" };
+  }
+
   return {
       ...msg,
       senderType: finalSenderType,
       type: finalType,
-      content: msg.content || { text: "" } 
+      content: finalContent
   } as ChatMessage;
 };
 
+// ✅ 2. CÁC API CƠ BẢN
 export const fetchChatConversations = async (filters?: { type?: string }): Promise<ChatConversation[]> => {
   try {
     const res = await api.get("/chat/conversations", { params: filters });
@@ -132,7 +141,7 @@ export const uploadChatFile = async (
   return res.data?.data;
 };
 
-// ... (Giữ nguyên các hàm fetchConversationById, renameConversation, deleteConversation... như cũ)
+// ✅ 3. QUẢN LÝ CONVERSATION
 export const fetchConversationById = async (id: string) => {
     try { const res = await api.get(`/chat/conversations/${id}`); return res.data?.data?.conversation || null; }
     catch (e) { return null; }
@@ -230,6 +239,7 @@ export const updateGroupConversation = async (params: UpdateGroupParams) => {
   return res.data;
 };
 
+// ✅ 4. R2 & FILES
 export const getR2UploadUrl = async (fileName: string, fileType: string) => {
   const res = await api.post("/chat/r2/upload-url", { fileName, fileType });
   return res.data?.data;
@@ -257,6 +267,7 @@ export const uploadToR2 = async (
   return res.data?.data;
 };
 
+// ✅ 5. UTILS KHÁC
 export const postSocialChatMessage = async (
   message: string,
   conversationId: string,
@@ -310,10 +321,8 @@ export const getConversationFiles = async (conversationId: string) => {
   return res.data?.data?.files || [];
 };
 
-// ✅ Hàm fetch chi tiết đơn hàng dùng cho GlobalModalProvider
 export const fetchOrderDetails = async (orderId: string): Promise<Order> => {
   const res = await api.get(`/orders/${orderId}`);
-  // Backend có thể trả về theo nhiều cấu trúc khác nhau, nên fallback linh hoạt
   const order =
     res.data?.data?.order ||
     res.data?.order ||
@@ -325,4 +334,19 @@ export const fetchOrderDetails = async (orderId: string): Promise<Order> => {
   }
 
   return order as Order;
+};
+
+// ========================================================
+// 🔥 FIX QUAN TRỌNG: KHÔNG ĐẢO NGƯỢC MẢNG TIN NHẮN
+// ========================================================
+export const fetchChatMessages = async (conversationId: string): Promise<ChatMessage[]> => {
+    if (!conversationId || conversationId.startsWith("temp")) return [];
+    try {
+      const { messages } = await fetchChatHistory(conversationId, 1, 50);
+      // ✅ ĐÃ XÓA: .reverse() - UI đã tự xử lý sort
+      return messages;
+    } catch (err) {
+      console.error("[API] Error fetching chat messages:", err);
+      return [];
+    }
 };

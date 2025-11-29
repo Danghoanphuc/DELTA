@@ -8,7 +8,7 @@ import { socketService } from "../../infrastructure/realtime/pusher.service.js";
 import { novuService } from "../../infrastructure/notifications/novu.service.js";
 import { Logger } from "../../shared/utils/index.js";
 import { ChatResponseUtil } from "./chat.response.util.js";
-import { getUrlPreviewQueue } from "../../infrastructure/queue/url-preview.queue.js"; // ✅ Thêm import này
+import { getUrlPreviewQueue } from "../../infrastructure/queue/url-preview.queue.js";
 
 export class ChatService {
   constructor() {
@@ -17,17 +17,23 @@ export class ChatService {
     this.aiService = new ChatAiService();
   }
 
-  // ✅ REFACTOR: Tách logic save User Message ra xử lý trước
   async handleBotMessage(user, body, isGuest = false) {
-    // 🔥 Hứng clientSideId từ Frontend gửi lên
-    const { message, displayText, fileUrl, conversationId, type, metadata, clientSideId } = body;
+    const {
+      message,
+      displayText,
+      fileUrl,
+      conversationId,
+      type,
+      metadata,
+      clientSideId,
+    } = body;
     const userId = user ? user._id : null;
-    
+
     const textToShow = displayText || message;
     const textToProcess = message;
 
     // 1. Tìm hoặc Tạo hội thoại
-    let conversation = conversationId 
+    let conversation = conversationId
       ? await this.chatRepository.findConversationById(conversationId, userId)
       : null;
 
@@ -43,218 +49,331 @@ export class ChatService {
       actorId: userId,
       actorType: isGuest ? "Guest" : "User",
       conversationId: conversation._id,
-      fileUrl
+      fileUrl,
     };
 
-    // 2. 🔥 SAVE USER MESSAGE VỚI CLIENT_SIDE_ID
+    // 2. SAVE USER MESSAGE
     let userMsg = null;
+    let aiMessageId = new mongoose.Types.ObjectId();
+
     if (textToShow || fileUrl) {
-       userMsg = await this.chatRepository.createMessage({
-          conversationId: conversation._id,
-          sender: userId,
-          senderType: userId ? "User" : "Guest",
-          content: { text: textToShow, fileUrl },
-          metadata: metadata || {},
-          clientSideId: clientSideId // <-- LƯU VÀO DB
+      userMsg = await this.chatRepository.createMessage({
+        conversationId: conversation._id,
+        sender: userId,
+        senderType: userId ? "User" : "Guest",
+        content: { text: textToShow, fileUrl },
+        metadata: metadata || {},
+        clientSideId: clientSideId,
       });
 
-      // Emit lại message vừa tạo (Frontend sẽ dùng clientSideId để khớp và xóa trạng thái pending)
       if (userId) {
-         socketService.emitToUser(userId.toString(), 'chat:message:new', userMsg);
+        // Force Inject ID để chống duplicate ở Frontend
+        const msgToEmit = userMsg.toObject
+          ? userMsg.toObject()
+          : { ...userMsg };
+        if (!msgToEmit.metadata) msgToEmit.metadata = {};
+        if (clientSideId) {
+          msgToEmit.clientSideId = clientSideId;
+          msgToEmit.metadata.clientSideId = clientSideId;
+        }
+        socketService.emitToUser(
+          userId.toString(),
+          "chat:message:new",
+          msgToEmit
+        );
       }
     }
 
-    // 3. Xử lý URL Preview (nếu có) - Chạy async, không block
+    // 3. Xử lý URL Preview (Async)
     const urlRegex = /https?:\/\/[^\s]+(?<![.,;!?])/g;
     const detectedUrls = textToProcess ? textToProcess.match(urlRegex) : [];
     if (detectedUrls?.length > 0 && !fileUrl) {
-       // Fire & Forget logic URL Preview
-       this._handleUrlPreview(userId, conversation, detectedUrls[0], textToShow, isNewConversation).catch(console.error);
-       return { conversationId: conversation._id, userMessage: userMsg };
+      // ✅ KHÔNG emit ai:stream:start cho URL vì worker tự quản lý message
+      this._handleUrlPreview(
+        userId,
+        conversation,
+        detectedUrls[0],
+        textToShow,
+        isNewConversation
+      ).catch(console.error);
+      return {
+        conversationId: conversation._id,
+        userMessage: userMsg,
+        aiMessageId,
+      };
     }
 
-    // 4. Chuẩn bị AI Stream
-    const aiMessageId = new mongoose.Types.ObjectId(); 
-    
-    // Emit event báo hiệu AI bắt đầu nghĩ (để UI hiện bubble rỗng hoặc loading)
+    // 4. Chuẩn bị AI Stream (chỉ cho non-URL messages)
     if (userId) {
-        socketService.emitToUser(userId.toString(), 'ai:stream:start', {
-            messageId: aiMessageId.toString(),
-            conversationId: conversation._id.toString(),
-            senderType: 'AI'
-        });
+      socketService.emitToUser(userId.toString(), "ai:stream:start", {
+        messageId: aiMessageId.toString(),
+        conversationId: conversation._id.toString(),
+        senderType: "AI",
+        replyToId: clientSideId,
+      });
     }
 
-    const onStream = (payload) => {
-        if (!userId) return;
-        if (payload.type === 'text_stream') {
-            socketService.emitToUser(userId.toString(), 'ai:stream:chunk', {
-                conversationId: conversation._id.toString(),
-                messageId: aiMessageId.toString(), // Quan trọng để UI biết đang stream cho message nào
-                text: payload.text
-            });
-        } else {
-            // Thinking process
-            socketService.emitToUser(userId.toString(), 'ai:thinking:update', {
-                conversationId: conversation._id.toString(),
-                messageId: aiMessageId.toString(),
-                icon: payload.icon,
-                text: payload.text,
-                isThinking: true
-            });
-        }
+    const onStream = (text) => {
+      if (!userId || !text) return;
+
+      socketService.emitToUser(userId.toString(), "ai:stream:chunk", {
+        conversationId: conversation._id.toString(),
+        messageId: aiMessageId.toString(),
+        text: text,
+      });
     };
 
     // 5. Chạy AI (Async background)
-    // Chúng ta KHÔNG dùng await để block response HTTP.
-    // HTTP trả về ngay sau khi lưu User Message. AI chạy ngầm.
     (async () => {
       try {
-        const historyData = await this.chatRepository.getPaginatedMessages(conversation._id, 1, 10);
+        Logger.info(
+          `[ChatService] Starting AI processing for conversation ${conversation._id}`
+        );
+
+        const historyData = await this.chatRepository.getPaginatedMessages(
+          conversation._id,
+          1,
+          10
+        );
         const history = historyData.messages || [];
+        Logger.info(`[ChatService] Loaded ${history.length} history messages`);
 
         let responsePayload;
         if (fileUrl) {
-           const analysis = await this.aiService.getVisionCompletion(fileUrl, "Phân tích ảnh này và gợi ý in ấn.", context);
-           const visionPrompt = `[SYSTEM] User gửi ảnh. AI Vision đã thấy: "${analysis}". Hãy tư vấn dựa trên đó.`;
-           responsePayload = await this.agent.run(context, history, textToProcess || "Gửi ảnh", visionPrompt, onStream);
+          const analysis = await this.aiService.getVisionCompletion(
+            fileUrl,
+            "Phân tích ảnh này và gợi ý in ấn.",
+            context
+          );
+          const visionPrompt = `[SYSTEM] User gửi ảnh. AI Vision đã thấy: "${analysis}". Hãy tư vấn dựa trên đó.`;
+          responsePayload = await this.agent.run(
+            context,
+            history,
+            textToProcess || "Gửi ảnh",
+            visionPrompt,
+            onStream
+          );
         } else if (type === "product" && metadata?.productId) {
-           responsePayload = await this._handleProductContext(metadata.productId);
+          responsePayload = await this._handleProductContext(
+            metadata.productId
+          );
         } else {
-           responsePayload = await this.agent.run(context, history, textToProcess, null, onStream);
+          Logger.info(
+            `[ChatService] Running agent with message: ${textToProcess?.substring(
+              0,
+              50
+            )}...`
+          );
+          responsePayload = await this.agent.run(
+            context,
+            history,
+            textToProcess,
+            null,
+            onStream
+          );
+          Logger.info(
+            `[ChatService] Agent completed, response type: ${responsePayload?.type}`
+          );
         }
 
-        // 6. Lưu AI Message & Emit Final Socket
+        if (!responsePayload) {
+          throw new Error("Agent returned null response");
+        }
+
+        // 6. Lưu & Gửi kết quả cuối cùng
+        Logger.info(`[ChatService] Saving AI message ${aiMessageId}`);
+
         const savedAiMsg = await this.chatRepository.createMessage({
-            _id: aiMessageId,
-            conversationId: conversation._id,
-            senderType: "AI",
-            type: responsePayload.type || "ai_response",
-            content: responsePayload.content,
-            metadata: { 
-              ...responsePayload._messageMetadata,
-              status: "sent" // Đánh dấu đã xong
-            }
+          _id: aiMessageId,
+          conversationId: conversation._id,
+          senderType: "AI",
+          type: responsePayload.type || "ai_response",
+          content: responsePayload.content,
+          metadata: {
+            ...responsePayload._messageMetadata,
+            status: "sent",
+          },
         });
 
         if (userId) {
-           // Emit bản final để UI replace cái streaming text bằng nội dung đầy đủ
-           socketService.emitToUser(userId.toString(), 'chat:message:updated', savedAiMsg);
+          const finalPayload = savedAiMsg.toObject
+            ? savedAiMsg.toObject()
+            : { ...savedAiMsg };
+          finalPayload.isFinished = true;
+
+          socketService.emitToUser(
+            userId.toString(),
+            "chat:message:new",
+            finalPayload
+          );
         }
 
-        // 7. Auto Title & Notification (ĐÃ CÓ HÀM _generateWowTitle Ở DƯỚI)
-        if (userId && (isNewConversation || !conversation.title || conversation.title === "Đoạn chat mới")) {
-          this._generateWowTitle(conversation._id, userId, textToShow, responsePayload?.content?.text).catch(e => Logger.error("Auto-title error", e));
+        // 7. Auto Title & Notification
+        if (
+          userId &&
+          (isNewConversation ||
+            !conversation.title ||
+            conversation.title === "Đoạn chat mới")
+        ) {
+          this._generateWowTitle(
+            conversation._id,
+            userId,
+            textToShow,
+            responsePayload?.content?.text
+          ).catch((e) => Logger.error("Auto-title error", e));
         }
 
         if (userId) {
-           const messageText = responsePayload.content?.text || "Tin nhắn mới từ Zin";
-           await novuService.triggerChatNotification(userId.toString(), messageText.substring(0, 100), conversation._id.toString());
+          const messageText =
+            responsePayload.content?.text || "Tin nhắn mới từ Zin";
+          await novuService.triggerChatNotification(
+            userId.toString(),
+            messageText.substring(0, 100),
+            conversation._id.toString()
+          );
         }
-
       } catch (error) {
         Logger.error("[ChatService] Async AI Error:", error);
+        Logger.error("[ChatService] Error stack:", error.stack);
+
         if (userId) {
-             socketService.emitToUser(userId.toString(), 'chat:message:updated', {
-                 _id: aiMessageId.toString(),
-                 conversationId: conversation._id,
-                 senderType: "AI",
-                 type: "error",
-                 content: { text: "Hệ thống đang bận, vui lòng thử lại sau." },
-                 metadata: { status: "error" }
-             });
+          Logger.info(`[ChatService] Emitting error message to user ${userId}`);
+          socketService.emitToUser(userId.toString(), "chat:message:new", {
+            _id: aiMessageId.toString(),
+            conversationId: conversation._id,
+            senderType: "AI",
+            type: "error",
+            content: { text: "⚠️ Hệ thống đang bận, vui lòng thử lại sau." },
+            metadata: { status: "error" },
+            isFinished: true,
+          });
         }
       }
     })();
 
-    // ✅ Return ngay lập tức thông tin cơ bản
-    return {
+    const response = {
       success: true,
       conversationId: conversation._id,
-      userMessage: userMsg, // Trả về để Client map tempId
-      aiMessageId: aiMessageId // Trả về để Client biết trước ID của câu trả lời sắp tới
+      userMessage: userMsg,
+      aiMessageId: aiMessageId,
     };
+
+    if (isNewConversation) {
+      response.newConversation = {
+        _id: conversation._id.toString(),
+        title: conversation.title || "Cuộc trò chuyện mới",
+        type: conversation.type || "customer-bot",
+        createdAt: conversation.createdAt,
+        updatedAt: conversation.updatedAt,
+      };
+    }
+
+    return response;
   }
 
-  // ✅ HÀM MỚI 1: Tự động đặt tên "Giật tít"
+  // --- Helpers ---
   async _generateWowTitle(conversationId, userId, userMessage, aiMessage) {
     try {
       if (!userMessage && !aiMessage) return;
-      
-      const prompt = `
-Dựa trên cuộc hội thoại này:
-User: "${userMessage?.substring(0, 100)}"
-AI: "${aiMessage?.substring(0, 100)}"
+      const prompt = `User: "${userMessage?.substring(
+        0,
+        100
+      )}"\nAI: "${aiMessage?.substring(
+        0,
+        100
+      )}"\nĐặt tiêu đề ngắn gọn (tối đa 50 ký tự), không markdown, không ngoặc kép, không ký tự đặc biệt.`;
+      const titleRes = await this.aiService.getCompletionWithCustomPrompt(
+        [],
+        prompt
+      );
+      let newTitle =
+        titleRes.choices[0]?.message?.content
+          ?.trim()
+          .replace(/^["']|["']$/g, "")
+          .replace(/[#*_`~]/g, "")
+          .substring(0, 50) || "Đoạn chat mới";
 
-Hãy đặt một tiêu đề cực ngắn (dưới 6 từ), thú vị, trendy, có tính gợi mở. 
-Không dùng dấu ngoặc kép. Ví dụ: "Ý tưởng in áo thun", "Thiết kế logo coffee".`;
+      if (newTitle.length > 50) {
+        newTitle = newTitle.substring(0, 47) + "...";
+      }
 
-      const titleRes = await this.aiService.getCompletionWithCustomPrompt([], prompt);
-      const newTitle = titleRes.choices[0]?.message?.content?.trim().replace(/^["']|["']$/g, '') || "Đoạn chat mới";
-
-      // Cập nhật DB
-      await this.chatRepository.updateConversationTitle(conversationId, newTitle);
-
-      // 🔥 Bắn Socket: Hiệu ứng đổi tên Realtime
-      socketService.emitToUser(userId.toString(), 'conversation_updated', {
+      await this.chatRepository.updateConversationTitle(
+        conversationId,
+        newTitle
+      );
+      socketService.emitToUser(userId.toString(), "conversation_updated", {
+        _id: conversationId.toString(),
         conversationId: conversationId.toString(),
         title: newTitle,
       });
     } catch (e) {
-      Logger.error("[ChatService] _generateWowTitle failed", e);
+      Logger.error("Auto-title failed", e);
     }
   }
 
-  // ✅ HÀM MỚI 2: Xử lý URL Preview
-  async _handleUrlPreview(userId, conversation, url, textToShow, isNewConversation) {
+  async _handleUrlPreview(
+    userId,
+    conversation,
+    url,
+    textToShow,
+    isNewConversation
+  ) {
     const queue = await getUrlPreviewQueue();
     if (queue) {
-        await queue.add('url-preview', {
-            url,
-            conversationId: conversation._id.toString(),
-            userId: userId.toString(),
-        });
-        
-        // Emit thinking state giả lập
-        socketService.emitToUser(userId.toString(), 'ai:thinking:update', {
-            conversationId: conversation._id.toString(),
-            icon: '📸',
-            text: `Đang chụp ảnh ${url}...`,
-            isThinking: true
-        });
+      await queue.add("url-preview", {
+        url,
+        conversationId: conversation._id.toString(),
+        userId: userId.toString(),
+      });
+      // ❌ Đã xóa emit thinking update ở đây
     }
   }
 
-  // ✅ HÀM MỚI 3: Xử lý Product Context
   async _handleProductContext(productId) {
     try {
-        const product = await productRepository.findById(productId);
-        if (!product) return ChatResponseUtil.createTextResponse("Sản phẩm không tồn tại.");
-        
-        // Trả về dạng Product Card
-        return {
-            type: "product",
-            content: { text: `Tôi quan tâm đến sản phẩm ${product.name}` },
-            _messageMetadata: { 
-                productId: product._id,
-                productName: product.name,
-                price: product.pricing?.[0]?.pricePerUnit,
-                image: product.images?.[0]?.url,
-                category: product.category
-            }
-        };
+      const product = await productRepository.findById(productId);
+      if (!product)
+        return ChatResponseUtil.createTextResponse("Sản phẩm không tồn tại.");
+      return {
+        type: "product",
+        content: { text: `Tôi quan tâm đến sản phẩm ${product.name}` },
+        _messageMetadata: {
+          productId: product._id,
+          productName: product.name,
+          price: product.pricing?.[0]?.pricePerUnit,
+          image: product.images?.[0]?.url,
+          category: product.category,
+        },
+      };
     } catch (e) {
-        return ChatResponseUtil.createTextResponse("Lỗi khi lấy thông tin sản phẩm.");
+      return ChatResponseUtil.createTextResponse(
+        "Lỗi khi lấy thông tin sản phẩm."
+      );
     }
   }
 
-  // Helper emit conversation created (giữ nguyên)
   async _emitConversationCreated(userId, conversation) {
-     try {
-        await conversation.populate("participants.userId", "username displayName avatarUrl isOnline");
-        const conversationToEmit = conversation.toObject ? conversation.toObject() : conversation;
-        const formatted = { ...conversationToEmit, _id: conversationToEmit._id.toString(), isActive: true };
-        socketService.emitToUser(userId.toString(), 'conversation_created', formatted);
-     } catch (e) { Logger.error("Emit created failed", e); }
+    try {
+      const conversationToEmit = conversation.toObject
+        ? conversation.toObject()
+        : { ...conversation };
+
+      const formatted = {
+        _id: conversationToEmit._id.toString(),
+        title: conversationToEmit.title || "Cuộc trò chuyện mới",
+        type: conversationToEmit.type || "customer-bot",
+        createdAt: conversationToEmit.createdAt,
+        updatedAt: conversationToEmit.updatedAt,
+        isActive: true,
+      };
+
+      socketService.emitToUser(
+        userId.toString(),
+        "conversation_created",
+        formatted
+      );
+    } catch (e) {
+      Logger.error("Emit created failed", e);
+    }
   }
 }

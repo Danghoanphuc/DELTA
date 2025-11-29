@@ -16,14 +16,14 @@ export default {
         heading: ["var(--font-heading)", ..._fontFamily.serif],
       },
       fontWeight: {
-        normal: 'var(--font-weight-normal)',
-        medium: 'var(--font-weight-medium)',
-        semibold: 'var(--font-weight-semibold)',
-        bold: 'var(--font-weight-bold)',
+        normal: "var(--font-weight-normal)",
+        medium: "var(--font-weight-medium)",
+        semibold: "var(--font-weight-semibold)",
+        bold: "var(--font-weight-bold)",
       },
       lineHeight: {
-        normal: 'var(--line-height-normal)',
-        heading: 'var(--line-height-heading)',
+        normal: "var(--line-height-normal)",
+        heading: "var(--line-height-heading)",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -81,6 +81,10 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Event Theme Colors - Chỉ thay đổi màu, không đụng layout
+        "theme-primary": "rgb(var(--color-theme-primary) / <alpha-value>)",
+        "theme-secondary": "rgb(var(--color-theme-secondary) / <alpha-value>)",
+        "theme-accent": "rgb(var(--color-theme-accent) / <alpha-value>)",
       },
     },
   },

@@ -1,46 +1,55 @@
-// src/features/chat/pages/HeroSection.tsx (CẬP NHẬT)
-
-import { ChatBar } from "@/features/chat/components/Chatbar";
-import { ChatMessage, QuickReply } from "@/types/chat"; // ✅ THAY ĐỔI
+// src/features/chat/pages/HeroSection.tsx
+import { ChatInput } from "@/features/chat/components/ChatInput"; // ✅ Dùng component mới
+import { ChatMessage, QuickReply } from "@/types/chat";
 import ResponsiveH1 from "@/shared/components/ui/responsiveH1";
+import { QuickReplyButtons } from "../components/QuickReplyButtons";
 
 interface HeroSectionProps {
   messages: ChatMessage[];
   isLoadingAI: boolean;
-  quickReplies: QuickReply[]; // ✅ MỚI
-  // ✅ THAY ĐỔI CÁC HANDLER
+  quickReplies: QuickReply[];
   onSendText: (text: string, latitude?: number, longitude?: number) => void;
   onSendQuickReply: (text: string, payload: string) => void;
   onFileUpload: (file: File) => void;
 }
 
 export function HeroSection({
-  messages,
   isLoadingAI,
-  quickReplies, // ✅ MỚI
-  onSendText, // ✅ THAY ĐỔI
-  onSendQuickReply, // ✅ MỚI
-  onFileUpload, // ✅ MỚI
+  quickReplies,
+  onSendText,
+  onSendQuickReply,
+  onFileUpload,
 }: HeroSectionProps) {
   return (
-    <div className="text-center px-4 md:px-0 lg:px-0 pt-4 pb-3 md:pt-8 md:pb-8 lg:pt-6 lg:pb-6">
-      {/* (Heading giữ nguyên) */}
-      <div className="mb-1 md:mb-3">
-        <ResponsiveH1 className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent inline-flex items-center gap-2 md:gap-3 flex-wrap justify-center mb-2 md:mb-3">
+    <div className="text-center px-4 md:px-0 lg:px-0 pt-6 pb-6 md:pt-10 md:pb-10">
+      <div className="mb-4 md:mb-6">
+        <ResponsiveH1 className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent inline-flex items-center gap-2 justify-center mb-2">
           Bạn muốn in gì hôm nay?
         </ResponsiveH1>
+        <p className="text-gray-500 text-sm md:text-base max-w-lg mx-auto mt-2">
+          Trợ lý AI của Printz sẽ giúp bạn thiết kế, báo giá và đặt in chỉ trong vài giây.
+        </p>
       </div>
 
-      {/* ✅ TRUYỀN PROPS XUỐNG CHATBAR */}
-      <div className="w-full max-w-4xl mx-auto">
-        <ChatBar
-          messages={messages}
-          isLoadingAI={isLoadingAI}
-          quickReplies={quickReplies}
-          onSendText={onSendText}
-          onSendQuickReply={onSendQuickReply}
-          onFileUpload={onFileUpload}
-        />
+      <div className="w-full max-w-3xl mx-auto space-y-4">
+        {/* ✅ Sử dụng ChatInput hiện đại */}
+        <div className="bg-white p-2 rounded-[32px] shadow-xl shadow-blue-100/50 border border-blue-50">
+           <ChatInput
+              isLoading={isLoadingAI}
+              onSendText={onSendText}
+              onFileUpload={onFileUpload}
+           />
+        </div>
+
+        {/* Quick Replies hiển thị bên ngoài cho thoáng */}
+        {quickReplies.length > 0 && !isLoadingAI && (
+           <div className="flex justify-center">
+              <QuickReplyButtons 
+                 quickReplies={quickReplies} 
+                 onQuickReplyClick={onSendQuickReply} 
+              />
+           </div>
+        )}
       </div>
     </div>
   );

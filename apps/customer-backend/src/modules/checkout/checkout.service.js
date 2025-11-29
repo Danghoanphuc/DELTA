@@ -3,7 +3,10 @@ import { getStripeClient } from "../../shared/utils/stripe.js";
 import { OrderService } from "../orders/order.service.js";
 import { CartService } from "../cart/cart.service.js";
 import { ValidationException } from "../../shared/exceptions/index.js";
-import { sendOrderConfirmationEmail, sendNewOrderNotification } from "../../infrastructure/email/email.service.js";
+import {
+  sendOrderConfirmationEmail,
+  sendNewOrderNotification,
+} from "../../infrastructure/email/email.service.js";
 import { PrinterProfile } from "../../shared/models/printer-profile.model.js";
 import { MomoService } from "../../infrastructure/payment/momo.client.js";
 
@@ -41,9 +44,19 @@ export class CheckoutService {
     const validation = await this.cartService.validateCheckout(user._id);
     if (!validation.isValid) throw new ValidationException(validation.message);
     const cartSnapshot = await this.cartService.getCart(user._id);
-    if (!cartSnapshot || !cartSnapshot.items.length) throw new ValidationException("Giỏ hàng rỗng.");
+    if (!cartSnapshot || !cartSnapshot.items.length)
+      throw new ValidationException("Giỏ hàng rỗng.");
     const sanitizedCartItems = this.#mapCartItems(cartSnapshot.items);
-    const masterOrder = await this.orderService.createOrder(user, { ...req.body, cartItems: sanitizedCartItems });
+
+    // ✅ Transform shippingAddress to include GPS coordinates
+    const transformedAddress = this.#transformShippingAddress(shippingAddress);
+
+    const masterOrder = await this.orderService.createOrder(user, {
+      ...req.body,
+      shippingAddress: transformedAddress,
+      cartItems: sanitizedCartItems,
+    });
+
     const totalAmount = masterOrder.totalAmount;
     const amountInCents = Math.round(totalAmount * 100);
     const paymentIntent = await this.stripe.paymentIntents.create({
@@ -53,16 +66,24 @@ export class CheckoutService {
       metadata: {
         masterOrderId: masterOrder._id.toString(),
         orderNumber: masterOrder.orderNumber,
-        customerId: user.customerProfileId ? user.customerProfileId.toString() : user._id.toString(),
+        customerId: user.customerProfileId
+          ? user.customerProfileId.toString()
+          : user._id.toString(),
       },
     });
     masterOrder.paymentIntentId = paymentIntent.id;
     await masterOrder.save();
-    return { clientSecret: paymentIntent.client_secret, masterOrderId: masterOrder._id, totalAmount: masterOrder.totalAmount };
+    return {
+      clientSecret: paymentIntent.client_secret,
+      masterOrderId: masterOrder._id,
+      totalAmount: masterOrder.totalAmount,
+    };
   };
 
-  createMomoPaymentUrl = async (req) => { /* (Logic MoMo tương tự) */ return {}; };
-  
+  createMomoPaymentUrl = async (req) => {
+    /* (Logic MoMo tương tự) */ return {};
+  };
+
   confirmCodOrder = async (req) => {
     const user = req.user;
     const { shippingAddress } = req.body || {};
@@ -70,21 +91,36 @@ export class CheckoutService {
     const validation = await this.cartService.validateCheckout(user._id);
     if (!validation.isValid) throw new ValidationException(validation.message);
     const cartSnapshot = await this.cartService.getCart(user._id);
-    if (!cartSnapshot || !cartSnapshot.items.length) throw new ValidationException("Giỏ hàng rỗng.");
+    if (!cartSnapshot || !cartSnapshot.items.length)
+      throw new ValidationException("Giỏ hàng rỗng.");
     const sanitizedCartItems = this.#mapCartItems(cartSnapshot.items);
-    const masterOrder = await this.orderService.createOrder(user, { ...req.body, cartItems: sanitizedCartItems });
+
+    // ✅ Transform shippingAddress to include GPS coordinates
+    const transformedAddress = this.#transformShippingAddress(shippingAddress);
+
+    const masterOrder = await this.orderService.createOrder(user, {
+      ...req.body,
+      shippingAddress: transformedAddress,
+      cartItems: sanitizedCartItems,
+    });
+
     masterOrder.paymentStatus = PAYMENT_STATUS.UNPAID;
     masterOrder.status = MASTER_ORDER_STATUS.PROCESSING;
     masterOrder.masterStatus = MASTER_ORDER_STATUS.PROCESSING;
     await masterOrder.save();
     await this.cartService.clearCart(user._id);
     await sendOrderConfirmationEmail(masterOrder.customerEmail, masterOrder);
-    return { masterOrderId: masterOrder._id, totalAmount: masterOrder.totalAmount };
+    return {
+      masterOrderId: masterOrder._id,
+      totalAmount: masterOrder.totalAmount,
+    };
   };
 
   #assertShippingAddress(shippingAddress) {
-    if (!shippingAddress) throw new ValidationException("Thiếu địa chỉ giao hàng.");
+    if (!shippingAddress)
+      throw new ValidationException("Thiếu địa chỉ giao hàng.");
   }
+
   #mapCartItems(cartItems) {
     return cartItems.map((item) => ({
       productId: item.productId.toString(),
@@ -93,5 +129,38 @@ export class CheckoutService {
       selectedPrice: item.selectedPrice,
       customization: item.customization ?? {},
     }));
+  }
+
+  /**
+   * Transform shippingAddress to include GPS coordinates in GeoJSON format
+   * @param {Object} shippingAddress - Address from frontend
+   * @returns {Object} Transformed address with location field
+   */
+  #transformShippingAddress(shippingAddress) {
+    const transformed = {
+      recipientName: shippingAddress.recipientName,
+      phone: shippingAddress.phone,
+      street: shippingAddress.street,
+      ward: shippingAddress.ward,
+      district: shippingAddress.district,
+      city: shippingAddress.city,
+      notes: shippingAddress.notes || "",
+    };
+
+    // ✅ Add GPS coordinates if available (from Goong.io detection)
+    if (shippingAddress.coordinates) {
+      const { lat, lng } = shippingAddress.coordinates;
+      if (lat && lng) {
+        transformed.location = {
+          type: "Point",
+          coordinates: [lng, lat], // GeoJSON format: [longitude, latitude]
+        };
+        Logger.info(
+          `[CheckoutSvc] 📍 GPS coordinates saved: [${lng}, ${lat}] for ${shippingAddress.city}`
+        );
+      }
+    }
+
+    return transformed;
   }
 }

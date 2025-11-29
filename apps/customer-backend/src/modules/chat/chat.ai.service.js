@@ -15,7 +15,7 @@ export class ChatAiService {
         apiKey: config.apiKeys.openai,
       });
     }
-    
+
     this.model = "gpt-4o-mini"; // Model mặc định
     this.visionModel = "gpt-4o"; // Model cho Vision
   }
@@ -49,31 +49,57 @@ export class ChatAiService {
       // Streaming nếu có callback
       if (onToken) {
         requestOptions.stream = true;
-        
-        const stream = await this.openai.chat.completions.create(requestOptions);
+
+        const stream = await this.openai.chat.completions.create(
+          requestOptions
+        );
         let fullContent = "";
-        
+
+        let buffer = "";
+        const BATCH_SIZE = 10; // Tăng lên 10 chars để giảm số lần emit
+
         for await (const chunk of stream) {
           const delta = chunk.choices[0]?.delta;
           if (delta?.content) {
             fullContent += delta.content;
-            onToken(delta.content);
+            buffer += delta.content;
+
+            // 🎯 SIMPLE CHUNKING: Emit mỗi 10 chars hoặc khi gặp newline
+            // Frontend sẽ xử lý việc tìm safe breakpoint
+            if (buffer.length >= BATCH_SIZE || delta.content.includes("\n")) {
+              Logger.info(
+                `[AI] Sending chunk: "${buffer.substring(0, 20)}..." (${
+                  buffer.length
+                } chars)`
+              );
+              onToken(buffer);
+              buffer = "";
+            }
           }
         }
-        
+
+        // Emit phần còn lại
+        if (buffer) {
+          onToken(buffer);
+        }
+
         // Trả về format giống non-streaming response
         return {
-          choices: [{
-            message: {
-              role: "assistant",
-              content: fullContent
-            }
-          }]
+          choices: [
+            {
+              message: {
+                role: "assistant",
+                content: fullContent,
+              },
+            },
+          ],
         };
       }
 
       // Non-streaming
-      const response = await this.openai.chat.completions.create(requestOptions);
+      const response = await this.openai.chat.completions.create(
+        requestOptions
+      );
       return response;
     } catch (error) {
       Logger.error("[ChatAiService] getCompletion error:", error);
@@ -96,7 +122,7 @@ export class ChatAiService {
       // Thêm custom prompt vào messages
       const messagesWithPrompt = [
         ...messages,
-        { role: "system", content: customPrompt }
+        { role: "system", content: customPrompt },
       ];
 
       const response = await this.openai.chat.completions.create({
@@ -107,7 +133,10 @@ export class ChatAiService {
 
       return response;
     } catch (error) {
-      Logger.error("[ChatAiService] getCompletionWithCustomPrompt error:", error);
+      Logger.error(
+        "[ChatAiService] getCompletionWithCustomPrompt error:",
+        error
+      );
       throw error;
     }
   }
@@ -133,22 +162,23 @@ export class ChatAiService {
             content: [
               {
                 type: "text",
-                text: prompt
+                text: prompt,
               },
               {
                 type: "image_url",
                 image_url: {
-                  url: imageUrl
-                }
-              }
-            ]
-          }
+                  url: imageUrl,
+                },
+              },
+            ],
+          },
         ],
         max_tokens: 500,
         temperature: 0.7,
       });
 
-      const analysis = response.choices[0]?.message?.content || "Không thể phân tích ảnh này.";
+      const analysis =
+        response.choices[0]?.message?.content || "Không thể phân tích ảnh này.";
       return analysis;
     } catch (error) {
       Logger.error("[ChatAiService] getVisionCompletion error:", error);

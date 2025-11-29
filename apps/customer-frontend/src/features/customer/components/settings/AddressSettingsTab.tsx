@@ -3,17 +3,12 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/shared/components/ui/card";
-import { Button } from "@/shared/components/ui/button";
-import { Plus } from "lucide-react";
+import { SavedAddressesSection } from "./SavedAddressesSection";
 
 export function AddressSettingsTab() {
-  // TODO:
-  // const { addresses, isLoading, openAddModal, openEditModal } = useAddressBook();
-
   return (
     <Card>
       <CardHeader>
@@ -23,17 +18,8 @@ export function AddressSettingsTab() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* TODO: List các địa chỉ ở đây */}
-        <p className="text-gray-500 text-sm">
-          (Danh sách địa chỉ đã lưu sẽ xuất hiện ở đây...)
-        </p>
+        <SavedAddressesSection />
       </CardContent>
-      <CardFooter>
-        <Button type="button" variant="outline">
-          <Plus className="w-4 h-4 mr-2" />
-          Thêm địa chỉ mới
-        </Button>
-      </CardFooter>
     </Card>
   );
 }

@@ -1,17 +1,20 @@
+// apps/customer-frontend/src/features/chat/hooks/useFileUpload.ts
 import { useState, useCallback } from "react";
 import { toast } from "@/shared/utils/toast";
 import { useDropzone } from "react-dropzone";
 
 interface UseFileUploadProps {
-  isLoading: boolean;
+  isLoading: boolean; // Giữ lại prop này để hiển thị UI warning nếu cần, nhưng không chặn logic
 }
 
 export const useFileUpload = ({ isLoading }: UseFileUploadProps) => {
-  // ✅ Thay đổi state thành mảng File[]
   const [files, setFiles] = useState<File[]>([]);
 
   const validateFile = useCallback((file: File): boolean => {
     const maxSize = 10 * 1024 * 1024; // 10MB
+    // Thêm check type nếu cần thiết (ví dụ chỉ ảnh/pdf)
+    // const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+
     if (file.size > maxSize) {
       toast.error(`File ${file.name} quá lớn (Giới hạn 10MB).`);
       return false;
@@ -19,29 +22,31 @@ export const useFileUpload = ({ isLoading }: UseFileUploadProps) => {
     return true;
   }, []);
 
-  // ✅ Hàm thêm file (Append vào danh sách cũ)
-  const addFiles = useCallback((newFiles: File[]) => {
-    if (isLoading) {
-      toast.warning("Đang xử lý tin nhắn trước, vui lòng đợi...");
-      return;
-    }
+  const addFiles = useCallback(
+    (newFiles: File[]) => {
+      // UX UPDATE: Không chặn hoàn toàn, chỉ cảnh báo nhẹ hoặc vẫn cho phép
+      // Nếu muốn chặn người dùng spam khi AI đang trả lời, có thể disable nút gửi,
+      // nhưng việc chọn file để chuẩn bị thì nên cho phép.
 
-    const validFiles = newFiles.filter(validateFile);
-    
-    if (validFiles.length > 0) {
-      setFiles((prev) => {
-        // Lọc trùng lặp (nếu cần) hoặc giới hạn số lượng
-        const updated = [...prev, ...validFiles];
-        if (updated.length > 5) {
-            toast.warning("Chỉ được gửi tối đa 5 file một lúc.");
-            return prev;
-        }
-        return updated;
-      });
-    }
-  }, [validateFile, isLoading]);
+      const validFiles = newFiles.filter(validateFile);
 
-  // ✅ Hàm xóa file khỏi hàng đợi
+      if (validFiles.length > 0) {
+        setFiles((prev) => {
+          const updated = [...prev, ...validFiles];
+          // Giới hạn số lượng file trong hàng đợi
+          if (updated.length > 5) {
+            toast.warning(
+              "Chỉ được gửi tối đa 5 file một lúc. Đã cắt bớt danh sách."
+            );
+            return updated.slice(0, 5);
+          }
+          return updated;
+        });
+      }
+    },
+    [validateFile]
+  );
+
   const removeFile = useCallback((indexToRemove: number) => {
     setFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
   }, []);
@@ -51,10 +56,10 @@ export const useFileUpload = ({ isLoading }: UseFileUploadProps) => {
   }, []);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
-    onDrop: addFiles, // Gọi hàm addFiles khi thả
-    noClick: true,
+    onDrop: addFiles,
+    noClick: true, // Để người dùng tự handle click event vào button attachment
     noKeyboard: true,
-    multiple: true, // ✅ Cho phép chọn nhiều file
+    multiple: true,
   });
 
   return {
@@ -68,5 +73,7 @@ export const useFileUpload = ({ isLoading }: UseFileUploadProps) => {
       getInputProps,
       open,
     },
+    // Trả về helper để UI biết có nên disable nút send hay không
+    isUploadingLocked: false,
   };
 };

@@ -8,6 +8,8 @@ export { useInspirationFeed } from "./useInspirationFeed";
 export { useMessageState } from "./useMessageState";
 export { useResponsiveChat } from "./useResponsiveChat";
 export { useChatPerformance } from "./useChatPerformance";
-export { useChat as useChatEnterprise } from "./useChat.enterprise";
 export { useChatSocket } from "./useChatSocket";
-
+export { useChatSync } from "./useChatSync";
+export { useChatSender } from "./useChatSender";
+export { useChatContextManager } from "./useChatContextManager";
+export { useSmoothStream } from "./useSmoothStream";

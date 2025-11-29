@@ -1,42 +1,38 @@
-// src/features/chat/components/BotAvatar.tsx
 import { cn } from "@/shared/lib/utils";
 import { BotExpression } from "../utils/sentiment";
-import { ZinEmotion } from "@/features/zin-bot/types";
 import { ZinNotionAvatar } from "@/features/zin-bot/ZinNotionAvatar";
 
 interface BotAvatarProps {
   className?: string;
-  isThinking?: boolean;
   expression?: BotExpression;
 }
 
-// Giữ lại cấu hình style Notion container
 const THEME = {
-  bg: "bg-white dark:bg-zinc-900", 
+  bg: "bg-white dark:bg-zinc-900",
   shadow: "shadow-[0_4px_12px_rgba(0,0,0,0.08)]",
-  border: "border border-gray-100 dark:border-gray-800"
+  border: "border border-gray-100 dark:border-gray-800",
 };
 
-export function BotAvatar({ 
-  className, 
-  isThinking = false, 
-  expression = "neutral" 
+export function BotAvatar({
+  className,
+  expression = "neutral",
 }: BotAvatarProps) {
-  
-  // 1. Logic Map: Chuyển đổi trạng thái Chat (BotExpression) sang trạng thái Zin (ZinEmotion)
-  // Trong chat, "thinking" là một expression, nhưng với Zin nó là prop boolean isThinking
-  const actualIsThinking = isThinking || expression === "thinking" || expression === "waiting";
+  // Mapping expression sang emotion cho ZinNotionAvatar
+  const mapEmotion = ():
+    | "neutral"
+    | "happy"
+    | "sad"
+    | "surprised"
+    | "love"
+    | "magic" => {
+    if (expression === "happy" || expression === "wink") return "happy";
+    if (expression === "love") return "love";
+    if (expression === "sad") return "sad";
+    if (expression === "confused") return "surprised";
+    return "neutral";
+  };
 
-  // Lọc ra emotion hợp lệ cho Zin (loại bỏ các status kỹ thuật như thinking/waiting)
-  let targetEmotion: ZinEmotion = "neutral";
-  
-  if (expression !== "thinking" && expression !== "waiting" && expression !== "confused") {
-    // Ép kiểu vì ta biết chắc các giá trị còn lại (happy, sad, love...) khớp với ZinEmotion
-    targetEmotion = expression as ZinEmotion;
-  } 
-  
-  // Xử lý riêng case "confused" (bối rối) -> Có thể map sang "surprised" hoặc để neutral tùy ý
-  if (expression === "confused") targetEmotion = "surprised";
+  const isThinking = expression === "thinking" || expression === "waiting";
 
   return (
     <div
@@ -45,22 +41,22 @@ export function BotAvatar({
         THEME.bg,
         THEME.shadow,
         THEME.border,
-        // Responsive size mặc định
-        !className?.includes("w-") && "w-10 h-10 sm:w-12 sm:h-12", 
+        // Default size nếu không có class width/height
+        !className?.match(/w-\d+/) && "w-10 h-10 sm:w-12 sm:h-12",
         className
       )}
     >
-      {/* ✅ Render ZinNotionAvatar 
-        - Nó sẽ tự động lấy phụ kiện từ Global Store (useZinStore)
-        - Nó sẽ tự động blink mắt (useZinBehavior)
-      */}
-      <div className="w-[75%] h-[75%] mt-1"> {/* mt-1 để căn chỉnh mặt vào giữa khung tròn */}
-        <ZinNotionAvatar 
-          isThinking={actualIsThinking}
-          emotion={targetEmotion}
+      {/* ZinNotionAvatar với padding để không bị cắt */}
+      <div className="w-full h-full p-1">
+        <ZinNotionAvatar
+          isThinking={isThinking}
+          emotion={mapEmotion()}
           className="w-full h-full"
         />
       </div>
+
+      {/* Online indicator */}
+      <span className="absolute bottom-[5%] right-[5%] w-[20%] h-[20%] bg-green-500 border-2 border-white dark:border-gray-800 rounded-full shadow-sm"></span>
     </div>
   );
 }

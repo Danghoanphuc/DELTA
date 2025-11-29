@@ -1,8 +1,7 @@
-// src/features/chat/hooks/useSmartChatInput.ts
+// apps/customer-frontend/src/features/chat/hooks/useSmartChatInput.ts
 import { useState, useCallback, useRef } from "react";
-import { useFileUpload } from "./useFileUpload";
 
-export type LinkType = 'canva' | 'drive' | 'general';
+export type LinkType = "canva" | "drive" | "general";
 
 export interface LinkAttachment {
   id: string;
@@ -13,7 +12,6 @@ export interface LinkAttachment {
 
 interface UseSmartInputProps {
   onSendRaw: (text: string) => void | Promise<void>;
-  onFileUpload?: (file: File) => void;
   triggerActions?: {
     openCanva?: () => void;
     openDrive?: () => void;
@@ -21,84 +19,96 @@ interface UseSmartInputProps {
   };
 }
 
+// Regex an toàn hơn, tránh bắt nhầm dấu chấm câu cuối câu
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 
-export function useSmartChatInput({ onSendRaw, onFileUpload, triggerActions }: UseSmartInputProps) {
+export function useSmartChatInput({
+  onSendRaw,
+  triggerActions,
+}: UseSmartInputProps) {
   const [message, setMessage] = useState("");
   const [links, setLinks] = useState<LinkAttachment[]>([]);
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // --- 1. SMART PARSING LOGIC ---
+  // ✅ SAFE PARSER: Bọc try-catch để không bao giờ crash UI
   const detectLinkType = (url: string): { type: LinkType; title: string } => {
-    const lowerUrl = url.toLowerCase();
-    if (lowerUrl.includes('canva.com')) return { type: 'canva', title: 'Canva Design' };
-    if (lowerUrl.includes('drive.google.com') || lowerUrl.includes('docs.google.com')) return { type: 'drive', title: 'Google Drive' };
     try {
-        return { type: 'general', title: new URL(url).hostname.replace('www.', '') };
-    } catch {
-        return { type: 'general', title: 'Liên kết' };
+      const lowerUrl = url.toLowerCase();
+      if (lowerUrl.includes("canva.com"))
+        return { type: "canva", title: "Canva Design" };
+      if (
+        lowerUrl.includes("drive.google.com") ||
+        lowerUrl.includes("docs.google.com")
+      )
+        return { type: "drive", title: "Google Drive" };
+
+      const hostname = new URL(url).hostname.replace("www.", "");
+      return {
+        type: "general",
+        title: hostname,
+      };
+    } catch (e) {
+      return { type: "general", title: "Liên kết" };
     }
   };
 
-  // ✅ REVERT: Chỉ thêm vào danh sách links, KHÔNG gọi store.toggleDeepResearch
   const addLink = useCallback((url: string) => {
+    // Validate URL cơ bản trước khi add
+    if (!url.startsWith("http")) return;
+
     const { type, title } = detectLinkType(url);
-    setLinks(prev => {
-      if (prev.some(l => l.url === url)) return prev;
-      return [...prev, { id: Date.now() + Math.random().toString(), url, type, title }];
+    setLinks((prev) => {
+      if (prev.some((l) => l.url === url)) return prev;
+      return [
+        ...prev,
+        { id: Date.now() + Math.random().toString(), url, type, title },
+      ];
     });
   }, []);
 
   const removeLink = useCallback((id: string) => {
-    setLinks(prev => prev.filter(l => l.id !== id));
+    setLinks((prev) => prev.filter((l) => l.id !== id));
   }, []);
 
-  // ... (Giữ nguyên phần Event Handlers: handleInputChange, handlePaste, handleKeyDown) ...
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setMessage(val);
+
+    // Trigger menu Slash thông minh hơn (chỉ hiện khi gõ / ở đầu dòng hoặc sau dấu cách)
     if (val === "/" || val.endsWith(" /") || val.endsWith("\n/")) {
-        setShowSlashMenu(true);
+      setShowSlashMenu(true);
     } else if (showSlashMenu && !val.includes("/")) {
-        setShowSlashMenu(false);
+      setShowSlashMenu(false);
     }
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
+    // 1. Paste File (Xử lý ở tầng ChatInput, return false để ChatInput biết mà handle tiếp)
     const items = e.clipboardData.items;
-    const pastedFiles: File[] = [];
+    let hasFile = false;
     for (const item of items) {
-      if (item.kind === 'file') {
-        const file = item.getAsFile();
-        if (file) pastedFiles.push(file);
-      }
+      if (item.kind === "file") hasFile = true;
     }
-    if (pastedFiles.length > 0) return { handled: false, files: pastedFiles };
+    if (hasFile) return { handled: false };
 
-    const pastedText = e.clipboardData.getData('text');
+    // 2. Paste Text/Link
+    const pastedText = e.clipboardData.getData("text");
     const matches = pastedText.match(URL_REGEX);
 
     if (matches && matches.length > 0) {
-        e.preventDefault();
-        matches.forEach(url => addLink(url));
-        const cleanText = pastedText.replace(URL_REGEX, '').trim();
-        
-        if (cleanText) {
-             const textarea = textareaRef.current;
-             if (textarea) {
-                 const start = textarea.selectionStart;
-                 const end = textarea.selectionEnd;
-                 const newValue = message.substring(0, start) + " " + cleanText + " " + message.substring(end);
-                 setMessage(newValue);
-                 setTimeout(() => {
-                     textarea.selectionStart = textarea.selectionEnd = start + cleanText.length + 2;
-                 }, 0);
-             } else {
-                 setMessage(prev => prev + " " + cleanText);
-             }
-        }
-        return { handled: true };
+      e.preventDefault();
+      matches.forEach((url) => {
+        // Clean URL (bỏ dấu chấm/phẩy cuối câu nếu có)
+        const cleanUrl = url.replace(/[.,;!)]+$/, "");
+        addLink(cleanUrl);
+      });
+
+      // Xóa link khỏi text paste để ô nhập liệu gọn gàng
+      const cleanText = pastedText.replace(URL_REGEX, "").trim();
+      if (cleanText) setMessage((prev) => prev + " " + cleanText);
+
+      return { handled: true };
     }
     return { handled: false };
   };
@@ -109,47 +119,68 @@ export function useSmartChatInput({ onSendRaw, onFileUpload, triggerActions }: U
       handleSend();
       return;
     }
-    if (showSlashMenu && (e.key === "Escape" || e.key === "Backspace")) {
-        setShowSlashMenu(false);
-    }
-    if (e.key === " " || e.key === "Enter") {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
-        const cursorPosition = textarea.selectionStart;
-        const textBeforeCursor = message.substring(0, cursorPosition);
-        const lastWord = textBeforeCursor.split(/\s+/).pop();
-        if (lastWord && lastWord.match(/^https?:\/\/[^\s]+$/)) {
-            e.preventDefault(); 
-            addLink(lastWord);
-            const newText = message.substring(0, cursorPosition - lastWord.length) + message.substring(cursorPosition);
-            setMessage(newText);
-        }
+    if (
+      showSlashMenu &&
+      (e.key === "Escape" || (e.key === "Backspace" && message.endsWith("/")))
+    ) {
+      setShowSlashMenu(false);
     }
   };
 
-  const executeSlashCommand = (command: 'canva' | 'drive' | 'upload') => {
-      const cleanMsg = message.replace(/\/?$/, '').replace(/\/?\s?$/, ''); 
-      setMessage(cleanMsg);
-      setShowSlashMenu(false);
-      if (command === 'canva') triggerActions?.openCanva?.();
-      if (command === 'drive') triggerActions?.openDrive?.();
-      if (command === 'upload') triggerActions?.openUpload?.();
+  const executeSlashCommand = (command: "canva" | "drive" | "upload") => {
+    const cleanMsg = message.replace(/\/+$/, "").replace(/^\/+/, "").trim();
+    setMessage(cleanMsg);
+    setShowSlashMenu(false);
+
+    if (command === "canva") triggerActions?.openCanva?.();
+    if (command === "drive") triggerActions?.openDrive?.();
+    if (command === "upload") triggerActions?.openUpload?.();
+
+    setTimeout(() => textareaRef.current?.focus(), 50);
   };
 
   const handleSend = async () => {
-      if (!message.trim() && links.length === 0) return;
-      let finalMsg = message.trim();
-      if (links.length > 0) {
-          finalMsg += links.map(l => `\n[LINK_ATTACHMENT: ${l.type.toUpperCase()}] ${l.url}`).join("");
+    let finalMsg = message.trim();
+
+    if (finalMsg.startsWith("/")) {
+      finalMsg = finalMsg.substring(1).trim();
+    }
+
+    if (!finalMsg && links.length === 0) return;
+
+    // Encode links vào message body để Backend/AI nhận biết context
+    if (links.length > 0) {
+      const linkString = links
+        .map((l) => `[LINK_ATTACHMENT: ${l.type.toUpperCase()}] ${l.url}`)
+        .join("\n");
+
+      if (finalMsg) {
+        finalMsg += `\n\n${linkString}`;
+      } else {
+        finalMsg = linkString;
       }
-      await onSendRaw(finalMsg);
-      setMessage("");
-      setLinks([]);
-      setShowSlashMenu(false);
+    }
+
+    await onSendRaw(finalMsg);
+
+    // Reset
+    setMessage("");
+    setLinks([]);
+    setShowSlashMenu(false);
   };
 
   return {
-      message, setMessage, links, addLink, removeLink, showSlashMenu,
-      executeSlashCommand, handleInputChange, handlePaste, handleKeyDown, handleSend, textareaRef
+    message,
+    setMessage,
+    links,
+    addLink,
+    removeLink,
+    showSlashMenu,
+    executeSlashCommand,
+    handleInputChange,
+    handlePaste,
+    handleKeyDown,
+    handleSend,
+    textareaRef,
   };
 }

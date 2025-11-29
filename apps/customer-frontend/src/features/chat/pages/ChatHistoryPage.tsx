@@ -1,10 +1,9 @@
-// src/features/chat/pages/ChatHistoryPage.tsx
-
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, MessageSquarePlus } from "lucide-react";
 import { ChatHistorySidebar } from "../components/ChatHistorySidebar";
 import { ChatProvider, useChatContext } from "../context/ChatProvider";
 import { Button } from "@/shared/components/ui/button";
+import { ChatBotSync } from "../components/ChatBotSync"; // ✅ Thêm Sync
 
 const ChatHistoryView = () => {
   const navigate = useNavigate();
@@ -16,8 +15,9 @@ const ChatHistoryView = () => {
   } = useChatContext();
 
   const handleConversationSelect = (id: string) => {
+    // 1. Select conversation
     handleSelectConversation(id);
-    // Navigate back to chat after selecting conversation
+    // 2. Navigate to chat page (state đã được set trong store toàn cục)
     navigate("/chat");
   };
 
@@ -29,45 +29,21 @@ const ChatHistoryView = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Header */}
-      <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
+      <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => navigate("/chat")}
-          className="p-2"
+          className="p-2 -ml-2 rounded-full"
         >
           <ArrowLeft size={20} />
         </Button>
         <h1 className="text-lg font-semibold text-gray-900">Lịch sử chat</h1>
       </div>
 
-      {/* Desktop Header */}
-      <div className="hidden lg:block bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/chat")}
-              className="p-2"
-            >
-              <ArrowLeft size={20} />
-            </Button>
-            <h1 className="text-xl font-semibold text-gray-900">Lịch sử chat</h1>
-          </div>
-          <Button
-            onClick={handleNewChatClick}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <MessageSquarePlus size={18} className="mr-2" />
-            Chat mới
-          </Button>
-        </div>
-      </div>
-
       {/* Main Content */}
-      <div className="flex-1 px-4 py-6 lg:px-6 lg:py-8">
-        <div className="max-w-md mx-auto">
+      <div className="flex-1 px-4 py-4 pb-24">
+        <div className="max-w-md mx-auto bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden min-h-[500px]">
           <ChatHistorySidebar
             conversations={conversations}
             currentConversationId={currentConversationId}
@@ -78,19 +54,16 @@ const ChatHistoryView = () => {
         </div>
       </div>
 
-      {/* Mobile Bottom Action */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 p-4 safe-area-bottom">
+      {/* Mobile Bottom Action (Floating) */}
+      <div className="lg:hidden fixed bottom-6 left-4 right-4 z-20">
         <Button
           onClick={handleNewChatClick}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 text-base font-medium active:scale-95 transition-transform touch-manipulation"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 rounded-2xl shadow-lg text-base font-bold active:scale-95 transition-transform"
         >
           <MessageSquarePlus size={20} className="mr-2" />
           Bắt đầu chat mới
         </Button>
       </div>
-
-      {/* Add bottom padding for mobile */}
-      <div className="lg:hidden h-20" />
     </div>
   );
 };
@@ -98,6 +71,7 @@ const ChatHistoryView = () => {
 export default function ChatHistoryPage() {
   return (
     <ChatProvider>
+      <ChatBotSync /> {/* ✅ Sync để cập nhật danh sách real-time */}
       <ChatHistoryView />
     </ChatProvider>
   );

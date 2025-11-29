@@ -1,4 +1,3 @@
-// apps/customer-frontend/src/features/chat/hooks/useChatSocket.ts
 import { useEffect, useRef } from "react";
 import { useSocket } from "@/contexts/SocketProvider";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -6,77 +5,153 @@ import { ChatMessage } from "@/types/chat";
 
 interface UseChatSocketProps {
   conversationId: string | null;
-  onMessageUpdated?: (message: ChatMessage) => void;
-  onConversationCreated?: (data: { conversationId: string; title?: string }) => void;
+  onStreamStart?: (data: { messageId: string; conversationId: string }) => void;
+  onStreamChunk?: (data: { messageId: string; text: string }) => void;
+  onMessageNew?: (message: ChatMessage) => void;
+  onConversationCreated?: (data: {
+    conversationId: string;
+    title?: string;
+  }) => void;
 }
 
 export const useChatSocket = ({
   conversationId,
-  onMessageUpdated,
+  onStreamStart,
+  onStreamChunk,
+  onMessageNew,
   onConversationCreated,
 }: UseChatSocketProps) => {
-  const { pusher } = useSocket();
+  const { pusher, isConnected } = useSocket();
   const { user } = useAuthStore();
 
-  // ✅ TRICK CỦA SENIOR: Dùng useRef để "đóng băng" callback
-  // Giúp useEffect bên dưới không bị phụ thuộc vào sự thay đổi của hàm onMessageUpdated
-  const onMessageUpdatedRef = useRef(onMessageUpdated);
-  const onConversationCreatedRef = useRef(onConversationCreated);
+  const callbacksRef = useRef({
+    onStreamStart,
+    onStreamChunk,
+    onMessageNew,
+    onConversationCreated,
+  });
 
-  // Cập nhật ref mỗi khi props thay đổi, nhưng KHÔNG kích hoạt re-subscribe
-  useEffect(() => {
-    onMessageUpdatedRef.current = onMessageUpdated;
-    onConversationCreatedRef.current = onConversationCreated;
-  }, [onMessageUpdated, onConversationCreated]);
+  const conversationIdRef = useRef(conversationId);
 
   useEffect(() => {
-    // Chỉ chạy khi có pusher, user và conversationId thay đổi thực sự
-    if (!pusher || !user?._id) return;
+    callbacksRef.current = {
+      onStreamStart,
+      onStreamChunk,
+      onMessageNew,
+      onConversationCreated,
+    };
+  }, [onStreamStart, onStreamChunk, onMessageNew, onConversationCreated]);
+
+  useEffect(() => {
+    conversationIdRef.current = conversationId;
+  }, [conversationId]);
+
+  useEffect(() => {
+    if (!pusher || !user?._id || !isConnected) {
+      console.log("[Socket] Not ready:", {
+        pusher: !!pusher,
+        userId: user?._id,
+        isConnected,
+      });
+      return;
+    }
 
     const channelName = `private-user-${user._id}`;
     let channel = pusher.channel(channelName);
 
-    // Nếu chưa có thì subscribe
     if (!channel) {
+      console.log(`[Socket] Subscribing to ${channelName}`);
       channel = pusher.subscribe(channelName);
-      console.log(`[useChatSocket] 🔌 Subscribing to ${channelName}`);
+
+      channel.bind("pusher:subscription_succeeded", () => {
+        console.log(`[Socket] ✅ Subscription succeeded for ${channelName}`);
+      });
+
+      channel.bind("pusher:subscription_error", (error: any) => {
+        console.error(
+          `[Socket] ❌ Subscription error for ${channelName}:`,
+          error
+        );
+      });
     } else {
-      console.log(`[useChatSocket] ♻️ Reusing existing channel ${channelName}`);
+      console.log(`[Socket] Reusing existing channel ${channelName}`);
     }
 
-    // Handler dùng Ref -> Không bao giờ gây ra re-render loop
-    const handleMessageUpdate = (message: ChatMessage) => {
-      // Logic lọc conversation
-      const shouldProcess = !conversationId || message.conversationId === conversationId;
-      if (shouldProcess && onMessageUpdatedRef.current) {
-        onMessageUpdatedRef.current(message);
+    const handleStreamStart = (data: any) => {
+      const currentId = conversationIdRef.current;
+      console.log("[Socket] 🚀 ai:stream:start", { data, currentId });
+
+      if (
+        !currentId ||
+        currentId.startsWith("temp") ||
+        data.conversationId === currentId
+      ) {
+        callbacksRef.current.onStreamStart?.(data);
+      }
+    };
+
+    const handleStreamChunk = (data: any) => {
+      callbacksRef.current.onStreamChunk?.(data);
+    };
+
+    const handleMessageNew = (message: any) => {
+      const currentId = conversationIdRef.current;
+      const willHandle =
+        !currentId ||
+        currentId.startsWith("temp") ||
+        message.conversationId === currentId ||
+        message.conversationId?.toString() === currentId?.toString();
+
+      console.log("[Socket] 📨 chat:message:new", {
+        messageId: message._id,
+        messageConvId: message.conversationId,
+        currentId,
+        willHandle,
+      });
+
+      if (willHandle) {
+        callbacksRef.current.onMessageNew?.(message);
+      } else {
+        console.warn("[Socket] ⚠️ Ignoring message - conversationId mismatch");
       }
     };
 
     const handleConversationCreated = (data: any) => {
-      if (data.conversationId && onConversationCreatedRef.current) {
-        onConversationCreatedRef.current(data);
-      }
+      console.log("[Socket] 🆕 conversation_created/updated", data);
+      callbacksRef.current.onConversationCreated?.(data);
     };
 
-    // Bind events
-    // Lưu ý: unbind trước để tránh duplicate listener nếu effect chạy lại
-    channel.unbind("chat:message:new", handleMessageUpdate);
-    channel.unbind("chat:message:updated", handleMessageUpdate);
-    channel.unbind("conversation_created", handleConversationCreated);
+    console.log("[Socket] 🔗 Binding events to channel...");
 
-    channel.bind("chat:message:new", handleMessageUpdate);
-    channel.bind("chat:message:updated", handleMessageUpdate);
+    channel.unbind("ai:stream:start");
+    channel.unbind("ai:stream:chunk");
+    channel.unbind("chat:message:new");
+    channel.unbind("ai:message");
+    channel.unbind("chat:message:updated");
+    channel.unbind("conversation_created");
+    channel.unbind("conversation_updated");
+
+    channel.bind("ai:stream:start", handleStreamStart);
+    channel.bind("ai:stream:chunk", handleStreamChunk);
+    channel.bind("chat:message:new", handleMessageNew);
+    channel.bind("ai:message", handleMessageNew);
+    channel.bind("chat:message:updated", handleMessageNew);
     channel.bind("conversation_created", handleConversationCreated);
+    channel.bind("conversation_updated", handleConversationCreated);
 
-    // Cleanup: Chỉ unsubscribe khi component unmount hẳn hoặc user logout
+    console.log("[Socket] ✅ Events bound successfully");
+
     return () => {
-      channel.unbind("chat:message:new", handleMessageUpdate);
-      channel.unbind("chat:message:updated", handleMessageUpdate);
+      console.log("[Socket] Cleaning up events");
+      channel.unbind("ai:stream:start", handleStreamStart);
+      channel.unbind("ai:stream:chunk", handleStreamChunk);
+      channel.unbind("chat:message:new", handleMessageNew);
+      channel.unbind("ai:message", handleMessageNew);
+      channel.unbind("chat:message:updated", handleMessageNew);
       channel.unbind("conversation_created", handleConversationCreated);
-      // Không unsubscribe kênh ở đây nếu muốn giữ kết nối global, 
-      // nhưng với chat page thì nên unsubscribe để tiết kiệm connection.
-      console.log(`[useChatSocket] 🛑 Cleaning up listeners for ${channelName}`);
+      channel.unbind("conversation_updated", handleConversationCreated);
     };
-  }, [pusher, user?._id, conversationId]); // ✅ Dependencies tối giản
+  }, [pusher, user?._id, isConnected]);
+
+  return {};
 };

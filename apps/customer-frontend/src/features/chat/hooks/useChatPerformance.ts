@@ -1,8 +1,7 @@
-// src/features/chat/hooks/useChatPerformance.ts
-// Hook để optimize performance và memory management
-
+// apps/customer-frontend/src/features/chat/hooks/useChatPerformance.ts
 import { useCallback, useEffect, useRef } from "react";
 import { ChatMessage } from "@/types/chat";
+import { useMessageState } from "./useMessageState";
 
 interface UseChatPerformanceProps {
   messages: ChatMessage[];
@@ -11,80 +10,76 @@ interface UseChatPerformanceProps {
 }
 
 export function useChatPerformance(props: UseChatPerformanceProps) {
-  const { messages, maxMessagesInMemory = 100, cleanupInterval = 30000 } = props;
+  const {
+    messages,
+    maxMessagesInMemory = 100,
+    cleanupInterval = 30000,
+  } = props;
+  const { setMessages } = useMessageState(); // Lấy hàm setMessages từ store
 
   const cleanupRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const lastCleanupRef = useRef<number>(Date.now());
 
-  // Cleanup old messages to prevent memory leaks
+  // ✅ ACTION: Thực sự cắt bỏ tin nhắn cũ
   const cleanupOldMessages = useCallback(() => {
     const now = Date.now();
     const timeSinceLastCleanup = now - lastCleanupRef.current;
 
-    if (timeSinceLastCleanup < cleanupInterval) return;
-
-    // Keep only recent messages in memory
-    if (messages.length > maxMessagesInMemory) {
-      console.log(`[ChatPerformance] Cleaning up old messages. Current: ${messages.length}`);
-
-      // Note: This would need to be implemented in the parent component
-      // as we can't modify the messages array directly here
-      // Parent should use this callback to cleanup
+    // Không chạy nếu chưa đến interval hoặc số lượng tin chưa vượt ngưỡng
+    if (
+      timeSinceLastCleanup < cleanupInterval ||
+      messages.length <= maxMessagesInMemory
+    ) {
+      return;
     }
 
+    // Giữ lại (maxMessagesInMemory) tin nhắn cuối cùng
+    // Lưu ý: Cần giữ lại WELCOME_MESSAGE nếu nó quan trọng,
+    // nhưng ở đây ta ưu tiên hiệu năng là cắt thẳng từ trên xuống.
+    console.warn(
+      `[ChatPerformance] Pruning messages. Count: ${messages.length} -> ${maxMessagesInMemory}`
+    );
+
+    const startIndex = messages.length - maxMessagesInMemory;
+    const keptMessages = messages.slice(startIndex);
+
+    setMessages(keptMessages);
     lastCleanupRef.current = now;
-  }, [messages.length, maxMessagesInMemory, cleanupInterval]);
+  }, [messages, maxMessagesInMemory, cleanupInterval, setMessages]);
 
-  // Debounced cleanup
   useEffect(() => {
-    if (cleanupRef.current) {
-      clearTimeout(cleanupRef.current);
-    }
-
-    cleanupRef.current = setTimeout(cleanupOldMessages, 1000);
+    // Dùng interval để check định kỳ thay vì check mỗi lần render
+    // Giúp UI mượt hơn, tránh block main thread liên tục
+    cleanupRef.current = setInterval(cleanupOldMessages, 5000);
 
     return () => {
       if (cleanupRef.current) {
-        clearTimeout(cleanupRef.current);
+        clearInterval(cleanupRef.current);
       }
     };
   }, [cleanupOldMessages]);
 
-  // Memory usage monitoring (development only)
+  // Monitoring memory in Dev mode
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      const logMemoryUsage = () => {
-        if ('memory' in performance) {
+    if (process.env.NODE_ENV === "development") {
+      const interval = setInterval(() => {
+        if ("memory" in performance) {
           const memInfo = (performance as any).memory;
-          console.log(`[ChatPerformance] Memory: ${(memInfo.usedJSHeapSize / 1024 / 1024).toFixed(2)}MB used`);
+          // Chỉ log nếu bộ nhớ dùng > 50MB để đỡ rác console
+          if (memInfo.usedJSHeapSize > 50 * 1024 * 1024) {
+            console.debug(
+              `[Memory] Used: ${(memInfo.usedJSHeapSize / 1024 / 1024).toFixed(
+                2
+              )}MB`
+            );
+          }
         }
-      };
-
-      const interval = setInterval(logMemoryUsage, 10000); // Every 10 seconds
+      }, 30000);
       return () => clearInterval(interval);
     }
   }, []);
 
-  // Virtual scrolling optimization
-  const getVirtualizationConfig = useCallback(() => ({
-    estimateSize: () => 80, // Average message height
-    overscan: 5, // Render 5 extra items outside viewport
-    scrollMargin: 100, // Start virtualization 100px from edges
-  }), []);
-
-  // Lazy loading for images
-  const getImageLoadingConfig = useCallback(() => ({
-    rootMargin: '50px', // Start loading 50px before entering viewport
-    threshold: 0.1,
-  }), []);
-
   return {
     cleanupOldMessages,
-    getVirtualizationConfig,
-    getImageLoadingConfig,
-    memoryStats: process.env.NODE_ENV === 'development' ? {
-      messageCount: messages.length,
-      estimatedMemoryUsage: messages.length * 0.5, // Rough estimate: 0.5KB per message
-    } : null,
   };
 }

@@ -1,0 +1,170 @@
+{
+  "events": [
+    {
+      "id": "tet-2025",
+      "name": "Tết Nguyên Đán",
+      "startDate": "2024-11-29",
+      "endDate": "2024-12-10",
+      "theme": {
+        "id": "tet",
+        "primaryColor": "#E11D48",
+        "secondaryColor": "#F59E0B",
+        "accentColor": "#FB923C",
+        "backgroundColor": "#FEF3C7",
+        "textColor": "#991B1B",
+        "bannerText": "🧧 Tết Đến - Xuân Về",
+        "keywords": ["bánh chưng", "mứt tết", "hoa mai", "lì xì", "đào", "mai"]
+      }
+    },
+    {
+      "id": "valentine-2025",
+      "name": "Valentine",
+      "startDate": "2025-02-10",
+      "endDate": "2025-02-14",
+      "theme": {
+        "id": "valentine",
+        "primaryColor": "#EC4899",
+        "secondaryColor": "#F472B6",
+        "accentColor": "#BE185D",
+        "backgroundColor": "#FCE7F3",
+        "textColor": "#831843",
+        "bannerText": "💝 Valentine - Ngày Tình Yêu",
+        "keywords": ["hoa hồng", "chocolate", "quà tặng", "teddy bear", "thiệp"]
+      }
+    },
+    {
+      "id": "women-day-2025",
+      "name": "Ngày Quốc Tế Phụ Nữ",
+      "startDate": "2025-03-05",
+      "endDate": "2025-03-08",
+      "theme": {
+        "id": "women-day",
+        "primaryColor": "#A855F7",
+        "secondaryColor": "#C084FC",
+        "accentColor": "#7C3AED",
+        "backgroundColor": "#F3E8FF",
+        "textColor": "#581C87",
+        "bannerText": "🌸 Chúc Mừng 8/3",
+        "keywords": ["hoa", "nước hoa", "mỹ phẩm", "túi xách", "quà tặng"]
+      }
+    },
+    {
+      "id": "mid-autumn-2025",
+      "name": "Tết Trung Thu",
+      "startDate": "2025-09-01",
+      "endDate": "2025-09-07",
+      "theme": {
+        "id": "mid-autumn",
+        "primaryColor": "#F59E0B",
+        "secondaryColor": "#FCD34D",
+        "accentColor": "#D97706",
+        "backgroundColor": "#FEF3C7",
+        "textColor": "#92400E",
+        "bannerText": "🏮 Trung Thu - Rằm Tháng Tám",
+        "keywords": ["bánh trung thu", "lồng đèn", "đèn ông sao", "mứt", "kẹo"]
+      }
+    },
+    {
+      "id": "national-day-2025",
+      "name": "Quốc Khánh 2/9",
+      "startDate": "2025-08-30",
+      "endDate": "2025-09-02",
+      "theme": {
+        "id": "national-day",
+        "primaryColor": "#DC2626",
+        "secondaryColor": "#FCD34D",
+        "accentColor": "#991B1B",
+        "backgroundColor": "#FEE2E2",
+        "textColor": "#7F1D1D",
+        "bannerText": "🇻🇳 Quốc Khánh 2/9",
+        "keywords": ["cờ đỏ sao vàng", "quốc kỳ", "lễ hội"]
+      }
+    },
+    {
+      "id": "vietnamese-women-day-2025",
+      "name": "Ngày Phụ Nữ Việt Nam",
+      "startDate": "2025-10-17",
+      "endDate": "2025-10-20",
+      "theme": {
+        "id": "vn-women-day",
+        "primaryColor": "#EC4899",
+        "secondaryColor": "#F9A8D4",
+        "accentColor": "#BE185D",
+        "backgroundColor": "#FCE7F3",
+        "textColor": "#831843",
+        "bannerText": "🌹 Chúc Mừng 20/10",
+        "keywords": ["hoa", "quà tặng", "mỹ phẩm", "trang sức"]
+      }
+    },
+    {
+      "id": "black-friday-2025",
+      "name": "Black Friday",
+      "startDate": "2025-11-25",
+      "endDate": "2025-11-30",
+      "theme": {
+        "id": "black-friday",
+        "primaryColor": "#EF4444",
+        "secondaryColor": "#FCD34D",
+        "accentColor": "#DC2626",
+        "backgroundColor": "#1F2937",
+        "textColor": "#FFFFFF",
+        "bannerText": "⚡ BLACK FRIDAY - SALE KHỦNG",
+        "keywords": ["sale", "giảm giá", "khuyến mãi", "deal"]
+      }
+    },
+    {
+      "id": "christmas-2025",
+      "name": "Giáng Sinh",
+      "startDate": "2025-12-20",
+      "endDate": "2025-12-26",
+      "theme": {
+        "id": "christmas",
+        "primaryColor": "#DC2626",
+        "secondaryColor": "#10B981",
+        "accentColor": "#FFFFFF",
+        "backgroundColor": "#FEE2E2",
+        "textColor": "#7F1D1D",
+        "bannerText": "🎄 Giáng Sinh An Lành",
+        "keywords": ["noel", "quà giáng sinh", "cây thông", "santa"]
+      }
+    },
+    {
+      "id": "new-year-2026",
+      "name": "Tết Dương Lịch",
+      "startDate": "2025-12-28",
+      "endDate": "2026-01-02",
+      "theme": {
+        "id": "new-year",
+        "primaryColor": "#3B82F6",
+        "secondaryColor": "#FCD34D",
+        "accentColor": "#EF4444",
+        "backgroundColor": "#DBEAFE",
+        "textColor": "#1E3A8A",
+        "bannerText": "🎊 Happy New Year 2026",
+        "keywords": ["năm mới", "countdown", "pháo hoa", "party"]
+      }
+    },
+    {
+      "id": "back-to-school-2025",
+      "name": "Mùa Tựu Trường",
+      "startDate": "2025-08-15",
+      "endDate": "2025-09-10",
+      "theme": {
+        "id": "back-to-school",
+        "primaryColor": "#3B82F6",
+        "secondaryColor": "#60A5FA",
+        "accentColor": "#1E40AF",
+        "backgroundColor": "#DBEAFE",
+        "textColor": "#1E3A8A",
+        "bannerText": "📚 Mùa Tựu Trường",
+        "keywords": [
+          "văn phòng phẩm",
+          "sách vở",
+          "balo",
+          "đồng phục",
+          "dụng cụ học tập"
+        ]
+      }
+    }
+  ]
+}

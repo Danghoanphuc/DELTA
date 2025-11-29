@@ -3,39 +3,28 @@ import { ChatToolService } from "./chat.tools.service.js";
 import { ChatResponseUtil } from "./chat.response.util.js";
 import { Logger } from "../../shared/utils/index.js";
 
-// 🧠 TỪ ĐIỂN SUY NGHĨ: Map tool name -> Câu nói thân thiện
-const THOUGHT_DICTIONARY = {
-  find_products: {
-    icon: "🔍",
-    texts: [
-      "Zin đang rà soát kho sản phẩm...",
-      "Đang tìm kiếm mẫu in phù hợp cho bạn...",
-      "Chờ chút, Zin đang tra cứu danh mục..."
-    ]
-  },
-  find_printers: {
-    icon: "🏭",
-    texts: [
-      "Đang kết nối với mạng lưới nhà in...",
-      "Để Zin tìm xem nhà in nào gần bạn nhất...",
-      "Đang lọc các nhà in uy tín..."
-    ]
-  },
-  get_recent_orders: {
-    icon: "📦",
-    texts: [
-      "Đang lục lại hồ sơ đơn hàng cũ...",
-      "Zin đang kiểm tra lịch sử giao dịch..."
-    ]
-  },
-  suggest_value_added_services: {
-    icon: "✨",
-    texts: [
-      "Đang tính toán các phương án tối ưu...",
-      "Zin đang nghĩ thêm vài ý tưởng hay ho cho bạn..."
-    ]
-  }
-};
+// 🔥 1. ĐỊNH NGHĨA "NÃO BỘ" CHO AI (SYSTEM PROMPT)
+// Đây là bản chỉ đạo nghệ thuật giúp AI biết cách hành xử
+const DEFAULT_SYSTEM_PROMPT = `
+BẠN LÀ: Trợ lý AI chuyên nghiệp của Printz - Nền tảng in ấn trực tuyến (Web2Print).
+NHIỆM VỤ: Hỗ trợ khách hàng tìm sản phẩm in, tìm nhà in uy tín, và theo dõi đơn hàng.
+
+QUY TẮC SỬ DỤNG CÔNG CỤ (TOOLS) - BẮT BUỘC:
+1. Khi khách hỏi về "nhà in", "tiệm in", "in ở đâu", "địa chỉ in" -> BẮT BUỘC gọi tool: 'find_printers'.
+2. Khi khách hỏi về "sản phẩm", "giá in", "in danh thiếp", "in áo", "tờ rơi"... -> BẮT BUỘC gọi tool: 'find_products'.
+3. Khi khách hỏi "đơn hàng của tôi", "lịch sử mua", "tình trạng đơn" -> BẮT BUỘC gọi tool: 'get_recent_orders'.
+4. Khi khách gửi link website hoặc hỏi về thiết kế từ link -> BẮT BUỘC gọi tool: 'browse_page'.
+5. Khi khách cần tư vấn dịch vụ thêm (giao nhanh, thiết kế hộ) -> Gọi tool: 'suggest_value_added_services'.
+
+CẤM KỴ:
+- KHÔNG ĐƯỢC trả lời "Tôi không biết" hoặc "Tôi không có thông tin" về sản phẩm/nhà in khi CHƯA gọi tool.
+- KHÔNG ĐƯỢC tự bịa đặt giá cả hoặc thông tin nhà in. Chỉ sử dụng dữ liệu từ tool trả về.
+
+PHONG CÁCH TRẢ LỜI:
+- Ngắn gọn, súc tích (dưới 3 câu).
+- Luôn mời gọi hành động (Call to action): "Bạn có muốn xem chi tiết không?", "Mời bạn chọn bên dưới".
+- Nếu tool trả về danh sách (JSON), chỉ cần nói câu dẫn dắt: "Dưới đây là các lựa chọn phù hợp nhất cho bạn:", hệ thống sẽ tự hiển thị giao diện thẻ (Carousel).
+`;
 
 export class ChatAgent {
   constructor() {
@@ -43,87 +32,122 @@ export class ChatAgent {
     this.toolService = new ChatToolService();
   }
 
-  // Helper: Chọn ngẫu nhiên câu thoại để không nhàm chán
-  _getRandomThought(toolName) {
-    const entry = THOUGHT_DICTIONARY[toolName];
-    if (!entry) return { icon: "🤔", text: "Zin đang suy nghĩ..." };
-    const randomText = entry.texts[Math.floor(Math.random() * entry.texts.length)];
-    return { icon: entry.icon, text: randomText };
-  }
-
   async run(context, history, message, systemOverride = null, onStream = null) {
     const userId = context.actorId;
-    
-    // 1. Prepare Messages
+
+    // 2. Prepare Messages
     let messages = ChatResponseUtil.prepareHistoryForOpenAI(history);
-    if (systemOverride) messages.push({ role: "system", content: systemOverride });
+
+    // 🔥 3. TIÊM PROMPT VÀO CONTEXT
+    // Nếu service không truyền override, ta dùng bản mặc định "xịn sò" ở trên
+    const systemPrompt = systemOverride || DEFAULT_SYSTEM_PROMPT;
+    messages.push({ role: "system", content: systemPrompt });
+
     messages.push({ role: "user", content: message });
 
-    // 📣 THÔNG BÁO: Bắt đầu suy nghĩ
-    if (onStream) onStream({ type: "thinking", icon: "⚡", text: "Zin đang đọc yêu cầu..." });
-
-    // 2. Call AI (Lần 1: Quyết định Tool)
+    // 4. Call AI (Lần 1: Quyết định Tool)
     const toolDefinitions = this.toolService.getToolDefinitions();
-    const aiResponse = await this.aiService.getCompletion(messages, toolDefinitions, context);
+    // ... (Phần code bên dưới giữ nguyên không đổi) ...
+
+    // Nếu có onStream, stream ngay từ đầu
+    const aiResponse = await this.aiService.getCompletion(
+      messages,
+      toolDefinitions,
+      context,
+      onStream && toolDefinitions.length === 0 ? onStream : null
+    );
     const responseMessage = aiResponse.choices[0].message;
 
-    // 3. Handle Tool Usage
+    // ... (Giữ nguyên logic xử lý tool calls như cũ) ...
+
     if (responseMessage.tool_calls) {
       const toolCall = responseMessage.tool_calls[0];
       const toolName = toolCall.function.name;
-      
-      // 📣 THÔNG BÁO: Humanized Thought trước khi chạy Tool
-      const thought = this._getRandomThought(toolName);
-      if (onStream) {
-        onStream({ 
-          type: "thinking_update", // Event riêng để FE update bubble
-          icon: thought.icon, 
-          text: thought.text 
-        });
-      }
 
-      Logger.info(`[ChatAgent] 🛠️ Executing: ${toolName}`);
-      messages.push(responseMessage); 
+      Logger.info(`[ChatAgent] 🛠️ AI quyết định dùng tool: ${toolName}`);
 
-      // Execute Tool
-      const { response, isTerminal } = await this.toolService.executeTool(toolCall, context);
+      // Add assistant message with tool_calls
+      messages.push(responseMessage);
 
-      // Xử lý Rich UI (Product Selection...)
-      if (response && typeof response === "object" && response.type && ["product_selection", "printer_selection", "order_selection"].includes(response.type)) {
-         // 📣 THÔNG BÁO: Đã tìm thấy
-         if (onStream) onStream({ type: "thinking_done", icon: "✅", text: "Đã tìm thấy kết quả!" });
-         
-         // Generate short text summary using AI
-         const summaryPrompt = "Hãy tạo một câu giới thiệu ngắn gọn (1 câu) cho các kết quả tìm kiếm này.";
-         const summaryRes = await this.aiService.getCompletionWithCustomPrompt(messages, summaryPrompt);
-         response.content.text = summaryRes.choices[0].message.content;
-         return response; 
-      }
+      const { response, isTerminal } = await this.toolService.executeTool(
+        toolCall,
+        context
+      );
 
-      if (isTerminal) return response;
+      // ✅ FIX: Add tool response message (required by OpenAI)
+      const toolResponseContent =
+        typeof response === "string" ? response : JSON.stringify(response);
 
-      // Feed tool result back to AI
       messages.push({
         role: "tool",
         tool_call_id: toolCall.id,
-        content: typeof response === "string" ? response : JSON.stringify(response)
+        content: toolResponseContent,
       });
 
-      // 📣 THÔNG BÁO: Tổng hợp câu trả lời
-      if (onStream) onStream({ type: "thinking_update", icon: "✍️", text: "Đang tổng hợp thông tin..." });
+      // Nếu trả về Carousel, AI sẽ tóm tắt ngắn gọn
+      if (
+        response &&
+        typeof response === "object" &&
+        ["product_selection", "printer_selection", "order_selection"].includes(
+          response.type
+        )
+      ) {
+        // ✅ Ensure content object exists
+        if (!response.content) {
+          response.content = {};
+        }
 
-      // Final Answer (Streamed)
-      // Lưu ý: Hàm getCompletion cần hỗ trợ callback onToken
-      const finalRes = await this.aiService.getCompletion(messages, [], context, (token) => {
-          if (onStream) onStream({ type: "text_stream", text: token });
-      });
-      
-      return ChatResponseUtil.createTextResponse(finalRes.choices[0].message.content, true);
-    }
+        // Gọi AI để tạo câu dẫn dắt (chỉ nếu chưa có text)
+        if (!response.content.text) {
+          const summaryPrompt =
+            "Hãy viết 1 câu ngắn gọn (dưới 15 từ) mời khách hàng xem danh sách kết quả bên dưới.";
 
-    // 4. No Tool -> Direct Answer (Streamed)
-    if (onStream && responseMessage.content) {
-       onStream({ type: "text_stream", text: responseMessage.content });
+          messages.push({ role: "user", content: summaryPrompt });
+
+          const summaryRes = await this.aiService.getCompletion(
+            messages,
+            [], // No tools for summary
+            context,
+            null // No streaming
+          );
+
+          response.content.text = summaryRes.choices[0].message.content;
+        }
+
+        Logger.info(
+          `[ChatAgent] Returning ${response.type} with ${
+            response.content.orders?.length ||
+            response.content.products?.length ||
+            response.content.printers?.length ||
+            0
+          } items`
+        );
+        return response;
+      }
+
+      // Nếu không phải carousel, gọi AI để tạo response tự nhiên
+      if (
+        typeof response === "object" &&
+        response.type !== "HIDDEN_PROCESSING"
+      ) {
+        const finalResponse = await this.aiService.getCompletion(
+          messages,
+          [],
+          context,
+          onStream
+        );
+        return ChatResponseUtil.createTextResponse(
+          finalResponse.choices[0].message.content,
+          true
+        );
+      }
+
+      // Nếu là string hoặc HIDDEN_PROCESSING, return trực tiếp
+      if (typeof response === "string") {
+        return ChatResponseUtil.createTextResponse(response, true);
+      }
+
+      return response;
     }
 
     return ChatResponseUtil.createTextResponse(responseMessage.content, true);

@@ -1,12 +1,13 @@
 import { createRoot } from "react-dom/client";
 import "./styles/globals.css";
+import "./styles/event-theme.css";
 import "mapbox-gl/dist/mapbox-gl.css";
+import "./lib/mapConfig"; // ✅ Import map config to disable Mapbox telemetry
 import App from "./App";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Sentry from "@sentry/react";
 // 👇 1. Thêm Import này
 import { GoogleOAuthProvider } from "@react-oauth/google";
-
 
 // Sentry Init (Giữ nguyên)
 Sentry.init({
@@ -18,6 +19,19 @@ Sentry.init({
   tracesSampleRate: 1.0,
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0,
+  // ✅ Ignore Mapbox telemetry errors
+  ignoreErrors: [
+    /events\.mapbox\.com/,
+    /api\.mapbox\.com\/map-sessions/,
+    "mapbox",
+  ],
+  beforeSend(event) {
+    // Filter out Mapbox telemetry errors
+    if (event.request?.url?.includes("mapbox.com")) {
+      return null;
+    }
+    return event;
+  },
 });
 
 const queryClient = new QueryClient({
@@ -40,7 +54,7 @@ if (!GOOGLE_CLIENT_ID && import.meta.env.DEV) {
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
     {/* 👇 3. Bọc App bằng GoogleOAuthProvider */}
-    
+
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <App />
     </GoogleOAuthProvider>
