@@ -83,17 +83,13 @@ const fetchPrinterMetrics = async (): Promise<MasterOrderMetric[]> => {
                   ],
                 },
               ],
-            },,
+            },
             1,
             0,
           ],
         },
         isCancelled: {
-          $cond: [
-            { $eq: ["$printerOrders.printerStatus", "cancelled"] },
-            1,
-            0,
-          ],
+          $cond: [{ $eq: ["$printerOrders.printerStatus", "cancelled"] }, 1, 0],
         },
       },
     },
@@ -189,7 +185,9 @@ export const runDailyHealthCheck = async () => {
           printerProfileId: printer._id,
           type: "PRINTER_CANCELLATION",
           pointsDeducted: DEFAULT_INFRACTION_POINTS,
-          notes: `Auto-ban do tỉ lệ hủy ${Math.round(cancelRate * 100)}% trong 30 ngày.`,
+          notes: `Auto-ban do tỉ lệ hủy ${Math.round(
+            cancelRate * 100
+          )}% trong 30 ngày.`,
         });
       }
 
