@@ -40,6 +40,7 @@ COPY --from=builder /app/apps/admin-backend/package.json .
 COPY --from=builder /app/apps/admin-backend/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/admin-backend/node_modules ./apps/admin-backend/node_modules
+COPY --from=builder /app/packages ./packages
 
 USER expressjs
 EXPOSE 3000
