@@ -1,14 +1,12 @@
-import { type Document, type Model, type Types } from "mongoose";
+import { type Types } from "mongoose";
 import { Infraction } from "../models/infraction.model.js";
 import { TierRule } from "../models/tier-rule.model.js";
-import { PrinterTier } from "@printz/types";
 
 import {
   MasterOrder as MasterOrderModel,
   type MasterOrderDocument,
 } from "../models/master-order.model.js";
-// @ts-ignore
-import { PrinterProfile as PrinterProfileModelJS } from "../../../customer-backend/src/shared/models/printer-profile.model.js";
+import { PrinterProfile as PrinterProfileModel } from "../models/printer-profile.model.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WINDOW_DAYS = 30;
@@ -17,12 +15,8 @@ const LATE_THRESHOLD_MS = LATE_THRESHOLD_DAYS * DAY_MS;
 const AUTO_BAN_CANCEL_RATE = 0.2; // 20%
 const DEFAULT_INFRACTION_POINTS = 25;
 
-const TIER_ORDER: PrinterTier[] = [
-  PrinterTier.BRONZE,
-  PrinterTier.SILVER,
-  PrinterTier.GOLD,
-  PrinterTier.PLATINUM,
-];
+const TIER_ORDER = ["standard", "premium", "enterprise"] as const;
+type PrinterTier = (typeof TIER_ORDER)[number];
 
 interface MasterOrderMetric {
   _id: Types.ObjectId;
@@ -30,18 +24,6 @@ interface MasterOrderMetric {
   lateOrders: number;
   cancelOrders: number;
 }
-
-interface PrinterProfileDocument extends Document {
-  _id: Types.ObjectId;
-  tier?: PrinterTier;
-  isActive: boolean;
-  createdAt: Date;
-  stats?: Record<string, any>;
-  healthScore?: number;
-}
-
-const PrinterProfileModel =
-  PrinterProfileModelJS as Model<PrinterProfileDocument>;
 
 const computeHealthScore = (lateRate: number, cancelRate: number) => {
   const penalty =
@@ -106,9 +88,9 @@ const fetchPrinterMetrics = async (): Promise<MasterOrderMetric[]> => {
   return metrics;
 };
 
-const getTierIndex = (tier?: PrinterTier | null) => {
-  const current = tier ?? PrinterTier.BRONZE;
-  const idx = TIER_ORDER.indexOf(current);
+const getTierIndex = (tier?: string | null) => {
+  const current = tier ?? "standard";
+  const idx = TIER_ORDER.indexOf(current as PrinterTier);
   return idx >= 0 ? idx : 0;
 };
 
@@ -191,7 +173,7 @@ export const runDailyHealthCheck = async () => {
         });
       }
 
-      const currentTier = printer.tier ?? PrinterTier.BRONZE;
+      const currentTier = printer.tier ?? "standard";
       const currentIdx = getTierIndex(currentTier);
       const currentRule = tierRuleMap.get(currentTier);
 
