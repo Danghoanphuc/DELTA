@@ -14,15 +14,11 @@ import { Infraction } from "../models/infraction.model.js";
 import { recordAdminAuditLog } from "./admin.audit-log.service.js";
 import { sendAssetFlagNotification } from "./email.service.js";
 
-// --- Import shared models ---
-// @ts-ignore - JS models without types
-import { Product as ProductModelJS } from "../../../customer-backend/src/shared/models/product.model.js";
-// @ts-ignore
-import { DesignTemplate as DesignTemplateModelJS } from "../../../customer-backend/src/shared/models/design-template.model.js";
-// @ts-ignore
-import { PrinterProfile as PrinterProfileModelJS } from "../../../customer-backend/src/shared/models/printer-profile.model.js";
-// @ts-ignore
-import { User as UserModelJS } from "../../../customer-backend/src/shared/models/user.model.js";
+// --- ✅ IMPORT SHARED MODELS TỪ @printz/types ---
+import { Product as ProductModelJS } from "@printz/types";
+import { DesignTemplate as DesignTemplateModelJS } from "@printz/types";
+import { PrinterProfile as PrinterProfileModelJS } from "@printz/types";
+import { User as UserModelJS } from "@printz/types";
 
 type AssetType = "product" | "template";
 
@@ -59,12 +55,12 @@ interface UserDocument extends Document {
   displayName?: string;
 }
 
-const ProductModel = ProductModelJS as Model<ProductDocument>;
+const ProductModel = ProductModelJS as unknown as Model<ProductDocument>;
 const DesignTemplateModel =
   DesignTemplateModelJS as unknown as Model<DesignTemplateDocument>;
 const PrinterProfileModel =
-  PrinterProfileModelJS as Model<PrinterProfileDocument>;
-const UserModel = UserModelJS as Model<UserDocument>;
+  PrinterProfileModelJS as unknown as Model<PrinterProfileDocument>;
+const UserModel = UserModelJS as unknown as Model<UserDocument>;
 
 const RECENT_WINDOW_DAYS = 7;
 const PENDING_LIMIT = 50;
@@ -287,4 +283,3 @@ export const flagAsset = async ({
 
   return template.toObject();
 };
-

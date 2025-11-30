@@ -3,12 +3,10 @@ import { Model, Document } from "mongoose";
 import { type IPrinterProduct } from "@printz/types";
 import { NotFoundException } from "../shared/exceptions.js";
 
-// --- Kỹ thuật import model JS từ project khác ---
-// @ts-ignore - Customer backend .js files, no type declarations
-import { Product as ProductModelJS } from "../../../customer-backend/src/shared/models/product.model.js";
+// --- ✅ IMPORT SHARED MODEL TỪ @printz/types ---
+import { Product as ProductModelJS } from "@printz/types";
 type IProductModel = Model<IPrinterProduct & Document>;
 const ProductModel = ProductModelJS as unknown as IProductModel;
-// --- Hết ---
 
 export const getAllProducts = async (query: any) => {
   const page = parseInt(query.page || "1", 10);

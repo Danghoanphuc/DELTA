@@ -1,13 +1,9 @@
 // apps/admin-backend/src/services/admin.printer.service.ts
 import { Model, Document } from "mongoose";
 
-// 1. Import model từ customer-backend
-// @ts-ignore - Customer backend .js files, no type declarations
-import { PrinterProfile as PrinterProfileModelJS } from "../../../customer-backend/src/shared/models/printer-profile.model.js";
-// --- THÊM IMPORT USER MODEL ---
-// @ts-ignore - Customer backend .js files, no type declarations
-import { User as CustomerUserModelJS } from "../../../customer-backend/src/shared/models/user.model.js";
-// --- THÊM CÁC IMPORT KHÁC ---
+// --- ✅ IMPORT SHARED MODELS TỪ @printz/types ---
+import { PrinterProfile as PrinterProfileModelJS } from "@printz/types";
+import { User as CustomerUserModelJS } from "@printz/types";
 import {
   NotFoundException,
   ValidationException,
