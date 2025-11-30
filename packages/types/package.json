@@ -34,8 +34,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
-    "prepare": "tsc"
+    "dev": "tsc --watch"
   },
   "dependencies": {
     "mongoose": "^8.0.0",

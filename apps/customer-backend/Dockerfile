@@ -11,8 +11,17 @@ RUN turbo prune customer-backend --docker
 
 # --- Stage 2: Installer & Builder ---
 FROM base AS builder
-# ✅ Thêm build tools cho bcrypt và các native modules
-RUN apk add --no-cache libc6-compat python3 make g++
+# ✅ Thêm build tools cho bcrypt, canvas và các native modules
+RUN apk add --no-cache \
+    libc6-compat \
+    python3 \
+    make \
+    g++ \
+    cairo-dev \
+    jpeg-dev \
+    pango-dev \
+    giflib-dev \
+    pixman-dev
 WORKDIR /app
 RUN npm install -g pnpm
 
@@ -20,11 +29,11 @@ RUN npm install -g pnpm
 COPY --from=pruner /app/out/json/ .
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 
-# ✅ Install với frozen-lockfile, bcrypt sẽ được build
-RUN pnpm install --frozen-lockfile
-
-# Copy source code đã lọc
+# Copy source code trước khi install (để prepare script có source)
 COPY --from=pruner /app/out/full/ .
+
+# ✅ Install với frozen-lockfile, native modules sẽ được build
+RUN pnpm install --frozen-lockfile
 
 # Build code (Turbo sẽ tự build @printz/types trước rồi mới đến customer)
 RUN pnpm turbo build --filter=customer-backend...
