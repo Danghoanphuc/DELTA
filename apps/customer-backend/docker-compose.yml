@@ -24,3 +24,18 @@ services:
 # Định nghĩa volumes (nơi lưu trữ data)
 volumes:
   redis_data_dev:
+
+customer-backend:
+  build:
+    context: .
+    dockerfile: apps/customer-backend/Dockerfile
+  container_name: printz-customer-backend
+  ports:
+    - "4000:3000" # Map cổng 3000 trong container ra cổng 4000 máy thật (để ko đụng Admin 3001)
+  environment:
+    - NODE_ENV=production
+    - MONGODB_CONNECTIONSTRING=${MONGODB_CONNECTIONSTRING}
+    - REDIS_HOST=redis
+    - REDIS_PORT=6379
+  depends_on:
+    - redis

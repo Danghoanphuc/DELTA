@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  # 1. Redis
+  redis:
+    image: redis:6-alpine
+    container_name: printz-redis-local
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # 2. Admin Backend
+  admin-backend:
+    build:
+      context: .
+      dockerfile: apps/admin-backend/Dockerfile
+    container_name: printz-admin-backend
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_CONNECTIONSTRING=${MONGODB_CONNECTIONSTRING}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ADMIN_APP_URL=http://localhost:3001
+      - ADMIN_JWT_SECRET=secret_test_local
+    depends_on:
+      - redis
+
+  # 3. Customer Backend (Đã thụt vào đúng hàng)
+  customer-backend:
+    build:
+      context: .
+      dockerfile: apps/customer-backend/Dockerfile
+    container_name: printz-customer-backend
+    ports:
+      - "4000:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_CONNECTIONSTRING=${MONGODB_CONNECTIONSTRING}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PORT=3000
+    depends_on:
+      - redis
+
+# Volumes nằm ở cuối
+volumes:
+  redis_data:
