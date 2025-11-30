@@ -149,4 +149,6 @@ const ProductSchema = new mongoose.Schema(
 ProductSchema.index({ name: "text", description: "text", category: "text" });
 ProductSchema.index({ printerProfileId: 1, isDraft: 1, draftLastSavedAt: -1 });
 
-export const Product = mongoose.model("Product", ProductSchema);
+// ✅ FIX: Check if model already exists before creating it (prevents OverwriteModelError)
+export const Product =
+  mongoose.models.Product || mongoose.model("Product", ProductSchema);

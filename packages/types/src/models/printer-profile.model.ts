@@ -102,7 +102,7 @@ PrinterProfileSchema.virtual("printerProfileId").get(function () {
   return this._id;
 });
 
-export const PrinterProfile = mongoose.model(
-  "PrinterProfile",
-  PrinterProfileSchema
-);
+// ✅ FIX: Check if model already exists before creating it (prevents OverwriteModelError)
+export const PrinterProfile =
+  mongoose.models.PrinterProfile ||
+  mongoose.model("PrinterProfile", PrinterProfileSchema);

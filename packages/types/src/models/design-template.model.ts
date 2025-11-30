@@ -44,7 +44,7 @@ designTemplateSchema.pre("save", function (next) {
   next();
 });
 
-export const DesignTemplate = mongoose.model(
-  "DesignTemplate",
-  designTemplateSchema
-);
+// ✅ FIX: Check if model already exists before creating it (prevents OverwriteModelError)
+export const DesignTemplate =
+  mongoose.models.DesignTemplate ||
+  mongoose.model("DesignTemplate", designTemplateSchema);

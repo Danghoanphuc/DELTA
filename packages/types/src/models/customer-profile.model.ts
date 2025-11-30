@@ -57,7 +57,7 @@ const CustomerProfileSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export const CustomerProfile = mongoose.model(
-  "CustomerProfile",
-  CustomerProfileSchema
-);
+// ✅ FIX: Check if model already exists before creating it (prevents OverwriteModelError)
+export const CustomerProfile =
+  mongoose.models.CustomerProfile ||
+  mongoose.model("CustomerProfile", CustomerProfileSchema);

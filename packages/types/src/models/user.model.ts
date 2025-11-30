@@ -151,4 +151,5 @@ UserSchema.methods.comparePassword = async function (
   return bcrypt.compare(candidatePassword, this.hashedPassword);
 };
 
-export const User = mongoose.model("User", UserSchema);
+// ✅ FIX: Check if model already exists before creating it (prevents OverwriteModelError)
+export const User = mongoose.models.User || mongoose.model("User", UserSchema);
