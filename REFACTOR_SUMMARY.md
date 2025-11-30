@@ -29,9 +29,15 @@
 
 **File: `packages/types/package.json`**
 
-- ✅ Thêm `exports` cho models: `"./models/*"`
+- ✅ Thêm `exports` cho từng model cụ thể (tránh lỗi `.js.js`)
 - ✅ Thêm dependencies: `mongoose`, `bcrypt`
 - ✅ Thêm devDependencies: `@types/bcrypt`
+
+**⚠️ Lưu ý quan trọng về ESM:**
+
+- Không dùng wildcard `"./models/*"` vì gây lỗi double extension `.js.js`
+- Phải khai báo explicit exports cho từng model file
+- Import path không có `.js` extension: `@printz/types/models/user.model`
 
 ### Bước 3: Cập Nhật Admin Backend Services
 

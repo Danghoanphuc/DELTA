@@ -10,9 +10,25 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
-    "./models/*": {
-      "import": "./dist/models/*.js",
-      "types": "./dist/models/*.d.ts"
+    "./models/customer-profile.model": {
+      "import": "./dist/models/customer-profile.model.js",
+      "types": "./dist/models/customer-profile.model.d.ts"
+    },
+    "./models/printer-profile.model": {
+      "import": "./dist/models/printer-profile.model.js",
+      "types": "./dist/models/printer-profile.model.d.ts"
+    },
+    "./models/user.model": {
+      "import": "./dist/models/user.model.js",
+      "types": "./dist/models/user.model.d.ts"
+    },
+    "./models/product.model": {
+      "import": "./dist/models/product.model.js",
+      "types": "./dist/models/product.model.d.ts"
+    },
+    "./models/design-template.model": {
+      "import": "./dist/models/design-template.model.js",
+      "types": "./dist/models/design-template.model.d.ts"
     },
     "./package.json": "./package.json"
   },

@@ -7,8 +7,9 @@ import { type IAdmin } from "../models/admin.model.js";
 
 // --- ✅ IMPORT SHARED MODELS TỪ @printz/types ---
 import { User as CustomerUserModelJS } from "@printz/types";
-import "@printz/types/models/customer-profile.model.js";
-import "@printz/types/models/printer-profile.model.js";
+// Side-effect imports để đảm bảo models được register
+import "@printz/types/models/customer-profile.model";
+import "@printz/types/models/printer-profile.model";
 
 type ICustomerUserModel = Model<
   IUser &
