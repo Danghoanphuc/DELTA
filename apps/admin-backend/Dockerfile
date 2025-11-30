@@ -28,13 +28,14 @@ COPY --from=pruner /app/out/full/ .
 # Build dự án
 RUN pnpm turbo build --filter=admin-backend...
 
-# --- Stage 3: Runner ---
+# --- Stage 3: Runner (SỬA ĐOẠN NÀY) ---
 FROM base AS runner
 WORKDIR /app
 
 RUN addgroup --system --gid 1001 expressjs
 RUN adduser --system --uid 1001 expressjs
 
+# 1. Copy dependencies
 COPY --from=builder /app/apps/admin-backend/package.json .
 COPY --from=builder /app/apps/admin-backend/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
