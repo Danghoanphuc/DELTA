@@ -2,16 +2,24 @@ name: CI/CD Build & Deploy
 
 on:
   push:
-    branches: ["main"]
-  # ✅ THÊM DÒNG NÀY: Cho phép bấm nút chạy thủ công
-  workflow_dispatch:
+    branches: ["main", "staging"] # Chạy khi push vào Main hoặc Staging
+    # Chỉ chạy khi có thay đổi trong các thư mục code (để tiết kiệm tài nguyên)
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "Dockerfile"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch: # Nút bấm chạy tay (khi cần force build)
 
 jobs:
-  # --- JOB 1: Build & Deploy Customer Backend ---
+  # =========================================================
+  # JOB 1: CUSTOMER BACKEND (Customer + Worker)
+  # =========================================================
   deploy-customer:
     name: Build Customer
     runs-on: ubuntu-latest
-    # ❌ Đã bỏ dòng IF lọc điều kiện để nó luôn chạy khi mình muốn
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -25,20 +33,48 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # 🧠 LOGIC THÔNG MINH: Xác định Tag và Hook dựa trên nhánh
+      - name: Determine Environment
+        id: env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "Environment: PRODUCTION"
+            echo "TAG=latest" >> $GITHUB_OUTPUT
+            echo "RENDER_HOOK=${{ secrets.RENDER_HOOK_CUSTOMER }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+            echo "Environment: STAGING"
+            echo "TAG=staging" >> $GITHUB_OUTPUT
+            # Nếu chưa có biến Staging, dòng dưới sẽ để trống, script không lỗi
+            echo "RENDER_HOOK=${{ secrets.RENDER_HOOK_CUSTOMER_STAGING }}" >> $GITHUB_OUTPUT
+          else
+            echo "Environment: DEV"
+            echo "TAG=dev" >> $GITHUB_OUTPUT
+            echo "RENDER_HOOK=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build & Push (Customer)
         uses: docker/build-push-action@v5
         with:
           context: .
+          # Đường dẫn chính xác tới Dockerfile Customer
           file: ./apps/customer-backend/Dockerfile
           push: true
-          tags: hoanphuc/printz-customer-backend:latest
+          # Tag động: :latest hoặc :staging
+          tags: hoanphuc/printz-customer-backend:${{ steps.env.outputs.TAG }}
+          # Cơ chế Cache thông minh
           cache-from: type=registry,ref=hoanphuc/printz-customer-backend:cache
           cache-to: type=registry,ref=hoanphuc/printz-customer-backend:cache,mode=max
 
+      # Chỉ gọi Render nếu có Hook (Tránh lỗi đỏ nếu đang test dev)
       - name: Trigger Render Deploy
-        run: curl -X POST ${{ secrets.RENDER_HOOK_CUSTOMER }} || echo "Chưa có Hook, bỏ qua trigger"
+        if: steps.env.outputs.RENDER_HOOK != ''
+        run: |
+          echo "Triggering Render Deploy for tag: ${{ steps.env.outputs.TAG }}..."
+          curl -X POST ${{ steps.env.outputs.RENDER_HOOK }}
 
-  # --- JOB 2: Build & Deploy Admin Backend ---
+  # =========================================================
+  # JOB 2: ADMIN BACKEND
+  # =========================================================
   deploy-admin:
     name: Build Admin
     runs-on: ubuntu-latest
@@ -55,15 +91,32 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # 🧠 LOGIC THÔNG MINH (Tương tự Customer)
+      - name: Determine Environment
+        id: env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "TAG=latest" >> $GITHUB_OUTPUT
+            echo "RENDER_HOOK=${{ secrets.RENDER_HOOK_ADMIN }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+            echo "TAG=staging" >> $GITHUB_OUTPUT
+            echo "RENDER_HOOK=${{ secrets.RENDER_HOOK_ADMIN_STAGING }}" >> $GITHUB_OUTPUT
+          else
+            echo "TAG=dev" >> $GITHUB_OUTPUT
+            echo "RENDER_HOOK=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build & Push (Admin)
         uses: docker/build-push-action@v5
         with:
           context: .
+          # Đường dẫn chính xác tới Dockerfile Admin
           file: ./apps/admin-backend/Dockerfile
           push: true
-          tags: hoanphuc/printz-admin-backend:latest
+          tags: hoanphuc/printz-admin-backend:${{ steps.env.outputs.TAG }}
           cache-from: type=registry,ref=hoanphuc/printz-admin-backend:cache
           cache-to: type=registry,ref=hoanphuc/printz-admin-backend:cache,mode=max
 
       - name: Trigger Render Deploy
-        run: curl -X POST ${{ secrets.RENDER_HOOK_ADMIN }} || echo "Chưa có Hook, bỏ qua trigger"
+        if: steps.env.outputs.RENDER_HOOK != ''
+        run: curl -X POST ${{ steps.env.outputs.RENDER_HOOK }}
