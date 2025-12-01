@@ -168,28 +168,39 @@ router.get(
   <div class="container">
     <div class="spinner"></div>
     <h1>Đăng nhập thành công!</h1>
-    <p>Đang chuyển hướng...</p>
+    <p id="status">Đang chuyển hướng...</p>
+    <button id="closeBtn" style="display:none; margin-top: 1rem; padding: 0.5rem 1rem; background: white; color: #667eea; border: none; border-radius: 0.5rem; cursor: pointer; font-weight: bold;">Đóng cửa sổ</button>
   </div>
   <script>
     (function() {
       const payload = ${JSON.stringify(payload)};
       const targetOrigins = ${JSON.stringify(CLIENT_ORIGINS)};
+      const statusEl = document.getElementById('status');
+      const closeBtn = document.getElementById('closeBtn');
       
       console.log("[OAuth] ✅ Callback script started");
       console.log("[OAuth] Target origins:", targetOrigins);
       console.log("[OAuth] Payload:", payload);
       console.log("[OAuth] Window opener exists:", !!window.opener);
+      console.log("[OAuth] Window opener closed:", window.opener ? window.opener.closed : 'N/A');
+      
+      closeBtn.onclick = function() {
+        window.close();
+      };
       
       function sendAndClose() {
         // Kiểm tra opener
         if (!window.opener || window.opener.closed) {
           console.warn("[OAuth] ⚠️ No opener window, redirecting...");
+          statusEl.textContent = "Không tìm thấy cửa sổ chính. Đang chuyển hướng...";
           if (targetOrigins.length > 0) {
             // Store token in sessionStorage for fallback
             try {
               sessionStorage.setItem('oauth_token', payload.accessToken);
             } catch(e) {}
-            window.location.href = targetOrigins[0] + "/?oauth=success";
+            setTimeout(() => {
+              window.location.href = targetOrigins[0] + "/?oauth=success";
+            }, 1000);
           }
           return;
         }
@@ -219,7 +230,12 @@ router.get(
         
         if (!sent) {
           console.error("[OAuth] ❌ Failed to send any messages");
+          statusEl.textContent = "Không thể gửi thông tin. Vui lòng đóng cửa sổ này.";
+          closeBtn.style.display = 'inline-block';
+          return;
         }
+        
+        statusEl.textContent = "Đã gửi thông tin. Đang đóng cửa sổ...";
         
         // Đóng popup sau delay ngắn
         setTimeout(() => {
@@ -228,18 +244,28 @@ router.get(
             window.close();
             // Fallback nếu không đóng được
             setTimeout(() => {
-              if (!window.closed && targetOrigins.length > 0) {
-                console.warn("[OAuth] ⚠️ Cannot close, redirecting...");
-                window.location.href = targetOrigins[0] + "/?oauth=success";
+              if (!window.closed) {
+                console.warn("[OAuth] ⚠️ Cannot close popup");
+                statusEl.textContent = "Vui lòng đóng cửa sổ này.";
+                closeBtn.style.display = 'inline-block';
+                if (targetOrigins.length > 0) {
+                  // Thêm link redirect
+                  const link = document.createElement('a');
+                  link.href = targetOrigins[0] + "/?oauth=success";
+                  link.textContent = "Hoặc click vào đây để quay lại";
+                  link.style.display = 'block';
+                  link.style.marginTop = '1rem';
+                  link.style.color = 'white';
+                  document.querySelector('.container').appendChild(link);
+                }
               }
             }, 500);
           } catch (err) {
             console.error("[OAuth] ❌ Error closing:", err);
-            if (targetOrigins.length > 0) {
-              window.location.href = targetOrigins[0] + "/?oauth=success";
-            }
+            statusEl.textContent = "Không thể đóng tự động. Vui lòng đóng cửa sổ này.";
+            closeBtn.style.display = 'inline-block';
           }
-        }, 200); // Tăng delay lên 200ms để đảm bảo message được gửi
+        }, 200);
       }
       
       // Chạy khi DOM ready
@@ -249,13 +275,24 @@ router.get(
         sendAndClose();
       }
       
-      // Fallback timeout
+      // Fallback timeout - nếu sau 5 giây vẫn chưa đóng
       setTimeout(() => {
-        if (!window.closed && targetOrigins.length > 0) {
-          console.warn("[OAuth] ⏱️ Timeout, redirecting...");
-          window.location.href = targetOrigins[0] + "/?oauth=success";
+        if (!window.closed) {
+          console.warn("[OAuth] ⏱️ Timeout after 5s");
+          statusEl.textContent = "Cửa sổ không tự đóng. Vui lòng đóng thủ công.";
+          closeBtn.style.display = 'inline-block';
+          if (targetOrigins.length > 0) {
+            const link = document.createElement('a');
+            link.href = targetOrigins[0] + "/?oauth=success";
+            link.textContent = "Hoặc click vào đây để quay lại";
+            link.style.display = 'block';
+            link.style.marginTop = '1rem';
+            link.style.color = 'white';
+            link.style.textDecoration = 'underline';
+            document.querySelector('.container').appendChild(link);
+          }
         }
-      }, 3000);
+      }, 5000);
     })();
   </script>
 </body>
