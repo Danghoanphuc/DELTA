@@ -44,20 +44,66 @@ router.get(
   }),
   async (req, res, next) => {
     try {
-      Logger.info(`[OAuth] Callback triggered for user: ${req.user?.email || 'unknown'}`);
-      Logger.info(`[OAuth] Request origin: ${req.get('origin') || 'none'}`);
-      Logger.info(`[OAuth] Request referer: ${req.get('referer') || 'none'}`);
+      Logger.info(
+        `[OAuth] Callback triggered for user: ${req.user?.email || "unknown"}`
+      );
+      Logger.info(`[OAuth] Request origin: ${req.get("origin") || "none"}`);
+      Logger.info(`[OAuth] Request referer: ${req.get("referer") || "none"}`);
       Logger.info(`[OAuth] CLIENT_ORIGINS: ${JSON.stringify(CLIENT_ORIGINS)}`);
 
       // ✅ FIXED: Validate req.user exists
       if (!req.user) {
         Logger.error("[OAuth] ❌ req.user is null or undefined");
-        return res.redirect(`${CLIENT_URL}/signin?error=auth_failed`);
+        const errorPayload = {
+          success: false,
+          message: "Xác thực thất bại",
+        };
+        return res.send(`
+<!DOCTYPE html>
+<html>
+<head><title>Lỗi đăng nhập</title><meta charset="UTF-8"></head>
+<body>
+  <script>
+    const payload = ${JSON.stringify(errorPayload)};
+    const targetOrigins = ${JSON.stringify(CLIENT_ORIGINS)};
+    if (window.opener && !window.opener.closed) {
+      targetOrigins.forEach(origin => {
+        try { window.opener.postMessage(payload, origin); } catch(e) {}
+      });
+      try { window.opener.postMessage(payload, "*"); } catch(e) {}
+    }
+    setTimeout(() => { try { window.close(); } catch(e) { window.location.href = "${CLIENT_URL}/signin?error=auth_failed"; } }, 100);
+  </script>
+</body>
+</html>
+        `);
       }
 
       if (!req.user._id) {
         Logger.error("[OAuth] ❌ req.user._id is missing");
-        return res.redirect(`${CLIENT_URL}/signin?error=auth_failed`);
+        const errorPayload = {
+          success: false,
+          message: "Dữ liệu người dùng không hợp lệ",
+        };
+        return res.send(`
+<!DOCTYPE html>
+<html>
+<head><title>Lỗi đăng nhập</title><meta charset="UTF-8"></head>
+<body>
+  <script>
+    const payload = ${JSON.stringify(errorPayload)};
+    const targetOrigins = ${JSON.stringify(CLIENT_ORIGINS)};
+    if (window.opener && !window.opener.closed) {
+      targetOrigins.forEach(origin => {
+        try { window.opener.postMessage(payload, origin); } catch(e) {}
+      });
+      try { window.opener.postMessage(payload, "*"); } catch(e) {}
+    }
+    setTimeout(() => { try { window.close(); } catch(e) { window.location.href = "${CLIENT_URL}/signin?error=auth_failed"; } }, 100);
+  </script>
+</body>
+</html>
+        `);
       }
 
       // Create session and get tokens
@@ -80,113 +126,136 @@ router.get(
 
       Logger.success(`[OAuth] Session created for user: ${req.user.email}`);
 
-      // ✅ FIX: Đơn giản hóa hoàn toàn - bỏ HTML/CSS phức tạp, chỉ giữ script
-      // Send minimal HTML response with postMessage script
+      // ✅ FIX: Simplified HTML with better error handling
       res.send(`
 <!DOCTYPE html>
 <html>
 <head>
   <title>Đăng nhập thành công</title>
   <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    h1 { margin: 0 0 0.5rem; font-size: 1.5rem; }
+    p { margin: 0; opacity: 0.9; font-size: 0.9rem; }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <div class="spinner"></div>
+    <h1>Đăng nhập thành công!</h1>
+    <p>Đang chuyển hướng...</p>
+  </div>
   <script>
     (function() {
       const payload = ${JSON.stringify(payload)};
       const targetOrigins = ${JSON.stringify(CLIENT_ORIGINS)};
       
-      console.log("[OAuth] Callback script started");
+      console.log("[OAuth] ✅ Callback script started");
       console.log("[OAuth] Target origins:", targetOrigins);
       console.log("[OAuth] Payload:", payload);
-      console.log("[OAuth] Window opener:", window.opener ? "exists" : "null");
-      console.log("[OAuth] Window closed:", window.closed);
+      console.log("[OAuth] Window opener exists:", !!window.opener);
       
       function sendAndClose() {
         // Kiểm tra opener
-        if (!window.opener) {
-          console.error("[OAuth] ❌ No opener window found");
+        if (!window.opener || window.opener.closed) {
+          console.warn("[OAuth] ⚠️ No opener window, redirecting...");
           if (targetOrigins.length > 0) {
-            console.log("[OAuth] Redirecting to:", targetOrigins[0] + "/?oauth=success");
+            // Store token in sessionStorage for fallback
+            try {
+              sessionStorage.setItem('oauth_token', payload.accessToken);
+            } catch(e) {}
             window.location.href = targetOrigins[0] + "/?oauth=success";
           }
           return;
         }
         
-        if (window.opener.closed) {
-          console.error("[OAuth] ❌ Opener window is closed");
-          if (targetOrigins.length > 0) {
-            console.log("[OAuth] Redirecting to:", targetOrigins[0] + "/?oauth=success");
-            window.location.href = targetOrigins[0] + "/?oauth=success";
-          }
-          return;
-        }
+        // Gửi message đến tất cả origins
+        console.log("[OAuth] 📤 Sending messages...");
+        let sent = false;
         
-        // Gửi message ngay lập tức
-        console.log("[OAuth] ✅ Sending messages...");
-        
-        // Gửi đến tất cả target origins
         targetOrigins.forEach(origin => {
           try {
             window.opener.postMessage(payload, origin);
-            console.log("[OAuth] ✅ Sent to origin:", origin);
+            console.log("[OAuth] ✅ Sent to:", origin);
+            sent = true;
           } catch (e) {
             console.warn("[OAuth] ⚠️ Failed to send to", origin, ":", e.message);
           }
         });
         
-        // ✅ CRITICAL: Gửi với wildcard để đảm bảo message được nhận
+        // Gửi với wildcard để đảm bảo
         try {
           window.opener.postMessage(payload, "*");
-          console.log("[OAuth] ✅ Sent with wildcard (*)");
+          console.log("[OAuth] ✅ Sent with wildcard");
+          sent = true;
         } catch (e) {
-          console.warn("[OAuth] ⚠️ Failed to send with wildcard:", e.message);
+          console.warn("[OAuth] ⚠️ Failed wildcard:", e.message);
         }
         
-        // Đóng popup ngay lập tức (delay tối thiểu)
+        if (!sent) {
+          console.error("[OAuth] ❌ Failed to send any messages");
+        }
+        
+        // Đóng popup sau delay ngắn
         setTimeout(() => {
+          console.log("[OAuth] 🚪 Closing popup...");
           try {
-            console.log("[OAuth] Attempting to close popup...");
             window.close();
-            
-            // Kiểm tra xem đã đóng chưa
+            // Fallback nếu không đóng được
             setTimeout(() => {
-              if (!window.closed) {
-                console.warn("[OAuth] ⚠️ Popup still open, trying again...");
-                window.close();
-                
-                // Nếu vẫn không đóng được sau 1 giây, redirect
-                setTimeout(() => {
-                  if (!window.closed && targetOrigins.length > 0) {
-                    console.warn("[OAuth] ⚠️ Cannot close popup, redirecting...");
-                    window.location.href = targetOrigins[0] + "/?oauth=success";
-                  }
-                }, 1000);
-              } else {
-                console.log("[OAuth] ✅ Popup closed successfully");
+              if (!window.closed && targetOrigins.length > 0) {
+                console.warn("[OAuth] ⚠️ Cannot close, redirecting...");
+                window.location.href = targetOrigins[0] + "/?oauth=success";
               }
-            }, 100);
+            }, 500);
           } catch (err) {
-            console.error("[OAuth] ❌ Error closing popup:", err);
-            // Fallback: redirect
+            console.error("[OAuth] ❌ Error closing:", err);
             if (targetOrigins.length > 0) {
               window.location.href = targetOrigins[0] + "/?oauth=success";
             }
           }
-        }, 50); // ✅ FIX: Delay tối thiểu 50ms
+        }, 200); // Tăng delay lên 200ms để đảm bảo message được gửi
       }
       
-      // Chạy ngay khi script load (không đợi DOM)
-      sendAndClose();
+      // Chạy khi DOM ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', sendAndClose);
+      } else {
+        sendAndClose();
+      }
       
-      // ✅ FIX: Fallback timeout - nếu sau 2 giây vẫn chưa đóng, redirect
+      // Fallback timeout
       setTimeout(() => {
-        if (!window.closed) {
-          console.warn("[OAuth] ⚠️ Timeout: Popup still open after 2s, redirecting...");
-          if (targetOrigins.length > 0) {
-            window.location.href = targetOrigins[0] + "/?oauth=success";
-          }
+        if (!window.closed && targetOrigins.length > 0) {
+          console.warn("[OAuth] ⏱️ Timeout, redirecting...");
+          window.location.href = targetOrigins[0] + "/?oauth=success";
         }
-      }, 2000);
+      }, 3000);
     })();
   </script>
 </body>
@@ -200,21 +269,23 @@ router.get(
         name: error.name,
         code: error.code,
       });
-      
+
       // ✅ FIXED: Nếu response đã được gửi, không redirect nữa
       if (res.headersSent) {
         Logger.warn("[OAuth] Response already sent, cannot redirect");
         return;
       }
-      
+
       // ✅ FIXED: Trả về HTML với error message thay vì redirect
       // Vì đây là popup window, redirect có thể không hoạt động tốt
       const errorPayload = {
         success: false,
-        message: process.env.NODE_ENV === "production" 
-          ? "Có lỗi xảy ra, vui lòng thử lại sau."
-          : error.message || "Lỗi xác thực",
-        error: process.env.NODE_ENV === "development" ? error.message : undefined,
+        message:
+          process.env.NODE_ENV === "production"
+            ? "Có lỗi xảy ra, vui lòng thử lại sau."
+            : error.message || "Lỗi xác thực",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
       };
 
       res.status(500).send(`
@@ -223,44 +294,90 @@ router.get(
 <head>
   <title>Lỗi đăng nhập</title>
   <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+      max-width: 400px;
+    }
+    .icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    h1 { margin: 0 0 0.5rem; font-size: 1.5rem; }
+    p { margin: 0; opacity: 0.9; font-size: 0.9rem; }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <div class="icon">⚠️</div>
+    <h1>Đăng nhập thất bại</h1>
+    <p>${errorPayload.message}</p>
+  </div>
   <script>
     (function() {
       const payload = ${JSON.stringify(errorPayload)};
       const targetOrigins = ${JSON.stringify(CLIENT_ORIGINS)};
       
-      console.error("[OAuth] ❌ Error payload:", payload);
+      console.error("[OAuth] ❌ Error:", payload);
       
       function sendErrorAndClose() {
         if (window.opener && !window.opener.closed) {
+          console.log("[OAuth] 📤 Sending error to opener...");
           targetOrigins.forEach(origin => {
             try {
               window.opener.postMessage(payload, origin);
+              console.log("[OAuth] ✅ Sent error to:", origin);
             } catch (e) {
-              console.warn("[OAuth] Failed to send error to", origin);
+              console.warn("[OAuth] ⚠️ Failed to send error to", origin);
             }
           });
           
           try {
             window.opener.postMessage(payload, "*");
+            console.log("[OAuth] ✅ Sent error with wildcard");
           } catch (e) {
-            console.warn("[OAuth] Failed to send error with wildcard");
+            console.warn("[OAuth] ⚠️ Failed wildcard");
           }
         }
         
         setTimeout(() => {
           try {
             window.close();
+            setTimeout(() => {
+              if (!window.closed && targetOrigins.length > 0) {
+                window.location.href = targetOrigins[0] + "/signin?error=server_error";
+              }
+            }, 500);
           } catch (e) {
             if (targetOrigins.length > 0) {
               window.location.href = targetOrigins[0] + "/signin?error=server_error";
             }
           }
-        }, 100);
+        }, 200);
       }
       
-      sendErrorAndClose();
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', sendErrorAndClose);
+      } else {
+        sendErrorAndClose();
+      }
+      
+      setTimeout(() => {
+        if (!window.closed && targetOrigins.length > 0) {
+          window.location.href = targetOrigins[0] + "/signin?error=server_error";
+        }
+      }, 3000);
     })();
   </script>
 </body>
