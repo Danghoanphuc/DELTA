@@ -1,181 +1,79 @@
 // apps/customer-frontend/src/shared/components/ui/SocialButton.tsx
+// ✅ NEW: Using Google One Tap / OAuth2 flow (no popup, no redirect URI needed!)
 import { Button } from "@/shared/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { toast } from "@/shared/utils/toast";
 import { cn } from "@/shared/lib/utils";
+import { useGoogleLogin } from "@react-oauth/google";
+import { useState } from "react";
+import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 interface SocialButtonProps {
   provider: "google";
   className?: string;
-  mode?: "signIn" | "signUp"; // 🔥 Thêm prop này để biết ngữ cảnh
+  mode?: "signIn" | "signUp";
 }
 
 export function SocialButton({
-  provider,
   className,
   mode = "signIn",
 }: SocialButtonProps) {
   const { setAccessToken, fetchMe } = useAuthStore();
   const navigate = useNavigate();
-  const isSignIn = mode === "signIn"; // Check mode
+  const isSignIn = mode === "signIn";
+  const [isLoading, setIsLoading] = useState(false);
 
-  // --- LOGIC OAUTH GIỮ NGUYÊN ---
-  const openGooglePopup = () => {
-    console.log("[OAuth] Frontend - Opening Google popup...");
-    const searchParams = new URLSearchParams({
-      origin: window.location.origin,
-    });
-    const url = `${API_URL}/api/auth/google?${searchParams.toString()}`;
-    const popup = window.open(url, "Google Login", "width=500,height=600");
+  // ✅ NEW: Use Google OAuth2 flow (authorization code)
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (codeResponse) => {
+      console.log("[OAuth] Google login success:", codeResponse);
+      setIsLoading(true);
 
-    if (!popup) {
-      toast.error("Popup bị chặn!", {
-        description: "Vui lòng cho phép popup để đăng nhập bằng Google",
-      });
-      return;
-    }
+      try {
+        // Send authorization code to backend
+        const response = await axios.post(`${API_URL}/api/auth/google/verify`, {
+          code: codeResponse.code,
+          role: "customer",
+        });
 
-    let messageReceived = false;
+        if (response.data?.success && response.data?.data?.accessToken) {
+          const { accessToken } = response.data.data;
 
-    const messageListener = async (event: MessageEvent) => {
-      console.log("[OAuth] Frontend - Received message:", event);
-      console.log("[OAuth] Frontend - Event origin:", event.origin);
-      console.log("[OAuth] Frontend - Event data:", event.data);
+          console.log("[OAuth] ✅ Token received from backend");
+          setAccessToken(accessToken);
+          await fetchMe();
 
-      // ✅ Check if message is from our backend
-      if (
-        !event.origin.includes("localhost") &&
-        !event.origin.includes("printz.vn")
-      ) {
-        console.warn(
-          "[OAuth] Frontend - Ignoring message from unknown origin:",
-          event.origin
-        );
-        return;
-      }
+          toast.success("Đăng nhập thành công!", {
+            description: "Chào mừng bạn quay trở lại!",
+          });
 
-      // ✅ Handle success
-      if (event.data?.success && event.data?.accessToken) {
-        console.log("[OAuth] Frontend - ✅ Success! Processing token...");
-        messageReceived = true;
-        window.removeEventListener("message", messageListener);
-
-        try {
-          popup.close();
-          console.log("[OAuth] Frontend - Popup closed");
-        } catch (e) {
-          console.warn("[OAuth] Frontend - Could not close popup:", e);
+          navigate("/app", { replace: true });
+        } else {
+          throw new Error("Invalid response from server");
         }
-
-        setAccessToken(event.data.accessToken);
-        await fetchMe();
-        toast.success("Đăng nhập thành công!");
-        navigate("/app", { replace: true });
-      }
-      // ✅ Handle error
-      else if (event.data?.success === false) {
-        console.error("[OAuth] Frontend - ❌ Error:", event.data.message);
-        messageReceived = true;
-        window.removeEventListener("message", messageListener);
-
-        try {
-          popup.close();
-        } catch (e) {}
-
+      } catch (error: any) {
+        console.error("[OAuth] ❌ Error:", error);
         toast.error("Đăng nhập thất bại", {
-          description: event.data.message || "Vui lòng thử lại",
+          description:
+            error.response?.data?.message ||
+            error.message ||
+            "Vui lòng thử lại",
         });
+      } finally {
+        setIsLoading(false);
       }
-    };
-
-    window.addEventListener("message", messageListener);
-
-    // ✅ NEW: Listen for localStorage changes (fallback)
-    const storageListener = async (e: StorageEvent) => {
-      if (e.key === "oauth_payload" && e.newValue) {
-        console.log("[OAuth] Frontend - Received via localStorage!");
-        try {
-          const payload = JSON.parse(e.newValue);
-          if (payload?.success && payload?.accessToken) {
-            messageReceived = true;
-            window.removeEventListener("storage", storageListener);
-            window.removeEventListener("message", messageListener);
-
-            localStorage.removeItem("oauth_payload");
-            localStorage.removeItem("oauth_timestamp");
-
-            try {
-              popup.close();
-            } catch (e) {}
-
-            setAccessToken(payload.accessToken);
-            await fetchMe();
-            toast.success("Đăng nhập thành công!");
-            navigate("/app", { replace: true });
-          }
-        } catch (err) {
-          console.error("[OAuth] Frontend - Error parsing localStorage:", err);
-        }
-      }
-    };
-    window.addEventListener("storage", storageListener);
-
-    // ✅ Cleanup: Remove listener after 60 seconds
-    const timeoutId = setTimeout(() => {
-      if (!messageReceived) {
-        console.warn(
-          "[OAuth] Frontend - Timeout: No message received after 60s"
-        );
-        window.removeEventListener("message", messageListener);
-        window.removeEventListener("storage", storageListener);
-        toast.error("Hết thời gian chờ", {
-          description: "Vui lòng thử lại",
-        });
-      }
-    }, 60000);
-
-    // ✅ Check if popup was closed manually
-    const checkPopupClosed = setInterval(() => {
-      if (popup.closed) {
-        clearInterval(checkPopupClosed);
-        clearTimeout(timeoutId);
-        if (!messageReceived) {
-          console.warn(
-            "[OAuth] Frontend - Popup closed, checking localStorage..."
-          );
-          // Check localStorage one last time
-          const storedPayload = localStorage.getItem("oauth_payload");
-          if (storedPayload) {
-            try {
-              const payload = JSON.parse(storedPayload);
-              if (payload?.success && payload?.accessToken) {
-                console.log("[OAuth] Frontend - Found token in localStorage!");
-                messageReceived = true;
-                localStorage.removeItem("oauth_payload");
-                localStorage.removeItem("oauth_timestamp");
-                setAccessToken(payload.accessToken);
-                fetchMe().then(() => {
-                  toast.success("Đăng nhập thành công!");
-                  navigate("/app", { replace: true });
-                });
-              }
-            } catch (err) {
-              console.error(
-                "[OAuth] Frontend - Error parsing stored payload:",
-                err
-              );
-            }
-          }
-          window.removeEventListener("message", messageListener);
-          window.removeEventListener("storage", storageListener);
-        }
-      }
-    }, 500);
-  };
-  // ------------------------------
+    },
+    onError: (error) => {
+      console.error("[OAuth] Google login error:", error);
+      toast.error("Đăng nhập thất bại", {
+        description: "Không thể kết nối với Google",
+      });
+    },
+    flow: "auth-code", // ✅ Use authorization code flow (more secure)
+  });
 
   // 🔥 TEXT & COLOR THEO NGỮ CẢNH
   const label = isSignIn ? "ĐĂNG NHẬP BẰNG GOOGLE" : "ĐĂNG KÝ BẰNG GOOGLE";
@@ -191,51 +89,61 @@ export function SocialButton({
       variant="outline"
       className={cn(
         "w-full h-11 gap-3 relative overflow-hidden group",
-        "bg-white border-2 border-slate-200", // Mặc định trắng xám
-        hoverColor, // 🔥 Đổi màu viền khi hover tùy mode
+        "bg-white border-2 border-slate-200",
+        hoverColor,
         "text-slate-700 font-bold uppercase tracking-wider text-xs md:text-sm",
         "shadow-sm hover:shadow-md transition-all duration-300",
         "rounded-lg",
+        isLoading && "opacity-50 cursor-not-allowed",
         className
       )}
-      onClick={openGooglePopup}
+      onClick={() => googleLogin()}
       type="button"
+      disabled={isLoading}
     >
-      <svg
-        className="w-5 h-5 transition-transform group-hover:scale-110"
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-          fill="#4285F4"
-        />
-        <path
-          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-          fill="#34A853"
-        />
-        <path
-          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.84z"
-          fill="#FBBC05"
-        />
-        <path
-          d="M12 4.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 1.09 14.97 0 12 0 7.7 0 3.99 2.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-          fill="#EA4335"
-        />
-      </svg>
+      {isLoading ? (
+        <>
+          <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin" />
+          <span>ĐANG XỬ LÝ...</span>
+        </>
+      ) : (
+        <>
+          <svg
+            className="w-5 h-5 transition-transform group-hover:scale-110"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              fill="#4285F4"
+            />
+            <path
+              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              fill="#34A853"
+            />
+            <path
+              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.84z"
+              fill="#FBBC05"
+            />
+            <path
+              d="M12 4.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 1.09 14.97 0 12 0 7.7 0 3.99 2.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              fill="#EA4335"
+            />
+          </svg>
 
-      <span className={cn("transition-colors", textColor)}>
-        {label} {/* 🔥 Text thay đổi */}
-      </span>
+          <span className={cn("transition-colors", textColor)}>{label}</span>
 
-      {/* Dấu chấm trạng thái */}
-      <span
-        className={cn(
-          "absolute right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full transition-colors",
-          "bg-slate-300", // Mặc định xám
-          isSignIn ? "group-hover:bg-indigo-500" : "group-hover:bg-green-500" // Login: Tím, Signup: Xanh lá (New)
-        )}
-      />
+          <span
+            className={cn(
+              "absolute right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full transition-colors",
+              "bg-slate-300",
+              isSignIn
+                ? "group-hover:bg-indigo-500"
+                : "group-hover:bg-green-500"
+            )}
+          />
+        </>
+      )}
     </Button>
   );
 }
