@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "test:prod": "node scripts/test-production-env.js",
     "test:workers": "node scripts/test-workers-isolated.js",
+    "test:sentry": "node scripts/test-sentry.js",
     "test:all": "npm run test:prod && npm run test:workers",
     "predeploy": "node scripts/pre-deploy-check.bat",
     "predeploy:unix": "bash scripts/pre-deploy-check.sh",

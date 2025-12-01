@@ -383,6 +383,12 @@ async function startServer() {
     // ✅ SECURITY: Initialize rate limiters after Redis connection
     initRateLimiters();
 
+    // ✅ SENTRY: Apply context middleware early (after rate limiting)
+    const { sentryContextMiddleware } = await import(
+      "./shared/middleware/sentry.middleware.js"
+    );
+    app.use(sentryContextMiddleware);
+
     // ✅ SECURITY: Apply general rate limiting globally (before routes)
     app.use(generalRateLimiter);
 
@@ -546,6 +552,10 @@ async function startServer() {
     });
 
     // ✅ QUAN TRỌNG: Đặt Sentry error handler sau tất cả routes, trước error handler của bạn
+    const { sentryErrorMiddleware } = await import(
+      "./shared/middleware/sentry.middleware.js"
+    );
+    app.use(sentryErrorMiddleware);
     Sentry.setupExpressErrorHandler(app);
 
     app.use(errorHandler);

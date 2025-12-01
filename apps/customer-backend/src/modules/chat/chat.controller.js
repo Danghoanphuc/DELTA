@@ -11,6 +11,15 @@ import { streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { config } from "../../config/env.config.js";
 
+// ✅ Sentry Manual Instrumentation
+import {
+  traceAIOperation,
+  addAIBreadcrumb,
+  trackTokenUsage,
+  trackToolCalls,
+  setSentryUser,
+} from "../../infrastructure/sentry-utils.js";
+
 // ✅ Instantiate Services (Singleton)
 const chatService = new ChatService();
 const socialService = new SocialChatService();
@@ -357,6 +366,13 @@ export class ChatController {
           .json(ApiResponse.error("Vui lòng đăng nhập để chat với AI"));
       }
 
+      // ✅ Set Sentry user context for better error tracking
+      setSentryUser(user);
+      addAIBreadcrumb("AI chat stream started", {
+        conversationId,
+        messageCount: messages.length,
+      });
+
       let conversation = conversationId
         ? await chatService.chatRepository.findConversationById(
             conversationId,
@@ -443,111 +459,140 @@ export class ChatController {
         apiKey: config.apiKeys.openai,
       });
 
-      // --- 4. STREAMING ---
-      const result = await streamText({
-        model: openaiProvider("gpt-4o-mini"),
-        // ✅ ĐÃ CẬP NHẬT: Loại bỏ chỉ dẫn suy nghĩ trong thẻ <think>
-        system:
-          "Bạn là Zin, trợ lý AI của Printz.vn. Bạn giúp user tìm sản phẩm, nhà in. Nếu user gửi link, hãy dùng tool 'browse_page'.",
-        messages: messages.map((msg) => ({
-          role: msg.role,
-          content: msg.content,
-        })),
-        tools, // 👈 Inject Tools gọn gàng
-        maxSteps: 5,
+      // --- 4. STREAMING WITH SENTRY TRACING ---
+      const result = await traceAIOperation(
+        "ai.chat.stream",
+        async () => {
+          addAIBreadcrumb("Starting AI stream", {
+            model: "gpt-4o-mini",
+            toolCount: Object.keys(tools).length,
+          });
 
-        async onFinish({ text, toolCalls, toolResults }) {
-          // --- 5. Lưu kết quả AI vào DB khi stream xong ---
-          try {
-            // Detect message type dựa trên tool calls
-            let messageType = "text";
-            if (toolCalls && toolCalls.length > 0) {
-              const toolNames = toolCalls.map((tc) => tc.toolName);
-              if (toolNames.includes("find_products")) {
-                messageType = "product_selection";
-              } else if (toolNames.includes("find_printers")) {
-                messageType = "printer_selection";
-              } else if (toolNames.includes("get_recent_orders")) {
-                messageType = "order_selection";
+          return await streamText({
+            model: openaiProvider("gpt-4o-mini"),
+            // ✅ ĐÃ CẬP NHẬT: Loại bỏ chỉ dẫn suy nghĩ trong thẻ <think>
+            system:
+              "Bạn là Zin, trợ lý AI của Printz.vn. Bạn giúp user tìm sản phẩm, nhà in. Nếu user gửi link, hãy dùng tool 'browse_page'.",
+            messages: messages.map((msg) => ({
+              role: msg.role,
+              content: msg.content,
+            })),
+            tools, // 👈 Inject Tools gọn gàng
+            maxSteps: 5,
+
+            async onFinish({ text, toolCalls, toolResults, usage }) {
+              // ✅ Track metrics in Sentry
+              if (usage) {
+                trackTokenUsage(usage);
               }
-            }
-
-            await chatService.chatRepository.createMessage({
-              conversationId: conversation._id,
-              senderType: "AI",
-              sender: null,
-              content: { text: text || "" },
-              type: messageType,
-            });
-
-            // 🔥 Socket Update & Auto-Naming (Fire & Forget)
-            try {
-              const { socketService } = await import(
-                "../../infrastructure/realtime/pusher.service.js"
-              );
-              const updatedConversation =
-                await chatService.chatRepository.findConversationById(
-                  conversation._id,
-                  user._id
-                );
-
-              if (updatedConversation) {
-                // Emit update sidebar
-                await updatedConversation.populate(
-                  "participants.userId",
-                  "username displayName avatarUrl isOnline"
-                );
-                // Format chuẩn JSON
-                const conversationObj = updatedConversation.toObject
-                  ? updatedConversation.toObject()
-                  : updatedConversation;
-
-                socketService.emitToUser(
-                  user._id.toString(),
-                  "conversation_updated",
-                  {
-                    ...conversationObj,
-                    _id: conversationObj._id.toString(),
-                    createdAt: conversationObj.createdAt.toISOString(),
-                    updatedAt: conversationObj.updatedAt.toISOString(),
-                  }
-                );
-
-                // Auto-title trigger
-                if (
-                  isNewConversation ||
-                  !updatedConversation.title ||
-                  updatedConversation.title === "Đoạn chat mới"
-                ) {
-                  const userMessage = lastMessage.content || "";
-                  if (typeof chatService._generateWowTitle === "function") {
-                    chatService
-                      ._generateWowTitle(
-                        conversation._id,
-                        user._id,
-                        userMessage,
-                        text
-                      )
-                      .catch((e) => {
-                        Logger.error(
-                          "[ChatController] Auto-title failed silently",
-                          e
-                        );
-                      });
+              if (toolCalls && toolCalls.length > 0) {
+                trackToolCalls(toolCalls);
+              }
+              addAIBreadcrumb("AI stream completed", {
+                responseLength: text?.length || 0,
+                toolCallCount: toolCalls?.length || 0,
+              });
+              // --- 5. Lưu kết quả AI vào DB khi stream xong ---
+              try {
+                // Detect message type dựa trên tool calls
+                let messageType = "text";
+                if (toolCalls && toolCalls.length > 0) {
+                  const toolNames = toolCalls.map((tc) => tc.toolName);
+                  if (toolNames.includes("find_products")) {
+                    messageType = "product_selection";
+                  } else if (toolNames.includes("find_printers")) {
+                    messageType = "printer_selection";
+                  } else if (toolNames.includes("get_recent_orders")) {
+                    messageType = "order_selection";
                   }
                 }
+
+                await chatService.chatRepository.createMessage({
+                  conversationId: conversation._id,
+                  senderType: "AI",
+                  sender: null,
+                  content: { text: text || "" },
+                  type: messageType,
+                });
+
+                // 🔥 Socket Update & Auto-Naming (Fire & Forget)
+                try {
+                  const { socketService } = await import(
+                    "../../infrastructure/realtime/pusher.service.js"
+                  );
+                  const updatedConversation =
+                    await chatService.chatRepository.findConversationById(
+                      conversation._id,
+                      user._id
+                    );
+
+                  if (updatedConversation) {
+                    // Emit update sidebar
+                    await updatedConversation.populate(
+                      "participants.userId",
+                      "username displayName avatarUrl isOnline"
+                    );
+                    // Format chuẩn JSON
+                    const conversationObj = updatedConversation.toObject
+                      ? updatedConversation.toObject()
+                      : updatedConversation;
+
+                    socketService.emitToUser(
+                      user._id.toString(),
+                      "conversation_updated",
+                      {
+                        ...conversationObj,
+                        _id: conversationObj._id.toString(),
+                        createdAt: conversationObj.createdAt.toISOString(),
+                        updatedAt: conversationObj.updatedAt.toISOString(),
+                      }
+                    );
+
+                    // Auto-title trigger
+                    if (
+                      isNewConversation ||
+                      !updatedConversation.title ||
+                      updatedConversation.title === "Đoạn chat mới"
+                    ) {
+                      const userMessage = lastMessage.content || "";
+                      if (typeof chatService._generateWowTitle === "function") {
+                        chatService
+                          ._generateWowTitle(
+                            conversation._id,
+                            user._id,
+                            userMessage,
+                            text
+                          )
+                          .catch((e) => {
+                            Logger.error(
+                              "[ChatController] Auto-title failed silently",
+                              e
+                            );
+                          });
+                      }
+                    }
+                  }
+                } catch (emitError) {
+                  Logger.error(
+                    "[ChatController] Failed to emit conversation_updated:",
+                    emitError
+                  );
+                }
+              } catch (error) {
+                Logger.error(
+                  "[ChatController] Error saving AI message:",
+                  error
+                );
               }
-            } catch (emitError) {
-              Logger.error(
-                "[ChatController] Failed to emit conversation_updated:",
-                emitError
-              );
-            }
-          } catch (error) {
-            Logger.error("[ChatController] Error saving AI message:", error);
-          }
+            },
+          });
         },
-      });
+        {
+          conversationId: conversation._id.toString(),
+          userId: user._id.toString(),
+          messageCount: messages.length,
+        }
+      );
 
       // --- 6. PIPE RESPONSE ---
       result.pipeDataStreamToResponse(res, {
