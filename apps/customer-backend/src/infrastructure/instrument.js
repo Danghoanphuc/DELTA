@@ -17,6 +17,9 @@ try {
         // 👇 THAY ĐỔI QUAN TRỌNG: Gọi hàm thay vì new Class
         nodeProfilingIntegration(),
       ],
+      // ✅ FIX: Disable import-in-the-middle để tránh xung đột với ESM
+      // Đây là nguyên nhân gây lỗi "setters.get(...)[name] is not a function"
+      registerEsmLoaderHooks: false,
     });
     console.log("[Sentry] Initialized successfully");
   } else {
@@ -26,4 +29,3 @@ try {
   console.error("[Sentry] Initialization failed:", error);
   // ✅ Không throw để server vẫn có thể khởi động
 }
-
