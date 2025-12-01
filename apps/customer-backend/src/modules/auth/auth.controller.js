@@ -113,15 +113,43 @@ export class AuthController {
 
       console.log(`🔐 [Auth Google Code] Exchanging code for tokens...`);
       console.log(`🔐 [Auth Google Code] Code:`, code.substring(0, 20) + "...");
+      console.log(
+        `🔐 [Auth Google Code] Client ID:`,
+        (
+          config.oauth?.google?.clientId || process.env.GOOGLE_CLIENT_ID
+        )?.substring(0, 20) + "..."
+      );
+      console.log(
+        `🔐 [Auth Google Code] Client Secret exists:`,
+        !!(
+          config.oauth?.google?.clientSecret || process.env.GOOGLE_CLIENT_SECRET
+        )
+      );
 
       // 1. Exchange authorization code for tokens
       // ✅ FIX: Need redirect_uri as 'postmessage' for popup flow
-      const { tokens } = await this.googleClient.getToken({
-        code: code,
-        redirect_uri: "postmessage",
-      });
+      let tokens;
+      try {
+        const tokenResponse = await this.googleClient.getToken({
+          code: code,
+          redirect_uri: "postmessage",
+        });
+        tokens = tokenResponse.tokens;
+        console.log(`🔐 [Auth Google Code] Tokens received successfully`);
+      } catch (tokenError) {
+        console.error(
+          `❌ [Auth Google Code] getToken failed:`,
+          tokenError.message
+        );
+        console.error(
+          `❌ [Auth Google Code] getToken error details:`,
+          tokenError.response?.data || tokenError
+        );
+        throw new Error(
+          `Failed to exchange code for tokens: ${tokenError.message}`
+        );
+      }
 
-      console.log(`🔐 [Auth Google Code] Tokens received successfully`);
       this.googleClient.setCredentials(tokens);
 
       // 2. Get user info from Google
@@ -253,8 +281,20 @@ export class AuthController {
           )
         );
     } catch (error) {
-      console.error("❌ [Auth Google Code] Error:", error);
-      next(error);
+      console.error("❌ [Auth Google Code] Error:", error.message);
+      console.error("❌ [Auth Google Code] Error stack:", error.stack);
+
+      // Return detailed error for debugging
+      res
+        .status(500)
+        .json(
+          ApiResponse.error(
+            process.env.NODE_ENV === "production"
+              ? "Đăng nhập thất bại. Vui lòng thử lại."
+              : `Google OAuth Error: ${error.message}`,
+            500
+          )
+        );
     }
   };
 
