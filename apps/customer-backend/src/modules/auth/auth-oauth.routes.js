@@ -203,18 +203,24 @@ router.get(
       };
       
       function sendAndClose() {
+        // ✅ FIX: Try localStorage first (works across tabs in same origin)
+        try {
+          localStorage.setItem('oauth_payload', JSON.stringify(payload));
+          localStorage.setItem('oauth_timestamp', Date.now().toString());
+          console.log("[OAuth] ✅ Saved to localStorage");
+        } catch(e) {
+          console.warn("[OAuth] ⚠️ Cannot save to localStorage:", e);
+        }
+        
         // Kiểm tra opener
         if (!window.opener || window.opener.closed) {
-          console.warn("[OAuth] ⚠️ No opener window, redirecting...");
-          statusEl.textContent = "Không tìm thấy cửa sổ chính. Đang chuyển hướng...";
+          console.warn("[OAuth] ⚠️ No opener window, using redirect fallback...");
+          statusEl.textContent = "Đang chuyển hướng...";
           if (targetOrigins.length > 0) {
-            // Store token in sessionStorage for fallback
-            try {
-              sessionStorage.setItem('oauth_token', payload.accessToken);
-            } catch(e) {}
+            // Redirect với token trong URL (sẽ bị xóa ngay sau khi xử lý)
             setTimeout(() => {
-              window.location.href = targetOrigins[0] + "/?oauth=success";
-            }, 1000);
+              window.location.href = targetOrigins[0] + "/?oauth=success&t=" + Date.now();
+            }, 500);
           }
           return;
         }

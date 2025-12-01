@@ -93,6 +93,36 @@ export function SocialButton({
 
     window.addEventListener("message", messageListener);
 
+    // ✅ NEW: Listen for localStorage changes (fallback)
+    const storageListener = async (e: StorageEvent) => {
+      if (e.key === "oauth_payload" && e.newValue) {
+        console.log("[OAuth] Frontend - Received via localStorage!");
+        try {
+          const payload = JSON.parse(e.newValue);
+          if (payload?.success && payload?.accessToken) {
+            messageReceived = true;
+            window.removeEventListener("storage", storageListener);
+            window.removeEventListener("message", messageListener);
+
+            localStorage.removeItem("oauth_payload");
+            localStorage.removeItem("oauth_timestamp");
+
+            try {
+              popup.close();
+            } catch (e) {}
+
+            setAccessToken(payload.accessToken);
+            await fetchMe();
+            toast.success("Đăng nhập thành công!");
+            navigate("/app", { replace: true });
+          }
+        } catch (err) {
+          console.error("[OAuth] Frontend - Error parsing localStorage:", err);
+        }
+      }
+    };
+    window.addEventListener("storage", storageListener);
+
     // ✅ Cleanup: Remove listener after 60 seconds
     const timeoutId = setTimeout(() => {
       if (!messageReceived) {
@@ -100,6 +130,7 @@ export function SocialButton({
           "[OAuth] Frontend - Timeout: No message received after 60s"
         );
         window.removeEventListener("message", messageListener);
+        window.removeEventListener("storage", storageListener);
         toast.error("Hết thời gian chờ", {
           description: "Vui lòng thử lại",
         });
@@ -113,9 +144,33 @@ export function SocialButton({
         clearTimeout(timeoutId);
         if (!messageReceived) {
           console.warn(
-            "[OAuth] Frontend - Popup closed without receiving message"
+            "[OAuth] Frontend - Popup closed, checking localStorage..."
           );
+          // Check localStorage one last time
+          const storedPayload = localStorage.getItem("oauth_payload");
+          if (storedPayload) {
+            try {
+              const payload = JSON.parse(storedPayload);
+              if (payload?.success && payload?.accessToken) {
+                console.log("[OAuth] Frontend - Found token in localStorage!");
+                messageReceived = true;
+                localStorage.removeItem("oauth_payload");
+                localStorage.removeItem("oauth_timestamp");
+                setAccessToken(payload.accessToken);
+                fetchMe().then(() => {
+                  toast.success("Đăng nhập thành công!");
+                  navigate("/app", { replace: true });
+                });
+              }
+            } catch (err) {
+              console.error(
+                "[OAuth] Frontend - Error parsing stored payload:",
+                err
+              );
+            }
+          }
           window.removeEventListener("message", messageListener);
+          window.removeEventListener("storage", storageListener);
         }
       }
     }, 500);
