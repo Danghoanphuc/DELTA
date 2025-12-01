@@ -2,21 +2,19 @@
 process.stdout.write("[Server] ⚡ File loaded, starting imports...\n");
 console.log("[Server] ⚡ File loaded, starting imports...");
 
-// ❌ TẠM THỜI COMMENT SENTRY ĐỂ FIX LỖI 500 VỚI AI SDK
 // ✅ Import Sentry trước tiên
-// process.stdout.write("[Server] 📦 Importing Sentry instrument...\n");
-// console.log("[Server] 📦 Importing Sentry instrument...");
-// import "./infrastructure/instrument.js";
-// process.stdout.write("[Server] ✅ Sentry instrument imported\n");
-// console.log("[Server] ✅ Sentry instrument imported");
+process.stdout.write("[Server] 📦 Importing Sentry instrument...\n");
+console.log("[Server] 📦 Importing Sentry instrument...");
+import "./infrastructure/instrument.js";
+process.stdout.write("[Server] ✅ Sentry instrument imported\n");
+console.log("[Server] ✅ Sentry instrument imported");
 
 import express, {
   type Request,
   type Response,
   type NextFunction,
 } from "express";
-// ❌ TẠM THỜI COMMENT SENTRY ĐỂ FIX LỖI 500 VỚI AI SDK
-// import * as Sentry from "@sentry/node";
+import * as Sentry from "@sentry/node";
 import session from "express-session";
 import passport from "passport";
 import cors, { type CorsOptions } from "cors";
@@ -547,9 +545,8 @@ async function startServer() {
       );
     });
 
-    // ❌ TẠM THỜI COMMENT SENTRY ĐỂ FIX LỖI 500 VỚI AI SDK
     // ✅ QUAN TRỌNG: Đặt Sentry error handler sau tất cả routes, trước error handler của bạn
-    // Sentry.setupExpressErrorHandler(app);
+    Sentry.setupExpressErrorHandler(app);
 
     app.use(errorHandler);
 
