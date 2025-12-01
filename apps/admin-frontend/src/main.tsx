@@ -4,6 +4,8 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"; // <-- Import
 import App from "./App";
 import "./index.css"; // <-- Import TailwindCSS
+import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 
 // 1. Tạo QueryClient
 const queryClient = new QueryClient({
@@ -20,6 +22,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     {/* 2. Bọc App trong Provider */}
     <QueryClientProvider client={queryClient}>
       <App />
+      <SpeedInsights />
+      <Analytics />
     </QueryClientProvider>
   </React.StrictMode>
 );

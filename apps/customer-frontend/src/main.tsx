@@ -8,6 +8,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Sentry from "@sentry/react";
 // 👇 1. Thêm Import này
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 
 // Sentry Init (Giữ nguyên)
 Sentry.init({
@@ -57,6 +59,8 @@ createRoot(document.getElementById("root")!).render(
 
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <App />
+      <SpeedInsights />
+      <Analytics />
     </GoogleOAuthProvider>
   </QueryClientProvider>
 );
