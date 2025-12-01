@@ -6,7 +6,11 @@ import crypto from "crypto";
 import { AuthRepository } from "./auth.repository.js";
 import { User } from "../../shared/models/user.model.js"; // <-- Model này giờ đã "chuẩn"
 import { CustomerProfile } from "../../shared/models/customer-profile.model.js";
-import { sendVerificationEmail } from "../../infrastructure/email/email.service.js";
+import Session from "../../shared/models/session.model.js";
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+} from "../../infrastructure/email/email.service.js";
 import { generateUniqueUsername } from "../../shared/utils/username.util.js";
 import {
   ValidationException,
@@ -318,8 +322,6 @@ export class AuthService {
     // ✅ FIXED: Xóa các session cũ hơn 30 ngày để tránh tích lũy
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     try {
-      const Session = (await import("../../shared/models/session.model.js"))
-        .default;
       const deletedCount = await Session.deleteMany({
         userId: user._id,
         expireAt: { $lt: thirtyDaysAgo },
@@ -568,9 +570,6 @@ export class AuthService {
     await this.authRepository.saveUser(user);
 
     // Send reset email
-    const { sendPasswordResetEmail } = await import(
-      "../../infrastructure/email/email.service.js"
-    );
     await sendPasswordResetEmail(user.email, resetToken);
 
     console.log(`✅ [Auth] Password reset email sent to: ${user.email}`);
@@ -651,8 +650,6 @@ export class AuthService {
     await this.authRepository.saveUser(user);
 
     // ✅ SECURITY: Invalidate all existing sessions after password reset
-    const Session = (await import("../../shared/models/session.model.js"))
-      .default;
     const deletedSessions = await Session.deleteMany({ userId: user._id });
 
     console.log(`✅ [Auth] Password reset successful for user: ${user.email}`);
