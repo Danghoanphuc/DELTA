@@ -40,11 +40,12 @@ export const sentryContextMiddleware = (req, res, next) => {
 
 /**
  * Error handler middleware for Sentry
- * Should be placed after all routes but before final error handler
+ * NOTE: In Sentry v8, use Sentry.setupExpressErrorHandler(app) instead
+ * This middleware is kept for backward compatibility but does nothing
+ * The actual error handling is done by Sentry.setupExpressErrorHandler() in server.ts
  */
-export const sentryErrorMiddleware = Sentry.Handlers.errorHandler({
-  shouldHandleError(error) {
-    // Capture all errors except 404s
-    return error.status !== 404;
-  },
-});
+export const sentryErrorMiddleware = (req, res, next) => {
+  // This is a no-op middleware
+  // Actual Sentry error handling is done by Sentry.setupExpressErrorHandler(app)
+  next();
+};
