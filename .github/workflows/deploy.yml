@@ -59,7 +59,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile
+          file: ./apps/admin-backend/Dockerfile
           push: true
           tags: hoanphuc/printz-admin-backend:latest
           cache-from: type=registry,ref=hoanphuc/printz-admin-backend:cache
