@@ -6,10 +6,19 @@ import { API_CODES } from "../../shared/constants/api-codes.constants.js";
 import { ValidationException } from "../../shared/exceptions/ValidationException.js";
 import { Logger } from "../../shared/utils/index.js";
 
-// ⚠️ Cần cài đặt: npm install openai
-import OpenAI from "openai";
+// ❌ DO NOT import OpenAI at top level - causes Sentry ESM hook issues
+// ❌ import OpenAI from "openai";
+// ✅ Use dynamic import in methods instead
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let openaiInstance = null;
+
+async function getOpenAI() {
+  if (!openaiInstance) {
+    const { default: OpenAI } = await import("openai");
+    openaiInstance = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return openaiInstance;
+}
 
 export class AIController {
   /**
@@ -74,6 +83,7 @@ Chỉ trả về tiêu đề, không giải thích:`;
 
       Logger.info(`[AI] Generating ${intent} for: ${context.productName}`);
 
+      const openai = await getOpenAI();
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini", // Nhanh, rẻ (~ $0.15/1M tokens)
         messages: [{ role: "user", content: prompt }],
@@ -149,9 +159,7 @@ Mô tả:`;
         );
       }
 
-      Logger.info(
-        `[AI] Streaming ${intent} for: ${context.productName}`
-      );
+      Logger.info(`[AI] Streaming ${intent} for: ${context.productName}`);
 
       // Set headers cho Server-Sent Events
       res.setHeader("Content-Type", "text/event-stream");
@@ -159,6 +167,7 @@ Mô tả:`;
       res.setHeader("Connection", "keep-alive");
       res.setHeader("X-Accel-Buffering", "no"); // Disable nginx buffering
 
+      const openai = await getOpenAI();
       const stream = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
@@ -185,4 +194,3 @@ Mô tả:`;
     }
   };
 }
-

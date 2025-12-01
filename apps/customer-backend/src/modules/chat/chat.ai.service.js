@@ -1,23 +1,38 @@
 // apps/customer-backend/src/modules/chat/chat.ai.service.js
 // ✅ AI Service: Wrapper cho OpenAI API (Chat Completion & Vision)
 
-import OpenAI from "openai";
+// ❌ DO NOT import OpenAI at top level - causes Sentry ESM hook issues
+// ❌ import OpenAI from "openai";
+// ✅ Use dynamic import in _getOpenAI() instead
 import { config } from "../../config/env.config.js";
 import { Logger } from "../../shared/utils/index.js";
 
 export class ChatAiService {
   constructor() {
+    this.openai = null;
+    this.model = "gpt-4o-mini"; // Model mặc định
+    this.visionModel = "gpt-4o"; // Model cho Vision
+  }
+
+  /**
+   * Lazy load OpenAI client
+   * @returns {Promise<OpenAI|null>}
+   */
+  async _getOpenAI() {
     if (!config.apiKeys?.openai) {
       Logger.warn("[ChatAiService] OPENAI_API_KEY is not configured.");
-      this.openai = null;
-    } else {
+      return null;
+    }
+
+    if (!this.openai) {
+      // ✅ Dynamic import to avoid Sentry ESM hook issues
+      const { default: OpenAI } = await import("openai");
       this.openai = new OpenAI({
         apiKey: config.apiKeys.openai,
       });
     }
 
-    this.model = "gpt-4o-mini"; // Model mặc định
-    this.visionModel = "gpt-4o"; // Model cho Vision
+    return this.openai;
   }
 
   /**
@@ -29,7 +44,8 @@ export class ChatAiService {
    * @returns {Promise<Object>} OpenAI response
    */
   async getCompletion(messages, tools = [], context = {}, onToken = null) {
-    if (!this.openai) {
+    const openai = await this._getOpenAI();
+    if (!openai) {
       throw new Error("OpenAI API key is not configured");
     }
 
@@ -50,9 +66,7 @@ export class ChatAiService {
       if (onToken) {
         requestOptions.stream = true;
 
-        const stream = await this.openai.chat.completions.create(
-          requestOptions
-        );
+        const stream = await openai.chat.completions.create(requestOptions);
         let fullContent = "";
 
         let buffer = "";
@@ -97,9 +111,7 @@ export class ChatAiService {
       }
 
       // Non-streaming
-      const response = await this.openai.chat.completions.create(
-        requestOptions
-      );
+      const response = await openai.chat.completions.create(requestOptions);
       return response;
     } catch (error) {
       Logger.error("[ChatAiService] getCompletion error:", error);
@@ -114,7 +126,8 @@ export class ChatAiService {
    * @returns {Promise<Object>} OpenAI response
    */
   async getCompletionWithCustomPrompt(messages, customPrompt) {
-    if (!this.openai) {
+    const openai = await this._getOpenAI();
+    if (!openai) {
       throw new Error("OpenAI API key is not configured");
     }
 
@@ -125,7 +138,7 @@ export class ChatAiService {
         { role: "system", content: customPrompt },
       ];
 
-      const response = await this.openai.chat.completions.create({
+      const response = await openai.chat.completions.create({
         model: this.model,
         messages: messagesWithPrompt,
         temperature: 0.7,
@@ -149,12 +162,13 @@ export class ChatAiService {
    * @returns {Promise<String>} Analysis text
    */
   async getVisionCompletion(imageUrl, prompt, context = {}) {
-    if (!this.openai) {
+    const openai = await this._getOpenAI();
+    if (!openai) {
       throw new Error("OpenAI API key is not configured");
     }
 
     try {
-      const response = await this.openai.chat.completions.create({
+      const response = await openai.chat.completions.create({
         model: this.visionModel,
         messages: [
           {

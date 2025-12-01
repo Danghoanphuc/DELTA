@@ -1,5 +1,7 @@
 // apps/admin-backend/src/features/chat/services/chat.tools.service.js
-import { tool } from "ai";
+// ❌ DO NOT import 'tool' from 'ai' at top level - causes Sentry ESM hook issues
+// ❌ import { tool } from "ai";
+// ✅ Use dynamic import in getVercelTools() instead
 import { z } from "zod";
 import { Logger } from "../../shared/utils/index.js";
 import { ChatResponseUtil } from "./chat.response.util.js";
@@ -169,7 +171,10 @@ export class ChatToolService {
     }
   }
 
-  getVercelTools(context, services = {}) {
+  async getVercelTools(context, services = {}) {
+    // ✅ CRITICAL FIX: Dynamic import to avoid Sentry ESM hook issues
+    const { tool } = await import("ai");
+
     const { chatRepository } = services;
 
     return {

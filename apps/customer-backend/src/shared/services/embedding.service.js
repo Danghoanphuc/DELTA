@@ -1,5 +1,7 @@
 // apps/customer-backend/src/shared/services/embedding.service.js
-import OpenAI from "openai";
+// ❌ DO NOT import OpenAI at top level - causes Sentry ESM hook issues
+// ❌ import OpenAI from "openai";
+// ✅ Use dynamic import in _getOpenAI() instead
 import { config } from "../../config/env.config.js";
 import { Logger } from "../utils/index.js";
 
@@ -9,27 +11,41 @@ import { Logger } from "../utils/index.js";
  */
 class EmbeddingService {
   constructor() {
-    if (!config.apiKeys.openai) {
-      Logger.warn(
-        "[EmbeddingService] OPENAI_API_KEY is not configured. Vector search will be disabled."
-      );
-      this.openai = null;
-    } else {
-      this.openai = new OpenAI({
-        apiKey: config.apiKeys.openai,
-      });
-    }
-
+    this.openai = null;
     this.model = "text-embedding-3-small";
     this.dimensions = 1536;
   }
 
   /**
-   * Check if the service is available
-   * @returns {boolean}
+   * Lazy load OpenAI client
+   * @returns {Promise<OpenAI|null>}
    */
-  isAvailable() {
-    return this.openai !== null;
+  async _getOpenAI() {
+    if (!config.apiKeys.openai) {
+      Logger.warn(
+        "[EmbeddingService] OPENAI_API_KEY is not configured. Vector search will be disabled."
+      );
+      return null;
+    }
+
+    if (!this.openai) {
+      // ✅ Dynamic import to avoid Sentry ESM hook issues
+      const { default: OpenAI } = await import("openai");
+      this.openai = new OpenAI({
+        apiKey: config.apiKeys.openai,
+      });
+    }
+
+    return this.openai;
+  }
+
+  /**
+   * Check if the service is available
+   * @returns {Promise<boolean>}
+   */
+  async isAvailable() {
+    const client = await this._getOpenAI();
+    return client !== null;
   }
 
   /**
@@ -52,7 +68,8 @@ class EmbeddingService {
    * @returns {Promise<number[]|null>} - Embedding vector or null on error
    */
   async generateEmbedding(text) {
-    if (!this.isAvailable()) {
+    const openai = await this._getOpenAI();
+    if (!openai) {
       Logger.warn(
         "[EmbeddingService] Service not available. Skipping embedding generation."
       );
@@ -71,7 +88,7 @@ class EmbeddingService {
         `[EmbeddingService] Generating embedding for text (${sanitizedText.length} chars)`
       );
 
-      const response = await this.openai.embeddings.create({
+      const response = await openai.embeddings.create({
         model: this.model,
         input: sanitizedText,
         dimensions: this.dimensions,
@@ -168,7 +185,8 @@ class EmbeddingService {
    * @returns {Promise<(number[]|null)[]>} - Array of embedding vectors
    */
   async generateBatchEmbeddings(texts) {
-    if (!this.isAvailable()) {
+    const openai = await this._getOpenAI();
+    if (!openai) {
       Logger.warn(
         "[EmbeddingService] Service not available. Skipping batch embedding generation."
       );
@@ -187,7 +205,7 @@ class EmbeddingService {
         `[EmbeddingService] Generating batch embeddings for ${texts.length} texts`
       );
 
-      const response = await this.openai.embeddings.create({
+      const response = await openai.embeddings.create({
         model: this.model,
         input: sanitizedTexts,
         dimensions: this.dimensions,
@@ -212,4 +230,3 @@ class EmbeddingService {
 
 // Export singleton instance
 export const embeddingService = new EmbeddingService();
-

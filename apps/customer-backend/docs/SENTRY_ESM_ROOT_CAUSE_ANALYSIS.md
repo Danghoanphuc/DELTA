@@ -122,13 +122,14 @@ Sentry.init({
 
 ---
 
-### ✅ Solution 3: Selective Package Exclusion (FINAL)
+### ✅ Solution 3: Selective Package Exclusion + Lazy Loading (FINAL)
 
-**Implemented:** Exclude problematic packages from instrumentation
+**Implemented:** Exclude problematic packages from instrumentation + Lazy load AI SDK
 
 **Code:**
 
 ```javascript
+// 1. Sentry configuration
 Sentry.init({
   registerEsmLoaderHooks: {
     onlyIncludeInstrumentedModules: true,
@@ -139,11 +140,24 @@ Sentry.init({
     ],
   },
 });
+
+// 2. Lazy load AI SDK (CRITICAL!)
+// ❌ DO NOT: import { streamText } from "ai";
+// ✅ DO THIS:
+async function handleChatStream() {
+  const { streamText } = await import("ai");
+  const { createOpenAI } = await import("@ai-sdk/openai");
+  // ... use AI SDK
+}
 ```
 
-**Result:** ✅ Server starts + ✅ Keeps tracing for other modules
+**Result:** ✅ Server starts + ✅ Keeps tracing for other modules + ✅ No ESM hook conflicts
 
-**Why:** Best balance - excludes only problematic packages while keeping instrumentation for everything else.
+**Why:**
+
+- Exclude list prevents Sentry from trying to instrument AI packages
+- Lazy loading ensures AI packages are imported AFTER Sentry initialization
+- Best balance - keeps instrumentation for 95%+ of operations
 
 ---
 

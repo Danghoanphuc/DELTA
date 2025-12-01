@@ -5,10 +5,6 @@ import { ApiResponse, Logger } from "../../shared/utils/index.js";
 import { API_CODES } from "../../shared/constants/index.js";
 import { Conversation } from "../../shared/models/conversation.model.js";
 import { NotFoundException } from "../../shared/exceptions/index.js";
-
-// ✅ AI SDK Imports
-import { streamText } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
 import { config } from "../../config/env.config.js";
 
 // ✅ Sentry Manual Instrumentation
@@ -19,6 +15,11 @@ import {
   trackToolCalls,
   setSentryUser,
 } from "../../infrastructure/sentry-utils.js";
+
+// ❌ DO NOT import AI SDK at top level - causes Sentry ESM hook issues
+// ❌ import { streamText } from "ai";
+// ❌ import { createOpenAI } from "@ai-sdk/openai";
+// ✅ Instead, use dynamic import inside handleChatStream()
 
 // ✅ Instantiate Services (Singleton)
 const chatService = new ChatService();
@@ -444,9 +445,13 @@ export class ChatController {
 
       // ✅ GET TOOLS TỪ SERVICE (CODE SIÊU GỌN)
       // Inject chatRepository vào để browse_page tool dùng
-      const tools = chatService.agent.toolService.getVercelTools(context, {
-        chatRepository: chatService.chatRepository,
-      });
+      // ✅ CRITICAL FIX: getVercelTools is now async (dynamic import)
+      const tools = await chatService.agent.toolService.getVercelTools(
+        context,
+        {
+          chatRepository: chatService.chatRepository,
+        }
+      );
 
       // Check API Key
       if (!config.apiKeys?.openai) {
@@ -454,6 +459,11 @@ export class ChatController {
           .status(API_CODES.INTERNAL_ERROR)
           .json(ApiResponse.error("AI service is not available"));
       }
+
+      // ✅ CRITICAL FIX: Dynamic import AI SDK to avoid Sentry ESM hook issues
+      // Import AFTER Sentry is initialized and ONLY when needed
+      const { streamText } = await import("ai");
+      const { createOpenAI } = await import("@ai-sdk/openai");
 
       const openaiProvider = createOpenAI({
         apiKey: config.apiKeys.openai,
