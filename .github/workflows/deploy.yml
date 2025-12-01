@@ -1,0 +1,78 @@
+name: CI/CD Build & Deploy
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  # --- JOB 1: Build & Deploy Customer Backend ---
+  deploy-customer:
+    name: Build Customer
+    runs-on: ubuntu-latest
+    # Chỉ chạy khi code Customer hoặc Packages thay đổi
+    if: |
+      contains(github.event.head_commit.modified, 'apps/customer-backend/') || 
+      contains(github.event.head_commit.modified, 'packages/') ||
+      contains(github.event.head_commit.modified, 'package.json')
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push (Customer)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/customer-backend/Dockerfile
+          push: true
+          tags: hoanphuc/printz-customer-backend:latest
+          cache-from: type=registry,ref=hoanphuc/printz-customer-backend:cache
+          cache-to: type=registry,ref=hoanphuc/printz-customer-backend:cache,mode=max
+
+      # Bước này gọi Render (Nếu bạn chưa tạo service thì bước này sẽ lỗi nhẹ, nhưng không sao, Image vẫn lên Docker Hub)
+      - name: Trigger Render Deploy
+        run: curl -X POST ${{ secrets.RENDER_HOOK_CUSTOMER }} || echo "Chưa có Hook, bỏ qua trigger"
+
+  # --- JOB 2: Build & Deploy Admin Backend ---
+  deploy-admin:
+    name: Build Admin
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.head_commit.modified, 'apps/admin-backend/') || 
+      contains(github.event.head_commit.modified, 'packages/') ||
+      contains(github.event.head_commit.modified, 'package.json')
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push (Admin)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          # Lưu ý: Nếu Admin dùng Dockerfile ở root thì để ./Dockerfile
+          # Nếu Admin có Dockerfile riêng trong apps/admin-backend thì sửa lại đường dẫn này nhé
+          file: ./Dockerfile
+          push: true
+          tags: hoanphuc/printz-admin-backend:latest
+          cache-from: type=registry,ref=hoanphuc/printz-admin-backend:cache
+          cache-to: type=registry,ref=hoanphuc/printz-admin-backend:cache,mode=max
+
+      - name: Trigger Render Deploy
+        run: curl -X POST ${{ secrets.RENDER_HOOK_ADMIN }} || echo "Chưa có Hook, bỏ qua trigger"

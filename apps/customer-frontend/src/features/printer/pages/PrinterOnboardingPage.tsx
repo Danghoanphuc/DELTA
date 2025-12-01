@@ -17,6 +17,7 @@ import { toast } from "@/shared/utils/toast";
 import api from "@/shared/lib/axios";
 import { uploadFileToCloudinary } from "@/services/cloudinaryService";
 import { printerService } from "@/services/printerService";
+import { AvatarCropModal } from "@/features/printer/components/AvatarCropModal";
 
 export function PrinterOnboardingPage() {
   const navigate = useNavigate();
@@ -43,37 +44,51 @@ export function PrinterOnboardingPage() {
     coordinates: [0, 0], // [long, lat]
   });
 
+  // ✅ States cho crop modal
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [currentImageType, setCurrentImageType] = useState<
+    "logo" | "cover" | null
+  >(null);
+
   // ✅ FIX: Kiểm tra và redirect nếu user đã có printerProfileId
   useEffect(() => {
     const checkProfileStatus = async () => {
       setIsCheckingProfile(true);
-      
+
       try {
         // ✅ QUAN TRỌNG: Refresh user state trước để đảm bảo có dữ liệu mới nhất
         // (Đặc biệt quan trọng sau khi admin approve)
         await fetchMe(true);
-        
+
         // Đợi một chút để state được cập nhật
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         // Lấy user mới nhất từ store (sau khi fetchMe)
         const { user: currentUser } = useAuthStore.getState();
-        
+
         if (currentUser?.printerProfileId) {
           try {
             // Fetch profile để kiểm tra trạng thái
             const profile = await printerService.getMyProfile();
-            
+
             // Nếu profile đã được approve, redirect đến dashboard
-            if (profile.isVerified && profile.verificationStatus === "verified") {
-              toast.success("Hồ sơ của bạn đã được duyệt. Đang chuyển đến Dashboard...");
+            if (
+              profile.isVerified &&
+              profile.verificationStatus === "verified"
+            ) {
+              toast.success(
+                "Hồ sơ của bạn đã được duyệt. Đang chuyển đến Dashboard..."
+              );
               setActiveContext("printer", navigate);
               return;
             }
-            
+
             // Nếu profile chưa được approve nhưng đã tồn tại, vẫn redirect
             // (user sẽ thấy màn hình chờ duyệt)
-            toast.info("Hồ sơ của bạn đã tồn tại. Đang chuyển đến Dashboard...");
+            toast.info(
+              "Hồ sơ của bạn đã tồn tại. Đang chuyển đến Dashboard..."
+            );
             setActiveContext("printer", navigate);
             return;
           } catch (error: any) {
@@ -96,16 +111,39 @@ export function PrinterOnboardingPage() {
     checkProfileStatus();
   }, [navigate, setActiveContext, fetchMe]);
 
-  // (handleFileUpload giữ nguyên)
-  const handleFileUpload = async (
-    file: File,
-    setter: (url: string) => void
+  // ✅ Handler mở crop modal khi chọn file
+  const handleFileSelect = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: "logo" | "cover"
   ) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setSelectedImage(reader.result as string);
+        setCurrentImageType(type);
+        setCropModalOpen(true);
+      };
+      reader.readAsDataURL(file);
+    }
+    // Reset input để có thể chọn lại cùng file
+    e.target.value = "";
+  };
+
+  // ✅ Handler lưu ảnh sau khi crop
+  const handleSaveCroppedImage = async (file: File) => {
     setIsUploading(true);
     const toastId = toast.loading(`Đang tải lên ${file.name}...`);
     try {
       const uploadedUrl = await uploadFileToCloudinary(file);
-      setter(uploadedUrl);
+
+      // Set URL vào state tương ứng
+      if (currentImageType === "logo") {
+        setLogoUrl(uploadedUrl);
+      } else if (currentImageType === "cover") {
+        setCoverImage(uploadedUrl);
+      }
+
       toast.success("Tải lên thành công!", { id: toastId });
     } catch (err) {
       toast.error("Tải lên thất bại.", { id: toastId });
@@ -123,13 +161,18 @@ export function PrinterOnboardingPage() {
       try {
         // Fetch profile hiện tại để kiểm tra trạng thái
         const existingProfile = await printerService.getMyProfile();
-        
-        if (existingProfile.isVerified && existingProfile.verificationStatus === "verified") {
-          toast.success("Hồ sơ của bạn đã được duyệt. Đang chuyển đến Dashboard...");
+
+        if (
+          existingProfile.isVerified &&
+          existingProfile.verificationStatus === "verified"
+        ) {
+          toast.success(
+            "Hồ sơ của bạn đã được duyệt. Đang chuyển đến Dashboard..."
+          );
           setActiveContext("printer", navigate);
           return;
         }
-        
+
         // Nếu profile chưa được approve, vẫn cho phép user vào dashboard
         // (sẽ thấy màn hình chờ duyệt)
         toast.info("Hồ sơ của bạn đã tồn tại. Đang chuyển đến Dashboard...");
@@ -156,9 +199,10 @@ export function PrinterOnboardingPage() {
 
     try {
       // ✅ FIX: Đảm bảo coordinates có giá trị hợp lệ
-      const coordinates = address.coordinates && address.coordinates.length === 2 
-        ? address.coordinates 
-        : [106.6297, 10.8231]; // Default: Tọa độ TP.HCM
+      const coordinates =
+        address.coordinates && address.coordinates.length === 2
+          ? address.coordinates
+          : [106.6297, 10.8231]; // Default: Tọa độ TP.HCM
 
       const payload = {
         businessName: businessName.trim(),
@@ -194,43 +238,50 @@ export function PrinterOnboardingPage() {
       // ✅ LOẠI BỎ logic Healing 409 không cần thiết ở đây.
     } catch (err: any) {
       console.error("❌ Lỗi Onboarding:", err);
-      
+
       // ✅ FIX: Xử lý 409 Conflict - Profile đã tồn tại
       if (err.response?.status === 409) {
         toast.info("Hồ sơ đã tồn tại. Đang đồng bộ thông tin...");
-        
+
         // ✅ QUAN TRỌNG: Refresh user state để lấy printerProfileId mới nhất từ backend
         await fetchMe(true);
-        
+
         // ✅ Đợi một chút để đảm bảo state được cập nhật
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         // ✅ Lấy user mới nhất từ store sau khi fetchMe
         const { user: updatedUser } = useAuthStore.getState();
-        
+
         // Fetch profile để kiểm tra trạng thái
         try {
           const existingProfile = await printerService.getMyProfile();
-          
+
           // ✅ FIX: Cập nhật user state với printerProfileId nếu chưa có
-          if (updatedUser && !updatedUser.printerProfileId && existingProfile._id) {
+          if (
+            updatedUser &&
+            !updatedUser.printerProfileId &&
+            existingProfile._id
+          ) {
             useAuthStore.setState({
-              user: { ...updatedUser, printerProfileId: existingProfile._id }
+              user: { ...updatedUser, printerProfileId: existingProfile._id },
             });
           }
-          
-          if (existingProfile.isVerified && existingProfile.verificationStatus === "verified") {
+
+          if (
+            existingProfile.isVerified &&
+            existingProfile.verificationStatus === "verified"
+          ) {
             toast.success("Hồ sơ của bạn đã được duyệt!");
           } else {
             toast.info("Hồ sơ của bạn đang chờ duyệt.");
           }
-          
+
           // Redirect đến dashboard
           setActiveContext("printer", navigate);
         } catch (profileError: any) {
           // Nếu không fetch được profile, vẫn thử redirect
           console.warn("⚠️ Không thể fetch profile sau 409:", profileError);
-          
+
           // ✅ FIX: Nếu có thể lấy profileId từ error message hoặc response, cập nhật user state
           // Thử fetch user lại một lần nữa để đảm bảo có printerProfileId
           try {
@@ -249,7 +300,8 @@ export function PrinterOnboardingPage() {
   };
 
   // (Phần render JSX giữ nguyên)
-  const isBusy = isLoading || isUploading || isContextLoading || isCheckingProfile;
+  const isBusy =
+    isLoading || isUploading || isContextLoading || isCheckingProfile;
 
   // ✅ Hiển thị loading khi đang kiểm tra profile
   if (isCheckingProfile) {
@@ -347,68 +399,98 @@ export function PrinterOnboardingPage() {
             </div>
             {/* --- Kết thúc phần địa chỉ --- */}
 
-            {/* --- Upload Ảnh (MỚI) --- */}
+            {/* --- Upload Ảnh với Crop (CẬP NHẬT) --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Logo */}
               <div className="space-y-2">
                 <Label htmlFor="logo">Logo (Tùy chọn)</Label>
                 {logoUrl ? (
-                  <div className="flex items-center gap-2">
-                    <ImageIcon className="w-5 h-5 text-green-500" />
-                    <span className="text-sm text-gray-600 truncate">
-                      Đã tải lên logo.
-                    </span>
-                    <Button
-                      type="button"
-                      variant="link"
-                      size="sm"
-                      onClick={() => setLogoUrl(null)}
-                    >
-                      Xóa
-                    </Button>
+                  <div className="space-y-2">
+                    <div className="relative w-32 h-32 mx-auto border-2 border-gray-200 rounded-lg overflow-hidden">
+                      <img
+                        src={logoUrl}
+                        alt="Logo preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLogoUrl(null)}
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Đổi ảnh
+                      </Button>
+                    </div>
                   </div>
                 ) : (
-                  <Input
-                    id="logo"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) =>
-                      e.target.files?.[0] &&
-                      handleFileUpload(e.target.files[0], setLogoUrl)
-                    }
-                    disabled={isBusy}
-                  />
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-400 transition-colors">
+                    <ImageIcon className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                    <Input
+                      id="logo"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileSelect(e, "logo")}
+                      disabled={isBusy}
+                      className="hidden"
+                    />
+                    <label htmlFor="logo" className="cursor-pointer">
+                      <span className="text-sm text-gray-600">
+                        Click để chọn logo
+                      </span>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Bạn có thể cắt và chỉnh sửa sau khi chọn
+                      </p>
+                    </label>
+                  </div>
                 )}
               </div>
               {/* Ảnh bìa */}
               <div className="space-y-2">
                 <Label htmlFor="cover">Ảnh bìa xưởng (Tùy chọn)</Label>
                 {coverImage ? (
-                  <div className="flex items-center gap-2">
-                    <ImageIcon className="w-5 h-5 text-green-500" />
-                    <span className="text-sm text-gray-600 truncate">
-                      Đã tải lên ảnh bìa.
-                    </span>
-                    <Button
-                      type="button"
-                      variant="link"
-                      size="sm"
-                      onClick={() => setCoverImage(null)}
-                    >
-                      Xóa
-                    </Button>
+                  <div className="space-y-2">
+                    <div className="relative w-full h-32 border-2 border-gray-200 rounded-lg overflow-hidden">
+                      <img
+                        src={coverImage}
+                        alt="Cover preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCoverImage(null)}
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Đổi ảnh
+                      </Button>
+                    </div>
                   </div>
                 ) : (
-                  <Input
-                    id="cover"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) =>
-                      e.target.files?.[0] &&
-                      handleFileUpload(e.target.files[0], setCoverImage)
-                    }
-                    disabled={isBusy}
-                  />
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-400 transition-colors">
+                    <ImageIcon className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                    <Input
+                      id="cover"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileSelect(e, "cover")}
+                      disabled={isBusy}
+                      className="hidden"
+                    />
+                    <label htmlFor="cover" className="cursor-pointer">
+                      <span className="text-sm text-gray-600">
+                        Click để chọn ảnh bìa
+                      </span>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Bạn có thể cắt và chỉnh sửa sau khi chọn
+                      </p>
+                    </label>
+                  </div>
                 )}
               </div>
             </div>
@@ -428,6 +510,20 @@ export function PrinterOnboardingPage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* ✅ Modal Crop Ảnh */}
+      {selectedImage && (
+        <AvatarCropModal
+          isOpen={cropModalOpen}
+          onClose={() => {
+            setCropModalOpen(false);
+            setSelectedImage(null);
+            setCurrentImageType(null);
+          }}
+          imageSrc={selectedImage}
+          onSave={handleSaveCroppedImage}
+        />
+      )}
     </div>
   );
 }

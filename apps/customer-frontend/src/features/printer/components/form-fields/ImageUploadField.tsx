@@ -1,5 +1,5 @@
 // src/features/printer/components/form-fields/ImageUploadField.tsx
-// Image upload field với preview
+// Image upload field với preview và crop functionality
 
 import { useState } from "react";
 import { useFormContext } from "react-hook-form";
@@ -15,6 +15,7 @@ import {
 } from "@/shared/components/ui/form";
 import { Button } from "@/shared/components/ui/button";
 import { printerService } from "@/services/printer.service";
+import { AvatarCropModal } from "@/features/printer/components/AvatarCropModal";
 
 interface ImageUploadFieldProps {
   name: string;
@@ -31,7 +32,11 @@ export function ImageUploadField({
   const [preview, setPreview] = useState<string | null>(currentUrl || null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ✅ States cho crop modal
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -47,18 +52,25 @@ export function ImageUploadField({
       return;
     }
 
-    // Show preview
+    // ✅ Mở crop modal thay vì upload trực tiếp
     const reader = new FileReader();
     reader.onloadend = () => {
-      setPreview(reader.result as string);
+      setSelectedImage(reader.result as string);
+      setCropModalOpen(true);
     };
     reader.readAsDataURL(file);
 
-    // Upload to Cloudinary
+    // Reset input để có thể chọn lại cùng file
+    e.target.value = "";
+  };
+
+  // ✅ Handler lưu ảnh sau khi crop
+  const handleSaveCroppedImage = async (file: File) => {
     setIsUploading(true);
     try {
       const url = await printerService.uploadImage(file);
       form.setValue(name, url);
+      setPreview(url);
       toast.success("Tải ảnh lên thành công");
     } catch (error) {
       toast.error("Tải ảnh lên thất bại");
@@ -74,67 +86,86 @@ export function ImageUploadField({
   };
 
   return (
-    <FormField
-      control={form.control}
-      name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>{label}</FormLabel>
-          <FormControl>
-            <div className="space-y-2">
-              {preview ? (
-                <div className="relative w-full h-48 rounded-lg overflow-hidden border-2 border-gray-200">
-                  <img
-                    src={preview}
-                    alt={label}
-                    className="w-full h-full object-cover"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2"
-                    onClick={handleRemove}
-                    disabled={isUploading}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                  {isUploading && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                      <Loader2 className="w-8 h-8 text-white animate-spin" />
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <label
-                  htmlFor={`${name}-upload`}
-                  className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
-                >
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="w-10 h-10 text-gray-400 mb-3" />
-                    <p className="mb-2 text-sm text-gray-500">
-                      <span className="font-semibold">Click để tải ảnh lên</span>
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      PNG, JPG, WEBP (tối đa 5MB)
-                    </p>
+    <>
+      <FormField
+        control={form.control}
+        name={name}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{label}</FormLabel>
+            <FormControl>
+              <div className="space-y-2">
+                {preview ? (
+                  <div className="relative w-full h-48 rounded-lg overflow-hidden border-2 border-gray-200">
+                    <img
+                      src={preview}
+                      alt={label}
+                      className="w-full h-full object-cover"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2"
+                      onClick={handleRemove}
+                      disabled={isUploading}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                    {isUploading && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <Loader2 className="w-8 h-8 text-white animate-spin" />
+                      </div>
+                    )}
                   </div>
-                  <input
-                    id={`${name}-upload`}
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    disabled={isUploading}
-                  />
-                </label>
-              )}
-            </div>
-          </FormControl>
-          <FormMessage />
-        </FormItem>
+                ) : (
+                  <label
+                    htmlFor={`${name}-upload`}
+                    className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <Upload className="w-10 h-10 text-gray-400 mb-3" />
+                      <p className="mb-2 text-sm text-gray-500">
+                        <span className="font-semibold">
+                          Click để tải ảnh lên
+                        </span>
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        PNG, JPG, WEBP (tối đa 5MB)
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Bạn có thể cắt và chỉnh sửa sau khi chọn
+                      </p>
+                    </div>
+                    <input
+                      id={`${name}-upload`}
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      disabled={isUploading}
+                    />
+                  </label>
+                )}
+              </div>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {/* ✅ Modal Crop Ảnh */}
+      {selectedImage && (
+        <AvatarCropModal
+          isOpen={cropModalOpen}
+          onClose={() => {
+            setCropModalOpen(false);
+            setSelectedImage(null);
+          }}
+          imageSrc={selectedImage}
+          onSave={handleSaveCroppedImage}
+        />
       )}
-    />
+    </>
   );
 }
-

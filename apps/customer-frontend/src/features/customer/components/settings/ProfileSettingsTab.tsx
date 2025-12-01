@@ -19,8 +19,8 @@ import {
 } from "@/shared/components/ui/form";
 import { Loader2 } from "lucide-react";
 import { useCustomerSettings } from "@/features/customer/hooks/useCustomerSettings";
-// ❌ GỠ BỎ: UserAvatarFallback
-import { UserAvatar } from "@/components/UserAvatar"; // ✅ THAY THẾ
+import { UserAvatar } from "@/components/UserAvatar";
+import { AvatarCropModal } from "@/features/printer/components/AvatarCropModal";
 import { toast } from "@/shared/utils/toast";
 import api from "@/shared/lib/axios";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -32,18 +32,39 @@ export function ProfileSettingsTab() {
   const { setUser } = useAuthStore();
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    // (Logic upload giữ nguyên)
+  // ✅ States cho crop modal
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Ảnh quá lớn. Vui lòng chọn ảnh dưới 2MB.");
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Ảnh quá lớn. Vui lòng chọn ảnh dưới 5MB.");
       return;
     }
+
+    // ✅ Mở crop modal thay vì upload trực tiếp
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedImage(reader.result as string);
+      setCropModalOpen(true);
+    };
+    reader.readAsDataURL(file);
+
+    // Reset input để có thể chọn lại cùng file
+    e.target.value = "";
+  };
+
+  // ✅ Handler upload sau khi crop
+  const handleSaveCroppedAvatar = async (file: File) => {
     const toastId = toast.loading("Đang tải lên ảnh đại diện...");
     setIsUploadingAvatar(true);
+
     const formData = new FormData();
     formData.append("file", file);
+
     try {
       const uploadRes = await api.post("/uploads/file", formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -60,7 +81,6 @@ export function ProfileSettingsTab() {
       });
     } finally {
       setIsUploadingAvatar(false);
-      e.target.value = "";
     }
   };
 
@@ -105,10 +125,13 @@ export function ProfileSettingsTab() {
                   id="avatar-upload"
                   className="hidden"
                   accept="image/png, image/jpeg"
-                  onChange={handleAvatarUpload}
+                  onChange={handleAvatarSelect}
                   disabled={isUploadingAvatar}
                 />
               </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Bạn có thể cắt và chỉnh sửa ảnh sau khi chọn
+              </p>
             </FormItem>
 
             {/* (Email, Display Name, Phone giữ nguyên) */}
@@ -153,6 +176,19 @@ export function ProfileSettingsTab() {
           </CardFooter>
         </form>
       </Form>
+
+      {/* ✅ Modal Crop Ảnh */}
+      {selectedImage && (
+        <AvatarCropModal
+          isOpen={cropModalOpen}
+          onClose={() => {
+            setCropModalOpen(false);
+            setSelectedImage(null);
+          }}
+          imageSrc={selectedImage}
+          onSave={handleSaveCroppedAvatar}
+        />
+      )}
     </Card>
   );
 }
