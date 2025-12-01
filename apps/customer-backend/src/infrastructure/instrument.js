@@ -17,11 +17,20 @@ try {
 
       integrations: [nodeProfilingIntegration()],
 
-      // ✅ CRITICAL FIX: Completely disable ESM loader hooks
-      // Sentry v8.0.0 has critical bug with import-in-the-middle + ESM + dynamic imports
-      // This disables automatic instrumentation but prevents server crashes
-      // Trade-off: Lose some tracing data but server stays stable
-      registerEsmLoaderHooks: false,
+      // ✅ CRITICAL FIX: Exclude problematic ESM packages
+      // Sentry v8.0.0 has bug with import-in-the-middle + certain ESM packages
+      // Specifically: Vercel AI SDK ('ai' package) has incompatible export structure
+      // Solution: Enable hooks but exclude problematic packages
+      registerEsmLoaderHooks: {
+        onlyIncludeInstrumentedModules: true,
+        // Exclude packages that cause 'setters.get(...)[name] is not a function' error
+        exclude: [
+          "ai", // Vercel AI SDK - incompatible export structure
+          "@ai-sdk/openai", // AI SDK OpenAI provider
+          "@ai-sdk/anthropic", // AI SDK Anthropic provider (if used)
+          "openai", // OpenAI SDK - also has ESM issues
+        ],
+      },
 
       // ✅ Thêm skipOpenTelemetrySetup để tránh xung đột với OpenTelemetry
       skipOpenTelemetrySetup: true,
