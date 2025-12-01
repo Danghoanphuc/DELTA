@@ -14,10 +14,11 @@ const REFRESH_TOKEN_TTL = 14 * 24 * 60 * 60 * 1000; // 14 days
 export class AuthController {
   constructor() {
     this.authService = new AuthService();
-    // Khởi tạo Google Client
-    // Lưu ý: Đảm bảo biến GOOGLE_CLIENT_ID đã có trong .env và config
+    // Khởi tạo Google Client với cả clientId và clientSecret
     this.googleClient = new OAuth2Client(
-      config.oauth?.google?.clientId || process.env.GOOGLE_CLIENT_ID
+      config.oauth?.google?.clientId || process.env.GOOGLE_CLIENT_ID,
+      config.oauth?.google?.clientSecret || process.env.GOOGLE_CLIENT_SECRET,
+      "postmessage" // redirect_uri for popup flow
     );
   }
 
