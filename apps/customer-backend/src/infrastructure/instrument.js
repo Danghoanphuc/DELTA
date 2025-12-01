@@ -17,13 +17,11 @@ try {
 
       integrations: [nodeProfilingIntegration()],
 
-      // ✅ CRITICAL FIX: Disable ESM loader hooks để tránh xung đột
-      // Sentry v8.0.0 có bug với import-in-the-middle + ESM
-      // Giữ lại option này cho đến khi upgrade lên v8.40+ hoặc v9
-      registerEsmLoaderHooks: {
-        // Chỉ enable cho các module cụ thể thay vì tất cả
-        onlyIncludeInstrumentedModules: true,
-      },
+      // ✅ CRITICAL FIX: Completely disable ESM loader hooks
+      // Sentry v8.0.0 has critical bug with import-in-the-middle + ESM + dynamic imports
+      // This disables automatic instrumentation but prevents server crashes
+      // Trade-off: Lose some tracing data but server stays stable
+      registerEsmLoaderHooks: false,
 
       // ✅ Thêm skipOpenTelemetrySetup để tránh xung đột với OpenTelemetry
       skipOpenTelemetrySetup: true,
