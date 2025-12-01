@@ -3,7 +3,14 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Lock, Eye, EyeOff, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import {
+  Lock,
+  Eye,
+  EyeOff,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Card } from "@/shared/components/ui/card";
@@ -12,13 +19,28 @@ import api from "@/shared/lib/axios";
 import { AuthLayout } from "../components/AuthLayout";
 import { z } from "zod";
 
-const resetPasswordSchema = z.object({
-  password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Mật khẩu xác nhận không khớp",
-  path: ["confirmPassword"],
-});
+// ✅ IMPROVED: Stronger password validation
+const passwordSchema = z
+  .string()
+  .min(8, "Mật khẩu phải có ít nhất 8 ký tự")
+  .max(128, "Mật khẩu không được quá 128 ký tự")
+  .regex(/[A-Z]/, "Mật khẩu phải có ít nhất 1 chữ cái viết hoa")
+  .regex(/[a-z]/, "Mật khẩu phải có ít nhất 1 chữ cái viết thường")
+  .regex(/[0-9]/, "Mật khẩu phải có ít nhất 1 chữ số")
+  .regex(
+    /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/,
+    "Mật khẩu phải có ít nhất 1 ký tự đặc biệt"
+  );
+
+const resetPasswordSchema = z
+  .object({
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Mật khẩu xác nhận không khớp",
+    path: ["confirmPassword"],
+  });
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -30,7 +52,10 @@ export default function ResetPasswordPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [tokenValid, setTokenValid] = useState<boolean | null>(null);
-  const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string }>({});
+  const [errors, setErrors] = useState<{
+    password?: string;
+    confirmPassword?: string;
+  }>({});
 
   const token = searchParams.get("token");
 
@@ -182,7 +207,9 @@ export default function ResetPasswordPage() {
               </button>
             </div>
             {errors.password && (
-              <p className="text-destructive text-sm -mt-2">{errors.password}</p>
+              <p className="text-destructive text-sm -mt-2">
+                {errors.password}
+              </p>
             )}
 
             {/* Confirm Password Input */}
@@ -249,4 +276,3 @@ export default function ResetPasswordPage() {
     </AuthLayout>
   );
 }
-

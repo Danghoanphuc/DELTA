@@ -41,4 +41,11 @@ export class AuthRepository {
   async deleteSessionByToken(refreshToken) {
     return await Session.deleteOne({ refreshToken });
   }
+
+  async findUserByResetToken(token) {
+    return await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordTokenExpiresAt: { $gt: Date.now() },
+    }).select("+resetPasswordToken +resetPasswordTokenExpiresAt");
+  }
 }

@@ -21,7 +21,7 @@ import { SocialChatSync } from "@/features/social/components/SocialChatSync";
 
 // ✅ CORE UI
 import PageLoader from "@/components/PageLoader";
-import NotFoundPage from "./pages/NotFoundPage"; 
+import NotFoundPage from "./pages/NotFoundPage";
 
 // --- Public Pages ---
 import SmartLanding from "@/features/landing/SmartLanding";
@@ -37,6 +37,7 @@ import SignInPage from "@/features/auth/pages/SignInPage";
 import SignUpPage from "@/features/auth/pages/SignUpPage";
 import VerifyEmailPage from "@/features/auth/pages/VerifyEmailPage";
 import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
+import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
 import CheckEmailPage from "@/features/auth/pages/CheckEmailPage";
 import { GoogleOneTapListener } from "@/features/auth/components/GoogleOneTapListener";
 
@@ -58,28 +59,66 @@ function lazyWorkaround<T extends ComponentType<any>>(
 }
 
 // --- Lazy Loaded Pages ---
-const AuthCallbackPage = lazyWorkaround(() => import("@/features/auth/pages/AuthCallbackPage"));
-const CartPage = lazyWorkaround(() => import("@/features/customer/pages/CartPage"));
-const PrinterOnboardingPage = lazyWorkaround(() => import("@/features/printer/pages/PrinterOnboardingPage"));
+const AuthCallbackPage = lazyWorkaround(
+  () => import("@/features/auth/pages/AuthCallbackPage")
+);
+const CartPage = lazyWorkaround(
+  () => import("@/features/customer/pages/CartPage")
+);
+const PrinterOnboardingPage = lazyWorkaround(
+  () => import("@/features/printer/pages/PrinterOnboardingPage")
+);
 const PrinterApp = lazy(() => import("@/features/printer/pages/PrinterApp"));
-const PrinterStudio = lazyWorkaround(() => import("@/features/printer/printer-studio/PrinterStudio"));
-const ShopPortalPage = lazyWorkaround(() => import("@/features/shop/pages/ShopPortalPage"));
-const ProductDetailPage = lazy(() => import("@/features/shop/pages/ProductDetailPage"));
-const CheckoutPage = lazyWorkaround(() => import("@/features/customer/pages/CheckoutPage"));
-const CheckoutSuccessPage = lazyWorkaround(() => import("@/features/customer/pages/CheckoutSuccessPage"));
-const CheckoutCancelPage = lazyWorkaround(() => import("@/features/customer/pages/CheckoutCancelPage"));
-const CheckoutConfirmationPage = lazyWorkaround(() => import("@/features/shop/pages/OrderConfirmationPage"));
-const CustomerOrdersPage = lazyWorkaround(() => import("@/features/customer/pages/CustomerOrdersPage"));
-const OrderDetailPage = lazyWorkaround(() => import("@/features/shop/pages/OrderDetailPage"));
-const PrinterOrderDetailPage = lazyWorkaround(() => import("@/features/printer/pages/PrinterOrderDetailPage"));
-const CustomerDesignsPage = lazyWorkaround(() => import("@/features/customer/pages/CustomerDesignsPage"));
-const CustomerSettingsPage = lazyWorkaround(() => import("@/features/customer/pages/CustomerSettingsPage"));
-const DesignEditorPage = lazyWorkaround(() => import("@/features/editor/DesignEditorPage"));
-const InspirationPage = lazy(() => import("@/features/customer/pages/InspirationPage"));
-const ChatAppPage = lazy(() => import("@/features/chat/pages/AppPage")); 
-const ChatPage = lazy(() => import("@/features/chat/pages/ChatPage")); 
-const ChatHistoryPage = lazy(() => import("@/features/chat/pages/ChatHistoryPage"));
-const NotificationsPage = lazy(() => import("@/features/notifications/pages/NotificationsPage"));
+const PrinterStudio = lazyWorkaround(
+  () => import("@/features/printer/printer-studio/PrinterStudio")
+);
+const ShopPortalPage = lazyWorkaround(
+  () => import("@/features/shop/pages/ShopPortalPage")
+);
+const ProductDetailPage = lazy(
+  () => import("@/features/shop/pages/ProductDetailPage")
+);
+const CheckoutPage = lazyWorkaround(
+  () => import("@/features/customer/pages/CheckoutPage")
+);
+const CheckoutSuccessPage = lazyWorkaround(
+  () => import("@/features/customer/pages/CheckoutSuccessPage")
+);
+const CheckoutCancelPage = lazyWorkaround(
+  () => import("@/features/customer/pages/CheckoutCancelPage")
+);
+const CheckoutConfirmationPage = lazyWorkaround(
+  () => import("@/features/shop/pages/OrderConfirmationPage")
+);
+const CustomerOrdersPage = lazyWorkaround(
+  () => import("@/features/customer/pages/CustomerOrdersPage")
+);
+const OrderDetailPage = lazyWorkaround(
+  () => import("@/features/shop/pages/OrderDetailPage")
+);
+const PrinterOrderDetailPage = lazyWorkaround(
+  () => import("@/features/printer/pages/PrinterOrderDetailPage")
+);
+const CustomerDesignsPage = lazyWorkaround(
+  () => import("@/features/customer/pages/CustomerDesignsPage")
+);
+const CustomerSettingsPage = lazyWorkaround(
+  () => import("@/features/customer/pages/CustomerSettingsPage")
+);
+const DesignEditorPage = lazyWorkaround(
+  () => import("@/features/editor/DesignEditorPage")
+);
+const InspirationPage = lazy(
+  () => import("@/features/customer/pages/InspirationPage")
+);
+const ChatAppPage = lazy(() => import("@/features/chat/pages/AppPage"));
+const ChatPage = lazy(() => import("@/features/chat/pages/ChatPage"));
+const ChatHistoryPage = lazy(
+  () => import("@/features/chat/pages/ChatHistoryPage")
+);
+const NotificationsPage = lazy(
+  () => import("@/features/notifications/pages/NotificationsPage")
+);
 const MessagesPage = lazy(() => import("@/features/social/pages/MessagesPage"));
 const FriendsPage = lazy(() => import("@/features/social/pages/FriendsPage"));
 const RushPage = lazyWorkaround(() => import("@/features/rush/pages/RushPage"));
@@ -91,7 +130,7 @@ function App() {
   const mergeGuestCart = useCartStore((state) => state.mergeGuestCart);
   const fetchCart = useCartStore((state) => state.fetchCart);
   const user = useAuthStore((state) => state.user);
-  
+
   const lastFetchTimeRef = useRef<number>(0);
   const hasFetchedRef = useRef<boolean>(false);
   const FETCH_COOLDOWN = 10000;
@@ -112,7 +151,7 @@ function App() {
         });
       }
     }
-    
+
     if (!isAuthenticated) {
       hasFetchedRef.current = false;
     }
@@ -141,7 +180,7 @@ function App() {
           <GoogleOneTapListener />
           {/* 1. GLOBAL SPLASH SCREEN */}
           <PageLoader mode="splash" isLoading={authLoading} />
-          
+
           {/* 2. SUSPENSE LOADER */}
           <Suspense fallback={<PageLoader mode="loading" isLoading={true} />}>
             <Routes>
@@ -161,6 +200,10 @@ function App() {
                 <Route path="/signup" element={<SignUpPage />} />
                 <Route path="/check-email" element={<CheckEmailPage />} />
                 <Route path="/verify-email" element={<VerifyEmailPage />} />
+                <Route
+                  path="/forgot-password"
+                  element={<ForgotPasswordPage />}
+                />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
@@ -176,19 +219,34 @@ function App() {
                 {/* Protected Customer */}
                 <Route element={<ProtectedGuard />}>
                   <Route path="/checkout" element={<CheckoutPage />} />
-                  <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
-                  <Route path="/checkout/cancel" element={<CheckoutCancelPage />} />
-                  <Route path="/checkout/confirmation/:orderId?" element={<CheckoutConfirmationPage />} />
+                  <Route
+                    path="/checkout/success"
+                    element={<CheckoutSuccessPage />}
+                  />
+                  <Route
+                    path="/checkout/cancel"
+                    element={<CheckoutCancelPage />}
+                  />
+                  <Route
+                    path="/checkout/confirmation/:orderId?"
+                    element={<CheckoutConfirmationPage />}
+                  />
                   <Route path="/orders" element={<CustomerOrdersPage />} />
-                  <Route path="/orders/:orderId" element={<OrderDetailPage />} />
+                  <Route
+                    path="/orders/:orderId"
+                    element={<OrderDetailPage />}
+                  />
                   <Route path="/designs" element={<CustomerDesignsPage />} />
                   <Route path="/design-editor" element={<DesignEditorPage />} />
-                  
+
                   {/* Social & Settings */}
                   <Route path="/settings" element={<CustomerSettingsPage />} />
                   <Route path="/messages" element={<MessagesPage />} />
                   <Route path="/friends" element={<FriendsPage />} />
-                  <Route path="/notifications" element={<NotificationsPage />} />
+                  <Route
+                    path="/notifications"
+                    element={<NotificationsPage />}
+                  />
                 </Route>
               </Route>
 
@@ -198,17 +256,26 @@ function App() {
                 <Route path="/chat/history" element={<ChatHistoryPage />} />
 
                 {/* Printer Portal */}
-                <Route path="/printer/onboarding" element={<PrinterOnboardingPage />} />
+                <Route
+                  path="/printer/onboarding"
+                  element={<PrinterOnboardingPage />}
+                />
                 <Route path="/printer/dashboard" element={<PrinterApp />} />
-                <Route path="/printer/orders/:orderId" element={<PrinterOrderDetailPage />} />
-                <Route path="/printer/studio/:productId" element={<PrinterStudio />} />
+                <Route
+                  path="/printer/orders/:orderId"
+                  element={<PrinterOrderDetailPage />}
+                />
+                <Route
+                  path="/printer/studio/:productId"
+                  element={<PrinterStudio />}
+                />
               </Route>
 
               {/* 4. 404 CÁ NHÂN HÓA */}
-              <Route path="*" element={<NotFoundPage />} /> 
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
-          
+
           <ProductQuickViewModal />
           <OrderQuickViewModal />
         </SocketProvider>

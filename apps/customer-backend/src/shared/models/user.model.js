@@ -69,6 +69,14 @@ const UserSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    resetPasswordToken: {
+      type: String,
+      select: false,
+    },
+    resetPasswordTokenExpiresAt: {
+      type: Date,
+      select: false,
+    },
 
     // --- Profile Links (REPLACE role field) ---
     customerProfileId: {

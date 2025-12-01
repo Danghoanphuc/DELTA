@@ -244,7 +244,7 @@ export class AuthController {
         }
       }
 
-      // 4. Create session & tokens
+      // 3. Create session & tokens
       const accessToken = this.authService.generateAccessToken(user._id);
       const refreshToken = crypto.randomBytes(64).toString("hex");
 
@@ -262,8 +262,6 @@ export class AuthController {
         maxAge: REFRESH_TOKEN_TTL,
         path: "/",
       };
-
-      res.cookie("refreshToken", refreshToken, cookieOptions);
 
       // 6. Return response
       const userWithProfile =
@@ -300,30 +298,60 @@ export class AuthController {
   };
 
   /**
-   * ✅ OLD: Xác thực Google ID Token (Client-side retrieval)
-   * Giữ lại để backward compatibility
+   * ✅ UPDATED: Xác thực Google Token (supports both ID token and access token + userInfo)
+   * Backward compatible + new implicit flow
    */
   verifyGoogleToken = async (req, res, next) => {
     try {
-      const { credential, role = "customer" } = req.body;
+      const {
+        credential,
+        accessToken: googleAccessToken,
+        userInfo,
+        role = "customer",
+      } = req.body;
 
-      if (!credential) {
+      let email, name, picture, googleId;
+
+      // New flow: userInfo already fetched by frontend using access token
+      if (userInfo && googleAccessToken) {
+        console.log(
+          `🔐 [Auth Google] Using userInfo from frontend: ${userInfo.email}`
+        );
+        email = userInfo.email;
+        name = userInfo.name;
+        picture = userInfo.picture;
+        googleId = userInfo.sub;
+      }
+      // Old flow: verify ID token
+      else if (credential) {
+        console.log(`🔐 [Auth Google] Verifying ID token...`);
+
+        if (!credential) {
+          return res
+            .status(400)
+            .json(ApiResponse.error("Thiếu Google Token (credential)"));
+        }
+
+        // 1. Verify token với Google
+        const ticket = await this.googleClient.verifyIdToken({
+          idToken: credential,
+          audience:
+            config.oauth?.google?.clientId || process.env.GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+
+        if (!payload) throw new Error("Token không hợp lệ");
+
+        email = payload.email;
+        name = payload.name;
+        picture = payload.picture;
+        googleId = payload.sub;
+      } else {
         return res
           .status(400)
-          .json(ApiResponse.error("Thiếu Google Token (credential)"));
+          .json(ApiResponse.error("Thiếu thông tin xác thực Google"));
       }
 
-      // 1. Verify token với Google
-      const ticket = await this.googleClient.verifyIdToken({
-        idToken: credential,
-        audience:
-          config.oauth?.google?.clientId || process.env.GOOGLE_CLIENT_ID,
-      });
-      const payload = ticket.getPayload();
-
-      if (!payload) throw new Error("Token không hợp lệ");
-
-      const { email, name, picture, sub: googleId } = payload;
       console.log(`🔐 [Auth Google] Verifying user: ${email}`);
 
       // 2. Tìm hoặc Tạo User (Logic tương tự passport-setup.js nhưng clean hơn)
@@ -444,16 +472,9 @@ export class AuthController {
       }
 
       // 3. Tạo Session & Tokens
-      // (Tái sử dụng các hàm tiện ích của AuthService để đảm bảo nhất quán)
-
-      // Tạo Access Token
       const accessToken = this.authService.generateAccessToken(user._id);
-
-      // Tạo Refresh Token
       const refreshToken = crypto.randomBytes(64).toString("hex");
 
-      // Lưu Session vào DB (Truy cập trực tiếp Repository thông qua Service)
-      // Lưu ý: Đây là cách truy cập nhanh, ideal là viết method createSession trong Service
       await this.authService.authRepository.createSession({
         userId: user._id,
         refreshToken,
@@ -560,6 +581,61 @@ export class AuthController {
       res
         .status(API_CODES.NO_CONTENT)
         .json(ApiResponse.success(null, "Đăng xuất thành công"));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * ✅ NEW: Request password reset
+   */
+  requestPasswordReset = async (req, res, next) => {
+    try {
+      const { email } = await this.authService.requestPasswordReset(
+        req.body.email
+      );
+      res
+        .status(API_CODES.SUCCESS)
+        .json(
+          ApiResponse.success(
+            { email },
+            "Nếu email này đã được đăng ký, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu."
+          )
+        );
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * ✅ NEW: Verify reset token
+   */
+  verifyResetToken = async (req, res, next) => {
+    try {
+      const { email } = await this.authService.verifyResetToken(req.body.token);
+      res
+        .status(API_CODES.SUCCESS)
+        .json(ApiResponse.success({ email }, "Token hợp lệ"));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * ✅ NEW: Reset password
+   */
+  resetPassword = async (req, res, next) => {
+    try {
+      const { token, password } = req.body;
+      await this.authService.resetPassword(token, password);
+      res
+        .status(API_CODES.SUCCESS)
+        .json(
+          ApiResponse.success(
+            null,
+            "Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại."
+          )
+        );
     } catch (error) {
       next(error);
     }

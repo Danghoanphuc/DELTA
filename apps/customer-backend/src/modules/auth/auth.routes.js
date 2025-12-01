@@ -72,6 +72,15 @@ router.post(
   authController.resendVerificationEmail
 );
 
+// ✅ NEW: Password reset routes
+router.post(
+  "/forgot-password",
+  authRateLimit,
+  authController.requestPasswordReset
+);
+router.post("/verify-reset-token", authController.verifyResetToken);
+router.post("/reset-password", authController.resetPassword);
+
 // ✅ Pusher Authentication (Bắt buộc phải có protect để lấy req.user)
 router.post("/pusher/auth", protect, pusherController.authenticate);
 

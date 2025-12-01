@@ -83,11 +83,77 @@ export const sendVerificationEmail = async (email, token) => {
 };
 
 // ============================================
+// EMAIL: PASSWORD RESET (✅ NEW)
+// ============================================
+
+export const sendPasswordResetEmail = async (email, token) => {
+  const resetLink = `${clientUrl}/reset-password?token=${token}`;
+  console.log(
+    `📧 Chuẩn bị gửi email reset password đến ${email} từ ${fromEmail}`
+  );
+  console.log(`🔗 Link reset: ${resetLink}`);
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: fromEmail,
+      to: email,
+      subject: `[${appName}] Đặt lại mật khẩu của bạn`,
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 20px auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+          <div style="background-color: #dc2626; color: white; padding: 20px; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">🔒 Đặt lại mật khẩu</h1>
+          </div>
+          <div style="padding: 25px 30px;">
+            <p style="font-size: 16px;">Xin chào,</p>
+            <p style="font-size: 16px;">Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản ${appName} của bạn.</p>
+            <p style="font-size: 16px;">Nhấp vào nút bên dưới để tạo mật khẩu mới:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetLink}" target="_blank" style="display: inline-block; padding: 12px 25px; background-color: #dc2626; color: white; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;">
+                Đặt lại mật khẩu
+              </a>
+            </div>
+            <p style="font-size: 14px; color: #666;">Nếu bạn gặp khó khăn khi nhấp vào nút, hãy sao chép và dán đường link sau vào trình duyệt:</p>
+            <p style="font-size: 12px; color: #888; word-break: break-all;">${resetLink}</p>
+            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px;">
+              <p style="margin: 0; font-size: 14px; color: #92400e;">
+                ⚠️ <strong>Lưu ý bảo mật:</strong> Link này chỉ có hiệu lực trong <strong>1 giờ</strong> và chỉ có thể sử dụng một lần.
+              </p>
+            </div>
+            <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 25px 0;">
+            <p style="font-size: 14px; color: #666;">Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này. Mật khẩu của bạn sẽ không thay đổi.</p>
+            <p style="font-size: 14px; color: #666;">Trân trọng,<br>Đội ngũ ${appName}</p>
+          </div>
+          <div style="background-color: #f8f8f8; padding: 15px 30px; text-align: center; font-size: 12px; color: #999;">
+            © ${new Date().getFullYear()} ${appName}. All rights reserved.
+          </div>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error(
+        `❌ Lỗi Resend API khi gửi email reset password đến ${email}:`,
+        error
+      );
+      return;
+    }
+    console.log(`✅ Email reset password đã gửi đến ${email}. ID: ${data?.id}`);
+  } catch (error) {
+    console.error(
+      `❌ Lỗi nghiêm trọng khi gửi email reset password đến ${email}:`,
+      error
+    );
+  }
+};
+
+// ============================================
 // EMAIL: ORDER CONFIRMATION FOR CUSTOMER (✅ NEW)
 // ============================================
 
 export const sendOrderConfirmationEmail = async (customerEmail, order) => {
-  const orderDetailsLink = `${clientUrl}/orders/${order._id || order.masterOrderId}`;
+  const orderDetailsLink = `${clientUrl}/orders/${
+    order._id || order.masterOrderId
+  }`;
 
   console.log(
     `📧 Chuẩn bị gửi email xác nhận đơn hàng #${order.orderNumber} đến ${customerEmail}`
@@ -126,7 +192,9 @@ export const sendOrderConfirmationEmail = async (customerEmail, order) => {
     ${order.shippingAddress?.street || ""}${
     order.shippingAddress?.ward ? ", " + order.shippingAddress.ward : ""
   }<br>
-    ${order.shippingAddress?.district || ""}, ${order.shippingAddress?.city || ""}
+    ${order.shippingAddress?.district || ""}, ${
+    order.shippingAddress?.city || ""
+  }
     ${
       order.shippingAddress?.notes
         ? `<br><em style="font-size: 12px; color: #666;">Ghi chú: ${order.shippingAddress.notes}</em>`
@@ -318,12 +386,15 @@ export const sendNewOrderNotification = async (
   // ✅ FIX: Lấy printerOrder từ MasterOrder (order có thể là printerOrder hoặc MasterOrder)
   const printerOrder = order.items ? order : null; // Nếu có items trực tiếp thì là printerOrder
   const masterOrder = order.printerOrders ? order : null; // Nếu có printerOrders thì là MasterOrder
-  
+
   // Lấy items từ printerOrder hoặc từ masterOrder.printerOrders
-  const items = printerOrder?.items || 
-    (masterOrder?.printerOrders?.find(po => 
-      po.printerProfileId?.toString() === order.printerProfileId?.toString()
-    )?.items || []);
+  const items =
+    printerOrder?.items ||
+    masterOrder?.printerOrders?.find(
+      (po) =>
+        po.printerProfileId?.toString() === order.printerProfileId?.toString()
+    )?.items ||
+    [];
 
   const orderDetailsLink = `${clientUrl}/printer/dashboard?tab=orders`;
 
@@ -340,7 +411,9 @@ export const sendNewOrderNotification = async (
         <strong>${item.productName}</strong>
         ${
           item.options?.notes || item.customization?.notes
-            ? `<br><span style="font-size: 12px; color: #666;">Ghi chú: ${item.options?.notes || item.customization?.notes}</span>`
+            ? `<br><span style="font-size: 12px; color: #666;">Ghi chú: ${
+                item.options?.notes || item.customization?.notes
+              }</span>`
             : ""
         }
       </td>
@@ -495,19 +568,31 @@ export const sendNewOrderNotification = async (
                               <tr>
                                 <td style="padding: 5px 10px; font-size: 14px; color: #6b7280;">Tổng tiền đơn hàng:</td>
                                 <td align="right" style="padding: 5px 10px; font-size: 14px; color: #111827;">${formatPrice(
-                                  printerOrder?.printerTotalPrice || order.printerTotalPrice || order.totalAmount || 0
+                                  printerOrder?.printerTotalPrice ||
+                                    order.printerTotalPrice ||
+                                    order.totalAmount ||
+                                    0
                                 )}</td>
                               </tr>
                               <tr>
                                 <td style="padding: 5px 10px; font-size: 14px; color: #6b7280;">Hoa hồng PrintZ:</td>
                                 <td align="right" style="padding: 5px 10px; font-size: 14px; color: #6b7280;">-${formatPrice(
-                                  printerOrder?.commissionFee || order.commissionFee || 0
+                                  printerOrder?.commissionFee ||
+                                    order.commissionFee ||
+                                    0
                                 )}</td>
                               </tr>
                               <tr style="border-top: 2px solid #4f46e5;">
                                 <td style="padding: 10px 10px 5px 10px; font-size: 16px; font-weight: bold; color: #111827;">Bạn nhận được:</td>
                                 <td align="right" style="padding: 10px 10px 5px 10px; font-size: 18px; font-weight: bold; color: #4f46e5;">${formatPrice(
-                                  printerOrder?.printerPayout || order.printerPayout || (printerOrder?.printerTotalPrice || order.printerTotalPrice || 0) - (printerOrder?.commissionFee || order.commissionFee || 0)
+                                  printerOrder?.printerPayout ||
+                                    order.printerPayout ||
+                                    (printerOrder?.printerTotalPrice ||
+                                      order.printerTotalPrice ||
+                                      0) -
+                                      (printerOrder?.commissionFee ||
+                                        order.commissionFee ||
+                                        0)
                                 )}</td>
                               </tr>
                             </table>
@@ -604,4 +689,3 @@ export const sendNewOrderNotification = async (
     );
   }
 };
-

@@ -6,25 +6,43 @@ import { z } from "zod";
 // --- VALIDATION SCHEMAS ---
 // Schema này có thể được share với backend thông qua @printz/types
 // ✅ FIX: Sử dụng z.object() trực tiếp thay vì chain để tránh lỗi Zod v4
-export const authFlowSchema = z.object({
-  email: z.string().min(1, "Email không được để trống").email("Email không hợp lệ"),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
-  confirmPassword: z.string().optional(),
-}).refine(
-  (data) => {
-    // Chỉ validate confirmPassword khi nó có giá trị (tức là đang ở mode signUp)
-    if (data.confirmPassword) {
-      return data.password === data.confirmPassword;
+// ✅ IMPROVED: Stronger password validation
+const passwordSchema = z
+  .string()
+  .min(8, "Mật khẩu phải có ít nhất 8 ký tự")
+  .max(128, "Mật khẩu không được quá 128 ký tự")
+  .regex(/[A-Z]/, "Mật khẩu phải có ít nhất 1 chữ cái viết hoa")
+  .regex(/[a-z]/, "Mật khẩu phải có ít nhất 1 chữ cái viết thường")
+  .regex(/[0-9]/, "Mật khẩu phải có ít nhất 1 chữ số")
+  .regex(
+    /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/,
+    "Mật khẩu phải có ít nhất 1 ký tự đặc biệt"
+  );
+
+export const authFlowSchema = z
+  .object({
+    email: z
+      .string()
+      .min(1, "Email không được để trống")
+      .email("Email không hợp lệ"),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    password: passwordSchema,
+    confirmPassword: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      // Chỉ validate confirmPassword khi nó có giá trị (tức là đang ở mode signUp)
+      if (data.confirmPassword) {
+        return data.password === data.confirmPassword;
+      }
+      return true;
+    },
+    {
+      message: "Mật khẩu xác nhận không khớp",
+      path: ["confirmPassword"], // Gắn lỗi vào field confirmPassword
     }
-    return true;
-  },
-  {
-    message: "Mật khẩu xác nhận không khớp",
-    path: ["confirmPassword"], // Gắn lỗi vào field confirmPassword
-  }
-);
+  );
 
 export type AuthFlowValues = z.infer<typeof authFlowSchema>;
 
@@ -100,4 +118,3 @@ export const getAndClearPrefetchEmail = (): string | null => {
     return null;
   }
 };
-

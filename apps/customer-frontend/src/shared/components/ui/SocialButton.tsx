@@ -1,5 +1,5 @@
 // apps/customer-frontend/src/shared/components/ui/SocialButton.tsx
-// ✅ NEW: Using Google One Tap / OAuth2 flow (no popup, no redirect URI needed!)
+// ✅ Using Google OAuth2 implicit flow (access token) - simpler, no redirect URI needed
 import { Button } from "@/shared/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -26,23 +26,37 @@ export function SocialButton({
   const isSignIn = mode === "signIn";
   const [isLoading, setIsLoading] = useState(false);
 
-  // ✅ NEW: Use Google OAuth2 flow (authorization code)
+  // ✅ Use implicit flow (access token) - no backend token exchange needed
   const googleLogin = useGoogleLogin({
-    onSuccess: async (codeResponse) => {
-      console.log("[OAuth] Google login success:", codeResponse);
+    onSuccess: async (tokenResponse) => {
+      console.log("[OAuth] Google login success");
       setIsLoading(true);
 
       try {
-        // Send authorization code to backend
-        const response = await axios.post(`${API_URL}/api/auth/google/verify`, {
-          code: codeResponse.code,
+        // Get user info from Google
+        const userInfoResponse = await axios.get(
+          "https://www.googleapis.com/oauth2/v3/userinfo",
+          {
+            headers: {
+              Authorization: `Bearer ${tokenResponse.access_token}`,
+            },
+          }
+        );
+
+        const userInfo = userInfoResponse.data;
+        console.log("[OAuth] User info received:", userInfo.email);
+
+        // Send to backend for verification and session creation
+        const response = await axios.post(`${API_URL}/api/auth/google-verify`, {
+          accessToken: tokenResponse.access_token,
+          userInfo: userInfo,
           role: "customer",
         });
 
         if (response.data?.success && response.data?.data?.accessToken) {
           const { accessToken } = response.data.data;
 
-          console.log("[OAuth] ✅ Token received from backend");
+          console.log("[OAuth] ✅ Session created");
           setAccessToken(accessToken);
           await fetchMe();
 
@@ -72,10 +86,8 @@ export function SocialButton({
         description: "Không thể kết nối với Google",
       });
     },
-    flow: "auth-code", // ✅ Use authorization code flow (more secure)
   });
 
-  // 🔥 TEXT & COLOR THEO NGỮ CẢNH
   const label = isSignIn ? "ĐĂNG NHẬP BẰNG GOOGLE" : "ĐĂNG KÝ BẰNG GOOGLE";
   const hoverColor = isSignIn
     ? "hover:border-indigo-600 hover:bg-indigo-50"

@@ -35,6 +35,57 @@ export class AuthService {
   }
 
   /**
+   * ✅ NEW: Validate password strength
+   * Requirements:
+   * - At least 8 characters (increased from 6)
+   * - At least one uppercase letter
+   * - At least one lowercase letter
+   * - At least one number
+   * - At least one special character
+   */
+  validatePassword(password) {
+    if (!password) {
+      throw new ValidationException("Mật khẩu là bắt buộc");
+    }
+
+    if (password.length < 8) {
+      throw new ValidationException("Mật khẩu phải có ít nhất 8 ký tự");
+    }
+
+    if (password.length > 128) {
+      throw new ValidationException("Mật khẩu không được quá 128 ký tự");
+    }
+
+    // Check for uppercase letter
+    if (!/[A-Z]/.test(password)) {
+      throw new ValidationException(
+        "Mật khẩu phải có ít nhất 1 chữ cái viết hoa"
+      );
+    }
+
+    // Check for lowercase letter
+    if (!/[a-z]/.test(password)) {
+      throw new ValidationException(
+        "Mật khẩu phải có ít nhất 1 chữ cái viết thường"
+      );
+    }
+
+    // Check for number
+    if (!/[0-9]/.test(password)) {
+      throw new ValidationException("Mật khẩu phải có ít nhất 1 chữ số");
+    }
+
+    // Check for special character
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      throw new ValidationException(
+        "Mật khẩu phải có ít nhất 1 ký tự đặc biệt (!@#$%^&*...)"
+      );
+    }
+
+    return true;
+  }
+
+  /**
    * Sign up new user (always creates CustomerProfile)
    * ✅ FIXED: Thêm validation cho email và password strength
    */
@@ -54,14 +105,8 @@ export class AuthService {
       throw new ValidationException("Email không hợp lệ");
     }
 
-    // ✅ FIXED: Validate password strength
-    if (password.length < 6) {
-      throw new ValidationException("Mật khẩu phải có ít nhất 6 ký tự");
-    }
-
-    if (password.length > 128) {
-      throw new ValidationException("Mật khẩu không được quá 128 ký tự");
-    }
+    // ✅ FIXED: Validate password strength (improved)
+    this.validatePassword(password);
 
     // ✅ FIXED: Validate displayName
     if (displayName.trim().length < 2) {
@@ -273,17 +318,23 @@ export class AuthService {
     // ✅ FIXED: Xóa các session cũ hơn 30 ngày để tránh tích lũy
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     try {
-      const Session = (await import("../../shared/models/session.model.js")).default;
+      const Session = (await import("../../shared/models/session.model.js"))
+        .default;
       const deletedCount = await Session.deleteMany({
         userId: user._id,
         expireAt: { $lt: thirtyDaysAgo },
       });
       if (deletedCount.deletedCount > 0) {
-        console.log(`🧹 [Auth] Cleaned up ${deletedCount.deletedCount} old sessions for user: ${user.email}`);
+        console.log(
+          `🧹 [Auth] Cleaned up ${deletedCount.deletedCount} old sessions for user: ${user.email}`
+        );
       }
     } catch (cleanupError) {
       // Log nhưng không throw - cleanup không critical
-      console.warn(`⚠️ [Auth] Error cleaning up old sessions:`, cleanupError.message);
+      console.warn(
+        `⚠️ [Auth] Error cleaning up old sessions:`,
+        cleanupError.message
+      );
     }
 
     // Generate tokens
@@ -347,8 +398,10 @@ export class AuthService {
     // ✅ FIXED: Xóa session cũ và tạo session mới (token rotation)
     // ✅ FIXED: Sử dụng transaction để tránh race condition
     // ✅ SECURITY: Log token refresh để phát hiện reuse
-    console.log(`🔄 [Auth] Token refresh for user: ${session.userId}, session: ${session._id}`);
-    
+    console.log(
+      `🔄 [Auth] Token refresh for user: ${session.userId}, session: ${session._id}`
+    );
+
     try {
       await this.authRepository.deleteSession(session._id);
       await this.authRepository.createSession({
@@ -356,10 +409,15 @@ export class AuthService {
         refreshToken: newRefreshToken,
         expireAt: newExpireAt,
       });
-      console.log(`✅ [Auth] Token rotated successfully for user: ${session.userId}`);
+      console.log(
+        `✅ [Auth] Token rotated successfully for user: ${session.userId}`
+      );
     } catch (error) {
       // ✅ SECURITY: Log error để phát hiện token reuse hoặc attack
-      console.error(`❌ [Auth] Error during token rotation for user: ${session.userId}`, error);
+      console.error(
+        `❌ [Auth] Error during token rotation for user: ${session.userId}`,
+        error
+      );
       // Nếu có lỗi khi tạo session mới, không xóa session cũ
       throw new ForbiddenException("Không thể làm mới token, vui lòng thử lại");
     }
@@ -388,13 +446,17 @@ export class AuthService {
         throw new ValidationException("User ID is required");
       }
 
-      console.log(`🔐 [Auth] Creating OAuth session for user: ${user.email || user._id}`);
+      console.log(
+        `🔐 [Auth] Creating OAuth session for user: ${user.email || user._id}`
+      );
 
       // Generate tokens
       const accessToken = this.generateAccessToken(user._id);
       const refreshToken = crypto.randomBytes(64).toString("hex");
 
-      console.log(`🔐 [Auth] Tokens generated for user: ${user.email || user._id}`);
+      console.log(
+        `🔐 [Auth] Tokens generated for user: ${user.email || user._id}`
+      );
 
       // Create session (user có thể có nhiều session từ nhiều thiết bị)
       await this.authRepository.createSession({
@@ -403,22 +465,35 @@ export class AuthService {
         expireAt: new Date(Date.now() + REFRESH_TOKEN_TTL),
       });
 
-      console.log(`🔐 [Auth] Session created for user: ${user.email || user._id}`);
+      console.log(
+        `🔐 [Auth] Session created for user: ${user.email || user._id}`
+      );
 
       // Update last login time
       user.lastLoginAt = new Date();
       await user.save();
 
-      console.log(`🔐 [Auth] User lastLoginAt updated for: ${user.email || user._id}`);
+      console.log(
+        `🔐 [Auth] User lastLoginAt updated for: ${user.email || user._id}`
+      );
 
       // Populate user with profiles
       const userWithProfiles = await this.authRepository.findUserById(user._id);
 
-      console.log(`✅ [Auth] OAuth session created successfully for user: ${user.email || user._id}`);
+      console.log(
+        `✅ [Auth] OAuth session created successfully for user: ${
+          user.email || user._id
+        }`
+      );
 
       return { accessToken, refreshToken, user: userWithProfiles };
     } catch (error) {
-      console.error(`❌ [Auth] Error creating OAuth session for user: ${user?.email || user?._id || 'unknown'}`, error);
+      console.error(
+        `❌ [Auth] Error creating OAuth session for user: ${
+          user?.email || user?._id || "unknown"
+        }`,
+        error
+      );
       console.error(`❌ [Auth] Error stack:`, error.stack);
       throw error; // Re-throw để callback handler xử lý
     }
@@ -439,7 +514,9 @@ export class AuthService {
       if (deleted.deletedCount > 0) {
         console.log(`✅ [Auth] User signed out, session deleted`);
       } else {
-        console.log(`⚠️ [Auth] Sign out: Session not found (may have been already deleted)`);
+        console.log(
+          `⚠️ [Auth] Sign out: Session not found (may have been already deleted)`
+        );
       }
     } catch (error) {
       // Log nhưng không throw - sign out nên luôn thành công
@@ -447,5 +524,142 @@ export class AuthService {
     }
 
     return true;
+  }
+
+  /**
+   * ✅ NEW: Request password reset
+   * Generates a reset token and sends email
+   */
+  async requestPasswordReset(email) {
+    if (!email) {
+      throw new ValidationException("Email là bắt buộc");
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new ValidationException("Email không hợp lệ");
+    }
+
+    const user = await this.authRepository.findUserByEmail(email);
+
+    // ✅ SECURITY: Không leak thông tin email có tồn tại hay không
+    if (!user) {
+      // Vẫn trả về success để không leak thông tin
+      console.log(
+        `⚠️ [Auth] Password reset requested for non-existent email: ${email}`
+      );
+      return { email };
+    }
+
+    // ✅ SECURITY: Không cho phép reset password cho OAuth users
+    if (user.authMethod === "google") {
+      throw new ValidationException(
+        "Tài khoản này đăng nhập bằng Google. Vui lòng sử dụng Google để đăng nhập."
+      );
+    }
+
+    // Generate reset token (32 bytes = 64 hex chars)
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    // Set token and expiration (1 hour)
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordTokenExpiresAt = new Date(Date.now() + 3600000); // 1 hour
+    await this.authRepository.saveUser(user);
+
+    // Send reset email
+    const { sendPasswordResetEmail } = await import(
+      "../../infrastructure/email/email.service.js"
+    );
+    await sendPasswordResetEmail(user.email, resetToken);
+
+    console.log(`✅ [Auth] Password reset email sent to: ${user.email}`);
+
+    return { email: user.email };
+  }
+
+  /**
+   * ✅ NEW: Verify reset token
+   * Checks if token is valid and not expired
+   */
+  async verifyResetToken(token) {
+    if (!token) {
+      throw new ValidationException("Token là bắt buộc");
+    }
+
+    // Validate token format (hex string, 64 chars)
+    if (typeof token !== "string" || token.length !== 64) {
+      throw new ValidationException("Token không hợp lệ");
+    }
+
+    const user = await this.authRepository.findUserByResetToken(token);
+
+    if (!user) {
+      throw new NotFoundException(
+        "Token không hợp lệ hoặc đã hết hạn",
+        "Token"
+      );
+    }
+
+    console.log(`✅ [Auth] Reset token verified for user: ${user.email}`);
+
+    return { email: user.email };
+  }
+
+  /**
+   * ✅ NEW: Reset password with token
+   * Validates token and updates password
+   */
+  async resetPassword(token, newPassword) {
+    if (!token) {
+      throw new ValidationException("Token là bắt buộc");
+    }
+
+    if (!newPassword) {
+      throw new ValidationException("Mật khẩu mới là bắt buộc");
+    }
+
+    // Validate token format
+    if (typeof token !== "string" || token.length !== 64) {
+      throw new ValidationException("Token không hợp lệ");
+    }
+
+    // Validate new password strength
+    this.validatePassword(newPassword);
+
+    // Find user by reset token
+    const user = await this.authRepository.findUserByResetToken(token);
+
+    if (!user) {
+      throw new NotFoundException(
+        "Token không hợp lệ hoặc đã hết hạn",
+        "Token"
+      );
+    }
+
+    // ✅ SECURITY: Không cho phép reset password cho OAuth users
+    if (user.authMethod === "google") {
+      throw new ValidationException(
+        "Tài khoản này đăng nhập bằng Google. Không thể đổi mật khẩu."
+      );
+    }
+
+    // Update password (will be hashed by pre-save hook)
+    user.hashedPassword = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordTokenExpiresAt = undefined;
+    await this.authRepository.saveUser(user);
+
+    // ✅ SECURITY: Invalidate all existing sessions after password reset
+    const Session = (await import("../../shared/models/session.model.js"))
+      .default;
+    const deletedSessions = await Session.deleteMany({ userId: user._id });
+
+    console.log(`✅ [Auth] Password reset successful for user: ${user.email}`);
+    console.log(
+      `🔒 [Auth] Invalidated ${deletedSessions.deletedCount} sessions for security`
+    );
+
+    return { email: user.email };
   }
 }
