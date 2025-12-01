@@ -112,9 +112,16 @@ export class AuthController {
       }
 
       console.log(`🔐 [Auth Google Code] Exchanging code for tokens...`);
+      console.log(`🔐 [Auth Google Code] Code:`, code.substring(0, 20) + "...");
 
       // 1. Exchange authorization code for tokens
-      const { tokens } = await this.googleClient.getToken(code);
+      // ✅ FIX: Need redirect_uri as 'postmessage' for popup flow
+      const { tokens } = await this.googleClient.getToken({
+        code: code,
+        redirect_uri: "postmessage",
+      });
+
+      console.log(`🔐 [Auth Google Code] Tokens received successfully`);
       this.googleClient.setCredentials(tokens);
 
       // 2. Get user info from Google
