@@ -58,6 +58,10 @@ router.get(
           success: false,
           message: "Xác thực thất bại",
         };
+        res.setHeader(
+          "Content-Security-Policy",
+          "script-src 'self' 'unsafe-inline'; default-src 'self'"
+        );
         return res.send(`
 <!DOCTYPE html>
 <html>
@@ -85,6 +89,10 @@ router.get(
           success: false,
           message: "Dữ liệu người dùng không hợp lệ",
         };
+        res.setHeader(
+          "Content-Security-Policy",
+          "script-src 'self' 'unsafe-inline'; default-src 'self'"
+        );
         return res.send(`
 <!DOCTYPE html>
 <html>
@@ -125,6 +133,12 @@ router.get(
       };
 
       Logger.success(`[OAuth] Session created for user: ${req.user.email}`);
+
+      // ✅ FIX: Set CSP header to allow inline scripts
+      res.setHeader(
+        "Content-Security-Policy",
+        "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; default-src 'self'"
+      );
 
       // ✅ FIX: Simplified HTML with better error handling
       res.send(`
@@ -325,6 +339,10 @@ router.get(
           process.env.NODE_ENV === "development" ? error.message : undefined,
       };
 
+      res.setHeader(
+        "Content-Security-Policy",
+        "script-src 'self' 'unsafe-inline'; default-src 'self'"
+      );
       res.status(500).send(`
 <!DOCTYPE html>
 <html>
