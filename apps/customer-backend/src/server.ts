@@ -441,6 +441,12 @@ async function startServer() {
     app.use(passport.session());
 
     // --- 5. ĐỊNH NGHĨA ROUTES ---
+    // ✅ MONITORING: Health Check endpoints (đặt trước các routes khác)
+    Logger.info("📦 [Server] Importing health routes...");
+    const healthRoutes = (await import("./routes/health.routes.js")).default;
+    app.use("/", healthRoutes);
+    Logger.info("✅ [Server] Health routes mounted");
+
     // (Giữ nguyên)
     const apiRouter = express.Router();
     apiRouter.use("/auth", authRoutes, oauthRoutes);

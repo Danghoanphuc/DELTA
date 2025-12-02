@@ -20,7 +20,14 @@
     "dev:admin:fe": "pnpm --filter ./apps/admin-frontend dev",
     "dev:admin:be": "pnpm --filter ./apps/admin-backend dev",
     "dev:admin": "concurrently \"pnpm dev:admin:be\" \"pnpm dev:admin:fe\"",
-    "script:create-superadmin": "pnpm --filter admin-backend build && node apps/admin-backend/dist/scripts/createSuperAdmin.js"
+    "script:create-superadmin": "pnpm --filter admin-backend build && node apps/admin-backend/dist/scripts/createSuperAdmin.js",
+    "//--- MONITORING & LOGGING ---": "",
+    "monitoring:start": "docker-compose -f docker-compose.monitoring.yml up -d",
+    "monitoring:stop": "docker-compose -f docker-compose.monitoring.yml down",
+    "monitoring:logs": "docker-compose -f docker-compose.monitoring.yml logs -f",
+    "test:sentry:admin": "pnpm --filter admin-backend build && pnpm --filter admin-backend test:sentry",
+    "test:sentry:customer": "pnpm --filter customer-backend test:sentry",
+    "test:sentry:all": "pnpm test:sentry:admin && pnpm test:sentry:customer"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

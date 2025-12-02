@@ -29,6 +29,8 @@
     "@aws-sdk/s3-request-presigner": "^3.939.0",
     "@bull-board/api": "^6.14.1",
     "@bull-board/express": "^6.14.1",
+    "@logtail/node": "^0.5.2",
+    "@logtail/winston": "^0.5.2",
     "@novu/node": "^2.0.0",
     "@payos/node": "^2.0.3",
     "@printz/types": "workspace:*",

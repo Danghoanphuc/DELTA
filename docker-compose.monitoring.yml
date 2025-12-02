@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  # Uptime Kuma - Uptime Monitoring & Status Page
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: printz-uptime-kuma
+    volumes:
+      - ./uptime-kuma-data:/app/data
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    networks:
+      - monitoring
+    environment:
+      - NODE_ENV=production
+    labels:
+      - "com.printz.service=uptime-kuma"
+      - "com.printz.description=Uptime monitoring and status page"
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  uptime-kuma-data:
+    driver: local

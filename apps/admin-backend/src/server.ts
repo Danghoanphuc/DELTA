@@ -1,9 +1,13 @@
 // apps/admin-backend/src/server.ts
+// ✅ IMPORTANT: Import Sentry FIRST (before anything else)
+import "./infrastructure/instrument.js";
+
 import express, {
   type Request,
   type Response,
   type NextFunction,
 } from "express";
+import * as Sentry from "@sentry/node";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -14,6 +18,7 @@ import { config } from "./config/env.config.js";
 import { Logger } from "./utils/logger.js";
 
 // --- Import routes ---
+import healthRoutes from "./routes/health.routes.js";
 import adminAuthRoutes from "./routes/admin.routes.js";
 import { errorHandler } from "./middleware/error.handler.middleware.js";
 import { generalRateLimiter } from "./middleware/rate-limit.middleware.js";
@@ -75,22 +80,17 @@ app.use(express.json({ limit: "10mb" })); // ✅ Add limit to prevent payload at
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(morgan(config.env === "production" ? "combined" : "dev"));
 
+// --- ✅ MONITORING: Add Sentry handlers ---
+Sentry.setupExpressErrorHandler(app);
+
 // --- ✅ SECURITY: Apply general rate limiting to all routes ---
 app.use(generalRateLimiter);
 
 // --- ✅ IMPROVEMENT: Kết nối MongoDB với proper error handling ---
 const MONGO_URI = config.db.connectionString;
 
-// --- ✅ IMPROVEMENT: Health Check endpoint (đặt trước các routes khác) ---
-app.get("/health", (req: Request, res: Response) => {
-  const healthCheck = {
-    status: "OK",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    mongodb: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
-  };
-  res.status(200).json(healthCheck);
-});
+// --- ✅ MONITORING: Health Check endpoints (đặt trước các routes khác) ---
+app.use("/", healthRoutes);
 
 // --- API Routes ---
 app.use("/api/admin/auth", adminAuthRoutes);
