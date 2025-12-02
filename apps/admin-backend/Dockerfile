@@ -19,12 +19,13 @@ RUN npm install -g pnpm
 # Copy file cấu hình đã lọc
 COPY --from=pruner /app/out/json/ .
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=pruner /app/out/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
-# Copy source code trước khi install (để có tsconfig.json và source cho prepare scripts)
+# Install dependencies - use no-frozen-lockfile for flexibility in CI/CD
+RUN pnpm install --no-frozen-lockfile
+
+# Copy source code sau khi install
 COPY --from=pruner /app/out/full/ .
-
-# ✅ Install với frozen-lockfile, bcrypt sẽ được build
-RUN pnpm install --frozen-lockfile
 
 # Build dự án
 RUN pnpm turbo build --filter=admin-backend...

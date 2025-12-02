@@ -20,11 +20,9 @@ RUN npm install -g pnpm
 COPY --from=pruner /app/out/json/ .
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=pruner /app/out/pnpm-workspace.yaml ./pnpm-workspace.yaml
-COPY .npmrc .npmrc 2>/dev/null || true
 
-# Install dependencies - use no-frozen-lockfile for flexibility
-RUN pnpm install --no-frozen-lockfile --prefer-offline || \
-    pnpm install --no-frozen-lockfile
+# Install dependencies - use no-frozen-lockfile for flexibility in CI/CD
+RUN pnpm install --no-frozen-lockfile
 
 COPY --from=pruner /app/out/full/ .
 
