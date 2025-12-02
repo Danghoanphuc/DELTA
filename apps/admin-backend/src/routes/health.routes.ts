@@ -30,6 +30,8 @@ router.get("/health", async (req, res) => {
       health.status = "degraded";
     }
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     health.checks.database = "error";
     health.status = "error";
   }

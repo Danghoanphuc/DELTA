@@ -1,0 +1,47 @@
+{
+  "name": "@printz/types",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./models/customer-profile.model": {
+      "import": "./dist/models/customer-profile.model.js",
+      "types": "./dist/models/customer-profile.model.d.ts"
+    },
+    "./models/printer-profile.model": {
+      "import": "./dist/models/printer-profile.model.js",
+      "types": "./dist/models/printer-profile.model.d.ts"
+    },
+    "./models/user.model": {
+      "import": "./dist/models/user.model.js",
+      "types": "./dist/models/user.model.d.ts"
+    },
+    "./models/product.model": {
+      "import": "./dist/models/product.model.js",
+      "types": "./dist/models/product.model.d.ts"
+    },
+    "./models/design-template.model": {
+      "import": "./dist/models/design-template.model.js",
+      "types": "./dist/models/design-template.model.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "mongoose": "^8.0.0",
+    "bcrypt": "^5.1.1"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.0",
+    "typescript": "^5.9.3"
+  }
+}
