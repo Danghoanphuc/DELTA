@@ -1,7 +1,6 @@
-# apps/admin-backend/Dockerfile
 FROM node:20-alpine AS base
 
-# --- Stage 1: Pruning ---
+# Stage 1: Prune
 FROM base AS pruner
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
@@ -9,51 +8,35 @@ RUN npm install -g turbo
 COPY . .
 RUN turbo prune admin-backend --docker
 
-# --- Stage 2: Installer & Builder ---
+# Stage 2: Build
 FROM base AS builder
-# ✅ Thêm build tools cho bcrypt và các native modules
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN apk add --no-cache libc6-compat python3 make g++
 WORKDIR /app
 RUN npm install -g pnpm
 
-# Copy file cấu hình đã lọc
 COPY --from=pruner /app/out/json/ .
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
-COPY --from=pruner /app/out/pnpm-workspace.yaml ./pnpm-workspace.yaml
-
-# Copy source first to have all files available
-COPY --from=pruner /app/out/full/ .
-
-# Install dependencies - use no-frozen-lockfile for flexibility in CI/CD
 RUN pnpm install --no-frozen-lockfile
 
-# Build dependencies first (types package must be built before admin-backend)
-RUN pnpm --filter "@printz/types" build
+COPY --from=pruner /app/out/full/ .
+# Build Admin
+RUN pnpm turbo build --filter=admin-backend...
 
-# Build admin-backend
-RUN pnpm --filter admin-backend build
-
-# --- Stage 3: Runner ---
+# Stage 3: Run
 FROM base AS runner
-# ✅ Thêm runtime dependencies cho bcrypt
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
-
 RUN addgroup --system --gid 1001 expressjs
 RUN adduser --system --uid 1001 expressjs
+# Cài đủ thư viện cho Admin xử lý file/ảnh
+RUN apk add --no-cache libc6-compat font-noto fontconfig ttf-dejavu lcms2 libpng libjpeg-turbo
 
-# Copy package.json
-COPY --from=builder /app/apps/admin-backend/package.json .
-
-# Copy compiled code
-COPY --from=builder /app/apps/admin-backend/dist ./dist
-
-# ✅ Copy ALL node_modules (bao gồm bcrypt binaries đã build)
-COPY --from=builder /app/node_modules ./node_modules
-
-# ✅ Copy packages (bao gồm @printz/types)
 COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/apps/admin-backend/package.json .
+COPY --from=builder /app/apps/admin-backend/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/admin-backend/node_modules ./apps/admin-backend/node_modules
 
 USER expressjs
-EXPOSE 3000
+EXPOSE 3001
 CMD ["node", "dist/server.js"]
