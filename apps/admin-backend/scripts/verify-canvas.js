@@ -1,8 +1,8 @@
+import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
+
 console.log("🎨 [Verify] Starting Printz Graphics Engine check...");
 
 try {
-  const { createCanvas, GlobalFonts } = require("@napi-rs/canvas");
-
   // 1. Kiểm tra khởi tạo
   console.log("   - Testing allocation...");
   const canvas = createCanvas(100, 100);
