@@ -1,13 +1,28 @@
 import Redis from 'ioredis';
+
+// Æ¯u tiÃªn dÃ¹ng Connection String (Render cung cáº¥p cÃ¡i nÃ y)
+const REDIS_URL = process.env.REDIS_URL;
+
+// Fallback cho Localhost
 const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
 const REDIS_PORT = parseInt(process.env.REDIS_PORT || '6379');
 const REDIS_PASSWORD = process.env.REDIS_PASSWORD || undefined;
-console.log(`í´Œ Redis: ${REDIS_HOST}:${REDIS_PORT}`);
-export const redisClient = new Redis({
-  host: REDIS_HOST,
-  port: REDIS_PORT,
-  password: REDIS_PASSWORD,
-  retryStrategy: (t) => Math.min(t * 50, 2000),
-  maxRetriesPerRequest: null,
-});
-redisClient.on('error', (e) => console.error('Redis Error:', e));
+
+console.log(REDIS_URL ? `í´Œ Redis: Connecting via URL...` : `í´Œ Redis: ${REDIS_HOST}:${REDIS_PORT}`);
+
+// Logic: Náº¿u cÃ³ URL thÃ¬ dÃ¹ng URL, khÃ´ng thÃ¬ dÃ¹ng Host/Port
+export const redisClient = REDIS_URL 
+  ? new Redis(REDIS_URL, {
+      maxRetriesPerRequest: null,
+      retryStrategy: (t) => Math.min(t * 50, 2000),
+    })
+  : new Redis({
+      host: REDIS_HOST,
+      port: REDIS_PORT,
+      password: REDIS_PASSWORD,
+      maxRetriesPerRequest: null,
+      retryStrategy: (t) => Math.min(t * 50, 2000),
+    });
+
+redisClient.on('connect', () => console.log('âœ… Redis Connected!'));
+redisClient.on('error', (e) => console.error('âŒ Redis Error:', e));
