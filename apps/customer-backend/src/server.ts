@@ -378,7 +378,22 @@ async function startServer() {
         crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }, // ✅ Cải thiện: cho phép popup nhưng vẫn bảo mật
       })
     );
-    app.use(morgan("dev"));
+    // Skip logging for health checks to reduce noise
+    app.use(
+      morgan("dev", {
+        skip: (req, res) => {
+          // Skip health check endpoints
+          if (req.url === "/" || req.url.startsWith("/health")) {
+            return true;
+          }
+          // Skip 404s from bots/scanners
+          if (res.statusCode === 404) {
+            return true;
+          }
+          return false;
+        },
+      })
+    );
 
     // ✅ SECURITY: Initialize rate limiters after Redis connection
     initRateLimiters();

@@ -78,7 +78,22 @@ app.use(
 
 app.use(express.json({ limit: "10mb" })); // ✅ Add limit to prevent payload attacks
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-app.use(morgan(config.env === "production" ? "combined" : "dev"));
+// Skip logging for health checks to reduce noise
+app.use(
+  morgan(config.env === "production" ? "combined" : "dev", {
+    skip: (req, res) => {
+      // Skip health check endpoints
+      if (req.url.startsWith("/health")) {
+        return true;
+      }
+      // Skip 404s from bots/scanners
+      if (res.statusCode === 404) {
+        return true;
+      }
+      return false;
+    },
+  })
+);
 
 // --- ✅ MONITORING: Add Sentry handlers ---
 Sentry.setupExpressErrorHandler(app);
