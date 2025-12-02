@@ -1,66 +1,48 @@
 FROM node:20-alpine AS base
 
-# --- Stage 1: Pruning (Cắt tỉa Monorepo) ---
+# --- Stage 1: Pruning ---
 FROM base AS pruner
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 RUN npm install -g turbo
 COPY . .
-# Chỉ lấy những gì customer-backend cần
 RUN turbo prune customer-backend --docker
 
-# --- Stage 2: Installer & Builder (Nặng nhất - Cần Cache kỹ) ---
+# --- Stage 2: Installer & Builder ---
 FROM base AS builder
-# Cài đặt Build Tools cho Canvas & Native Modules
-# Mẹo: Chỉ cài ở bước này, không đưa sang Production để giảm size
-RUN apk add --no-cache \
-    libc6-compat \
-    python3 \
-    make \
-    g++ \
-    cairo-dev \
-    jpeg-dev \
-    pango-dev \
-    giflib-dev \
-    pixman-dev
-
+# [FIX] Thêm lại python3, make, g++ để build bcrypt và các native module khác
+RUN apk add --no-cache libc6-compat python3 make g++
 WORKDIR /app
 RUN npm install -g pnpm
 
-# [TỐI ƯU CỰC MẠNH] 
-# 1. Copy file định nghĩa trước
 COPY --from=pruner /app/out/json/ .
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 
-# 2. Cài đặt Dependencies NGAY LÚC NÀY
-# Docker sẽ CACHE layer này. Nếu bạn chỉ sửa code mà không sửa package.json,
-# Docker sẽ bỏ qua bước này (tiết kiệm 2-3 phút compile Canvas)
+# Lệnh này sẽ thành công nếu bạn đã làm Bước 1 (Update lockfile)
 RUN pnpm install --frozen-lockfile
 
-# 3. Bây giờ mới copy source code vào
 COPY --from=pruner /app/out/full/ .
-
-# 4. Build dự án
 RUN pnpm turbo build --filter=customer-backend...
 
-# --- Stage 3: Runner (Môi trường chạy thật - Nhẹ & Bảo mật) ---
+# [SAFETY GATE]
+RUN node apps/customer-backend/scripts/verify-canvas.js
+
+# --- Stage 3: Runner ---
 FROM base AS runner
 WORKDIR /app
-
-# Tạo user để không chạy dưới quyền root (Security)
 RUN addgroup --system --gid 1001 expressjs
 RUN adduser --system --uid 1001 expressjs
 
-# Cài đặt Runtime Libraries cho Canvas (Không cần compiler g++/make nữa)
+# Font & Color Profile libs
 RUN apk add --no-cache \
     libc6-compat \
-    cairo \
-    jpeg \
-    pango \
-    giflib \
-    pixman
+    font-noto \
+    fontconfig \
+    ttf-dejavu \
+    lcms2 \
+    libpng \
+    libjpeg-turbo
 
-# Copy dependencies và code đã build từ Stage 2
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/apps/customer-backend/package.json .
 COPY --from=builder /app/apps/customer-backend/dist ./dist
@@ -69,5 +51,8 @@ COPY --from=builder /app/apps/customer-backend/node_modules ./apps/customer-back
 
 USER expressjs
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
 CMD ["node", "dist/server.js"]
