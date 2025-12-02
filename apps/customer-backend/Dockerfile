@@ -21,13 +21,17 @@ COPY --from=pruner /app/out/json/ .
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=pruner /app/out/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
+# Copy source first to have all files available
+COPY --from=pruner /app/out/full/ .
+
 # Install dependencies - use no-frozen-lockfile for flexibility in CI/CD
 RUN pnpm install --no-frozen-lockfile
 
-COPY --from=pruner /app/out/full/ .
+# Build dependencies first (types package must be built before customer-backend)
+RUN pnpm --filter "@printz/types" build
 
-# Build với cờ debug nếu cần, nhưng ở đây ta tin vào cấu hình tsconfig mới
-RUN pnpm turbo build --filter=customer-backend...
+# Build customer-backend
+RUN pnpm --filter customer-backend build
 
 # Verify Engine
 RUN node apps/customer-backend/scripts/verify-canvas.js

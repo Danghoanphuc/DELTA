@@ -21,14 +21,17 @@ COPY --from=pruner /app/out/json/ .
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=pruner /app/out/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
+# Copy source first to have all files available
+COPY --from=pruner /app/out/full/ .
+
 # Install dependencies - use no-frozen-lockfile for flexibility in CI/CD
 RUN pnpm install --no-frozen-lockfile
 
-# Copy source code sau khi install
-COPY --from=pruner /app/out/full/ .
+# Build dependencies first (types package must be built before admin-backend)
+RUN pnpm --filter "@printz/types" build
 
-# Build dự án
-RUN pnpm turbo build --filter=admin-backend...
+# Build admin-backend
+RUN pnpm --filter admin-backend build
 
 # --- Stage 3: Runner ---
 FROM base AS runner
