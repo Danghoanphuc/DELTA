@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// Simple build script for customer-backend
-// Since most files are .js, we just copy them to dist
+// Build script for customer-backend
+// Compiles TypeScript files and copies other assets
 
-import { cpSync, mkdirSync, existsSync } from "fs";
-import { dirname, join } from "path";
+import { execSync } from "child_process";
+import { cpSync, mkdirSync, existsSync, readdirSync, statSync } from "fs";
+import { dirname, join, extname } from "path";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -19,8 +20,41 @@ if (!existsSync(distDir)) {
   mkdirSync(distDir, { recursive: true });
 }
 
-// Copy all source files to dist
-console.log("[Build] Copying source files...");
-cpSync(srcDir, distDir, { recursive: true });
+// Compile TypeScript
+console.log("[Build] Compiling TypeScript...");
+try {
+  execSync("tsc", { cwd: rootDir, stdio: "inherit" });
+  console.log("[Build] ✅ TypeScript compilation completed");
+} catch (error) {
+  console.error("[Build] ❌ TypeScript compilation failed");
+  process.exit(1);
+}
+
+// Copy non-TS files (like .js, .json, etc.) that weren't compiled
+console.log("[Build] Copying additional assets...");
+function copyNonTsFiles(src, dest) {
+  const entries = readdirSync(src);
+
+  for (const entry of entries) {
+    const srcPath = join(src, entry);
+    const destPath = join(dest, entry);
+    const stat = statSync(srcPath);
+
+    if (stat.isDirectory()) {
+      if (!existsSync(destPath)) {
+        mkdirSync(destPath, { recursive: true });
+      }
+      copyNonTsFiles(srcPath, destPath);
+    } else {
+      const ext = extname(entry);
+      // Copy files that are not .ts (but keep .js files)
+      if (ext !== ".ts") {
+        cpSync(srcPath, destPath);
+      }
+    }
+  }
+}
+
+copyNonTsFiles(srcDir, distDir);
 
 console.log("[Build] ✅ Build completed successfully!");
