@@ -27,8 +27,9 @@ COPY --from=pruner /app/out/full/ .
 # Install dependencies - use no-frozen-lockfile for flexibility in CI/CD
 RUN pnpm install --no-frozen-lockfile
 
-# Build dependencies first (types package must be built before customer-backend)
+# Build dependencies first (types and utils packages must be built before customer-backend)
 RUN pnpm --filter "@printz/types" build
+RUN pnpm --filter "@printz/utils" build
 
 # Build customer-backend
 RUN pnpm --filter customer-backend build
