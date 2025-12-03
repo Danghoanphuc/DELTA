@@ -23,9 +23,9 @@ interface SocialChatState {
   setConversations: (conversations: ChatConversation[]) => void;
   syncConversations: (apiConversations: ChatConversation[]) => void;
   addConversation: (conversation: ChatConversation) => void;
-  
+
   // ✅ NEW: Action xóa cuộc trò chuyện khỏi Store
-  removeConversation: (conversationId: string) => void; 
+  removeConversation: (conversationId: string) => void;
 
   // ✅ NEW: Cập nhật trạng thái Online/Offline cho user trong list chat
   updateParticipantStatus: (userId: string, isOnline: boolean) => void;
@@ -55,13 +55,15 @@ export const useSocialChatStore = create<SocialChatState>()(
       unreadCounts: {},
       totalUnread: 0,
       typingUsers: {},
-      
+
       isInfoSidebarOpen: true,
-      toggleInfoSidebar: () => set((state) => ({ isInfoSidebarOpen: !state.isInfoSidebarOpen })),
+      toggleInfoSidebar: () =>
+        set((state) => ({ isInfoSidebarOpen: !state.isInfoSidebarOpen })),
       setInfoSidebarOpen: (isOpen) => set({ isInfoSidebarOpen: isOpen }),
 
       scrollToMessageId: null,
-      setScrollToMessageId: (messageId) => set({ scrollToMessageId: messageId }),
+      setScrollToMessageId: (messageId) =>
+        set({ scrollToMessageId: messageId }),
 
       setConversations: (conversations) => {
         set({ conversations });
@@ -73,16 +75,25 @@ export const useSocialChatStore = create<SocialChatState>()(
       syncConversations: (apiConversations: ChatConversation[]) =>
         set((state) => {
           const preservedActiveId = state.activeConversationId;
-          
+
           // Merge với store để giữ lại lastMessage và lastMessagePreview (real-time từ socket)
           const merged = apiConversations.map((apiConv) => {
-            const storeConv = state.conversations.find((c) => c._id === apiConv._id);
+            const storeConv = state.conversations.find(
+              (c) => c._id === apiConv._id
+            );
             if (storeConv) {
-              const storeLastMessageAt = storeConv.lastMessageAt ? new Date(storeConv.lastMessageAt).getTime() : 0;
-              const apiLastMessageAt = apiConv.lastMessageAt ? new Date(apiConv.lastMessageAt).getTime() : 0;
-              
+              const storeLastMessageAt = storeConv.lastMessageAt
+                ? new Date(storeConv.lastMessageAt).getTime()
+                : 0;
+              const apiLastMessageAt = apiConv.lastMessageAt
+                ? new Date(apiConv.lastMessageAt).getTime()
+                : 0;
+
               // Nếu store có lastMessage mới hơn hoặc bằng API, giữ lại lastMessage và lastMessagePreview
-              if (storeLastMessageAt >= apiLastMessageAt && (storeConv as any).lastMessage) {
+              if (
+                storeLastMessageAt >= apiLastMessageAt &&
+                (storeConv as any).lastMessage
+              ) {
                 return {
                   ...apiConv,
                   lastMessageAt: storeConv.lastMessageAt,
@@ -96,8 +107,12 @@ export const useSocialChatStore = create<SocialChatState>()(
 
           // Sắp xếp theo lastMessageAt
           merged.sort((a, b) => {
-            const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
-            const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+            const aTime = a.lastMessageAt
+              ? new Date(a.lastMessageAt).getTime()
+              : 0;
+            const bTime = b.lastMessageAt
+              ? new Date(b.lastMessageAt).getTime()
+              : 0;
             if (bTime !== aTime) return bTime - aTime;
             return (
               new Date(b.createdAt || 0).getTime() -
@@ -106,27 +121,34 @@ export const useSocialChatStore = create<SocialChatState>()(
           });
 
           // Kiểm tra xem active conversation còn tồn tại trong list mới không
-          const hasActiveConversation = preservedActiveId 
+          const hasActiveConversation = preservedActiveId
             ? merged.some((c) => c._id === preservedActiveId)
             : false;
 
-          return { 
+          return {
             conversations: merged,
             // Nếu cuộc trò chuyện đang mở bị xóa (không còn trong list API), thì reset activeId
-            activeConversationId: hasActiveConversation ? preservedActiveId : null,
+            activeConversationId: hasActiveConversation
+              ? preservedActiveId
+              : null,
           };
         }),
 
       addConversation: (conversation) =>
         set((state) => {
-          const exists = state.conversations.find((c) => c._id === conversation._id);
+          const exists = state.conversations.find(
+            (c) => c._id === conversation._id
+          );
           if (exists) {
+            // Update existing conversation and move to top
+            const filtered = state.conversations.filter(
+              (c) => c._id !== conversation._id
+            );
             return {
-              conversations: state.conversations.map((c) =>
-                c._id === conversation._id ? conversation : c
-              ),
+              conversations: [conversation, ...filtered],
             };
           }
+          // Add new conversation at the top
           return {
             conversations: [conversation, ...state.conversations],
           };
@@ -135,51 +157,62 @@ export const useSocialChatStore = create<SocialChatState>()(
       // ✅ NEW: Implement removeConversation
       removeConversation: (conversationId) =>
         set((state) => ({
-          conversations: state.conversations.filter((c) => c._id !== conversationId),
+          conversations: state.conversations.filter(
+            (c) => c._id !== conversationId
+          ),
           // Nếu đang mở cuộc trò chuyện này thì đóng lại
-          activeConversationId: state.activeConversationId === conversationId ? null : state.activeConversationId,
+          activeConversationId:
+            state.activeConversationId === conversationId
+              ? null
+              : state.activeConversationId,
         })),
 
       // ✅ NEW: Cập nhật trạng thái Online/Offline cho participant trong conversations
       updateParticipantStatus: (userId, isOnline) =>
         set((state) => {
-          const updatedConversations = state.conversations.map((conversation) => {
-            // Kiểm tra xem user này có trong cuộc trò chuyện không
-            const hasParticipant = conversation.participants?.some(
-              (p: any) => {
-                const pId = typeof p.userId === 'string' ? p.userId : p.userId?._id;
-                return pId === userId;
-              }
-            );
-
-            if (!hasParticipant) return conversation;
-
-            // Cập nhật participant
-            const newParticipants = conversation.participants?.map((p: any) => {
-              const pId = typeof p.userId === 'string' ? p.userId : p.userId?._id;
-              
-              if (pId === userId) {
-                // Update nested object userId
-                if (typeof p.userId === 'string') {
-                  // Nếu userId là string, không thể update isOnline trực tiếp
-                  // Giữ nguyên hoặc convert sang object (tùy logic của bạn)
-                  return p;
-                } else {
-                  // userId là object, update isOnline
-                  return {
-                    ...p,
-                    userId: {
-                      ...p.userId,
-                      isOnline: isOnline,
-                    },
-                  };
+          const updatedConversations = state.conversations.map(
+            (conversation) => {
+              // Kiểm tra xem user này có trong cuộc trò chuyện không
+              const hasParticipant = conversation.participants?.some(
+                (p: any) => {
+                  const pId =
+                    typeof p.userId === "string" ? p.userId : p.userId?._id;
+                  return pId === userId;
                 }
-              }
-              return p;
-            });
+              );
 
-            return { ...conversation, participants: newParticipants };
-          });
+              if (!hasParticipant) return conversation;
+
+              // Cập nhật participant
+              const newParticipants = conversation.participants?.map(
+                (p: any) => {
+                  const pId =
+                    typeof p.userId === "string" ? p.userId : p.userId?._id;
+
+                  if (pId === userId) {
+                    // Update nested object userId
+                    if (typeof p.userId === "string") {
+                      // Nếu userId là string, không thể update isOnline trực tiếp
+                      // Giữ nguyên hoặc convert sang object (tùy logic của bạn)
+                      return p;
+                    } else {
+                      // userId là object, update isOnline
+                      return {
+                        ...p,
+                        userId: {
+                          ...p.userId,
+                          isOnline: isOnline,
+                        },
+                      };
+                    }
+                  }
+                  return p;
+                }
+              );
+
+              return { ...conversation, participants: newParticipants };
+            }
+          );
 
           return { conversations: updatedConversations };
         }),
@@ -295,18 +328,34 @@ export const useSocialChatStore = create<SocialChatState>()(
           if (convIndex !== -1) {
             const conv = newConversations[convIndex];
             newConversations.splice(convIndex, 1);
-            
+
             // Tạo preview text từ message
             let previewText = "";
-            if (message.type === 'system') {
-              previewText = message.content?.text || "Đã cập nhật thông tin nhóm";
-            } else if (message.type === 'image' || (message.content as any)?.attachments?.some((a: any) => a.type === 'image')) {
+            if (message.type === "system") {
+              previewText =
+                message.content?.text || "Đã cập nhật thông tin nhóm";
+            } else if (
+              message.type === "image" ||
+              (message.content as any)?.attachments?.some(
+                (a: any) => a.type === "image"
+              )
+            ) {
               previewText = "📷 Đã gửi ảnh";
-            } else if (message.type === 'file' || (message.content as any)?.attachments?.length > 0) {
+            } else if (
+              message.type === "file" ||
+              (message.content as any)?.attachments?.length > 0
+            ) {
               const attachments = (message.content as any)?.attachments || [];
               const fileCount = attachments.length;
-              previewText = fileCount > 1 ? `📎 ${fileCount} tệp đính kèm` : `📎 ${attachments[0]?.originalName || 'Tệp đính kèm'}`;
-            } else if (message.content && 'text' in message.content && typeof message.content.text === 'string') {
+              previewText =
+                fileCount > 1
+                  ? `📎 ${fileCount} tệp đính kèm`
+                  : `📎 ${attachments[0]?.originalName || "Tệp đính kèm"}`;
+            } else if (
+              message.content &&
+              "text" in message.content &&
+              typeof message.content.text === "string"
+            ) {
               previewText = message.content.text;
               if (previewText.length > 50) {
                 previewText = previewText.substring(0, 50) + "...";
@@ -314,7 +363,7 @@ export const useSocialChatStore = create<SocialChatState>()(
             } else {
               previewText = "Tin nhắn";
             }
-            
+
             newConversations.unshift({
               ...conv,
               lastMessageAt: message.createdAt,

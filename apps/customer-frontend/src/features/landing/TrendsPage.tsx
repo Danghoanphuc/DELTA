@@ -1,119 +1,113 @@
-import { Card } from "@/shared/components/ui/card";
-import { ImageWithFallback } from "@/features/figma/ImageWithFallback";
-import { Calendar, User, ArrowUpRight, Tag } from "lucide-react";
-import { Button } from "@/shared/components/ui/button";
 import { Header, Footer } from "./components";
+import { ImageWithFallback } from "@/features/figma/ImageWithFallback";
+import { Button } from "@/shared/components/ui/button";
+import { ArrowUpRight } from "lucide-react";
 
 export default function TrendsPage() {
   const featuredPost = {
-    title: "Xu hướng In ấn 2025: Khi AI gặp gỡ Nghệ thuật Thủ công",
-    excerpt: "Sự trỗi dậy của công nghệ in kỹ thuật số kết hợp với các kỹ thuật gia công truyền thống đang tạo ra một kỷ nguyên mới cho ngành bao bì.",
-    image: "https://images.unsplash.com/photo-1562408590-e32931084e23?q=80&w=1000",
-    date: "25/10/2025",
-    author: "Printz Editorial",
-    category: "Deep Tech",
+    category: "Deep Dive",
+    title:
+      "Sự trở lại của kỹ thuật in dập nổi (Letterpress) trong kỷ nguyên số.",
+    excerpt:
+      "Khi thế giới ngày càng phẳng, con người càng khao khát những điểm chạm vật lý. Letterpress không chỉ là in ấn, nó là điêu khắc trên giấy.",
+    image:
+      "https://images.unsplash.com/photo-1594901579895-8b29c9cc298a?q=80&w=2000&auto=format&fit=crop",
+    date: "OCT 2025",
   };
 
-  const blogPosts = [
+  const posts = [
     {
-      id: 2,
-      title: "Giải mã kỹ thuật in Flexo trong sản xuất bao bì",
-      category: "Kỹ thuật",
-      image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=600",
+      category: "Material",
+      title: "Giấy mỹ thuật: Cuộc chơi của những gã khổng lồ Luxury.",
+      image:
+        "https://images.unsplash.com/photo-1586075010923-2dd45eeed8bd?q=80&w=800",
     },
     {
-      id: 3,
-      title: "5 Loại giấy mỹ thuật 'bắt buộc phải biết' cho Luxury Brand",
-      category: "Vật liệu",
-      image: "https://images.unsplash.com/photo-1586075010923-2dd45eeed8bd?q=80&w=600",
+      category: "Technique",
+      title: "Foil Stamping: Ép kim sao cho sang mà không sến?",
+      image:
+        "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800",
     },
     {
-      id: 4,
-      title: "Tối ưu file thiết kế để tránh lỗi in ấn phổ biến",
-      category: "Hướng dẫn",
-      image: "https://images.unsplash.com/photo-1626785774583-b61d2830d309?q=80&w=600",
+      category: "Branding",
+      title: "Minimalism: Tại sao khoảng trắng lại đắt tiền?",
+      image:
+        "https://images.unsplash.com/photo-1497215842964-222b430dc094?q=80&w=800",
     },
   ];
 
   return (
     <div className="min-h-screen bg-white">
       <Header />
-      {/* HEADER TỐI GIẢN */}
-      <section className="pt-24 pb-12 px-4 border-b border-slate-100 bg-paper-texture">
-        <div className="max-w-7xl mx-auto">
-           <h1 className="text-6xl md:text-8xl font-black text-slate-900 tracking-tighter mb-4">
-             INSIGHTS<span className="text-blue-600">.</span>
-           </h1>
-           <p className="text-xl text-slate-600 max-w-2xl font-serif italic">
-             "Nơi hội tụ kiến thức chuyên sâu về công nghệ in ấn, vật liệu mới và xu hướng thiết kế toàn cầu."
-           </p>
+
+      {/* TITLE */}
+      <section className="pt-40 pb-12 px-4 border-b border-stone-200">
+        <div className="max-w-[1440px] mx-auto flex items-end justify-between">
+          <h1 className="font-serif text-8xl md:text-[10rem] text-stone-900 leading-none tracking-tighter opacity-10">
+            INSIGHTS
+          </h1>
+          <p className="hidden md:block text-right font-mono text-xs uppercase tracking-widest text-stone-500 mb-4">
+            Curated by Printz Editorial
+            <br />
+            EST. 2025
+          </p>
         </div>
       </section>
 
-      <section className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* FEATURED POST - STYLE TẠP CHÍ */}
-        <div className="grid lg:grid-cols-2 gap-12 mb-20 items-center group cursor-pointer">
-           <div className="relative overflow-hidden rounded-3xl aspect-[16/10]">
-              <ImageWithFallback 
-                src={featuredPost.image} 
-                alt="Featured" 
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-              />
-           </div>
-           <div className="space-y-6">
-              <div className="flex items-center gap-4 text-sm font-mono text-slate-500">
-                 <span className="text-blue-600 font-bold uppercase tracking-wider px-2 py-1 bg-blue-50 rounded">
-                    {featuredPost.category}
-                 </span>
-                 <span>{featuredPost.date}</span>
-                 <span>•</span>
-                 <span>{featuredPost.author}</span>
-              </div>
-              <h2 className="text-4xl md:text-5xl font-bold font-heading text-slate-900 leading-[1.1] group-hover:text-blue-600 transition-colors">
-                {featuredPost.title}
-              </h2>
-              <p className="text-lg text-slate-600 leading-relaxed border-l-4 border-slate-200 pl-4">
-                {featuredPost.excerpt}
-              </p>
-              <div className="pt-4">
-                 <Button variant="link" className="text-slate-900 font-bold pl-0 text-lg hover:text-blue-600">
-                    Đọc tiếp bài viết <ArrowUpRight className="ml-2 w-5 h-5" />
-                 </Button>
-              </div>
-           </div>
+      <section className="max-w-[1440px] mx-auto px-4 py-16">
+        {/* FEATURED POST */}
+        <div className="grid lg:grid-cols-2 gap-12 mb-24 cursor-pointer group">
+          <div className="overflow-hidden">
+            <ImageWithFallback
+              src={featuredPost.image}
+              className="w-full h-[600px] object-cover grayscale-[20%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-700 ease-out"
+            />
+          </div>
+          <div className="flex flex-col justify-center">
+            <div className="flex items-center gap-4 mb-6 border-b border-stone-200 pb-4">
+              <span className="font-mono text-xs font-bold text-emerald-800 uppercase tracking-widest">
+                {featuredPost.category}
+              </span>
+              <span className="font-mono text-xs text-stone-400 uppercase">
+                {featuredPost.date}
+              </span>
+            </div>
+            <h2 className="font-serif text-5xl md:text-6xl text-stone-900 leading-tight mb-6 group-hover:underline decoration-1 underline-offset-8">
+              {featuredPost.title}
+            </h2>
+            <p className="text-xl text-stone-500 font-light leading-relaxed mb-8">
+              {featuredPost.excerpt}
+            </p>
+            <Button
+              variant="link"
+              className="w-fit p-0 text-stone-900 font-bold uppercase tracking-widest hover:text-emerald-800"
+            >
+              Read Article <ArrowUpRight className="ml-2 w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
-        {/* LATEST POSTS - GRID SẠCH SẼ */}
-        <div className="flex items-center justify-between mb-8 border-t border-slate-200 pt-12">
-           <h3 className="text-2xl font-bold">Mới cập nhật</h3>
-           <Button variant="outline" className="rounded-full">Xem tất cả</Button>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8">
-           {blogPosts.map((post) => (
-             <div key={post.id} className="group cursor-pointer">
-                <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-slate-100 mb-4 relative">
-                   <ImageWithFallback 
-                     src={post.image} 
-                     alt={post.title}
-                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                   />
-                   <div className="absolute top-4 left-4">
-                      <span className="bg-white/90 backdrop-blur px-3 py-1 rounded-lg text-xs font-bold text-slate-900 border border-slate-200">
-                         {post.category}
-                      </span>
-                   </div>
-                </div>
-                <h4 className="text-xl font-bold font-heading mb-2 leading-tight group-hover:text-blue-600 transition-colors">
-                   {post.title}
-                </h4>
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                   <span>5 phút đọc</span>
-                </div>
-             </div>
-           ))}
+        {/* POST GRID */}
+        <div className="grid md:grid-cols-3 gap-8 border-t border-stone-200 pt-16">
+          {posts.map((post, i) => (
+            <div key={i} className="group cursor-pointer">
+              <div className="overflow-hidden mb-6 h-[300px]">
+                <ImageWithFallback
+                  src={post.image}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              </div>
+              <span className="font-mono text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-3 block">
+                {post.category}
+              </span>
+              <h3 className="font-serif text-2xl text-stone-900 leading-snug group-hover:text-emerald-800 transition-colors">
+                {post.title}
+              </h3>
+            </div>
+          ))}
         </div>
       </section>
+
       <Footer />
     </div>
   );

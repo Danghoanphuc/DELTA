@@ -19,7 +19,7 @@ const messageSchema = new mongoose.Schema(
       enum: ["User", "Admin", "System", "AI", "Guest"],
       required: true,
     },
-    
+
     // 🔥 NÂNG CẤP 1: clientSideId để khớp tin nhắn Optimistic
     clientSideId: {
       type: String,
@@ -27,7 +27,7 @@ const messageSchema = new mongoose.Schema(
       sparse: true, // Cho phép null (đối với tin nhắn cũ hoặc tin nhắn hệ thống)
       index: true,
     },
-    
+
     // 🔥 FIX: Thêm đầy đủ các type mới để tránh lỗi ValidatorError
     type: {
       type: String,
@@ -36,25 +36,25 @@ const messageSchema = new mongoose.Schema(
         "image",
         "file",
         "system",
-        "ai_response",       // ✅ Mới
+        "ai_response", // ✅ Mới
         "product_selection", // ✅ Mới
-        "order_selection",   // ✅ Mới
+        "order_selection", // ✅ Mới
         "printer_selection", // ✅ Mới: Tìm kiếm nhà in
-        "payment_request",   // ✅ Mới
-        "product",           
-        "order",             
-        "error",             
-        "quote"              
+        "payment_request", // ✅ Mới
+        "product",
+        "order",
+        "error",
+        "quote",
       ],
       default: "text",
     },
-    
+
     // Cho phép lưu mọi định dạng (text, object, array...)
     content: {
-      type: mongoose.Schema.Types.Mixed, 
+      type: mongoose.Schema.Types.Mixed,
       required: true,
     },
-    
+
     metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: null,
@@ -66,6 +66,22 @@ const messageSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+
+    // ✅ NEW: Soft delete - array of userIds who deleted this message
+    deletedFor: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
+    // ✅ REPLY: Reference to replied message
+    replyTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message",
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true }
 );

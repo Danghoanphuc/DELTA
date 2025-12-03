@@ -9,12 +9,19 @@ export function useConversationBusinessContext(
   return useQuery({
     queryKey: ["businessContext", conversationId],
     queryFn: async () => {
-      const response = await api.get(
-        `/social/conversations/${conversationId}/business-context`
-      );
-      return response.data.data;
+      try {
+        const response = await api.get(
+          `/chat/conversations/${conversationId}/business-context`
+        );
+        return response.data?.data || { activeOrders: [], designFiles: [] };
+      } catch (error) {
+        console.warn("[BusinessContext] Failed to fetch:", error);
+        // Return empty data instead of throwing
+        return { activeOrders: [], designFiles: [] };
+      }
     },
     enabled: !!conversationId && enabled,
     staleTime: 30000, // 30 seconds
+    retry: 1, // Only retry once
   });
 }

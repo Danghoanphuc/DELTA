@@ -1,6 +1,5 @@
 import { createRoot } from "react-dom/client";
 import "./styles/globals.css";
-import "./styles/event-theme.css";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./lib/mapConfig"; // ✅ Import map config to disable Mapbox telemetry
 import App from "./App";

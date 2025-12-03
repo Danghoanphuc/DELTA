@@ -1,9 +1,12 @@
-import React, { memo } from "react";
+import React, { memo, useMemo } from "react";
+import { motion } from "framer-motion";
+import { AlertCircle, RefreshCw, X, Copy } from "lucide-react";
 import { ChatMessage } from "@/types/chat";
 import { cn } from "@/shared/lib/utils";
 import { MessageContent } from "./MessageContent";
-import { motion } from "framer-motion";
-import { Sparkles, AlertCircle } from "lucide-react";
+import { MessageStatusIndicator } from "./message-status";
+import { useEnhancedChatSender } from "../hooks/useChatSender.enhanced";
+import { Button } from "@/shared/components/ui/button";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -12,47 +15,117 @@ interface MessageBubbleProps {
 
 export const MessageBubble: React.FC<MessageBubbleProps> = memo(
   ({ message, isUser }) => {
-    const metadata = (message.metadata as any) || {};
-    const status = metadata.status;
-    const isStreaming = status === "streaming";
-    const isError = status === "error";
+    const { retryMessage, cancelFailedMessage } = useEnhancedChatSender();
+
+    const { status, isStreaming, isError, isFailed } = useMemo(() => {
+      const meta = (message.metadata as any) || {};
+      const s = message.status || meta.status;
+      return {
+        status: s,
+        isStreaming: s === "streaming",
+        isError: s === "error" || message.type === "error",
+        isFailed: s === "failed",
+      };
+    }, [message]);
 
     return (
       <div
         className={cn(
-          "flex flex-col w-full",
+          "flex flex-col w-full mb-6", // Khoảng cách giữa các tin
           isUser ? "items-end" : "items-start"
         )}
       >
         <motion.div
-          layout // Giúp animation khi chiều cao thay đổi mượt hơn
           initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
           className={cn(
-            "relative text-[15px] max-w-full break-words transition-all duration-200 px-4 py-3 shadow-sm",
+            "relative max-w-[90%] md:max-w-[85%]",
+
+            // 🔥 FIX: USER BUBBLE
+            // - Màu nền: #E9ECEF (Xám chuẩn messenger) giúp tách nền tốt hơn
+            // - Text: Màu đen #000000
+            // - Font: Sans
             isUser
-              ? "rounded-2xl rounded-tr-sm bg-blue-600 text-white"
-              : "rounded-2xl rounded-tl-sm bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700",
-            isError && "border-red-200 bg-red-50 dark:bg-red-900/10"
+              ? "bg-[#E9ECEF] dark:bg-zinc-800 text-black dark:text-zinc-100 rounded-2xl px-5 py-3.5 shadow-sm"
+              : "bg-transparent text-stone-900 dark:text-zinc-100 pl-0 pr-0",
+
+            isError &&
+              !isFailed &&
+              "bg-red-50 border border-red-100 text-red-900 rounded-xl px-4 py-3",
+            isFailed &&
+              "bg-red-50 border border-red-200 opacity-80 rounded-xl px-4 py-3"
           )}
         >
-          <MessageContent message={message} />
-
-          {/* Chỉ báo Streaming nằm ngay trong bong bóng */}
-          {isStreaming && (
-            <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-blue-600/80 animate-pulse">
-              <Sparkles size={12} />
-              <span>Zin đang viết...</span>
+          {/* AI Label */}
+          {!isUser && (
+            <div className="flex items-center gap-2 mb-1.5 select-none">
+              <span className="text-[11px] font-bold text-stone-500 uppercase tracking-widest">
+                Zin Assistant
+              </span>
             </div>
           )}
 
-          {isError && (
-            <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-red-600">
+          <MessageContent message={message} />
+
+          {/* Error State */}
+          {isError && !isFailed && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-red-600 font-medium">
               <AlertCircle size={12} />
-              <span>Gửi thất bại</span>
+              <span>Đã xảy ra lỗi xử lý</span>
             </div>
           )}
         </motion.div>
+
+        {/* Status & Actions */}
+        <div className="mt-1 flex items-center gap-2 px-1 h-5">
+          {isUser && !isFailed && status && (
+            <MessageStatusIndicator
+              status={status}
+              retryCount={message.retryCount}
+              className="text-stone-400 font-sans text-xs"
+            />
+          )}
+
+          {isUser && isFailed && (
+            <div className="flex items-center gap-2 animate-in fade-in">
+              <span className="text-xs text-red-500 font-medium font-sans">
+                Gửi thất bại
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={() =>
+                  retryMessage(message._id, message.conversationId)
+                }
+              >
+                <RefreshCw size={10} className="mr-1" /> Thử lại
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 px-2 text-xs text-gray-400 hover:text-gray-600"
+                onClick={() =>
+                  cancelFailedMessage(message._id, message.conversationId)
+                }
+              >
+                <X size={10} />
+              </Button>
+            </div>
+          )}
+
+          {/* Copy Button cho AI */}
+          {!isUser && !isStreaming && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-stone-400 hover:text-stone-900 opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Sao chép"
+            >
+              <Copy size={13} />
+            </Button>
+          )}
+        </div>
       </div>
     );
   }

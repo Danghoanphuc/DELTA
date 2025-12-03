@@ -1,6 +1,6 @@
 // src/pages/RootPage.tsx
 import { useAuthStore } from "@/stores/useAuthStore";
-import ChatAppPage from "@/features/chat/pages/AppPage";
+import ChatAppPage from "@/features/main/pages/AppPage";
 import PrinterApp from "@/features/printer/pages/PrinterApp";
 import { Loader2 } from "lucide-react"; // ✅ THÊM
 

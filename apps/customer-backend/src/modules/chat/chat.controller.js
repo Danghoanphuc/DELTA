@@ -152,9 +152,27 @@ export class ChatController {
   updateGroup = async (req, res, next) => {
     try {
       const { conversationId } = req.params;
-      const { title, membersToRemove, membersToAdd } = req.body;
+      let { title, membersToRemove, membersToAdd } = req.body;
       const avatarFile = req.file;
-      await socialService.updateGroupConversation(
+
+      // Parse JSON strings if needed (FormData sends as strings)
+      if (typeof membersToRemove === "string") {
+        try {
+          membersToRemove = JSON.parse(membersToRemove);
+        } catch (e) {
+          membersToRemove = [];
+        }
+      }
+
+      if (typeof membersToAdd === "string") {
+        try {
+          membersToAdd = JSON.parse(membersToAdd);
+        } catch (e) {
+          membersToAdd = [];
+        }
+      }
+
+      const updatedConversation = await socialService.updateGroupConversation(
         conversationId,
         req.user._id,
         {
@@ -164,9 +182,13 @@ export class ChatController {
           membersToAdd,
         }
       );
-      res
-        .status(API_CODES.SUCCESS)
-        .json(ApiResponse.success({ message: "Group updated" }));
+
+      res.status(API_CODES.SUCCESS).json(
+        ApiResponse.success({
+          message: "Group updated",
+          conversation: updatedConversation,
+        })
+      );
     } catch (e) {
       next(e);
     }
@@ -180,6 +202,43 @@ export class ChatController {
         req.user._id
       );
       res.status(API_CODES.SUCCESS).json(ApiResponse.success(context));
+    } catch (e) {
+      next(e);
+    }
+  };
+
+  getConversationMedia = async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const media = await socialService.getConversationMedia(conversationId);
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success(media));
+    } catch (e) {
+      next(e);
+    }
+  };
+
+  getConversationFiles = async (req, res, next) => {
+    try {
+      const { conversationId } = req.params;
+      const files = await socialService.getConversationFiles(conversationId);
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success(files));
+    } catch (e) {
+      next(e);
+    }
+  };
+
+  deleteMessage = async (req, res, next) => {
+    try {
+      const { messageId } = req.params;
+      const { deleteForEveryone } = req.body;
+      const result = await socialService.deleteMessage(
+        messageId,
+        req.user._id,
+        deleteForEveryone
+      );
+      res
+        .status(API_CODES.SUCCESS)
+        .json(ApiResponse.success(result, "Đã xóa tin nhắn"));
     } catch (e) {
       next(e);
     }

@@ -1,14 +1,12 @@
-// apps/customer-frontend/src/features/auth/components/PasswordForm.tsx
-import React from "react";
 import { UseFormReturn } from "react-hook-form";
-import { Lock, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Lock, Eye, EyeOff, Loader2, Fingerprint, Shield } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Link } from "react-router-dom";
-import { cn } from "@/shared/lib/utils";
 import type { AuthFlowValues } from "../utils/auth-helpers";
-import { getInputStyle, getBtnStyle } from "./EmailForm"; // ✅ Import hàm style
+import { AUTH_STYLES } from "../utils/auth-styles";
 import { PasswordStrengthIndicator } from "./PasswordStrengthIndicator";
+import { useTurnstile } from "@/hooks/useTurnstile";
 
 interface PasswordFormProps {
   form: UseFormReturn<AuthFlowValues>;
@@ -34,105 +32,73 @@ export function PasswordForm({
     formState: { errors },
   } = form;
   const isSignIn = mode === "signIn";
+  const passwordValue = form.watch("password");
 
-  // Màu sắc động cho thẻ bài
-  const cardBg = isSignIn
-    ? "bg-indigo-50/50 border-indigo-100"
-    : "bg-orange-50/50 border-orange-100";
-  const iconBg = isSignIn
-    ? "bg-indigo-100 text-indigo-600"
-    : "bg-orange-100 text-orange-600";
-  const textColor = isSignIn ? "text-indigo-900" : "text-orange-900";
-  const labelColor = isSignIn ? "text-indigo-400" : "text-orange-400";
+  // Cloudflare Turnstile
+  const { TurnstileWidget, token: turnstileToken } = useTurnstile();
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* EMAIL CARD */}
-      <div
-        className={cn(
-          "flex items-center justify-between p-2.5 border rounded-lg shadow-sm",
-          cardBg
-        )}
-      >
-        <div className="flex items-center gap-2.5">
-          <div
-            className={cn(
-              "w-8 h-8 rounded flex items-center justify-center font-black text-sm border border-white/50",
-              iconBg
-            )}
-          >
-            {email.charAt(0).toUpperCase()}
+    <div className="flex flex-col gap-6">
+      {/* 1. Thẻ Email */}
+      <div className="flex items-center justify-between p-4 border border-stone-200 bg-stone-100/50 border-l-4 border-l-stone-900">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-stone-200 flex items-center justify-center text-stone-500">
+            <Fingerprint className="w-5 h-5" />
           </div>
-          <div className="flex flex-col leading-tight">
-            <span
-              className={cn(
-                "text-[9px] font-mono uppercase tracking-wider",
-                labelColor
-              )}
-            >
-              Account ID
+          <div className="flex flex-col">
+            <span className="text-[9px] font-mono uppercase tracking-widest text-stone-400">
+              Email đăng nhập
             </span>
-            <span
-              className={cn(
-                "font-bold font-mono text-xs truncate max-w-[140px]",
-                textColor
-              )}
-            >
+            <span className="font-mono text-xs font-bold text-stone-900 truncate max-w-[180px]">
               {email}
             </span>
           </div>
         </div>
         <button
           onClick={onEmailClick}
-          className={cn(
-            "px-2 py-1 text-[10px] font-bold rounded transition-colors uppercase border bg-white",
-            isSignIn
-              ? "text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-              : "text-orange-600 border-orange-200 hover:bg-orange-50"
-          )}
+          className="text-[10px] font-bold font-mono uppercase tracking-wider border border-stone-300 px-2 py-1 hover:bg-white hover:text-red-600 hover:border-red-600 transition-all"
           type="button"
         >
           Đổi
         </button>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {/* Password Input */}
-        <div className="flex flex-col gap-1">
-          <div className="group relative">
-            <div
-              className={cn(
-                "absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors",
-                isSignIn
-                  ? "group-focus-within:text-indigo-600"
-                  : "group-focus-within:text-orange-500"
-              )}
-            >
+      <div className="space-y-5">
+        {/* 2. Mật khẩu */}
+        <div>
+          <div className="flex justify-between items-end mb-1.5">
+            <label className={AUTH_STYLES.label}>Mật khẩu</label>
+            {isSignIn && (
+              <Link
+                to="/forgot-password"
+                className="text-[10px] font-mono text-stone-400 hover:text-stone-900 underline transition-colors"
+              >
+                QUÊN MẬT KHẨU?
+              </Link>
+            )}
+          </div>
+
+          <div className="relative group">
+            {/* Icon Wrapper cố định */}
+            <div className={AUTH_STYLES.iconWrapper}>
               <Lock className="w-4 h-4" />
             </div>
+
             <Input
               type={showPassword ? "text" : "password"}
-              placeholder="Mật khẩu"
+              placeholder="••••••••"
               {...register("password")}
-              className={`${getInputStyle(isSignIn)} pr-10`}
+              // QUAN TRỌNG: hasIcon=true để có padding-left
+              className={AUTH_STYLES.input(!!errors.password, true)}
               disabled={isLoading}
               autoFocus
             />
-            {/* Line */}
-            <div
-              className={cn(
-                "absolute bottom-0 left-0 h-[1.5px] w-0 transition-all duration-500 group-focus-within:w-full",
-                isSignIn ? "bg-indigo-600" : "bg-orange-500"
-              )}
-            />
 
+            {/* Toggle Button */}
             <button
               type="button"
               onClick={onTogglePassword}
-              className={cn(
-                "absolute right-2 top-1/2 -translate-y-1/2 p-2 text-slate-400 transition-colors",
-                isSignIn ? "hover:text-indigo-600" : "hover:text-orange-500"
-              )}
+              className="absolute right-0 top-0 bottom-0 px-3 text-stone-400 hover:text-stone-900 transition-colors z-10"
               disabled={isLoading}
             >
               {showPassword ? (
@@ -142,65 +108,77 @@ export function PasswordForm({
               )}
             </button>
           </div>
+
           {errors.password && (
-            <p className="text-red-500 text-[10px] font-bold font-mono mt-1">
-              ⚠ {errors.password.message}
+            <p className="text-red-600 text-[10px] font-bold font-mono mt-1 flex items-center gap-1">
+              <span>✕</span> {errors.password.message}
             </p>
           )}
 
-          {/* ✅ NEW: Password strength indicator for sign up */}
-          {mode === "signUp" && form.watch("password") && (
-            <div className="mt-2">
-              <PasswordStrengthIndicator password={form.watch("password")} />
+          {/* Strength Indicator */}
+          {mode === "signUp" && passwordValue && (
+            <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-300">
+              <PasswordStrengthIndicator password={passwordValue} />
             </div>
           )}
         </div>
 
-        {/* Confirm Password */}
+        {/* 3. Xác nhận mật khẩu */}
         {mode === "signUp" && (
-          <div className="group relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-orange-500 transition-colors">
-              <Lock className="w-4 h-4" />
+          <div>
+            <label className={AUTH_STYLES.label}>Xác nhận mật khẩu</label>
+            <div className="relative group">
+              <div className={AUTH_STYLES.iconWrapper}>
+                <Lock className="w-4 h-4 opacity-50" />
+              </div>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                {...register("confirmPassword")}
+                className={AUTH_STYLES.input(!!errors.confirmPassword, true)}
+                disabled={isLoading}
+              />
             </div>
-            <Input
-              type="password"
-              placeholder="Xác nhận mật khẩu"
-              {...register("confirmPassword")}
-              className={getInputStyle(isSignIn)}
-              disabled={isLoading}
-            />
-            <div className="absolute bottom-0 left-0 h-[1.5px] w-0 bg-orange-500 transition-all duration-500 group-focus-within:w-full" />
+            {errors.confirmPassword && (
+              <p className="text-red-600 text-[10px] font-bold font-mono mt-1 flex items-center gap-1">
+                <span>✕</span> {errors.confirmPassword.message}
+              </p>
+            )}
           </div>
         )}
       </div>
 
-      <div className="flex flex-col gap-3 mt-1">
-        <Button
-          type="submit"
-          className={getBtnStyle(isSignIn)}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" />{" "}
-              PROCESSING...
-            </>
-          ) : mode === "signIn" ? (
-            "TRUY CẬP HỆ THỐNG"
-          ) : (
-            "KHỞI TẠO TÀI KHOẢN"
-          )}
-        </Button>
-
-        {mode === "signIn" && (
-          <Link
-            to="/forgot-password"
-            className="text-[10px] font-mono text-center text-slate-400 hover:text-indigo-600 hover:underline transition-colors"
-          >
-            QUÊN MÃ BẢO MẬT?
-          </Link>
-        )}
+      {/* Cloudflare Turnstile - Chống bot */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-stone-500 text-xs font-mono">
+          <Shield className="w-3 h-3" />
+          <span>Xác minh bảo mật</span>
+        </div>
+        <TurnstileWidget />
       </div>
+
+      <Button
+        type="submit"
+        className={AUTH_STYLES.button(isSignIn ? "primary" : "secondary")}
+        disabled={isLoading || !turnstileToken}
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" />
+            ĐANG XÁC THỰC...
+          </>
+        ) : mode === "signIn" ? (
+          "ĐĂNG NHẬP"
+        ) : (
+          "TẠO TÀI KHOẢN"
+        )}
+      </Button>
+
+      {!turnstileToken && !isLoading && (
+        <p className="text-center text-xs text-stone-400 font-mono -mt-2">
+          Vui lòng hoàn thành xác minh bảo mật
+        </p>
+      )}
     </div>
   );
 }

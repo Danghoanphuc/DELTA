@@ -18,96 +18,90 @@ export const MarkdownRenderer = memo(
     isUserMessage = false,
     isStreaming = false,
   }: MarkdownRendererProps) => {
-    // 1. Bảo vệ: Nếu content null/undefined -> Render chuỗi rỗng để tránh crash
     const safeContent = content || "";
 
-    // 2. Style Classes
+    // ✅ FIX: Style chung cho cả 2 để đồng bộ 100%
+    // - Font: Sans (Manrope)
+    // - Size: 16px (text-base)
+    // - Leading: 1.7 (relaxed) cho thoáng mắt
+    const baseProseClasses =
+      "text-base leading-[1.7] font-sans tracking-normal";
+
     const userTextClasses = cn(
-      "text-white/95",
-      "[&_p]:text-white/95",
-      "[&_code]:text-white [&_code]:bg-white/20 [&_code]:border-white/20"
+      baseProseClasses,
+      "text-black dark:text-white font-medium", // User chữ đen, đậm hơn chút
+      "[&_p]:mb-0"
     );
 
     const botTextClasses = cn(
-      "text-slate-800 dark:text-slate-100",
-      "[&_p]:text-slate-800 dark:[&_p]:text-slate-100",
-      // Blockquote style
-      "[&_blockquote]:pl-4 [&_blockquote]:py-1 [&_blockquote]:italic [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 [&_blockquote]:bg-gray-50 [&_blockquote]:rounded-r-lg [&_blockquote]:my-3",
-      // List style
-      "[&_li]:my-0.5"
+      baseProseClasses,
+      "text-stone-900 dark:text-stone-100 font-normal", // Bot chữ xám đen rất đậm
+
+      // --- HEADINGS (Vẫn giữ Serif để sang trọng, nhưng to rõ) ---
+      "[&_h1]:font-serif [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mb-3 [&_h1]:mt-6 [&_h1]:text-black dark:[&_h1]:text-white",
+      "[&_h2]:font-serif [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mb-3 [&_h2]:mt-5 [&_h2]:text-black dark:[&_h2]:text-white",
+      "[&_h3]:font-serif [&_h3]:text-xl [&_h3]:font-bold [&_h3]:mb-2 [&_h3]:mt-4 [&_h3]:text-black",
+
+      // --- PARAGRAPHS & LISTS ---
+      "[&_p]:mb-3 last:[&_p]:mb-0",
+      "[&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3 [&_ul]:space-y-1",
+      "[&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3 [&_ol]:space-y-1",
+      "[&_li]:pl-1",
+
+      // --- BOLD & EMPHASIS ---
+      "[&_strong]:font-bold [&_strong]:text-black dark:[&_strong]:text-white",
+      "[&_b]:font-bold [&_b]:text-black dark:[&_b]:text-white",
+
+      // --- BLOCKQUOTE (Trích dẫn) ---
+      "[&_blockquote]:pl-4 [&_blockquote]:border-l-4 [&_blockquote]:border-stone-300 [&_blockquote]:bg-stone-50 [&_blockquote]:py-2 [&_blockquote]:pr-2 [&_blockquote]:my-3 [&_blockquote]:italic [&_blockquote]:text-stone-700 [&_blockquote]:rounded-r",
+
+      // --- CODE ---
+      "[&_code]:font-mono [&_code]:text-[0.9em] [&_code]:bg-stone-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-red-600 [&_code]:border [&_code]:border-stone-200"
     );
 
-    // 3. Memoize plugins để tránh re-init liên tục khi streaming
     const plugins = useMemo(() => [remarkGfm], []);
 
     return (
       <div
         className={cn(
-          "markdown-body text-[15px] leading-relaxed break-words",
+          "markdown-body break-words w-full",
           isUserMessage ? userTextClasses : botTextClasses,
-          !isUserMessage &&
-            "prose prose-sm max-w-none break-words dark:prose-invert",
-          // 🔥 FIX: Con trỏ nhấp nháy chỉ hiện khi đang stream
+          // Cursor nhấp nháy khi đang stream
           !isUserMessage &&
             isStreaming &&
-            "after:content-['▋'] after:ml-1 after:animate-pulse after:text-blue-500 after:inline-block",
+            "after:content-['▋'] after:ml-1 after:animate-pulse after:text-stone-900",
           className
         )}
       >
         <ReactMarkdown
           remarkPlugins={plugins}
           components={{
-            p: ({ children }) => (
-              <p className="mb-1.5 last:mb-0 leading-relaxed">{children}</p>
-            ),
-            ul: ({ children }) => (
-              <ul className="list-disc ml-4 mb-2 space-y-1">{children}</ul>
-            ),
-            ol: ({ children }) => (
-              <ol className="list-decimal ml-4 mb-2 space-y-1">{children}</ol>
-            ),
-            li: ({ children }) => (
-              <li className="pl-1 marker:opacity-70">{children}</li>
-            ),
             a: ({ href, children }) => (
               <a
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium text-blue-600 hover:text-blue-800 hover:underline decoration-1 underline-offset-2 transition-colors"
+                className="font-bold text-blue-700 hover:underline decoration-2 underline-offset-2 transition-colors"
               >
                 {children}
               </a>
             ),
-            code: ({ children, className: codeClassName }) => {
-              const isInline = !codeClassName?.includes("language-");
-              return isInline ? (
-                <code
-                  className={cn(
-                    "rounded px-1.5 py-0.5 font-mono text-[13px] border",
-                    !isUserMessage &&
-                      "bg-slate-100 text-red-500 border-slate-200 dark:bg-slate-800 dark:text-red-400 dark:border-slate-700"
-                  )}
-                >
-                  {children}
-                </code>
-              ) : (
-                <code className={codeClassName}>{children}</code>
-              );
-            },
-            // Xử lý table để không bị vỡ layout
             table: ({ children }) => (
-              <div className="overflow-x-auto my-3 rounded-lg border border-gray-200">
-                <table className="w-full text-sm text-left">{children}</table>
+              <div className="overflow-x-auto my-4 rounded border border-stone-200 shadow-sm">
+                <table className="w-full text-sm text-left border-collapse bg-white">
+                  {children}
+                </table>
               </div>
             ),
             th: ({ children }) => (
-              <th className="bg-gray-50 px-3 py-2 font-semibold text-gray-700 border-b">
+              <th className="bg-stone-100 px-4 py-3 font-bold text-stone-900 border-b border-stone-200 text-left whitespace-nowrap">
                 {children}
               </th>
             ),
             td: ({ children }) => (
-              <td className="px-3 py-2 border-b last:border-0">{children}</td>
+              <td className="px-4 py-3 border-b border-stone-100 last:border-0 align-top">
+                {children}
+              </td>
             ),
           }}
         >

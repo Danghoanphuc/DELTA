@@ -1,7 +1,5 @@
-// apps/customer-frontend/src/features/auth/components/PasswordStrengthIndicator.tsx
-// ✅ NEW: Visual password strength indicator
-
 import { cn } from "@/shared/lib/utils";
+import { Check } from "lucide-react";
 
 interface PasswordStrengthIndicatorProps {
   password: string;
@@ -10,16 +8,18 @@ interface PasswordStrengthIndicatorProps {
 interface PasswordRequirement {
   label: string;
   test: (password: string) => boolean;
+  code: string;
 }
 
 const requirements: PasswordRequirement[] = [
-  { label: "Ít nhất 8 ký tự", test: (p) => p.length >= 8 },
-  { label: "Có chữ hoa (A-Z)", test: (p) => /[A-Z]/.test(p) },
-  { label: "Có chữ thường (a-z)", test: (p) => /[a-z]/.test(p) },
-  { label: "Có số (0-9)", test: (p) => /[0-9]/.test(p) },
+  { label: "Tối thiểu 8 ký tự", test: (p) => p.length >= 8, code: "LEN" },
+  { label: "Chữ hoa", test: (p) => /[A-Z]/.test(p), code: "UPP" },
+  { label: "Chữ thường", test: (p) => /[a-z]/.test(p), code: "LOW" },
+  { label: "Số", test: (p) => /[0-9]/.test(p), code: "NUM" },
   {
-    label: "Có ký tự đặc biệt (!@#$...)",
+    label: "Ký tự đặc biệt",
     test: (p) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p),
+    code: "SYM",
   },
 ];
 
@@ -30,77 +30,70 @@ export function PasswordStrengthIndicator({
 
   const metRequirements = requirements.filter((req) => req.test(password));
   const strength = metRequirements.length;
-  const percentage = (strength / requirements.length) * 100;
-
-  const getStrengthColor = () => {
-    if (strength <= 2) return "bg-red-500";
-    if (strength <= 3) return "bg-orange-500";
-    if (strength <= 4) return "bg-yellow-500";
-    return "bg-green-500";
-  };
-
-  const getStrengthLabel = () => {
-    if (strength <= 2) return "Yếu";
-    if (strength <= 3) return "Trung bình";
-    if (strength <= 4) return "Khá";
-    return "Mạnh";
-  };
+  const isWeak = strength <= 2;
+  const isMedium = strength > 2 && strength < 5;
+  const isStrong = strength === 5;
 
   return (
-    <div className="space-y-2 text-sm">
-      {/* Strength bar */}
-      <div className="flex items-center gap-2">
-        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className={cn(
-              "h-full transition-all duration-300",
-              getStrengthColor()
-            )}
-            style={{ width: `${percentage}%` }}
-          />
-        </div>
+    <div className="bg-stone-100 p-3 border border-stone-200">
+      {/* Header Status */}
+      <div className="flex justify-between items-center mb-3 pb-2 border-b border-stone-200">
+        <span className="font-mono text-[10px] uppercase text-stone-500">
+          Độ bảo mật
+        </span>
         <span
-          className={cn("text-xs font-bold", {
-            "text-red-600": strength <= 2,
-            "text-orange-600": strength === 3,
-            "text-yellow-600": strength === 4,
-            "text-green-600": strength === 5,
-          })}
+          className={cn(
+            "font-mono text-xs font-bold uppercase",
+            isWeak && "text-red-600",
+            isMedium && "text-yellow-600",
+            isStrong && "text-emerald-600"
+          )}
         >
-          {getStrengthLabel()}
+          {isWeak ? "YẾU" : isMedium ? "TRUNG BÌNH" : "MẠNH"}
         </span>
       </div>
 
-      {/* Requirements checklist */}
-      <div className="space-y-1">
-        {requirements.map((req, index) => {
+      {/* Grid Checklist */}
+      <div className="grid grid-cols-2 gap-2">
+        {requirements.map((req) => {
           const met = req.test(password);
           return (
             <div
-              key={index}
+              key={req.code}
               className={cn(
-                "flex items-center gap-2 text-xs transition-colors",
-                {
-                  "text-green-600": met,
-                  "text-gray-400": !met,
-                }
+                "flex items-center gap-2 text-[10px] font-mono transition-colors",
+                met ? "text-stone-900" : "text-stone-400 opacity-60"
               )}
             >
-              <span
+              <div
                 className={cn(
-                  "w-4 h-4 rounded-full flex items-center justify-center text-[10px]",
-                  {
-                    "bg-green-100": met,
-                    "bg-gray-100": !met,
-                  }
+                  "w-3 h-3 flex items-center justify-center border",
+                  met
+                    ? "bg-stone-900 border-stone-900 text-white"
+                    : "border-stone-300 bg-white"
                 )}
               >
-                {met ? "✓" : "○"}
-              </span>
+                {met && <Check className="w-2 h-2" />}
+              </div>
               <span>{req.label}</span>
             </div>
           );
         })}
+      </div>
+
+      {/* Progress Line (Thin) */}
+      <div className="w-full h-[2px] bg-stone-200 mt-3 relative">
+        <div
+          className={cn(
+            "absolute top-0 left-0 h-full transition-all duration-500",
+            isWeak
+              ? "bg-red-500"
+              : isMedium
+              ? "bg-yellow-500"
+              : "bg-emerald-600"
+          )}
+          style={{ width: `${(strength / 5) * 100}%` }}
+        />
       </div>
     </div>
   );

@@ -1,6 +1,3 @@
-// apps/customer-frontend/src/features/social/components/PendingRequests.tsx
-// ✅ FIXED: Mapping Data Key (requests vs connections)
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getPendingRequests,
@@ -10,131 +7,131 @@ import {
 import { useConnectionStore } from "../../../stores/useConnectionStore";
 import { useEffect } from "react";
 import { toast } from "@/shared/utils/toast";
-import { Loader2, UserCheck, UserX } from "lucide-react";
+import { Loader2, UserCheck, X, Check } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 
 export const PendingRequests: React.FC = () => {
   const queryClient = useQueryClient();
   const { setPendingRequests } = useConnectionStore();
 
-  // Fetch dữ liệu
   const { data, isLoading, error } = useQuery({
     queryKey: ["pendingRequests"],
     queryFn: getPendingRequests,
-    // Refetch mỗi 5s để đảm bảo user thấy lời mời nhanh nhất
-    refetchInterval: 5000,
+    refetchInterval: 10000,
   });
 
   useEffect(() => {
-    // ✅ FIX: Hỗ trợ cả 2 cấu trúc dữ liệu (requests hoặc connections)
     const list = data?.data?.requests || data?.data?.connections || [];
-    if (list) {
-      setPendingRequests(list);
-    }
+    if (list) setPendingRequests(list);
   }, [data, setPendingRequests]);
 
-  // Mutations
   const acceptMutation = useMutation({
     mutationFn: (connectionId: string) => acceptConnectionRequest(connectionId),
-    onSuccess: (res) => {
-      toast.success("Đã chấp nhận kết bạn");
+    onSuccess: () => {
+      toast.success("Đã kết nối thành công");
       queryClient.invalidateQueries({ queryKey: ["pendingRequests"] });
       queryClient.invalidateQueries({ queryKey: ["friends"] });
-      queryClient.invalidateQueries({ queryKey: ["connectionStatus"] });
-      // Nếu server trả về conversationId, có thể redirect chat ở đây nếu muốn
     },
-    onError: (err: any) => toast.error("Lỗi khi chấp nhận"),
+    onError: () => toast.error("Có lỗi xảy ra"),
   });
 
   const declineMutation = useMutation({
     mutationFn: (connectionId: string) =>
       declineConnectionRequest(connectionId),
     onSuccess: () => {
-      toast.success("Đã từ chối");
       queryClient.invalidateQueries({ queryKey: ["pendingRequests"] });
+      toast.success("Đã từ chối lời mời");
     },
   });
 
-  if (isLoading) {
+  if (isLoading)
     return (
-      <div className="p-8 flex justify-center">
-        <Loader2 className="animate-spin text-gray-400" />
+      <div className="flex justify-center p-8">
+        <Loader2 className="animate-spin text-stone-300" />
       </div>
     );
-  }
+  if (error)
+    return (
+      <div className="p-6 text-center text-red-500 font-medium text-sm">
+        Không thể tải dữ liệu
+      </div>
+    );
 
-  if (error) {
-    return <div className="p-6 text-center text-red-500">Lỗi tải dữ liệu</div>;
-  }
-
-  // ✅ FIX: Lấy list chuẩn xác
   const requests = data?.data?.requests || data?.data?.connections || [];
-
-  // ✅ FIX 1: Logic lọc an toàn hơn - chỉ lọc bỏ nếu requester hoàn toàn null/undefined
-  const validRequests = requests.filter((req: any) => {
-    return !!req.requester;
-  });
+  const validRequests = requests.filter((req: any) => !!req.requester);
 
   if (validRequests.length === 0) {
     return (
-      <div className="p-8 text-center text-gray-500 flex flex-col items-center">
-        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-          <UserCheck className="text-gray-400" />
+      <div className="flex flex-col items-center justify-center p-12 text-stone-400">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-stone-50 ring-1 ring-stone-100">
+          <UserCheck size={32} strokeWidth={1.5} className="opacity-50" />
         </div>
-        <p>Không có lời mời kết bạn nào</p>
+        <p className="font-serif text-lg font-medium text-stone-600">
+          Không có lời mời nào
+        </p>
+        <p className="text-xs">Bạn đã xử lý hết các yêu cầu kết bạn.</p>
       </div>
     );
   }
 
   return (
-    <div className="divide-y divide-gray-100">
+    <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
       {validRequests.map((request: any) => {
-        // ✅ FIX 2: Fallback an toàn khi lấy thông tin requester
         const requester = request.requester || {};
-        const displayName = requester.displayName || requester.username || "Người dùng ẩn danh";
+        const displayName =
+          requester.displayName || requester.username || "Ẩn danh";
         const avatarUrl = requester.avatarUrl;
-        const username = requester.username || "unknown";
         const initial = displayName[0]?.toUpperCase() || "?";
 
         return (
           <div
             key={request._id}
-            className="flex items-center justify-between p-4 hover:bg-gray-50 transition animate-in fade-in"
+            className="group flex flex-col gap-3 rounded-2xl border border-stone-100 bg-white p-4 shadow-sm transition-all hover:border-stone-200 hover:shadow-md"
           >
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-sm">
+            {/* Header: Avatar + Info */}
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 shrink-0 rounded-full bg-stone-100 p-0.5 ring-1 ring-stone-100">
                 {avatarUrl ? (
                   <img
                     src={avatarUrl}
-                    className="w-full h-full rounded-full object-cover"
+                    className="h-full w-full rounded-full object-cover"
+                    alt={displayName}
                   />
                 ) : (
-                  <span>{initial}</span>
+                  <div className="flex h-full w-full items-center justify-center rounded-full bg-stone-200 text-stone-500 font-bold">
+                    {initial}
+                  </div>
                 )}
               </div>
-              <div className="truncate">
-                <h4 className="font-semibold text-sm text-gray-900 truncate">
+              <div className="min-w-0 flex-1">
+                <h4 className="truncate font-sans text-sm font-bold text-stone-900">
                   {displayName}
                 </h4>
-                <p className="text-xs text-gray-500 truncate">@{username}</p>
-                {/* Debug info: in case _id is missing */}
-                {!requester._id && (
-                  <p className="text-[10px] text-red-400">Data error: Missing ID</p>
-                )}
+                <p className="truncate text-xs font-medium text-stone-400">
+                  {requester.username
+                    ? `@${requester.username}`
+                    : "Người dùng mới"}
+                </p>
+                <div className="mt-1 flex items-center gap-1 text-[10px] text-stone-400">
+                  <span>2 bạn chung</span> {/* Fake data for demo */}
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-2 flex-shrink-0">
+            {/* Actions: Full width buttons */}
+            <div className="grid grid-cols-2 gap-2">
               <Button
                 size="sm"
                 onClick={() => acceptMutation.mutate(request._id)}
                 disabled={acceptMutation.isPending}
-                className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3"
+                className="w-full rounded-xl bg-primary hover:bg-red-700 text-white shadow-sm"
               >
                 {acceptMutation.isPending ? (
                   <Loader2 className="w-3 h-3 animate-spin" />
                 ) : (
-                  "Chấp nhận"
+                  <>
+                    <Check size={14} className="mr-1.5" /> Đồng ý
+                  </>
                 )}
               </Button>
               <Button
@@ -142,9 +139,9 @@ export const PendingRequests: React.FC = () => {
                 variant="outline"
                 onClick={() => declineMutation.mutate(request._id)}
                 disabled={declineMutation.isPending}
-                className="h-8 px-3 text-gray-600"
+                className="w-full rounded-xl border-stone-200 text-stone-600 hover:bg-stone-50"
               >
-                <UserX className="w-4 h-4" />
+                <X size={14} className="mr-1.5" /> Xóa
               </Button>
             </div>
           </div>

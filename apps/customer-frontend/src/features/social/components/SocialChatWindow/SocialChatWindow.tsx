@@ -14,12 +14,11 @@ import { useChatMessages } from "./hooks/useChatMessages";
 import { useChatAudio } from "./hooks/useChatAudio";
 import { useChatScroll } from "./hooks/useChatScroll";
 import { useVisualViewport } from "./hooks/useVisualViewport";
+import { useReplyMessage } from "./hooks/useReplyMessage";
 import type { ChatMessage } from "@/types/chat";
 import { isMyMessage } from "./utils";
-
 import { useDropzone } from "react-dropzone";
 import { useSmartFileUpload } from "./hooks/useSmartFileUpload";
-import { FileStagingArea } from "./FileStagingArea";
 import { UploadCloud } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -45,7 +44,6 @@ export function SocialChatWindow({
     toggleInfoSidebar,
     isInfoSidebarOpen,
     unreadCounts,
-    markAsRead,
   } = useSocialChatStore();
 
   const { messages, prevMessagesLength } = useChatMessages(conversation._id);
@@ -54,8 +52,25 @@ export function SocialChatWindow({
     conversation._id,
     messages.length
   );
+  const { replyingTo, startReply, cancelReply, getReplyPreview } =
+    useReplyMessage();
 
-  // Hook xử lý file staging (Queue đợi gửi)
+  const { scrollToMessageId, setScrollToMessageId } = useSocialChatStore();
+
+  useEffect(() => {
+    if (scrollToMessageId && messageRefs.current[scrollToMessageId]) {
+      const element = messageRefs.current[scrollToMessageId];
+      element?.scrollIntoView({ behavior: "smooth", block: "center" });
+      element?.classList.add("ring-2", "ring-primary", "ring-offset-2");
+      setTimeout(() => {
+        element?.classList.remove("ring-2", "ring-primary", "ring-offset-2");
+      }, 2000);
+      setTimeout(() => {
+        setScrollToMessageId(null);
+      }, 2500);
+    }
+  }, [scrollToMessageId, messageRefs, setScrollToMessageId]);
+
   const {
     stagedFiles,
     addFiles,
@@ -74,11 +89,9 @@ export function SocialChatWindow({
     [addFiles]
   );
 
-  // ✅ FIX: Lấy hàm 'open' từ useDropzone để truyền xuống ChatInput
-  // Hàm này sẽ kích hoạt dialog chọn file của trình duyệt
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
-    noClick: true, // Tắt click trên vùng container (để tránh conflict click message)
+    noClick: true,
     noKeyboard: true,
     accept: {
       "image/*": [],
@@ -90,7 +103,6 @@ export function SocialChatWindow({
     },
   });
 
-  // Effect: Play sound & Scroll logic
   useEffect(() => {
     if (!isReady || messages.length <= prevMessagesLength.current) return;
     const lastMsg = messages[messages.length - 1];
@@ -106,17 +118,13 @@ export function SocialChatWindow({
     prevMessagesLength,
   ]);
 
-  // Handle Send Message
   const handleSend = async (content: string) => {
     const filesToProcess = stagedFiles.length > 0;
-
-    // Validate: Không gửi nếu rỗng và không có file
     if ((!content.trim() && !filesToProcess) || sending || isUploading) return;
 
     playSendSound();
     setSending(true);
 
-    // 1. Tạo tin nhắn tạm (Optimistic UI)
     const tempId = `temp-${Date.now()}`;
     const tempMsg: ChatMessage = {
       _id: tempId,
@@ -144,15 +152,15 @@ export function SocialChatWindow({
         : { text: content },
       createdAt: new Date().toISOString(),
       status: "sending",
+      replyToId: replyingTo?._id,
+      replyTo: replyingTo,
     } as ChatMessage;
 
     addMessage(conversation._id, tempMsg);
     prevMessagesLength.current += 1;
-
-    // ✅ Clear staging NGAY để ẩn thumbnail (hiệu ứng "bay lên")
     clearStaging();
 
-    // Scroll xuống dưới
+    // Scroll to new message
     setTimeout(() => {
       if (scrollRef.current && containerRef.current) {
         scrollRef.current.scrollIntoView({ behavior: "smooth" });
@@ -161,7 +169,6 @@ export function SocialChatWindow({
 
     let uploadedAttachments: any[] = [];
     try {
-      // 2. Upload Files (Nếu có)
       if (filesToProcess) {
         uploadedAttachments = await uploadAllFiles();
         if (uploadedAttachments.length === 0 && stagedFiles.length > 0) {
@@ -174,21 +181,21 @@ export function SocialChatWindow({
       const finalContent =
         content || (uploadedAttachments.length > 0 ? "Đã gửi file" : "");
 
-      // 3. Gọi API gửi tin nhắn thật
       const res = await postSocialChatMessage(
         finalContent,
         conversation._id,
-        filesToProcess ? uploadedAttachments : []
+        filesToProcess ? uploadedAttachments : [],
+        replyingTo?._id
       );
 
       if (res) {
-        // Update tin nhắn thật từ server
         const realMsg: ChatMessage = {
           ...res,
           sender: res.sender ?? currentUser?._id,
           status: "sent",
         };
         updateMessageId(conversation._id, tempId, realMsg);
+        cancelReply(); // Clear reply after successful send
       }
     } catch (e) {
       toast.error("Gửi thất bại.");
@@ -200,14 +207,14 @@ export function SocialChatWindow({
   return (
     <div
       {...getRootProps()}
-      className="flex flex-col w-full bg-[#FDFDFD] relative overflow-hidden"
+      className="flex flex-col w-full bg-[#FFFFFF] relative overflow-hidden"
       style={{
         height: isMobile && visualHeight ? `${visualHeight}px` : "100%",
       }}
     >
       <input {...getInputProps()} className="hidden" />
 
-      {/* OVERLAY KHI KÉO FILE VÀO */}
+      {/* DRAG OVERLAY */}
       <AnimatePresence>
         {isDragActive && (
           <motion.div
@@ -215,31 +222,18 @@ export function SocialChatWindow({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 z-[100] flex items-center justify-center bg-white/60 backdrop-blur-md"
+            className="absolute inset-0 z-[100] flex items-center justify-center bg-white/80 backdrop-blur-sm"
           >
             <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="w-[80%] max-w-md aspect-video border-2 border-dashed border-blue-500 rounded-3xl bg-blue-50/50 flex flex-col items-center justify-center shadow-2xl shadow-blue-500/10"
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="flex flex-col items-center justify-center p-10 border-2 border-dashed border-blue-500 rounded-3xl bg-blue-50"
             >
-              <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 1.5,
-                  ease: "easeInOut",
-                }}
-                className="p-5 bg-white rounded-full shadow-lg mb-4 text-blue-600"
-              >
-                <UploadCloud size={48} strokeWidth={1.5} />
-              </motion.div>
-              <h3 className="text-2xl font-bold text-blue-700 tracking-tight">
-                Thả file ngay
+              <UploadCloud size={64} className="text-blue-500 mb-4" />
+              <h3 className="text-2xl font-bold text-blue-700">
+                Thả file vào đây
               </h3>
-              <p className="text-blue-500/80 font-medium mt-1">
-                AI, PDF, PSD, Ảnh (Max 50MB)
-              </p>
             </motion.div>
           </motion.div>
         )}
@@ -270,28 +264,30 @@ export function SocialChatWindow({
           }
         }}
         unreadCount={unreadCounts[conversation._id] || 0}
+        onReply={startReply}
       />
 
-      {/* Khu vực hiển thị file đang chờ gửi */}
-      <FileStagingArea
-        files={stagedFiles}
-        onRemove={removeFile}
-        onContextChange={updateFileContext}
-      />
-
-      {/* Input Chat */}
-      <ChatInput
-        isLoading={sending}
-        onSendText={handleSend}
-        // --- Props cho tính năng Social (External Queue) ---
-        hasFiles={stagedFiles.length > 0}
-        onPasteFile={addFiles}
-        onAddLink={addLink}
-        onAddDriveFile={addFiles}
-        // ✅ QUAN TRỌNG: Truyền hàm 'open' vào đây
-        // Khi user bấm nút kẹp ghim/ảnh trong ChatInput -> gọi hàm này -> mở File Dialog
-        onFileClick={open}
-      />
+      {/* ✅ FLOATING FOOTER */}
+      <div className="absolute bottom-0 left-0 w-full z-30 px-4 pb-4 pt-12 pointer-events-none flex flex-col items-center justify-end bg-gradient-to-t from-white via-white/95 to-transparent">
+        <div className="w-full max-w-[800px] pointer-events-auto">
+          <ChatInput
+            isLoading={sending}
+            onSendText={handleSend}
+            stagedFiles={stagedFiles}
+            onRemoveFile={removeFile}
+            onContextChange={updateFileContext}
+            onPasteFile={addFiles}
+            onAddLink={addLink}
+            onAddDriveFile={addFiles}
+            onFileClick={open}
+            replyingTo={replyingTo}
+            replyPreviewText={
+              replyingTo ? getReplyPreview(replyingTo) : undefined
+            }
+            onCancelReply={cancelReply}
+          />
+        </div>
+      </div>
 
       <EditGroupModal
         isOpen={isEditGroupOpen}

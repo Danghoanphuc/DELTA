@@ -201,7 +201,7 @@ async function startServer() {
       customerRoutes,
       checkoutRoutes,
       customerProfileRoutes;
-    let stripeOnboardingRoutes, stripeWebhookRoutes, momoRoutes, payosRoutes;
+    let payosRoutes;
     let notificationRoutes,
       aiRoutes,
       walletRoutes,
@@ -249,14 +249,6 @@ async function startServer() {
         await import("./modules/customer-profile/customer-profile.routes.js")
       ).default;
       Logger.info("📦 [Server] Importing payment routes...");
-      stripeOnboardingRoutes = (
-        await import("./modules/payments/stripe.onboarding.routes.js")
-      ).default;
-      stripeWebhookRoutes = (
-        await import("./modules/payments/stripe.webhook.routes.js")
-      ).default;
-      momoRoutes = (await import("./modules/payments/momo/momo.routes.js"))
-        .default;
       payosRoutes = (await import("./modules/payments/payos/payos.routes.js"))
         .default;
       Logger.info("📦 [Server] Importing notification & AI routes...");
@@ -410,12 +402,6 @@ async function startServer() {
     // ✅ Tăng limit cho body parser (50MB) vì upload nhiều ảnh
     app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-    app.use(
-      "/api/webhooks/stripe",
-      express.raw({ type: "application/json" }),
-      stripeWebhookRoutes
-    );
-
     // ✅ Tăng limit cho JSON body (50MB)
     app.use(express.json({ limit: "50mb" }));
 
@@ -526,13 +512,6 @@ async function startServer() {
     apiRouter.use("/customer", protect, customerRoutes);
     apiRouter.use("/checkout", protect, checkoutRoutes);
     apiRouter.use("/customer-profile", protect, customerProfileRoutes);
-    apiRouter.use(
-      "/printer-stripe",
-      protect,
-      isPrinter,
-      stripeOnboardingRoutes
-    );
-    apiRouter.use("/payments/momo", momoRoutes);
     apiRouter.use("/payments/payos", payosRoutes);
     apiRouter.use("/payos", payosRoutes); // ✅ Alias để tương thích với frontend
     apiRouter.use("/notifications", notificationRoutes);

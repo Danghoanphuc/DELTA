@@ -9,7 +9,6 @@ import {
 } from "../../shared/exceptions/index.js";
 import mongoose from "mongoose";
 import { Logger } from "../../shared/utils/index.js";
-import { getStripeClient } from "../../shared/utils/stripe.js";
 import BalanceLedgerModel from "../../shared/models/balance-ledger.model.js";
 import { getRedisClient } from "../../infrastructure/cache/redis.js";
 import { novuService } from "../../infrastructure/notifications/novu.service.js";
@@ -36,7 +35,6 @@ export class OrderService {
   constructor() {
     this.orderRepository = new OrderRepository();
     this.productRepository = productRepository;
-    this.stripe = getStripeClient();
     this.cartService = new CartService();
     this.redis = getRedisClient();
   }
@@ -88,12 +86,6 @@ export class OrderService {
   // ... (Other methods like _acquireOrderLock, _finalizeOrderAndRecordLedger kept simple for fix)
   _acquireOrderLock = async (id) => ({ acquired: true });
   _releaseOrderLock = async (lock) => {};
-  handleStripeWebhookPayment = async (paymentIntent) => {
-    // TODO: Implement payment intent handling logic
-    Logger.info(
-      `[OrderService] Handling Stripe webhook payment: ${paymentIntent?.id}`
-    );
-  };
 
   getOrderById = async (customerId, orderId) => {
     const order = await MasterOrder.findOne({

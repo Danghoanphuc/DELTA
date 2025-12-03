@@ -1,117 +1,135 @@
 import { useState } from "react";
-import { Card } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Label } from "@/shared/components/ui/label";
-import { Phone, Mail, MapPin, Send, MessageSquare } from "lucide-react";
+import { Phone, Mail, MapPin, ArrowRight } from "lucide-react";
 import { Header, Footer } from "./components";
 
 export default function ContactPage() {
-  const [formData, setFormData] = useState({ name: "", email: "", message: "" });
-
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Header /> 
-      
-      {/* HERO SECTION */}
-      <section className="bg-slate-900 text-white pt-24 pb-32 relative overflow-hidden">
-         <div className="absolute inset-0 bg-grid-blue opacity-10"></div>
-         <div className="max-w-7xl mx-auto px-4 text-center relative z-10">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">Liên hệ Printz</h1>
-            <p className="text-slate-400 text-lg max-w-2xl mx-auto">
-               Chúng tôi luôn sẵn sàng hỗ trợ. Gửi yêu cầu và đội ngũ kỹ thuật sẽ phản hồi trong vòng 2 giờ làm việc.
-            </p>
-         </div>
+    <div className="min-h-screen bg-[#F9F8F6]">
+      <Header />
+
+      {/* HEADER KHÔNG GIAN LỚN */}
+      <section className="pt-40 pb-20 px-4 border-b border-stone-200">
+        <div className="max-w-[1440px] mx-auto">
+          <h1 className="font-serif text-6xl md:text-8xl text-stone-900 leading-none mb-6 italic">
+            Get in touch.
+          </h1>
+          <p className="text-xl text-stone-500 font-light max-w-2xl">
+            Bạn cần tư vấn giải pháp in ấn cho doanh nghiệp? Đội ngũ Printz sẵn
+            sàng hỗ trợ.
+          </p>
+        </div>
       </section>
 
-      {/* CONTACT CONTENT - Dạng thẻ nổi (Floating Card) */}
-      <div className="max-w-6xl mx-auto px-4 -mt-20 relative z-20 mb-20">
-         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden grid md:grid-cols-5 min-h-[600px]">
-            
-            {/* LEFT: INFO (2 cols) - Nền Xanh Printz */}
-            <div className="md:col-span-2 bg-blue-600 p-10 text-white flex flex-col justify-between relative overflow-hidden">
-               <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
-               <div className="relative z-10">
-                  <h3 className="text-2xl font-bold mb-2">Thông tin liên hệ</h3>
-                  <p className="text-blue-100 mb-8">Kết nối trực tiếp với văn phòng.</p>
-                  
-                  <div className="space-y-6">
-                     <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                           <Phone className="w-5 h-5" />
-                        </div>
-                        <div>
-                           <p className="text-blue-200 text-sm">Tổng đài hỗ trợ</p>
-                           <p className="font-bold text-lg">1900 xxxx</p>
-                        </div>
-                     </div>
-                     <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                           <Mail className="w-5 h-5" />
-                        </div>
-                        <div>
-                           <p className="text-blue-200 text-sm">Email</p>
-                           <p className="font-bold">support@printz.vn</p>
-                        </div>
-                     </div>
-                     <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                           <MapPin className="w-5 h-5" />
-                        </div>
-                        <div>
-                           <p className="text-blue-200 text-sm">Trụ sở chính</p>
-                           <p className="font-medium">123 Nguyễn Huệ, Quận 1, TP.HCM</p>
-                        </div>
-                     </div>
-                  </div>
-               </div>
+      <div className="max-w-[1440px] mx-auto grid md:grid-cols-2 min-h-[800px]">
+        {/* LEFT: INFO - DARK MODE */}
+        <div className="bg-stone-900 text-white p-12 md:p-20 flex flex-col justify-between border-r border-stone-800">
+          <div>
+            <span className="font-mono text-emerald-400 text-xs font-bold tracking-[0.2em] uppercase mb-12 block">
+              Headquarters
+            </span>
 
-               {/* Socials Bottom */}
-               <div className="relative z-10 mt-10">
-                  <p className="text-sm text-blue-200 mb-4">Mạng xã hội</p>
-                  <div className="flex gap-4">
-                     {[1,2,3].map(i => (
-                        <div key={i} className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/40 cursor-pointer transition-colors"></div>
-                     ))}
-                  </div>
-               </div>
+            <div className="space-y-12">
+              <div className="group">
+                <p className="text-stone-500 text-sm mb-2 uppercase tracking-widest">
+                  Office
+                </p>
+                <div className="flex items-start gap-4">
+                  <MapPin
+                    className="w-6 h-6 text-white mt-1"
+                    strokeWidth={1.5}
+                  />
+                  <p className="text-2xl font-serif leading-relaxed">
+                    TechHub Building, <br />
+                    123 Nguyen Hue, Dist 1,
+                    <br />
+                    Ho Chi Minh City, VN
+                  </p>
+                </div>
+              </div>
+
+              <div className="group">
+                <p className="text-stone-500 text-sm mb-2 uppercase tracking-widest">
+                  Contact
+                </p>
+                <div className="space-y-4">
+                  <a
+                    href="tel:1900xxxx"
+                    className="flex items-center gap-4 text-2xl font-serif hover:text-emerald-400 transition-colors"
+                  >
+                    <Phone className="w-6 h-6" strokeWidth={1.5} /> 1900 xxxx
+                  </a>
+                  <a
+                    href="mailto:b2b@printz.vn"
+                    className="flex items-center gap-4 text-2xl font-serif hover:text-emerald-400 transition-colors"
+                  >
+                    <Mail className="w-6 h-6" strokeWidth={1.5} /> b2b@printz.vn
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-20 pt-12 border-t border-stone-800">
+            <p className="text-stone-500 text-sm mb-4">Follow Us</p>
+            <div className="flex gap-6 font-mono text-sm">
+              <a href="#" className="hover:text-emerald-400 uppercase">
+                Facebook
+              </a>
+              <a href="#" className="hover:text-emerald-400 uppercase">
+                LinkedIn
+              </a>
+              <a href="#" className="hover:text-emerald-400 uppercase">
+                Behance
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT: FORM - CLEAN & SHARP */}
+        <div className="bg-white p-12 md:p-20">
+          <form className="space-y-8 max-w-lg">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label className="uppercase text-xs font-bold tracking-widest text-stone-500">
+                  Full Name
+                </Label>
+                <Input
+                  placeholder="Ex: Nguyen Van A"
+                  className="rounded-none border-0 border-b-2 border-stone-200 px-0 py-4 text-xl focus-visible:ring-0 focus-visible:border-stone-900 bg-transparent placeholder:text-stone-300 font-serif"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="uppercase text-xs font-bold tracking-widest text-stone-500">
+                  Work Email
+                </Label>
+                <Input
+                  type="email"
+                  placeholder="name@company.com"
+                  className="rounded-none border-0 border-b-2 border-stone-200 px-0 py-4 text-xl focus-visible:ring-0 focus-visible:border-stone-900 bg-transparent placeholder:text-stone-300 font-serif"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="uppercase text-xs font-bold tracking-widest text-stone-500">
+                  Message
+                </Label>
+                <Textarea
+                  placeholder="Tell us about your project..."
+                  className="rounded-none border-0 border-b-2 border-stone-200 px-0 py-4 text-xl min-h-[150px] resize-none focus-visible:ring-0 focus-visible:border-stone-900 bg-transparent placeholder:text-stone-300 font-serif"
+                />
+              </div>
             </div>
 
-            {/* RIGHT: FORM (3 cols) */}
-            <div className="md:col-span-3 p-10 bg-white">
-               <form className="space-y-6 h-full flex flex-col justify-center">
-                  <div className="grid md:grid-cols-2 gap-6">
-                     <div className="space-y-2">
-                        <Label>Họ và tên</Label>
-                        <Input placeholder="Nguyễn Văn A" className="rounded-xl bg-slate-50 border-slate-200 py-6" />
-                     </div>
-                     <div className="space-y-2">
-                        <Label>Số điện thoại</Label>
-                        <Input placeholder="0912..." className="rounded-xl bg-slate-50 border-slate-200 py-6" />
-                     </div>
-                  </div>
-                  <div className="space-y-2">
-                     <Label>Email</Label>
-                     <Input type="email" placeholder="email@example.com" className="rounded-xl bg-slate-50 border-slate-200 py-6" />
-                  </div>
-                  <div className="space-y-2">
-                     <Label>Nội dung cần hỗ trợ</Label>
-                     <Textarea 
-                        placeholder="Mô tả yêu cầu của bạn..." 
-                        className="rounded-xl bg-slate-50 border-slate-200 min-h-[150px] resize-none" 
-                     />
-                  </div>
-
-                  <div className="pt-4">
-                     <Button className="w-full py-6 rounded-xl bg-slate-900 text-white hover:bg-blue-600 text-lg shadow-lg">
-                        Gửi tin nhắn <Send className="ml-2 w-4 h-4" />
-                     </Button>
-                  </div>
-               </form>
+            <div className="pt-8">
+              <Button className="w-full bg-stone-900 text-white hover:bg-emerald-900 rounded-none py-8 text-base uppercase tracking-widest font-bold">
+                Send Inquiry <ArrowRight className="ml-2 w-4 h-4" />
+              </Button>
             </div>
-
-         </div>
+          </form>
+        </div>
       </div>
       <Footer />
     </div>

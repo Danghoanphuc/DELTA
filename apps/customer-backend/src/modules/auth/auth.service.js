@@ -10,7 +10,7 @@ import Session from "../../shared/models/session.model.js";
 import {
   sendVerificationEmail,
   sendPasswordResetEmail,
-} from "../../infrastructure/email/email.service.js";
+} from "../../infrastructure/email/index.js";
 import { generateUniqueUsername } from "../../shared/utils/username.util.js";
 import {
   ValidationException,

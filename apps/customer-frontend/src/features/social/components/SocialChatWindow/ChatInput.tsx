@@ -1,276 +1,214 @@
-// src/features/chat/components/ChatInput.tsx
-
 import { useState, useRef, useEffect } from "react";
-import ReactDOM from "react-dom";
 import {
   Send,
-  Loader2,
-  Plus,
-  FileUp,
-  Image as ImageIcon,
-  Link as LinkIcon,
   Paperclip,
+  Zap,
+  Bold,
+  Italic,
+  Underline,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  List,
+  Type,
+  Plus,
+  Palette,
+  Reply,
   X,
-  FileText,
 } from "lucide-react";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { cn } from "@/shared/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
+import { useDropzone } from "react-dropzone";
+import { LoginPopup } from "@/features/auth/components/LoginPopup";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/shared/components/ui/popover";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { LoginPopup } from "@/features/auth/components/LoginPopup";
-import { cn } from "@/shared/lib/utils";
-// useFileUpload không dùng nữa - files được quản lý bởi external staging
-import { motion, AnimatePresence } from "framer-motion";
-import { useDropzone } from "react-dropzone";
+import { Button } from "@/shared/components/ui/button";
+import { FileStagingArea } from "./FileStagingArea";
+import type { StagedFile, FileContextType } from "./hooks/useSmartFileUpload";
 
-import { AddLinkModal } from "@/shared/components/ui/AddLinkModal";
-import { useGoogleDrive } from "@/shared/hooks/useGoogleDrive";
+const QUICK_TEMPLATES = [
+  {
+    id: "quote",
+    label: "Báo giá",
+    icon: "💰",
+    content:
+      "<b>BÁO GIÁ:</b><br/>- Đơn giá: ...<br/>- Số lượng: ...<br/>- <b>Thành tiền: ...</b>",
+  },
+  {
+    id: "vat",
+    label: "VAT Info",
+    icon: "🧾",
+    content: "Vui lòng cung cấp: <b>Tên Cty, MST, Địa chỉ</b> để xuất hóa đơn.",
+  },
+  {
+    id: "bank",
+    label: "Bank Info",
+    icon: "💳",
+    content: "<b>VIETCOMBANK</b><br/>STK: 999888<br/>CTK: PRINTZ GLOBAL",
+  },
+];
+
+const TEXT_COLORS = [
+  { color: "#1c1917", label: "Đen" },
+  { color: "#dc2626", label: "Đỏ" },
+  { color: "#16a34a", label: "Lá" },
+  { color: "#2563eb", label: "Dương" },
+  { color: "#d97706", label: "Cam" },
+  { color: "#7c3aed", label: "Tím" },
+];
+
+type AlignType = "justifyLeft" | "justifyCenter" | "justifyRight";
 
 interface ChatInputProps {
   isLoading: boolean;
   onSendText: (text: string) => void;
-  // Social chat props
-  hasFiles?: boolean;
+  stagedFiles?: StagedFile[];
+  onRemoveFile?: (id: string) => void;
+  onContextChange?: (id: string, context: FileContextType) => void;
   onPasteFile?: (files: File[]) => void;
-  onAddLink?: (url: string, type: "canva" | "drive" | "general") => void;
-  onAddDriveFile?: (files: File[]) => void;
   onFileClick?: () => void;
+  onAddLink?: any;
+  onAddDriveFile?: any;
+  replyingTo?: any;
+  replyPreviewText?: string;
+  onCancelReply?: () => void;
 }
-
-// Component Thumbnail - MOBILE OPTIMIZED
-const FileThumbnail = ({
-  file,
-  onRemove,
-}: {
-  file: File;
-  onRemove: () => void;
-}) => {
-  const isImage = file.type.startsWith("image/");
-  const [preview, setPreview] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
-
-  useEffect(() => {
-    if (isImage) {
-      const url = URL.createObjectURL(file);
-      setPreview(url);
-      return () => URL.revokeObjectURL(url);
-    }
-  }, [file, isImage]);
-
-  return (
-    <>
-      <motion.div
-        layout
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.8, width: 0 }}
-        className="relative group flex-shrink-0"
-      >
-        <div
-          className="w-20 h-20 rounded-2xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 relative shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-95"
-          onClick={() => isImage && preview && setShowPreview(true)}
-        >
-          {isImage && preview ? (
-            <img
-              src={preview}
-              alt="preview"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center p-2 bg-gradient-to-br from-blue-50 to-indigo-50">
-              <FileText className="w-7 h-7 text-blue-600 mb-1" />
-              <span className="text-[9px] text-gray-600 truncate w-full text-center px-1 font-bold uppercase">
-                {file.name.split(".").pop()}
-              </span>
-            </div>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            className="absolute top-1 right-1 bg-gray-900/70 hover:bg-red-500 text-white p-1 rounded-full opacity-100 group-hover:opacity-100 transition-all active:scale-90 touch-manipulation"
-          >
-            <X size={12} />
-          </button>
-          {/* File size badge */}
-          <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/60 backdrop-blur-sm rounded text-[8px] text-white font-bold">
-            {(file.size / 1024 / 1024).toFixed(1)}MB
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Image Preview Modal */}
-      {showPreview && preview && (
-        <ImagePreviewModal
-          imageUrl={preview}
-          fileName={file.name}
-          onClose={() => setShowPreview(false)}
-        />
-      )}
-    </>
-  );
-};
-
-// Simple Image Preview Modal
-const ImagePreviewModal = ({
-  imageUrl,
-  fileName,
-  onClose,
-}: {
-  imageUrl: string;
-  fileName: string;
-  onClose: () => void;
-}) => {
-  return ReactDOM.createPortal(
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[99999] bg-black/95 backdrop-blur-md flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10 touch-manipulation"
-      >
-        <X size={24} />
-      </button>
-      <div className="max-w-4xl max-h-[90vh] w-full h-full flex flex-col items-center justify-center">
-        <img
-          src={imageUrl}
-          alt={fileName}
-          className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        />
-        <p className="mt-4 text-white text-sm font-medium truncate max-w-full px-4">
-          {fileName}
-        </p>
-      </div>
-    </motion.div>,
-    document.body
-  );
-};
 
 export function ChatInput({
   isLoading,
   onSendText,
-  hasFiles,
+  stagedFiles = [],
+  onRemoveFile,
   onPasteFile,
-  onAddLink,
-  onAddDriveFile,
   onFileClick,
+  replyingTo,
+  replyPreviewText,
+  onCancelReply,
 }: ChatInputProps) {
-  const [message, setMessage] = useState("");
+  const [htmlContent, setHtmlContent] = useState("");
   const [showLoginPopup, setShowLoginPopup] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
 
-  // State cho Menu & Modal
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
-  const [linkType, setLinkType] = useState<"canva" | "drive">("canva");
-  const [isMobile, setIsMobile] = useState(false);
+  // States cho Toolbar
+  const [currentColor, setCurrentColor] = useState("#1c1917");
+  const [currentAlign, setCurrentAlign] = useState<AlignType>("justifyLeft");
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
   const { accessToken } = useAuthStore();
 
-  // Detect mobile
+  // Auto-focus input when replying
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  // Không dùng internal file queue nữa, dùng external staging area
-
-  // ✅ Tích hợp Google Drive
-  const { openDrivePicker } = useGoogleDrive({
-    onPick: (driveFiles) => {
-      if (accessToken && onAddDriveFile) {
-        onAddDriveFile(driveFiles);
-        setIsMenuOpen(false);
-      } else if (!accessToken) {
-        setShowLoginPopup(true);
-      }
-    },
-  });
-
-  // Auto-resize
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    textarea.style.height = "auto";
-    if (message.trim()) {
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
-    } else {
-      textarea.style.height = "44px";
+    if (replyingTo && editorRef.current) {
+      editorRef.current.focus();
+      // Move cursor to end
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(editorRef.current);
+      range.collapse(false);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
     }
-  }, [message]);
+  }, [replyingTo]);
 
-  // Dropzone Logic cho vùng Input
-  const {
-    getRootProps,
-    getInputProps,
-    isDragActive: isInputDragActive,
-  } = useDropzone({
-    onDrop: (acceptedFiles) => {
-      if (accessToken && onPasteFile) {
-        onPasteFile(acceptedFiles);
-      } else if (!accessToken) {
-        setShowLoginPopup(true);
-      }
-    },
-    noClick: true,
-    noKeyboard: true,
-    multiple: true,
-  });
-
-  const isAnyDragActive = isInputDragActive;
-
-  // Xử lý gửi - Files được quản lý bởi external staging area
-  const handleSend = () => {
-    if (isLoading) return;
-    if (!message.trim() && !hasFiles) return;
-
-    const textToSend = message.trim();
-
-    // Clear input
-    setMessage("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "44px";
-      textareaRef.current.focus();
-    }
-
-    // Gửi text (files sẽ được gửi bởi parent component)
-    if (textToSend || hasFiles) {
-      onSendText(textToSend);
-    }
-  };
-
+  // Handle paste event for images
   const handlePaste = (e: React.ClipboardEvent) => {
-    const items = e.clipboardData.items;
-    const pastedFiles: File[] = [];
-    for (const item of items) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const imageFiles: File[] = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
       if (item.type.indexOf("image") !== -1) {
-        const blob = item.getAsFile();
-        if (blob) {
-          const file = new File([blob], `pasted-image-${Date.now()}.png`, {
-            type: blob.type,
-          });
-          pastedFiles.push(file);
+        const file = item.getAsFile();
+        if (file) {
+          imageFiles.push(file);
         }
       }
     }
-    if (pastedFiles.length > 0) {
+
+    if (imageFiles.length > 0) {
       e.preventDefault();
-      if (accessToken && onPasteFile) {
-        onPasteFile(pastedFiles);
-      } else if (!accessToken) {
+      if (!accessToken) {
         setShowLoginPopup(true);
+        return;
+      }
+      if (onPasteFile) {
+        onPasteFile(imageFiles);
       }
     }
+  };
+
+  const exec = (command: string, value: string | undefined = undefined) => {
+    document.execCommand(command, false, value);
+    editorRef.current?.focus();
+  };
+
+  // Logic Toggle Align: Left -> Center -> Right -> Left
+  const toggleAlign = () => {
+    const nextAlign =
+      currentAlign === "justifyLeft"
+        ? "justifyCenter"
+        : currentAlign === "justifyCenter"
+        ? "justifyRight"
+        : "justifyLeft";
+    setCurrentAlign(nextAlign);
+    exec(nextAlign);
+  };
+
+  const getAlignIcon = () => {
+    switch (currentAlign) {
+      case "justifyCenter":
+        return AlignCenter;
+      case "justifyRight":
+        return AlignRight;
+      default:
+        return AlignLeft;
+    }
+  };
+
+  const AlignIcon = getAlignIcon();
+
+  const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
+    const val = e.currentTarget.innerHTML;
+    setHtmlContent(val);
+    if (e.currentTarget.innerText.trim() === "/") setShowTemplates(true);
+    else setShowTemplates(false);
+  };
+
+  const handleSelectTemplate = (content: string) => {
+    if (editorRef.current) {
+      editorRef.current.innerHTML =
+        editorRef.current.innerHTML.replace("/", "") + content;
+      setHtmlContent(editorRef.current.innerHTML);
+      // Move caret logic...
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(editorRef.current);
+      range.collapse(false);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+    setShowTemplates(false);
+  };
+
+  const handleSend = () => {
+    if (isLoading) return;
+    const cleanText = editorRef.current?.innerText.trim();
+    if (!cleanText && stagedFiles.length === 0 && !htmlContent.includes("<img"))
+      return;
+
+    onSendText(htmlContent);
+
+    // Reset UI ngay lập tức (Optimistic)
+    if (editorRef.current) editorRef.current.innerHTML = "";
+    setHtmlContent("");
+    setShowTemplates(false);
+    onCancelReply?.(); // Clear reply state
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -278,321 +216,336 @@ export function ChatInput({
       e.preventDefault();
       handleSend();
     }
+    if (e.key === "Escape") {
+      if (showTemplates) {
+        setShowTemplates(false);
+      } else if (replyingTo && onCancelReply) {
+        onCancelReply();
+      }
+    }
   };
 
-  // Sub-component Menu Item
-  const MenuItem = ({ icon: Icon, title, desc, onClick, colorClass }: any) => (
-    <button
-      onClick={onClick}
-      className="w-full flex items-start gap-3 p-2.5 hover:bg-gray-50 rounded-xl transition-all text-left group"
-    >
-      <div
-        className={cn(
-          "w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors shadow-sm",
-          colorClass
-        )}
-      >
-        <Icon size={18} />
-      </div>
-      <div className="flex-1 min-w-0 mt-0.5">
-        <h4 className="text-xs font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
-          {title}
-        </h4>
-        <p className="text-[10px] text-gray-500 font-medium truncate">{desc}</p>
-      </div>
-    </button>
-  );
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: (acceptedFiles) => {
+      if (accessToken && onPasteFile) onPasteFile(acceptedFiles);
+      else setShowLoginPopup(true);
+    },
+    noClick: true,
+    noKeyboard: true,
+  });
 
-  const isReadyToSend = message.trim().length > 0 || hasFiles;
+  const hasFiles = stagedFiles.length > 0;
+  const hasContent = htmlContent.trim().length > 0 || hasFiles;
 
   return (
     <>
       <LoginPopup
         isOpen={showLoginPopup}
         onClose={() => setShowLoginPopup(false)}
-        message="Vui lòng đăng nhập để sử dụng tính năng này"
+        message="Đăng nhập để chat"
       />
 
-      {/* Wrapper chính */}
+      {/* WRAPPER */}
       <div
         className={cn(
-          "flex flex-col w-full transition-all duration-300 rounded-[28px] border relative bg-white",
-          isAnyDragActive
-            ? "border-blue-400 border-dashed bg-blue-50/50 shadow-lg scale-[1.01]"
-            : "border-gray-200 hover:border-gray-300 shadow-sm"
+          "relative w-full transition-all duration-200",
+          isDragActive && "scale-[1.02]"
         )}
+        {...getRootProps()}
       >
-        {/* Dropzone được quản lý bởi parent component */}
+        <input {...getInputProps()} className="hidden" />
 
-        {/* OVERLAY KHI KÉO FILE */}
+        {/* TEMPLATES POPUP */}
         <AnimatePresence>
-          {isAnyDragActive && (
+          {showTemplates && (
             <motion.div
-              initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
-              animate={{ opacity: 1, backdropFilter: "blur(2px)" }}
-              exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
-              className="absolute inset-0 z-50 bg-white/80 rounded-[26px] flex items-center justify-center"
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              className="absolute bottom-full mb-3 left-0 w-64 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-stone-200 overflow-hidden z-50"
             >
-              <motion.div
-                animate={{ scale: [1, 1.1, 1] }}
-                transition={{ repeat: Infinity, duration: 1.5 }}
-                className="text-blue-600 font-bold text-sm flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-full shadow-sm"
-              >
-                <Paperclip size={18} /> Thả file vào đây
-              </motion.div>
+              <div className="bg-stone-50/50 px-3 py-2 border-b border-stone-100 flex items-center gap-2">
+                <Zap size={14} className="text-amber-500 fill-amber-500" />
+                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">
+                  Quick Reply
+                </span>
+              </div>
+              <div className="max-h-60 overflow-y-auto p-1.5 space-y-1">
+                {QUICK_TEMPLATES.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    onClick={() => handleSelectTemplate(tpl.content)}
+                    className="w-full text-left flex items-center gap-3 p-2 hover:bg-stone-50 rounded-xl transition-all border border-transparent hover:border-stone-100"
+                  >
+                    <span className="text-lg">{tpl.icon}</span>
+                    <span className="font-medium text-sm text-stone-700">
+                      {tpl.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Files được hiển thị ở FileStagingArea bên ngoài */}
-
-        {/* 2. INPUT BAR */}
+        {/* MAIN INPUT CONTAINER */}
         <div
-          {...getRootProps()} // Dropzone local cho vùng input
-          className="flex items-end gap-2 p-1.5 relative z-10"
+          className={cn(
+            "flex flex-col w-full rounded-[26px] overflow-hidden transition-colors duration-200",
+            // FIXED STYLE: Nền kem nhẹ (stone-50), bóng nhẹ (shadow-sm), viền mỏng
+            "bg-stone-50 border border-stone-200 shadow-sm"
+          )}
         >
-          <input {...getInputProps()} className="hidden" />
+          {/* 0. REPLY PREVIEW (if replying) */}
+          <AnimatePresence>
+            {replyingTo && replyPreviewText && onCancelReply && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="px-3 pt-3"
+              >
+                <div className="flex items-center gap-2.5 px-3 py-2.5 bg-gradient-to-r from-blue-50 to-blue-50/50 border-l-4 border-blue-500 rounded-lg shadow-sm">
+                  {/* Thumbnail if image */}
+                  {(() => {
+                    const attachments =
+                      (replyingTo.content as any)?.attachments || [];
+                    const imageAttachment = attachments.find(
+                      (att: any) =>
+                        att.type === "image" ||
+                        att.url?.match(/\.(jpeg|jpg|png|webp|heic)$/i)
+                    );
+                    return imageAttachment ? (
+                      <div className="w-10 h-10 rounded overflow-hidden shrink-0 border-2 border-blue-200">
+                        <img
+                          src={imageAttachment.url}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : null;
+                  })()}
 
-          {/* Action Button (Plus) - Desktop: Popover, Mobile: Bottom Sheet */}
-          {isMobile ? (
-            <button
-              type="button"
-              onClick={() => {
-                if (!accessToken) {
-                  setShowLoginPopup(true);
-                } else {
-                  setIsMenuOpen(!isMenuOpen);
-                }
-              }}
-              className={cn(
-                "rounded-full h-9 w-9 transition-all duration-300 touch-manipulation flex items-center justify-center mb-0.5",
-                isMenuOpen
-                  ? "bg-blue-600 text-white rotate-45 shadow-md"
-                  : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
-              )}
-            >
-              <Plus size={22} strokeWidth={2.5} />
-            </button>
-          ) : (
-            <Popover open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => !accessToken && setShowLoginPopup(true)}
-                  disabled={!accessToken}
-                  className={cn(
-                    "rounded-full h-9 w-9 transition-all duration-300 flex items-center justify-center mb-0.5",
-                    isMenuOpen
-                      ? "bg-blue-600 text-white rotate-45 shadow-md"
-                      : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
-                  )}
-                >
-                  <Plus size={22} strokeWidth={2.5} />
-                </button>
-              </PopoverTrigger>
-              {accessToken && (
-                <PopoverContent
-                  side="top"
-                  align="start"
-                  className="w-64 p-1.5 rounded-2xl shadow-2xl border-gray-100 mb-2"
-                >
-                  <div className="grid gap-0.5">
-                    <div className="px-2 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                      Tải lên
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[10px] font-bold text-blue-700 mb-1 uppercase tracking-wider flex items-center gap-1">
+                      <Reply size={10} />
+                      <span>Đang trả lời</span>
                     </div>
-                    <MenuItem
-                      icon={FileUp}
-                      title="File thiết kế"
-                      desc="PDF, AI, PSD, CDR"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        onFileClick?.();
-                      }}
-                      colorClass="bg-blue-50 text-blue-600"
-                    />
-                    <MenuItem
-                      icon={ImageIcon}
-                      title="Thư viện ảnh"
-                      desc="JPG, PNG, HEIC"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        onFileClick?.();
-                      }}
-                      colorClass="bg-purple-50 text-purple-600"
-                    />
-
-                    <div className="h-px bg-gray-100 my-1" />
-
-                    <div className="px-2 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                      Liên kết
+                    <div className="text-xs text-stone-700 truncate font-medium">
+                      {replyPreviewText}
                     </div>
-                    <MenuItem
-                      icon={LinkIcon}
-                      title="Link Canva"
-                      desc="Chia sẻ thiết kế"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        setLinkType("canva");
-                        setIsLinkModalOpen(true);
-                      }}
-                      colorClass="bg-indigo-50 text-indigo-600"
-                    />
-                    <MenuItem
-                      icon={() => (
-                        <span className="font-extrabold text-[9px]">GD</span>
-                      )}
-                      title="Google Drive"
-                      desc="Chọn từ Drive"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        openDrivePicker();
-                      }}
-                      colorClass="bg-green-50 text-green-600"
-                    />
                   </div>
-                </PopoverContent>
-              )}
-            </Popover>
+                  <button
+                    onClick={onCancelReply}
+                    className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-blue-100 text-stone-400 hover:text-red-500 transition-all active:scale-95"
+                    title="Hủy trả lời (Esc)"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* 1. STAGING AREA (Embedded) */}
+          {hasFiles && onRemoveFile && (
+            <div className="px-3 pt-3">
+              <FileStagingArea files={stagedFiles} onRemove={onRemoveFile} />
+            </div>
           )}
 
-          {/* Textarea */}
-          <textarea
-            ref={textareaRef}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            placeholder={hasFiles ? "Thêm tin nhắn..." : "Nhắn tin..."}
-            className="flex-1 bg-transparent border-none outline-none focus:ring-0 focus:outline-none text-[15px] py-2.5 px-1 max-h-[150px] resize-none placeholder:text-gray-400 leading-relaxed text-gray-800 font-medium overflow-y-auto scrollbar-hide"
-            rows={1}
-            style={{ minHeight: "40px" }}
-            disabled={isLoading}
-          />
+          {/* 2. EDITOR AREA */}
+          <div className="flex w-full min-h-[48px]">
+            {/* Left Action (Plus/Attach) */}
+            <div className="flex items-end pb-3 pl-3 shrink-0">
+              <button
+                onClick={() =>
+                  !accessToken ? setShowLoginPopup(true) : onFileClick?.()
+                }
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-stone-200/50 hover:bg-stone-300 text-stone-600 transition-colors"
+              >
+                <Plus size={18} strokeWidth={2.5} />
+              </button>
+            </div>
 
-          {/* Send Button */}
-          <div className="flex-shrink-0 h-9 w-9 mb-0.5 flex items-center justify-center">
-            <AnimatePresence mode="wait">
-              {isLoading ? (
+            {/* Content Editable */}
+            <div className="flex-1 relative py-3.5 px-3">
+              <div
+                ref={editorRef}
+                contentEditable
+                onInput={handleInput}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                className={cn(
+                  "w-full max-h-[200px] overflow-y-auto outline-none text-[15px] leading-relaxed text-stone-800 custom-scrollbar empty:before:content-[attr(placeholder)] empty:before:text-stone-400 cursor-text",
+                  "prose prose-sm max-w-none prose-p:my-0 prose-ul:my-0 prose-li:my-0"
+                )}
+                data-placeholder={
+                  hasFiles ? "Thêm ghi chú..." : "Nhập tin nhắn..."
+                }
+                spellCheck={false}
+              />
+            </div>
+          </div>
+
+          {/* 3. TOOLBAR & SEND (Always Visible) */}
+          <div className="px-3 pb-2 flex items-center justify-between gap-2 border-t border-stone-100/50 pt-1">
+            {/* Toolkit */}
+            <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide py-1">
+              <ToolBtn
+                icon={Bold}
+                onClick={() => exec("bold")}
+                tooltip="In đậm"
+              />
+              <ToolBtn
+                icon={Italic}
+                onClick={() => exec("italic")}
+                tooltip="In nghiêng"
+              />
+              <ToolBtn
+                icon={Underline}
+                onClick={() => exec("underline")}
+                tooltip="Gạch chân"
+              />
+
+              <div className="w-px h-3 bg-stone-300 mx-1.5 opacity-40" />
+
+              <ToolBtn
+                icon={List}
+                onClick={() => exec("insertUnorderedList")}
+                tooltip="Danh sách"
+              />
+
+              {/* Toggle Align Button */}
+              <ToolBtn
+                icon={AlignIcon}
+                onClick={toggleAlign}
+                tooltip="Căn lề (Click để đổi)"
+                active={true}
+              />
+
+              <div className="w-px h-3 bg-stone-300 mx-1.5 opacity-40" />
+
+              {/* Text Size */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className="w-7 h-7 flex items-center justify-center text-stone-400 hover:text-stone-700 hover:bg-stone-200/50 rounded-lg transition-all"
+                    title="Cỡ chữ"
+                  >
+                    <Type size={16} strokeWidth={2.5} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-auto p-1 flex gap-1 bg-white shadow-xl rounded-xl border-stone-100"
+                  align="start"
+                  side="top"
+                >
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => exec("fontSize", "1")}
+                    className="text-xs h-8 w-8 px-0 rounded-lg"
+                  >
+                    A
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => exec("fontSize", "3")}
+                    className="text-sm h-8 w-8 px-0 font-bold rounded-lg"
+                  >
+                    A
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => exec("fontSize", "5")}
+                    className="text-lg h-8 w-8 px-0 font-bold rounded-lg"
+                  >
+                    A
+                  </Button>
+                </PopoverContent>
+              </Popover>
+
+              {/* Text Color (Fixed Opacity Issue) */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className="w-7 h-7 flex items-center justify-center text-stone-400 hover:text-stone-700 hover:bg-stone-200/50 rounded-lg transition-all relative"
+                    title="Màu chữ"
+                  >
+                    <Palette size={16} strokeWidth={2.5} />
+                    {/* Color Indicator Dot */}
+                    <span
+                      className="absolute bottom-1 right-1 w-1.5 h-1.5 rounded-full border border-white ring-1 ring-stone-100"
+                      style={{ backgroundColor: currentColor }}
+                    />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-auto p-2 grid grid-cols-6 gap-2 bg-white shadow-xl rounded-xl border-stone-100"
+                  align="start"
+                  side="top"
+                >
+                  {TEXT_COLORS.map((c) => (
+                    <button
+                      key={c.color}
+                      onClick={() => {
+                        exec("foreColor", c.color);
+                        setCurrentColor(c.color);
+                      }}
+                      className="w-6 h-6 rounded-full border border-stone-200 hover:scale-125 transition-transform shadow-sm ring-1 ring-transparent hover:ring-stone-200"
+                      style={{ backgroundColor: c.color }}
+                      title={c.label}
+                    />
+                  ))}
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Send Button */}
+            <AnimatePresence>
+              {hasContent && (
                 <motion.div
-                  key="loading"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.5 }}
+                  className="shrink-0"
                 >
-                  <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                  <button
+                    onClick={handleSend}
+                    disabled={isLoading}
+                    // Màu đỏ đất (red-700 / #be1e2d)
+                    className="w-9 h-9 flex items-center justify-center rounded-full shadow-md transition-all active:scale-95 bg-[#C63321] hover:bg-[#9f281a] text-white hover:shadow-lg"
+                  >
+                    <Send size={16} className="ml-0.5" strokeWidth={2.5} />
+                  </button>
                 </motion.div>
-              ) : isReadyToSend ? (
-                <motion.button
-                  key="send"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleSend}
-                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all shadow-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-md shadow-blue-200"
-                >
-                  <Send size={16} strokeWidth={2.5} className="ml-0.5" />
-                </motion.button>
-              ) : (
-                <div className="w-9 h-9" />
               )}
             </AnimatePresence>
           </div>
         </div>
       </div>
-
-      {/* Menu Modal - Mobile Only */}
-      <AnimatePresence>
-        {isMobile && isMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-            onClick={() => setIsMenuOpen(false)}
-          >
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-4 pb-8 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6" />
-
-              <div className="grid gap-2">
-                <div className="px-2 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                  Tải lên
-                </div>
-                <MenuItem
-                  icon={FileUp}
-                  title="File thiết kế"
-                  desc="PDF, AI, PSD, CDR"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    onFileClick?.();
-                  }}
-                  colorClass="bg-blue-50 text-blue-600"
-                />
-                <MenuItem
-                  icon={ImageIcon}
-                  title="Thư viện ảnh"
-                  desc="JPG, PNG, HEIC"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    onFileClick?.();
-                  }}
-                  colorClass="bg-purple-50 text-purple-600"
-                />
-
-                <div className="h-px bg-gray-100 my-2" />
-
-                <div className="px-2 py-1 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                  Liên kết
-                </div>
-                <MenuItem
-                  icon={LinkIcon}
-                  title="Link Canva"
-                  desc="Chia sẻ thiết kế"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    setLinkType("canva");
-                    setIsLinkModalOpen(true);
-                  }}
-                  colorClass="bg-indigo-50 text-indigo-600"
-                />
-                <MenuItem
-                  icon={() => (
-                    <span className="font-extrabold text-[9px]">GD</span>
-                  )}
-                  title="Google Drive"
-                  desc="Chọn từ Drive"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    openDrivePicker();
-                  }}
-                  colorClass="bg-green-50 text-green-600"
-                />
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal Link */}
-      <AddLinkModal
-        isOpen={isLinkModalOpen}
-        onClose={() => setIsLinkModalOpen(false)}
-        type={linkType}
-        onAdd={(url) => {
-          if (onAddLink) onAddLink(url, linkType);
-          else {
-            setMessage((prev) => prev + (prev ? "\n" : "") + url);
-          }
-        }}
-      />
     </>
   );
 }
+
+const ToolBtn = ({ icon: Icon, onClick, tooltip, active }: any) => (
+  <button
+    onClick={(e) => {
+      e.preventDefault();
+      onClick();
+    }}
+    className={cn(
+      "w-7 h-7 flex items-center justify-center rounded-lg transition-all",
+      active
+        ? "text-stone-600 bg-stone-200/50"
+        : "text-stone-400 hover:text-stone-700 hover:bg-stone-200/50"
+    )}
+    title={tooltip}
+  >
+    <Icon size={16} strokeWidth={2.5} />
+  </button>
+);

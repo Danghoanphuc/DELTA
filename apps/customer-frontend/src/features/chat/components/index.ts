@@ -2,9 +2,9 @@
 // Tổ chức exports để dễ import và bảo trì
 
 // ===== NAVIGATION =====
-export { ContextNav } from "./ContextNav";
-export { MobileHomeHeader } from "./MobileHomeHeader";
-export { CategorySidebar } from "./CategorySidebar";
+export { ContextNav } from "../../main/components/ContextNav";
+export { MobileHomeHeader } from "../../main/components/MobileHomeHeader";
+export { CategorySidebar } from "../../main/components/CategorySidebar";
 
 // ===== CHAT CORE =====
 export { ChatInterface } from "./ChatInterface";
@@ -22,13 +22,13 @@ export { UserAvatarComponent } from "./UserAvatarComponent";
 export { ChatErrorBoundary } from "./ChatErrorBoundary";
 
 // ===== BUSINESS/PRODUCTS =====
-export { BusinessComboGrid } from "./BusinessComboGrid";
+export { BusinessComboGrid } from "../../main/components/BusinessComboGrid";
 export { ChatProductCarousel } from "./ChatProductCarousel";
 export { ChatOrderCarousel } from "./ChatOrderCarousel";
 export { ChatPrinterCarousel } from "./ChatPrinterCarousel";
 
 // ===== HERO/BANNER =====
-export { BannerHero } from "./BannerHero";
+export { BannerHero } from "../../main/components/BannerHero";
 export { AiFab } from "./AiFab";
 
 // ===== HISTORY =====
@@ -39,4 +39,3 @@ export { ChatPaymentCard } from "./ChatPaymentCard";
 
 // ===== MESSAGES (Subfolder) =====
 export * from "./messages";
-

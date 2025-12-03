@@ -1,5 +1,4 @@
 // apps/customer-frontend/src/features/social/components/FriendsList.tsx
-// ✅ FIXED: Mapping Data Key (friends vs connections)
 
 import { useQuery } from "@tanstack/react-query";
 import { getFriends } from "../../../services/api/connection.api.service";
@@ -7,8 +6,14 @@ import { useConnectionStore } from "../../../stores/useConnectionStore";
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../../../stores/useAuthStore";
-import { Loader2, MessageCircle } from "lucide-react";
+import { Loader2, MessageCircle, MoreHorizontal } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/shared/components/ui/dropdown-menu";
 
 export const FriendsList: React.FC = () => {
   const { setFriends } = useConnectionStore();
@@ -20,95 +25,121 @@ export const FriendsList: React.FC = () => {
   });
 
   useEffect(() => {
-    // ✅ FIX: Đọc đúng key 'friends' từ backend mới
     const list = data?.data?.friends || data?.data?.connections || [];
-    if (list) {
-      setFriends(list);
-    }
+    if (list) setFriends(list);
   }, [data, setFriends]);
 
   if (isLoading)
     return (
-      <div className="p-8 flex justify-center">
-        <Loader2 className="animate-spin text-gray-400" />
+      <div className="flex justify-center p-10">
+        <Loader2 className="animate-spin text-stone-300" />
       </div>
     );
   if (error)
     return (
-      <div className="p-6 text-center text-red-500">
+      <div className="p-10 text-center text-red-500 text-sm font-medium">
         Không thể tải danh sách
       </div>
     );
-  if (!currentUser) return null;
 
   const friendsList = data?.data?.friends || data?.data?.connections || [];
 
   if (friendsList.length === 0) {
     return (
-      <div className="p-8 text-center text-gray-500">
-        <p>Chưa có bạn bè nào</p>
+      <div className="flex flex-col items-center justify-center p-16 text-stone-400">
+        <div className="mb-4 h-20 w-20 rounded-full bg-stone-50 flex items-center justify-center">
+          <MessageCircle size={32} className="opacity-20" />
+        </div>
+        <p className="font-serif text-lg text-stone-600">Chưa có kết nối nào</p>
+        <p className="text-xs">Hãy tìm kiếm và kết bạn với mọi người.</p>
       </div>
     );
   }
 
   return (
-    <div className="divide-y divide-gray-100">
+    <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
       {friendsList.map((connection: any) => {
-        // ✅ FIX: Logic tìm người kia CHUẨN XÁC
-        // Kiểm tra an toàn cả trường hợp populate (object) và chưa populate (string ID)
         const requesterId =
           typeof connection.requester === "string"
             ? connection.requester
             : connection.requester?._id;
-
         const currentUserIdStr = currentUser?._id?.toString();
-        const requesterIdStr = requesterId?.toString();
-
-        // Nếu mình là requester -> bạn là recipient, và ngược lại
         const friend =
-          requesterIdStr === currentUserIdStr
+          requesterId?.toString() === currentUserIdStr
             ? connection.recipient
             : connection.requester;
 
-        // Nếu friend bị null (do data lỗi), skip thay vì crash
         if (!friend || typeof friend !== "object") return null;
 
         return (
           <div
             key={connection._id}
-            className="flex items-center justify-between p-4 hover:bg-gray-50 transition group"
+            className="group relative flex flex-col items-center rounded-2xl border border-stone-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-primary/20 hover:shadow-md"
           >
-            <div className="flex items-center gap-3 flex-1">
-              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+            {/* Avatar - Large & Centered */}
+            <div className="mb-4 relative">
+              <div className="h-20 w-20 overflow-hidden rounded-full border-4 border-stone-50 shadow-inner">
                 {friend.avatarUrl ? (
                   <img
                     src={friend.avatarUrl}
-                    className="w-full h-full object-cover"
+                    className="h-full w-full object-cover"
+                    loading="lazy"
                   />
                 ) : (
-                  <span className="font-bold text-gray-500">
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-tr from-stone-200 to-stone-300 text-2xl font-bold text-stone-500">
                     {(friend.displayName ||
                       friend.username)?.[0]?.toUpperCase()}
-                  </span>
+                  </div>
                 )}
               </div>
-              <div>
-                <h4 className="font-semibold text-sm text-gray-900">
-                  {friend.displayName || friend.username}
-                </h4>
-                <p className="text-xs text-gray-500">@{friend.username}</p>
-              </div>
+              {/* Online Indicator */}
+              {friend.isOnline && (
+                <span className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-white bg-green-500 shadow-sm" />
+              )}
             </div>
-            <Button
-              asChild
-              size="sm"
-              variant="ghost"
-              className="text-blue-600 bg-blue-50 hover:bg-blue-100"
-            >
-              <Link to={`/messages?userId=${friend._id}`}>
-                <MessageCircle size={16} className="mr-1" /> Nhắn tin
-              </Link>
-            </Button>
+
+            {/* Info */}
+            <div className="text-center mb-6">
+              <h4 className="font-serif text-lg font-bold text-stone-900 line-clamp-1">
+                {friend.displayName || friend.username}
+              </h4>
+              <p className="text-xs font-medium text-stone-400">
+                @{friend.username}
+              </p>
+            </div>
+
+            {/* Actions Footer */}
+            <div className="w-full flex items-center gap-2 mt-auto">
+              <Button
+                asChild
+                className="flex-1 rounded-xl bg-stone-900 text-white hover:bg-primary shadow-md transition-all font-bold text-xs h-9"
+              >
+                <Link to={`/messages?userId=${friend._id}`}>Nhắn tin</Link>
+              </Button>
+
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 rounded-xl border-stone-200 text-stone-400 hover:text-stone-900"
+                  >
+                    <MoreHorizontal size={16} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="bg-white z-50 shadow-xl border border-stone-100 rounded-xl p-1"
+                >
+                  <DropdownMenuItem className="text-red-600 rounded-lg cursor-pointer">
+                    Hủy kết bạn
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="rounded-lg cursor-pointer">
+                    Chặn người này
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         );
       })}

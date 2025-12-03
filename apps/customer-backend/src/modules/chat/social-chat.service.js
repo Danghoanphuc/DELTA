@@ -54,6 +54,7 @@ export class SocialChatService {
       fileName,
       fileType,
       attachments,
+      replyToId,
     } = body;
     const userId = user?._id || null;
 
@@ -103,6 +104,7 @@ export class SocialChatService {
       content: { text: displayText || message },
       type: fileUrl ? "file" : "text",
       metadata: metadata || {},
+      replyTo: replyToId || null,
     };
 
     // ✅ FIX: Xử lý file từ attachments array (frontend gửi) hoặc fileUrl trực tiếp (legacy)
@@ -181,9 +183,17 @@ export class SocialChatService {
       }, attachments=${savedMessage.content?.attachments?.length || 0}`
     );
 
-    // 4. Populate sender info để gửi đi
+    // 4. Populate sender info và replyTo để gửi đi
     const populatedMessage = await Message.findById(savedMessage._id)
       .populate("sender", "username displayName avatarUrl _id")
+      .populate({
+        path: "replyTo",
+        select: "content sender createdAt type",
+        populate: {
+          path: "sender",
+          select: "username displayName avatarUrl",
+        },
+      })
       .lean();
 
     // ✅ Đảm bảo message có đầy đủ thông tin
@@ -327,35 +337,142 @@ export class SocialChatService {
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) throw new NotFoundException("Conversation not found");
 
+    // Track old participants for comparison
+    const oldParticipantIds = conversation.participants
+      .map((p) => p.userId?.toString())
+      .filter((id) => id);
+
+    // Update title
     if (title) conversation.title = title;
+
+    // Upload avatar logic
     if (avatarFile) {
-      // Upload avatar logic
+      // Upload avatar logic (implement if needed)
+    }
+
+    // Remove members
+    if (membersToRemove && membersToRemove.length > 0) {
+      conversation.participants = conversation.participants.filter(
+        (p) => !membersToRemove.includes(p.userId?.toString())
+      );
+      Logger.info(
+        `[SocialChat] Removed ${membersToRemove.length} member(s) from group ${conversationId}`
+      );
+    }
+
+    // Add new members
+    if (membersToAdd && membersToAdd.length > 0) {
+      const newParticipants = membersToAdd.map((memberId) => ({
+        userId: memberId,
+        role: "member",
+        isVisible: true,
+        joinedAt: new Date(),
+      }));
+      conversation.participants.push(...newParticipants);
+      Logger.info(
+        `[SocialChat] Added ${membersToAdd.length} new member(s) to group ${conversationId}`
+      );
     }
 
     await conversation.save();
 
-    // Emit event conversation_updated
+    // Populate conversation for emit
+    const populatedConversation = await Conversation.findById(conversationId)
+      .populate("participants.userId", "username displayName avatarUrl _id")
+      .lean();
+
+    // Get all current participant IDs (including new members)
+    const currentParticipantIds = populatedConversation.participants
+      .map((p) => p.userId?._id?.toString() || p.userId?.toString())
+      .filter((id) => id);
+
+    // Emit event conversation_updated to ALL participants (old + new)
     const socketService = await this.getSocketService();
-    const participants = conversation.participants || [];
-    for (const participant of participants) {
-      const participantId = participant.userId?.toString();
+
+    // Emit to all current participants
+    for (const participantId of currentParticipantIds) {
       socketService.emitToUser(
         participantId,
         "conversation_updated",
-        conversation.toObject()
+        populatedConversation
+      );
+      Logger.info(
+        `[SocialChat] 📡 Emitted conversation_updated to user ${participantId}`
       );
     }
 
-    // 🔥 FIX 1: Xóa Cache của user thực hiện để lần sau fetch lại dữ liệu mới
-    // Lưu ý: Đúng ra nên xóa cache của TẤT CẢ participants, nhưng ít nhất phải xóa của người đang thao tác
-    const participantIds = participants
-      .map((p) => p.userId?.toString())
-      .filter((id) => id);
+    // Also emit to removed members so they know they're removed
+    if (membersToRemove && membersToRemove.length > 0) {
+      for (const removedId of membersToRemove) {
+        socketService.emitToUser(removedId, "conversation_removed", {
+          conversationId: conversationId.toString(),
+        });
+        Logger.info(
+          `[SocialChat] 📡 Emitted conversation_removed to removed user ${removedId}`
+        );
+      }
+    }
 
-    // Gọi hàm invalidate cache hàng loạt (đã có sẵn trong ChatRepository)
-    await this.chatRepository.invalidateParticipantsCache(participantIds);
+    // Create system message for member changes
+    if (
+      (membersToAdd && membersToAdd.length > 0) ||
+      (membersToRemove && membersToRemove.length > 0)
+    ) {
+      const systemMessageText = [];
 
-    return conversation;
+      if (membersToAdd && membersToAdd.length > 0) {
+        systemMessageText.push(
+          `Đã thêm ${membersToAdd.length} thành viên mới vào nhóm`
+        );
+      }
+
+      if (membersToRemove && membersToRemove.length > 0) {
+        systemMessageText.push(
+          `Đã xóa ${membersToRemove.length} thành viên khỏi nhóm`
+        );
+      }
+
+      const systemMessage = await this.chatRepository.createMessage({
+        conversationId,
+        sender: userId,
+        senderType: "System",
+        content: { text: systemMessageText.join(". ") },
+        type: "system",
+        metadata: {
+          action: "member_update",
+          membersAdded: membersToAdd || [],
+          membersRemoved: membersToRemove || [],
+        },
+      });
+
+      // Emit system message to all current participants
+      const populatedSystemMessage = await Message.findById(systemMessage._id)
+        .populate("sender", "username displayName avatarUrl _id")
+        .lean();
+
+      for (const participantId of currentParticipantIds) {
+        socketService.emitToUser(participantId, "new_message", {
+          ...populatedSystemMessage,
+          conversationId: conversationId.toString(),
+        });
+      }
+    }
+
+    // Invalidate cache for ALL participants (old + new + removed)
+    const allAffectedIds = [
+      ...new Set([
+        ...oldParticipantIds,
+        ...currentParticipantIds,
+        ...(membersToRemove || []),
+      ]),
+    ];
+    await this.chatRepository.invalidateParticipantsCache(allAffectedIds);
+
+    Logger.info(
+      `[SocialChat] ✅ Group ${conversationId} updated successfully. Affected users: ${allAffectedIds.length}`
+    );
+
+    return populatedConversation;
   }
 
   /**
@@ -470,6 +587,120 @@ export class SocialChatService {
   }
 
   /**
+   * ✅ Lấy media từ conversation (ảnh, video)
+   */
+  async getConversationMedia(conversationId) {
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) throw new NotFoundException("Conversation not found");
+
+    // Lấy tất cả messages có type = "image" hoặc có attachments
+    const messages = await Message.find({
+      conversationId,
+      $or: [
+        { type: "image" },
+        { "content.attachments": { $exists: true, $ne: [] } },
+      ],
+    })
+      .populate("sender", "displayName username avatarUrl _id")
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    // Extract media từ messages
+    const media = [];
+    for (const msg of messages) {
+      // Nếu có attachments array
+      if (msg.content?.attachments && Array.isArray(msg.content.attachments)) {
+        for (const att of msg.content.attachments) {
+          if (att.type === "image" || att.fileType?.startsWith("image/")) {
+            media.push({
+              _id: `${msg._id}-${att.url}`,
+              messageId: msg._id,
+              url: att.url,
+              thumbnailUrl: att.url, // Có thể tạo thumbnail sau
+              type: "image",
+              createdAt: msg.createdAt,
+              sender: msg.sender, // Include sender info
+            });
+          }
+        }
+      }
+      // Legacy: Nếu có fileUrl trực tiếp
+      else if (msg.content?.fileUrl && msg.type === "image") {
+        media.push({
+          _id: msg._id,
+          messageId: msg._id,
+          url: msg.content.fileUrl,
+          thumbnailUrl: msg.content.fileUrl,
+          type: "image",
+          createdAt: msg.createdAt,
+          sender: msg.sender, // Include sender info
+        });
+      }
+    }
+
+    return { media };
+  }
+
+  /**
+   * ✅ Lấy files từ conversation (documents, PDFs, etc.)
+   */
+  async getConversationFiles(conversationId) {
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) throw new NotFoundException("Conversation not found");
+
+    // Lấy tất cả messages có type = "file" hoặc có attachments không phải image
+    const messages = await Message.find({
+      conversationId,
+      $or: [
+        { type: "file" },
+        { "content.attachments": { $exists: true, $ne: [] } },
+      ],
+    })
+      .populate("sender", "displayName username avatarUrl _id")
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    // Extract files từ messages
+    const files = [];
+    for (const msg of messages) {
+      // Nếu có attachments array
+      if (msg.content?.attachments && Array.isArray(msg.content.attachments)) {
+        for (const att of msg.content.attachments) {
+          if (att.type === "file" || !att.fileType?.startsWith("image/")) {
+            files.push({
+              _id: `${msg._id}-${att.url}`,
+              messageId: msg._id,
+              url: att.url,
+              name: att.originalName || att.fileName || "file",
+              size: att.size || 0,
+              type: att.fileType || "application/octet-stream",
+              createdAt: msg.createdAt,
+              sender: msg.sender, // Include sender info
+            });
+          }
+        }
+      }
+      // Legacy: Nếu có fileUrl trực tiếp
+      else if (msg.content?.fileUrl && msg.type === "file") {
+        files.push({
+          _id: msg._id,
+          messageId: msg._id,
+          url: msg.content.fileUrl,
+          name: msg.content.fileName || "file",
+          size: msg.content.fileSize || 0,
+          type: msg.content.fileType || "application/octet-stream",
+          createdAt: msg.createdAt,
+          sender: msg.sender, // Include sender info
+        });
+      }
+    }
+
+    return { files };
+  }
+
+  /**
    * ✅ Tạo quote message
    */
   async createQuoteMessage(conversationId, userId, quoteData) {
@@ -502,6 +733,70 @@ export class SocialChatService {
     }
 
     return message;
+  }
+
+  /**
+   * ✅ Xóa message
+   */
+  async deleteMessage(messageId, userId, deleteForEveryone = false) {
+    const message = await Message.findById(messageId);
+    if (!message) throw new NotFoundException("Message not found");
+
+    const conversation = await Conversation.findById(message.conversationId);
+    if (!conversation) throw new NotFoundException("Conversation not found");
+
+    // Check if user is sender
+    const isSender = message.sender?.toString() === userId?.toString();
+
+    if (deleteForEveryone && !isSender) {
+      throw new ValidationException(
+        "Bạn không có quyền xóa tin nhắn cho mọi người"
+      );
+    }
+
+    const socketService = await this.getSocketService();
+    const participants = conversation.participants || [];
+
+    if (deleteForEveryone) {
+      // Delete for everyone - actually delete the message
+      await Message.findByIdAndDelete(messageId);
+
+      // ✅ Emit event to ALL participants
+      for (const participant of participants) {
+        const participantId = participant.userId?.toString();
+        socketService.emitToUser(participantId, "message_deleted", {
+          messageId: messageId.toString(),
+          conversationId: conversation._id.toString(),
+          deleteForEveryone: true,
+        });
+      }
+
+      Logger.info(
+        `[SocialChat] Message ${messageId} deleted for everyone by ${userId}`
+      );
+    } else {
+      // Delete for self only - add userId to deletedFor array
+      if (!message.deletedFor) {
+        message.deletedFor = [];
+      }
+      if (!message.deletedFor.includes(userId)) {
+        message.deletedFor.push(userId);
+        await message.save();
+      }
+
+      // ✅ Emit event to ONLY this user (để update UI của họ)
+      socketService.emitToUser(userId.toString(), "message_deleted", {
+        messageId: messageId.toString(),
+        conversationId: conversation._id.toString(),
+        deleteForEveryone: false,
+      });
+
+      Logger.info(
+        `[SocialChat] Message ${messageId} deleted for user ${userId}`
+      );
+    }
+
+    return { success: true };
   }
 
   /**

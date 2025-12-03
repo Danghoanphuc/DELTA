@@ -1,84 +1,93 @@
-// src/features/landing/components/sections/LPFeaturedProducts.tsx (CẬP NHẬT)
-
-import { Card } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
+import { ArrowRight } from "lucide-react";
 import { ImageWithFallback } from "@/features/figma/ImageWithFallback";
 
 export function LPFeaturedProducts() {
   const products = [
     {
       id: 1,
-      title: "Card Visit Sang trọng",
-      price: "99.000đ",
-      // 1. Thay ảnh
+      title: "The Signature Card",
+      price: "From 199k",
+      desc: "Giấy mỹ thuật 350gsm. Ép kim Gold 18k.",
       image:
-        "https://images.unsplash.com/photo-1615861036892-627e0a291d35?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+        "https://images.unsplash.com/photo-1615861036892-627e0a291d35?q=80&w=1200&auto=format&fit=crop",
     },
     {
       id: 2,
-      title: "Áo thun In hình",
-      price: "149.000đ",
-      // 2. Thay ảnh
+      title: "Eco-Kraft Packaging",
+      price: "Custom Quote",
+      desc: "Bao bì tái chế 100%. Mực in đậu nành.",
       image:
-        "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+        "https://images.unsplash.com/photo-1632515904791-c2474db8069d?q=80&w=1200&auto=format&fit=crop",
     },
     {
       id: 3,
-      title: "Túi vải Canvas",
-      price: "129.000đ",
-      // 3. Thay ảnh
+      title: "Premium Stationaries",
+      price: "From 89k",
+      desc: "Sổ tay bìa da & Bút ký kim loại.",
       image:
-        "https://images.unsplash.com/photo-1596205244525-3c1682b1373b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+        "https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=1200&auto=format&fit=crop",
     },
   ];
 
   return (
-    <section className="py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12 fade-in-up">
-          <h2 className="mb-4">Những Thiết kế được Yêu thích nhất</h2>
-          <p className="text-slate-600">
-            Sản phẩm được khách hàng đánh giá cao
+    <section className="py-32 bg-[#F9F8F6]">
+      <div className="max-w-[1440px] mx-auto px-8">
+        <div className="text-center mb-20">
+          <span className="font-mono text-xs font-bold tracking-[0.2em] text-emerald-800 uppercase mb-4 block">
+            Best Sellers
+          </span>
+          <h2 className="font-serif text-5xl md:text-6xl text-stone-900 mb-6 italic">
+            Selected for Excellence.
+          </h2>
+          <p className="text-stone-500 max-w-lg mx-auto font-light">
+            Những quy cách in ấn được các thương hiệu hàng đầu lựa chọn.
           </p>
         </div>
 
-        <div className="relative">
-          <div className="grid md:grid-cols-3 gap-8">
-            {products.map((product, index) => (
-              <Card
-                key={product.id}
-                // 4. Thêm 'hover-lift' và 'fade-in-up', bỏ 'hover:shadow-2xl'
-                className="overflow-hidden group cursor-pointer transition-all duration-300
-                           hover-lift fade-in-up"
-                // 5. Thêm stagger
-                style={{ animationDelay: `${index * 150}ms` }}
-              >
-                <div className="relative h-64 overflow-hidden">
-                  <ImageWithFallback
-                    src={product.image}
-                    alt={product.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <div className="grid md:grid-cols-3 gap-x-8 gap-y-16">
+          {products.map((product) => (
+            <div key={product.id} className="group cursor-pointer">
+              {/* Image Container - Sharp Edges */}
+              <div className="aspect-[3/4] overflow-hidden bg-stone-200 mb-8 relative">
+                <ImageWithFallback
+                  src={product.image}
+                  alt={product.title}
+                  className="w-full h-full object-cover transition-transform duration-[1.5s] ease-out group-hover:scale-110 grayscale-[10%] group-hover:grayscale-0"
+                />
+                {/* Minimal Overlay Button */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-black/10 backdrop-blur-[2px]">
+                  <span className="bg-white text-stone-900 px-6 py-3 font-medium tracking-wide">
+                    View Details
+                  </span>
                 </div>
-                <div className="p-6">
-                  {/* ... (nội dung card giữ nguyên) ... */}
-                  <h4 className="mb-2">{product.title}</h4>
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl text-purple-600">
-                      {product.price}
-                    </span>
-                    <Button
-                      size="sm"
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-full"
-                    >
-                      Xem chi tiết
-                    </Button>
-                  </div>
+              </div>
+
+              {/* Info */}
+              <div className="flex justify-between items-start border-t border-stone-300 pt-6">
+                <div>
+                  <h3 className="font-serif text-2xl text-stone-900 mb-1 group-hover:text-emerald-800 transition-colors">
+                    {product.title}
+                  </h3>
+                  <p className="text-stone-500 text-sm font-light">
+                    {product.desc}
+                  </p>
                 </div>
-              </Card>
-            ))}
-          </div>
+                <span className="font-mono text-sm font-bold text-stone-900">
+                  {product.price}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-20 text-center">
+          <Button
+            variant="outline"
+            className="border-stone-900 text-stone-900 hover:bg-stone-900 hover:text-white rounded-none px-8 py-6 uppercase tracking-widest text-xs font-bold transition-all"
+          >
+            View All Products
+          </Button>
         </div>
       </div>
     </section>

@@ -1,42 +1,75 @@
 // apps/customer-frontend/src/features/social/components/ChatInfoSidebar/ChatInfoSidebar.tsx
-// ✅ FULLY FUNCTIONAL with Real API Integration
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   X,
-  ShoppingBag,
-  FileText,
-  Image as ImageIcon,
   Receipt,
   Zap,
-  Loader2,
   ChevronRight,
-  CheckCircle2,
-  DownloadCloud,
+  ShieldCheck,
+  ImageIcon,
 } from "lucide-react";
+
+// UI Components
 import { Button } from "@/shared/components/ui/button";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/shared/components/ui/tabs";
+import { cn } from "@/shared/lib/utils";
+
+// Stores
 import { useSocialChatStore } from "../../hooks/useSocialChatStore";
+import { useAuthStore } from "@/stores/useAuthStore";
+
+// Custom Hooks
 import { useConversationBusinessContext } from "./useConversationBusinessContext";
 import { useConversationMedia } from "./useConversationMedia";
+import { useConversationFiles } from "./useConversationFiles";
 import { useLightbox } from "./useLightbox";
-import { LightboxModal } from "./LightboxModal";
-import { cn } from "@/shared/lib/utils";
-import { toast } from "@/shared/utils/toast";
-import api from "@/shared/lib/axios";
+import { useSearchMessages } from "./useSearchMessages";
+import { useMuteConversation } from "./useMuteConversation";
+import { useBlockUser } from "./useBlockUser";
+import { useConfirmDialog } from "@/shared/hooks/useConfirmDialog";
+import { ConfirmDialog } from "@/shared/components/ui/ConfirmDialog";
 
+// Sub Components
+import { LightboxModal } from "./LightboxModal";
+import { FilesList } from "./FilesList";
+import { MediaGrid } from "./MediaGrid";
+import { QuickActions } from "./QuickActions";
+import { ProfileSection } from "./ProfileSection";
+import { SearchBar } from "./SearchBar";
+import { SearchResults } from "./SearchResults";
+
+// --- HELPERS ---
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
     amount
   );
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const styles: any = {
+    pending: "bg-amber-50 text-amber-700 border-amber-200",
+    processing: "bg-blue-50 text-blue-700 border-blue-200",
+    completed: "bg-green-50 text-green-700 border-green-200",
+    cancelled: "bg-stone-50 text-stone-500 border-stone-200",
+  };
+  const labels: any = {
+    pending: "Chờ xử lý",
+    processing: "Đang in",
+    completed: "Hoàn thành",
+    cancelled: "Đã hủy",
+  };
+  return (
+    <span
+      className={cn(
+        "px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded border",
+        styles[status] || "bg-gray-50 border-gray-200"
+      )}
+    >
+      {labels[status] || status}
+    </span>
+  );
+};
 
 interface ChatInfoSidebarProps {
   conversation: any;
@@ -47,24 +80,64 @@ export function ChatInfoSidebar({
   conversation,
   onClose,
 }: ChatInfoSidebarProps) {
-  const { toggleInfoSidebar } = useSocialChatStore();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const { user: currentUser } = useAuthStore();
+  const { toggleInfoSidebar, setScrollToMessageId } = useSocialChatStore();
+  const confirmDialog = useConfirmDialog();
+
+  // 1. STATE: Quản lý chế độ Search
+  const [isSearching, setIsSearching] = useState(false);
+
+  // 2. HOOKS: Logic Search
+  const {
+    searchQuery,
+    setSearchQuery,
+    searchResults,
+    handleSearch,
+    clearSearch,
+    isSearching: isApiSearching,
+  } = useSearchMessages(conversation._id);
+
+  // 3. HOOKS: Logic Data (Business, Media, Files)
+  const isBusinessChat =
+    conversation.type === "customer-printer" ||
+    conversation.context === "business" ||
+    conversation.context === "printer";
+
+  const { data: businessContext, isLoading: isLoadingBusiness } =
+    useConversationBusinessContext(conversation._id, isBusinessChat);
+  const { data: mediaData, isLoading: isLoadingMedia } = useConversationMedia(
+    conversation._id
+  );
+  // FilesList tự fetch bên trong component con
+
   const lightbox = useLightbox(conversation._id);
 
-  // Fetch real data
-  const isBusinessChat =
-    conversation.context === "business" || conversation.context === "printer";
-  const { data: businessContext, isLoading } = useConversationBusinessContext(
-    conversation._id,
-    isBusinessChat
-  );
-  const { data: mediaData } = useConversationMedia(conversation._id);
+  // 4. HOOKS: Actions (Mute, Block)
+  const {
+    isMuted,
+    toggleMute,
+    isPending: isMuting,
+  } = useMuteConversation(conversation);
 
-  const orders = businessContext?.activeOrders || [];
-  const designFiles = businessContext?.designFiles || [];
-  const mediaFiles = mediaData?.media || [];
+  // Logic tìm Partner (cho 1-1 chat)
+  const isGroup = conversation.type === "group";
+  const partner = !isGroup
+    ? conversation.participants?.find(
+        (p: any) => (p.userId?._id || p.userId) !== currentUser?._id
+      )?.userId
+    : null;
 
+  const {
+    isBlocked,
+    toggleBlock,
+    confirmBlock,
+    isPending: isBlocking,
+  } = useBlockUser(partner?._id, isGroup);
+
+  // Data processing
+  const orders = businessContext?.activeOrders || businessContext?.orders || [];
+  const mediaFiles = mediaData?.media || mediaData || [];
   const totalDue = orders.reduce(
     (sum: number, o: any) => sum + (o.totalAmount || 0),
     0
@@ -74,334 +147,213 @@ export function ChatInfoSidebar({
     0
   );
 
-  // Actions
-  const handleViewOrder = (orderId: string) => {
-    navigate(`/orders/${orderId}`);
-  };
-
-  const handleDownloadFile = async (file: any) => {
-    try {
-      const response = await api.get(`/chat/files/${file._id}/download`, {
-        responseType: "blob",
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", file.name);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success("Đã tải file thành công");
-    } catch (error) {
-      toast.error("Không thể tải file");
+  // --- HANDLERS ---
+  const handleBlockAction = () => {
+    if (!partner?._id) return;
+    const needsConfirm = toggleBlock(partner._id);
+    if (needsConfirm) {
+      confirmDialog.confirm(
+        {
+          title: "Chặn người dùng này?",
+          description: "Họ sẽ không thể nhắn tin cho bạn nữa.",
+          confirmText: "Chặn ngay",
+          variant: "danger",
+        },
+        () => confirmBlock(partner._id)
+      );
     }
   };
 
-  const handleCreateQuote = () => {
-    navigate(`/quotes/create?conversationId=${conversation._id}`);
+  const handleSearchResultClick = (messageId: string) => {
+    setScrollToMessageId(messageId);
+    // Nếu trên mobile thì đóng sidebar
+    if (window.innerWidth < 1024 && onClose) onClose();
   };
 
-  const handleSendPaymentRequest = async () => {
-    if (orders.length === 0) {
-      toast.error("Không có đơn hàng nào để thanh toán");
-      return;
-    }
-
-    try {
-      await api.post(`/payments/request`, {
-        conversationId: conversation._id,
-        amount: totalDue - totalPaid,
-        orderId: orders[0]._id,
-      });
-      toast.success("Đã gửi yêu cầu thanh toán");
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Không thể gửi yêu cầu");
-    }
-  };
-
-  // Real-time updates
-  useEffect(() => {
-    if (!conversation._id) return;
-
-    // Pusher integration would go here
-    // const channel = pusher.subscribe(`private-conversation-${conversation._id}`);
-    // channel.bind('order:created', () => {
-    //   queryClient.invalidateQueries(['businessContext', conversation._id]);
-    // });
-
-    return () => {
-      // channel.unbind_all();
-      // pusher.unsubscribe(`private-conversation-${conversation._id}`);
-    };
-  }, [conversation._id, queryClient]);
-
-  const StatusBadge = ({ status }: { status: string }) => {
-    const styles: any = {
-      pending: "bg-yellow-50 text-yellow-700 border-yellow-200",
-      processing: "bg-blue-50 text-blue-700 border-blue-200",
-      completed: "bg-green-50 text-green-700 border-green-200",
-      cancelled: "bg-red-50 text-red-700 border-red-200",
-    };
-    const labels: any = {
-      pending: "Chờ xử lý",
-      processing: "Đang in",
-      completed: "Hoàn thành",
-      cancelled: "Đã hủy",
-    };
-    return (
-      <span
-        className={cn(
-          "px-2 py-0.5 text-[10px] font-bold uppercase rounded-full border",
-          styles[status] || styles.pending
-        )}
-      >
-        {labels[status] || status}
-      </span>
-    );
+  const handleCloseSearch = () => {
+    setIsSearching(false);
+    clearSearch();
   };
 
   return (
     <>
-      <div className="flex flex-col h-full bg-gray-50/50 border-l border-gray-200 w-full md:w-80 shadow-2xl">
-        <div className="h-16 px-5 border-b border-gray-200 bg-white flex items-center justify-between shrink-0 sticky top-0 z-10">
-          <div>
-            <h3 className="font-bold text-gray-900 text-sm tracking-tight">
-              Dự án & Đơn hàng
+      <div className="flex h-full w-full flex-col border-l border-stone-200 bg-white md:w-[350px] overflow-hidden">
+        {/* === A. HEADER AREA === */}
+        {isSearching ? (
+          <SearchBar
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            onSearch={handleSearch}
+            onCancel={handleCloseSearch}
+            isSearching={isApiSearching}
+          />
+        ) : (
+          <div className="flex h-14 shrink-0 items-center justify-between border-b border-stone-100 px-4 bg-white/80 backdrop-blur-sm z-10">
+            <h3 className="font-bold text-stone-800 flex items-center gap-2">
+              <ShieldCheck size={16} className="text-blue-600" />
+              Thông tin hội thoại
             </h3>
-            <p className="text-[10px] text-gray-500 font-medium">
-              Quản lý file in và tiến độ
-            </p>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose || toggleInfoSidebar}
+              className="h-8 w-8 text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-full"
+            >
+              <X size={18} />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose || toggleInfoSidebar}
-            className="h-8 w-8 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
-          >
-            <X size={18} />
-          </Button>
-        </div>
+        )}
 
-        {isLoading ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-2">
-            <Loader2 className="animate-spin text-blue-600" />
-            <span className="text-xs text-gray-400">Đang tải dữ liệu...</span>
-          </div>
+        {/* === B. CONTENT AREA === */}
+        {isSearching ? (
+          <ScrollArea className="flex-1">
+            <SearchResults
+              results={searchResults}
+              onResultClick={handleSearchResultClick}
+            />
+          </ScrollArea>
         ) : (
           <ScrollArea className="flex-1">
-            <div className="p-4 space-y-6">
-              {/* Orders Section */}
-              <section>
-                <div className="flex justify-between items-end mb-3 px-1">
-                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                    <ShoppingBag size={14} className="text-blue-600" /> Đơn hàng
-                    ({orders.length})
-                  </h4>
-                </div>
+            {/* 1. Profile Section */}
+            <ProfileSection
+              conversation={conversation}
+              partner={partner}
+              isGroup={isGroup}
+            />
 
-                <div className="space-y-3">
-                  {orders.length > 0 ? (
-                    orders.map((order: any) => (
-                      <div
-                        key={order._id}
-                        className="group bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer relative overflow-hidden"
-                      >
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-l-xl" />
+            {/* 2. Quick Actions (Mute, Search, Block) */}
+            <QuickActions
+              isMuted={isMuted}
+              isBlocked={isBlocked}
+              isGroup={isGroup}
+              isMuting={isMuting}
+              isBlocking={isBlocking}
+              onMuteToggle={toggleMute}
+              onSearchClick={() => setIsSearching(true)}
+              onBlockToggle={handleBlockAction}
+            />
 
-                        <div className="flex justify-between items-start mb-2 pl-2">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-gray-900 text-sm">
-                                {order.orderNumber}
-                              </span>
-                              <StatusBadge status={order.status} />
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1 line-clamp-1 font-medium">
-                              {order.itemSummary}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex justify-between items-center pt-3 border-t border-gray-50 pl-2">
-                          <div className="flex flex-col">
-                            <span className="text-[10px] text-gray-400">
-                              Tổng tiền
-                            </span>
-                            <span className="text-sm font-bold text-blue-600">
-                              {formatCurrency(order.totalAmount)}
-                            </span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewOrder(order._id)}
-                            className="h-7 text-xs text-gray-400 group-hover:text-blue-600 group-hover:bg-blue-50 px-2 transition-colors"
-                          >
-                            Chi tiết <ChevronRight size={12} className="ml-1" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 bg-white rounded-xl border border-dashed border-gray-200">
-                      <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-2">
-                        <ShoppingBag className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Chưa có đơn hàng nào
-                      </p>
-                    </div>
-                  )}
-
-                  <Button
-                    onClick={handleCreateQuote}
-                    className="w-full bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 font-semibold h-10 shadow-sm"
-                  >
-                    <Zap size={16} className="mr-2" /> Tạo đơn / Báo giá nhanh
-                  </Button>
-                </div>
-              </section>
-
-              {/* Files & Media Tabs */}
-              <section>
-                <Tabs defaultValue="files" className="w-full">
-                  <TabsList className="w-full grid grid-cols-2 h-10 bg-gray-200/50 p-1 rounded-xl">
-                    <TabsTrigger
-                      value="files"
-                      className="text-xs font-medium data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm rounded-lg transition-all"
-                    >
-                      <FileText size={14} className="mr-2" /> File in ấn
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="media"
-                      className="text-xs font-medium data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm rounded-lg transition-all"
-                    >
-                      <ImageIcon size={14} className="mr-2" /> Ảnh mẫu
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="files" className="mt-4 space-y-2">
-                    {designFiles.length > 0 ? (
-                      designFiles.map((file: any) => (
-                        <div
-                          key={file._id}
-                          className="flex items-center gap-3 p-3 bg-white hover:bg-blue-50/50 rounded-xl border border-gray-100 hover:border-blue-100 transition-all group cursor-pointer"
-                        >
-                          <div className="w-10 h-10 rounded-lg bg-red-50 text-red-500 flex items-center justify-center shrink-0">
-                            <FileText size={20} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs font-bold text-gray-700 truncate group-hover:text-blue-700">
-                              {file.name}
-                            </div>
-                            <div className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
-                              {typeof file.size === "number"
-                                ? `${(file.size / 1024 / 1024).toFixed(1)} MB`
-                                : file.size}
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDownloadFile(file)}
-                            className="h-8 w-8 text-gray-300 group-hover:text-blue-600 group-hover:bg-white rounded-full"
-                          >
-                            <DownloadCloud size={16} />
-                          </Button>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">
-                        <FileText size={24} className="mb-2 opacity-20" />
-                        <span className="text-xs">Chưa có file thiết kế</span>
-                      </div>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="media" className="mt-4">
-                    {mediaFiles.length > 0 ? (
-                      <div className="grid grid-cols-3 gap-2">
-                        {mediaFiles.map((media: any) => (
-                          <div
-                            key={media._id}
-                            className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => lightbox.openLightbox(media.url)}
-                          >
-                            <img
-                              src={media.thumbnailUrl || media.url}
-                              alt={media.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">
-                        <ImageIcon size={24} className="mb-2 opacity-20" />
-                        <span className="text-xs">Chưa có ảnh nào</span>
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
-              </section>
-
-              {/* Financial Summary */}
+            <div className="p-4 pr-6 space-y-6">
+              {/* 3. Financial Card (Only Business) */}
               {orders.length > 0 && (
-                <section className="pt-2">
-                  <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-5 text-white shadow-lg relative overflow-hidden">
-                    <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white opacity-5 rounded-full blur-2xl" />
-
-                    <div className="flex items-center gap-2 mb-4 opacity-80">
-                      <Receipt size={16} />
-                      <span className="text-xs font-bold uppercase tracking-widest">
-                        Tổng kết tài chính
-                      </span>
+                <div className="relative overflow-hidden rounded-xl bg-stone-900 text-white shadow-xl shadow-stone-200 group transition-all hover:shadow-2xl">
+                  <div className="absolute top-0 right-0 p-3 opacity-10">
+                    <Receipt size={80} />
+                  </div>
+                  <div className="relative z-10 p-5">
+                    <div className="mb-1 text-[10px] uppercase tracking-widest text-stone-400 font-bold">
+                      Công nợ dự án
+                    </div>
+                    <div className="text-3xl font-serif font-bold tracking-tight mb-4">
+                      {formatCurrency(totalDue - totalPaid)}
                     </div>
 
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-400">
-                          Tổng giá trị
+                    <div className="flex items-center gap-4 text-xs border-t border-white/10 pt-3">
+                      <div className="flex flex-col">
+                        <span className="text-stone-500 text-[10px]">
+                          Tổng cộng
                         </span>
-                        <span className="text-sm font-bold">
+                        <span className="font-mono font-bold">
                           {formatCurrency(totalDue)}
                         </span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-400">
+                      <div className="w-px h-6 bg-white/10"></div>
+                      <div className="flex flex-col">
+                        <span className="text-stone-500 text-[10px]">
                           Đã thanh toán
                         </span>
-                        <span className="text-sm font-bold text-green-400 flex items-center gap-1">
-                          <CheckCircle2 size={12} /> {formatCurrency(totalPaid)}
-                        </span>
-                      </div>
-                      <div className="h-px bg-gray-700 my-2" />
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-300 font-medium">
-                          Còn lại phải thu
-                        </span>
-                        <span className="text-lg font-bold text-red-400">
-                          {formatCurrency(totalDue - totalPaid)}
+                        <span className="font-mono font-bold text-green-400">
+                          {formatCurrency(totalPaid)}
                         </span>
                       </div>
                     </div>
-
-                    <Button
-                      onClick={handleSendPaymentRequest}
-                      disabled={totalDue - totalPaid <= 0}
-                      className="w-full mt-5 bg-white text-gray-900 hover:bg-gray-100 font-bold text-xs h-9 border-0"
-                    >
-                      Gửi yêu cầu thanh toán
-                    </Button>
                   </div>
+                </div>
+              )}
+
+              {/* 4. Orders List (Only Business) */}
+              {isBusinessChat && (
+                <section>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 flex items-center gap-2">
+                      Đơn hàng ({orders.length})
+                    </h4>
+                    <button
+                      onClick={() => navigate("/quotes/create")}
+                      className="text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded flex items-center gap-1 transition-colors"
+                    >
+                      <Zap size={12} /> Tạo mới
+                    </button>
+                  </div>
+
+                  {isLoadingBusiness ? (
+                    <div className="space-y-2">
+                      {[1, 2].map((i) => (
+                        <div
+                          key={i}
+                          className="h-16 rounded-lg bg-stone-50 animate-pulse"
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {orders.map((order: any) => (
+                        <div
+                          key={order._id}
+                          onClick={() => navigate(`/orders/${order._id}`)}
+                          className="group relative rounded-lg border border-stone-100 bg-stone-50/50 p-3 hover:bg-white hover:border-blue-200 hover:shadow-md transition-all cursor-pointer"
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="font-mono text-xs font-bold text-stone-900 group-hover:text-blue-700 transition-colors">
+                              {order.orderNumber}
+                            </span>
+                            <StatusBadge status={order.status} />
+                          </div>
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-stone-600 font-medium truncate max-w-[120px]">
+                              {order.itemSummary || "In ấn theo yêu cầu"}
+                            </span>
+                            <span className="font-bold text-stone-900">
+                              {formatCurrency(order.totalAmount)}
+                            </span>
+                          </div>
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity -mr-4 group-hover:mr-0">
+                            <ChevronRight size={16} className="text-blue-400" />
+                          </div>
+                        </div>
+                      ))}
+                      {orders.length === 0 && (
+                        <div className="rounded-lg border border-dashed border-stone-200 p-6 text-center text-xs text-stone-400 bg-stone-50/30">
+                          Chưa có đơn hàng nào
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </section>
               )}
+
+              {/* 5. Files List (Smart Categorized) */}
+              <section className="pt-2 border-t border-stone-100">
+                <FilesList conversationId={conversation._id} />
+              </section>
+
+              {/* 6. Media Gallery */}
+              <section className="pt-2 border-t border-stone-100">
+                <div className="mb-3 flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 flex items-center gap-2">
+                    <ImageIcon size={12} className="text-purple-600" />
+                    Ảnh mẫu ({mediaFiles.length})
+                  </h4>
+                </div>
+                <MediaGrid media={mediaFiles} isLoading={isLoadingMedia} />
+              </section>
             </div>
           </ScrollArea>
         )}
       </div>
 
+      {/* === C. MODALS & DIALOGS === */}
+      {/* Lightbox */}
       {lightbox.lightboxImage && (
         <LightboxModal
           imageUrl={lightbox.lightboxImage}
@@ -412,6 +364,19 @@ export function ChatInfoSidebar({
           hasNext={lightbox.hasNext}
         />
       )}
+
+      {/* Confirm Block Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={confirmDialog.handleClose}
+        onConfirm={confirmDialog.handleConfirm}
+        title={confirmDialog.options.title}
+        description={confirmDialog.options.description}
+        confirmText={confirmDialog.options.confirmText}
+        cancelText={confirmDialog.options.cancelText}
+        variant={confirmDialog.options.variant}
+        isLoading={isBlocking}
+      />
     </>
   );
 }

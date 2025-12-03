@@ -1,5 +1,5 @@
+// src/components/EventProductBadge.tsx
 import { useEventTheme } from "../hooks/useEventTheme";
-import { Sparkles } from "lucide-react";
 
 interface EventProductBadgeProps {
   productName?: string;
@@ -7,10 +7,6 @@ interface EventProductBadgeProps {
   className?: string;
 }
 
-/**
- * EventProductBadge - Badge nhỏ gọn cho sản phẩm liên quan đến event
- * Dùng theme colors, không phá vỡ layout
- */
 export const EventProductBadge = ({
   productName = "",
   productTags = [],
@@ -24,7 +20,7 @@ export const EventProductBadge = ({
 
   const { theme } = activeEvent;
 
-  // Check xem sản phẩm có match với keywords của event không
+  // Logic check keywords giữ nguyên
   const isRelevant = theme.keywords.some((keyword) => {
     const lowerKeyword = keyword.toLowerCase();
     const nameMatch = productName.toLowerCase().includes(lowerKeyword);
@@ -39,15 +35,25 @@ export const EventProductBadge = ({
   }
 
   return (
+    // STYLE: Minimal Luxury Tag
+    // Nền rất nhạt (tint), chữ đậm màu, border mảnh.
     <div
-      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold shadow-sm ${className}`}
+      className={`inline-flex items-center gap-2 py-1 px-3 border transition-all duration-300 hover:brightness-95 ${className}`}
       style={{
-        backgroundColor: theme.primaryColor,
-        color: "#FFFFFF",
+        borderColor: theme.primaryColor, // Viền cùng màu chủ đạo
+        backgroundColor: `${theme.primaryColor}08`, // Alpha 08 (~3%)
+        color: theme.primaryColor,
       }}
     >
-      <Sparkles size={10} />
-      <span>Hot</span>
+      {/* Dấu chấm tròn tạo điểm nhấn */}
+      <span
+        className="w-1.5 h-1.5 rounded-full"
+        style={{ backgroundColor: theme.primaryColor }}
+      />
+
+      <span className="text-[10px] font-medium uppercase tracking-widest leading-none font-sans">
+        Limited Edition
+      </span>
     </div>
   );
 };

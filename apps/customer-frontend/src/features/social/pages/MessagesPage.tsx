@@ -1,13 +1,11 @@
 // apps/customer-frontend/src/features/social/pages/MessagesPage.tsx
-// ✅ UPGRADE: Empty State phong cách "Industrial Print" (Tối giản & Tinh tế)
-
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { 
-  fetchChatConversations, 
+import {
+  fetchChatConversations,
   createPeerConversation,
-  fetchChatHistory
+  fetchChatHistory,
 } from "@/features/chat/services/chat.api.service";
 import { useSocialChatStore } from "@/features/social/hooks/useSocialChatStore";
 import { useMessagesPageStore } from "@/stores/useMessagesPageStore";
@@ -15,26 +13,28 @@ import { ConversationList } from "@/features/social/components/ConversationList"
 import { SocialChatWindow } from "@/features/social/components/SocialChatWindow";
 import { ChatInfoSidebar } from "@/features/social/components/ChatInfoSidebar";
 import { SocialNavSidebar } from "@/features/social/components/SocialNavSidebar";
-import { 
-  MessageSquare, Loader2, ArrowRight, FileUp, Users, Shield
-} from "lucide-react"; 
+import { Loader2, Users, Search, Sparkles } from "lucide-react";
+import { Logo } from "@/shared/components/ui/Logo";
 import { useIsMobile } from "@/shared/hooks/useMediaQuery";
 import { motion, AnimatePresence } from "framer-motion";
-import PageLoader from "@/components/PageLoader"; 
-import { cn } from "@/shared/lib/utils";
+import PageLoader from "@/components/PageLoader";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { toast } from "@/shared/utils/toast";
 
 export default function MessagesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const targetUserId = searchParams.get("userId");
   const urlConversationId = searchParams.get("conversationId");
-  
+
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  
-  const { 
-    conversations: storeConversations, 
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+
+  const {
+    conversations: storeConversations,
     syncConversations,
-    activeConversationId, 
+    activeConversationId,
     setActiveConversation,
     isInfoSidebarOpen,
     setInfoSidebarOpen,
@@ -42,7 +42,8 @@ export default function MessagesPage() {
     setMessages,
   } = useSocialChatStore();
 
-  const { hasLoadedMessagesPage, setHasLoadedMessagesPage } = useMessagesPageStore();
+  const { hasLoadedMessagesPage, setHasLoadedMessagesPage } =
+    useMessagesPageStore();
   const [isPreloading, setIsPreloading] = useState(false);
   const [showPageLoader, setShowPageLoader] = useState(false);
   const preloadStartTimeRef = useRef<number>(0);
@@ -54,29 +55,51 @@ export default function MessagesPage() {
     queryKey: ["socialConversations"],
     queryFn: async () => {
       const res = await fetchChatConversations();
-      return res.filter((c: any) => ["peer-to-peer", "customer-printer", "group"].includes(c.type));
+      return res.filter((c: any) =>
+        ["peer-to-peer", "customer-printer", "group"].includes(c.type)
+      );
     },
-    staleTime: 60000, 
+    staleTime: 60000,
   });
-  
+
   const conversations = useMemo(() => {
     if (!data) return storeConversations;
+
+    // Merge API data with store data (for optimistic updates)
     const merged = [...data];
     const apiIds = new Set(data.map((c: any) => c._id));
+
+    // Add store-only conversations (newly created, not yet in API response)
     storeConversations.forEach((storeConv) => {
-      if (!apiIds.has(storeConv._id) && 
-          ["peer-to-peer", "customer-printer", "group"].includes(storeConv.type || "")) {
+      if (
+        !apiIds.has(storeConv._id) &&
+        ["peer-to-peer", "customer-printer", "group"].includes(
+          storeConv.type || ""
+        )
+      ) {
         merged.push(storeConv);
       }
     });
-    return merged.sort((a: any, b: any) => {
-        const tA = new Date(a.lastMessageAt || a.createdAt || 0).getTime();
-        const tB = new Date(b.lastMessageAt || b.createdAt || 0).getTime();
-        return tB - tA;
+
+    // Deduplicate by _id (keep first occurrence)
+    const seen = new Set<string>();
+    const unique = merged.filter((conv) => {
+      if (seen.has(conv._id)) return false;
+      seen.add(conv._id);
+      return true;
+    });
+
+    // Sort by lastMessageAt or createdAt
+    return unique.sort((a: any, b: any) => {
+      const tA = new Date(a.lastMessageAt || a.createdAt || 0).getTime();
+      const tB = new Date(b.lastMessageAt || b.createdAt || 0).getTime();
+      return tB - tA;
     });
   }, [data, storeConversations]);
 
-  useEffect(() => { if (data) syncConversations(data); }, [data, syncConversations]);
+  useEffect(() => {
+    if (data) syncConversations(data);
+  }, [data, syncConversations]);
 
   // Preload Logic
   useEffect(() => {
@@ -100,11 +123,11 @@ export default function MessagesPage() {
       });
 
       await Promise.allSettled(preloadPromises);
-      
-      const elapsed = Date.now() - preloadStartTimeRef.current;
-      const remainingTime = Math.max(0, 1500 - elapsed); 
 
-      await new Promise(resolve => setTimeout(resolve, remainingTime));
+      const elapsed = Date.now() - preloadStartTimeRef.current;
+      const remainingTime = Math.max(0, 1500 - elapsed);
+
+      await new Promise((resolve) => setTimeout(resolve, remainingTime));
 
       setShowPageLoader(false);
       setIsPreloading(false);
@@ -112,44 +135,79 @@ export default function MessagesPage() {
     };
 
     preloadMessages();
-  }, [data, hasLoadedMessagesPage, isPreloading, isLoading, setMessages, queryClient, setHasLoadedMessagesPage]);
+  }, [
+    data,
+    hasLoadedMessagesPage,
+    isPreloading,
+    isLoading,
+    setMessages,
+    queryClient,
+    setHasLoadedMessagesPage,
+  ]);
 
   // Sync URL
   useEffect(() => {
     if (isLoading) return;
     if (urlConversationId && activeConversationId !== urlConversationId) {
-        setActiveConversation(urlConversationId);
+      setActiveConversation(urlConversationId);
     } else if (!urlConversationId && activeConversationId) {
-        setActiveConversation(null);
+      setActiveConversation(null);
     }
-  }, [urlConversationId, activeConversationId, isLoading, setActiveConversation]);
+  }, [
+    urlConversationId,
+    activeConversationId,
+    isLoading,
+    setActiveConversation,
+  ]);
 
   // Auto Create
   useEffect(() => {
-    if (targetUserId && !isCreating && !creatingConversationRef.current.has(targetUserId) && !urlConversationId) {
-        const existing = conversations.find((c: any) => 
-            c.participants?.some((p: any) => (p.userId?._id || p.userId) === targetUserId)
-        );
-        if (existing) {
-            setSearchParams({ conversationId: existing._id }, { replace: true });
-        } else {
-            setIsCreating(true);
-            creatingConversationRef.current.add(targetUserId);
-            createPeerConversation(targetUserId).then(res => {
-                if (res.data?.conversation) {
-                    addConversation(res.data.conversation);
-                    setSearchParams({ conversationId: res.data.conversation._id }, { replace: true });
-                    queryClient.invalidateQueries({ queryKey: ["socialConversations"] });
-                }
-            }).finally(() => {
-                setIsCreating(false);
-                creatingConversationRef.current.delete(targetUserId);
-            });
-        }
+    if (
+      targetUserId &&
+      !isCreating &&
+      !creatingConversationRef.current.has(targetUserId) &&
+      !urlConversationId
+    ) {
+      const existing = conversations.find((c: any) =>
+        c.participants?.some(
+          (p: any) => (p.userId?._id || p.userId) === targetUserId
+        )
+      );
+      if (existing) {
+        setSearchParams({ conversationId: existing._id }, { replace: true });
+      } else {
+        setIsCreating(true);
+        creatingConversationRef.current.add(targetUserId);
+        createPeerConversation(targetUserId)
+          .then((res) => {
+            if (res.data?.conversation) {
+              addConversation(res.data.conversation);
+              setSearchParams(
+                { conversationId: res.data.conversation._id },
+                { replace: true }
+              );
+              queryClient.invalidateQueries({
+                queryKey: ["socialConversations"],
+              });
+            }
+          })
+          .finally(() => {
+            setIsCreating(false);
+            creatingConversationRef.current.delete(targetUserId);
+          });
+      }
     }
-  }, [targetUserId, conversations, isCreating, addConversation, setSearchParams, queryClient, urlConversationId]);
+  }, [
+    targetUserId,
+    conversations,
+    isCreating,
+    addConversation,
+    setSearchParams,
+    queryClient,
+    urlConversationId,
+  ]);
 
-  const activeConv = conversations.find(c => c._id === activeConversationId);
+  const activeConv = conversations.find((c) => c._id === activeConversationId);
 
   if (showPageLoader) {
     return <PageLoader mode="splash" isLoading={true} />;
@@ -158,43 +216,52 @@ export default function MessagesPage() {
   // === MOBILE VIEW ===
   if (isMobile) {
     return (
-      <div className="relative w-full h-[calc(100dvh-4rem)] bg-white overflow-hidden flex flex-col"> 
+      <div className="relative w-full h-[calc(100dvh-4rem)] bg-white overflow-hidden flex flex-col">
         <div className="flex-1 relative w-full h-full">
-           <div className="absolute inset-0 pb-16">
-              <ConversationList 
-                  conversations={conversations} 
-                  activeId={activeConversationId} 
-                  onSelect={(id) => setSearchParams({ conversationId: id }, { replace: true })} 
-                  isLoading={isLoading} 
-              />
-           </div>
+          <div className="absolute inset-0 pb-16">
+            <ConversationList
+              conversations={conversations}
+              activeId={activeConversationId}
+              onSelect={(id) =>
+                setSearchParams({ conversationId: id }, { replace: true })
+              }
+              isLoading={isLoading}
+            />
+          </div>
         </div>
         <AnimatePresence>
           {activeConversationId && (
             <motion.div
               key="mobile-chat-window"
-              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed inset-0 z-[100] bg-white h-[100dvh] w-full flex flex-col"
             >
-               {activeConv ? (
-                  <div className="flex-1 h-full relative flex flex-col">
-                     <SocialChatWindow 
-                        conversation={activeConv} 
-                        onBack={() => { 
-                            setActiveConversation(null); 
-                            setSearchParams({}, { replace: true }); 
-                        }} 
+              {activeConv ? (
+                <div className="flex-1 h-full relative flex flex-col">
+                  <SocialChatWindow
+                    conversation={activeConv}
+                    onBack={() => {
+                      setActiveConversation(null);
+                      setSearchParams({}, { replace: true });
+                    }}
+                  />
+                  {isInfoSidebarOpen && (
+                    <div className="absolute inset-0 z-[110] bg-white">
+                      <ChatInfoSidebar
+                        conversation={activeConv}
+                        onClose={() => setInfoSidebarOpen(false)}
                       />
-                      {isInfoSidebarOpen && (
-                        <div className="absolute inset-0 z-[110] bg-white">
-                           <ChatInfoSidebar conversation={activeConv} onClose={() => setInfoSidebarOpen(false)} />
-                        </div>
-                      )}
-                  </div>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center"><Loader2 className="animate-spin"/></div>
-                )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center">
+                  <Loader2 className="animate-spin" />
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -202,102 +269,138 @@ export default function MessagesPage() {
     );
   }
 
-  // === DESKTOP VIEW (FIXED LAYOUT) ===
+  // === DESKTOP VIEW (FIXED LAYOUT - WORKSPACE MODE) ===
   return (
-    <div className="fixed top-16 bottom-0 left-0 right-0 flex bg-white overflow-hidden z-0">
+    // ✅ FIXED: inset-0 để full màn hình, bỏ top-16/64px vì đã kill Header
+    <div className="fixed inset-0 flex bg-white overflow-hidden z-0">
       <SocialNavSidebar />
       <div className="flex flex-1 h-full min-w-0">
-        
-        <div className="w-72 lg:w-80 flex-col border-r border-gray-200 h-full bg-white z-10 flex flex-shrink-0 transition-all duration-300">
-          <ConversationList 
-            conversations={conversations} 
-            activeId={activeConversationId} 
-            onSelect={(id) => setSearchParams({ conversationId: id }, { replace: true })} 
-            isLoading={isLoading} 
+        {/* Sidebar Danh sách hội thoại */}
+        <div className="w-72 lg:w-80 flex-col border-r border-stone-200 h-full bg-white z-10 flex flex-shrink-0 transition-all duration-300">
+          <ConversationList
+            conversations={conversations}
+            activeId={activeConversationId}
+            onSelect={(id) =>
+              setSearchParams({ conversationId: id }, { replace: true })
+            }
+            isLoading={isLoading}
           />
         </div>
 
+        {/* Main Content Area */}
         <div className="flex-1 flex flex-col bg-white h-full min-w-0 relative">
           {activeConv ? (
-            <SocialChatWindow 
-              conversation={activeConv} 
-              onBack={() => { 
-                  setActiveConversation(null); 
-                  setSearchParams({}, { replace: true }); 
-              }} 
+            <SocialChatWindow
+              conversation={activeConv}
+              onBack={() => {
+                setActiveConversation(null);
+                setSearchParams({}, { replace: true });
+              }}
             />
           ) : (
-            // ✅ UPGRADED EMPTY STATE: "Industrial Minimalist"
-            // Sử dụng class .bg-tech-grid từ globals.css để tạo nền lưới kỹ thuật
-            <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden bg-gray-50/30 bg-tech-grid">
-              
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
-                // Sử dụng .card-tech để tạo hiệu ứng "Phiếu in" với 4 dấu xén
-                className="card-tech max-w-md w-full p-10 flex flex-col items-center text-center bg-white/80 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
-              >
-                 {/* Logo / Icon Minimal */}
-                 <div className="w-16 h-16 rounded-2xl bg-gray-900 text-white flex items-center justify-center mb-6 shadow-lg shadow-gray-200">
-                    <MessageSquare size={32} strokeWidth={1.5} />
-                 </div>
+            // ✨ THE CREATIVE LOBBY
+            <div className="relative flex flex-1 flex-col items-center justify-center bg-[#FAFAF9] overflow-hidden">
+              <div className="absolute inset-0 opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-multiply pointer-events-none" />
 
-                 {/* Typography: Yrsa (Font Heading) */}
-                 <h2 className="text-3xl font-heading font-bold text-gray-900 mb-3 tracking-tight">
+              <div className="absolute top-1/4 left-1/4 h-64 w-64 rounded-full bg-stone-200/30 blur-3xl mix-blend-multiply filter" />
+              <div className="absolute bottom-1/4 right-1/4 h-64 w-64 rounded-full bg-orange-100/30 blur-3xl mix-blend-multiply filter" />
+
+              <div className="z-10 flex w-full max-w-3xl flex-col items-center px-6 text-center">
+                <div className="mb-8 flex h-32 w-32 items-center justify-center rounded-[32px] bg-white shadow-2xl shadow-stone-200/50 ring-1 ring-stone-100">
+                  <Logo variant="symbol" className="scale-150" />
+                </div>
+
+                <h2 className="mb-3 font-serif text-4xl font-medium text-stone-900 md:text-5xl tracking-tight">
+                  Xin chào, {user?.displayName?.split(" ").pop() || "Bạn mới"}
+                </h2>
+                <p className="mb-12 max-w-lg font-sans text-lg font-light text-stone-500 leading-relaxed">
+                  Chào mừng trở lại{" "}
+                  <span className="font-medium text-stone-800">
                     Printz Workspace
-                 </h2>
-                 <p className="text-gray-500 mb-8 text-[15px] leading-relaxed font-sans">
-                    Nền tảng trao đổi thiết kế và quản lý in ấn tập trung. <br/>
-                    Chọn một hội thoại để bắt đầu.
-                 </p>
+                  </span>
+                  .
+                  <br /> Hôm nay chúng ta sẽ kiến tạo điều gì?
+                </p>
 
-                 {/* Feature List: Minimal Grid */}
-                 <div className="w-full grid gap-3 text-left">
-                    <div className="flex items-center gap-3 p-3 rounded-lg border border-transparent hover:border-blue-100 hover:bg-blue-50/50 transition-all group">
-                       <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                          <FileUp size={16} />
-                       </div>
-                       <div>
-                          <div className="text-sm font-bold text-gray-800">File in ấn</div>
-                          <div className="text-xs text-gray-500">Gửi file AI, PDF, PSD dung lượng lớn</div>
-                       </div>
+                <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
+                  <button
+                    onClick={() =>
+                      document
+                        .querySelector<HTMLButtonElement>(
+                          '[data-action="create-group"]'
+                        )
+                        ?.click() ||
+                      toast.info("Vui lòng dùng menu bên trái để tạo nhóm")
+                    }
+                    className="group flex flex-col items-center justify-center gap-3 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-stone-300 hover:shadow-lg"
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-stone-50 text-stone-600 transition-colors group-hover:bg-stone-900 group-hover:text-white">
+                      <Users size={20} />
                     </div>
-
-                    <div className="flex items-center gap-3 p-3 rounded-lg border border-transparent hover:border-purple-100 hover:bg-purple-50/50 transition-all group">
-                       <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                          <Users size={16} />
-                       </div>
-                       <div>
-                          <div className="text-sm font-bold text-gray-800">Làm việc nhóm</div>
-                          <div className="text-xs text-gray-500">Duyệt mẫu và phản hồi trực tiếp</div>
-                       </div>
+                    <div className="text-center">
+                      <h3 className="font-bold text-stone-900 text-sm">
+                        Tạo nhóm mới
+                      </h3>
+                      <p className="text-xs text-stone-400 mt-1">
+                        Thảo luận & Duyệt mẫu
+                      </p>
                     </div>
-                 </div>
+                  </button>
 
-                 {/* Footer Hint */}
-                 <div className="mt-8 pt-6 border-t border-gray-100 w-full flex justify-center">
-                    <div className="flex items-center gap-2 text-xs font-medium text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full">
-                       <Shield size={12} /> Dữ liệu được mã hóa & bảo vệ
+                  <button
+                    onClick={() => navigate("/friends")}
+                    className="group flex flex-col items-center justify-center gap-3 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-stone-300 hover:shadow-lg"
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-stone-50 text-stone-600 transition-colors group-hover:bg-primary group-hover:text-white">
+                      <Search size={20} />
                     </div>
-                 </div>
+                    <div className="text-center">
+                      <h3 className="font-bold text-stone-900 text-sm">
+                        Tìm đối tác
+                      </h3>
+                      <p className="text-xs text-stone-400 mt-1">
+                        Mở rộng mạng lưới
+                      </p>
+                    </div>
+                  </button>
 
-                 {/* CMYK Accent Dots (Tinh tế) */}
-                 <div className="absolute bottom-4 right-4 flex gap-1 opacity-40">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#06b6d4]" /> {/* Cyan */}
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#d946ef]" /> {/* Magenta */}
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#eab308]" /> {/* Yellow */}
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#1e293b]" /> {/* Key */}
-                 </div>
+                  <button
+                    onClick={() => navigate("/chat")}
+                    className="group flex flex-col items-center justify-center gap-3 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-amber-200 hover:shadow-lg"
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-amber-600 transition-colors group-hover:bg-amber-500 group-hover:text-white">
+                      <Sparkles size={20} />
+                    </div>
+                    <div className="text-center">
+                      <h3 className="font-bold text-stone-900 text-sm">
+                        Zin Assistant
+                      </h3>
+                      <p className="text-xs text-stone-400 mt-1">
+                        Hỗ trợ ý tưởng 24/7
+                      </p>
+                    </div>
+                  </button>
+                </div>
 
-              </motion.div>
+                <div className="mt-16 flex items-center gap-3 opacity-40 mix-blend-luminosity">
+                  <span className="h-px w-12 bg-stone-400"></span>
+                  <span className="font-serif text-xs italic text-stone-500">
+                    "Design is intelligence made visible."
+                  </span>
+                  <span className="h-px w-12 bg-stone-400"></span>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
+        {/* Sidebar Thông tin hội thoại */}
         {activeConv && isInfoSidebarOpen && (
-          <div className="w-80 border-l border-gray-200 h-full bg-white flex-shrink-0">
-              <ChatInfoSidebar conversation={activeConv} onClose={() => setInfoSidebarOpen(false)} />
+          <div className="w-[350px] border-l border-stone-200 h-full bg-white flex-shrink-0 shadow-xl z-20">
+            <ChatInfoSidebar
+              conversation={activeConv}
+              onClose={() => setInfoSidebarOpen(false)}
+            />
           </div>
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import ReactDOM from "react-dom";
 import {
   X,
@@ -10,17 +10,16 @@ import {
   FileSpreadsheet,
   FileArchive,
   Link as LinkIcon,
-  CheckCircle2,
   FileWarning,
+  PlayCircle,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
-import { StagedFile, FileContextType } from "./hooks/useSmartFileUpload";
+import { StagedFile } from "./hooks/useSmartFileUpload";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface FileStagingAreaProps {
   files: StagedFile[];
   onRemove: (id: string) => void;
-  onContextChange: (id: string, context: FileContextType) => void;
 }
 
 const getFileIconInfo = (
@@ -32,61 +31,94 @@ const getFileIconInfo = (
     if (linkType === "canva")
       return {
         Icon: () => (
-          <span className="font-bold text-[10px] text-blue-600">CANVA</span>
+          <span className="font-bold text-[7px] text-[#00C4CC]">CANVA</span>
         ),
-        color: "bg-blue-100 text-blue-600",
+        bg: "bg-[#00C4CC]/10",
+        border: "border-[#00C4CC]/20",
       };
     if (linkType === "drive")
       return {
         Icon: () => (
-          <span className="font-bold text-[10px] text-green-600">DRIVE</span>
+          <span className="font-bold text-[7px] text-[#1FA463]">DRIVE</span>
         ),
-        color: "bg-green-100 text-green-600",
+        bg: "bg-[#1FA463]/10",
+        border: "border-[#1FA463]/20",
       };
-    return { Icon: LinkIcon, color: "bg-gray-100 text-gray-600" };
+    return {
+      Icon: LinkIcon,
+      bg: "bg-blue-50",
+      border: "border-blue-100",
+      color: "text-blue-600",
+    };
   }
   if (fileType === "image")
-    return { Icon: ImageIcon, color: "bg-purple-100 text-purple-600" };
+    return {
+      Icon: ImageIcon,
+      bg: "bg-purple-50",
+      border: "border-purple-100",
+      color: "text-purple-600",
+    };
+  if (fileType === "video")
+    return {
+      Icon: PlayCircle,
+      bg: "bg-rose-50",
+      border: "border-rose-100",
+      color: "text-rose-600",
+    };
 
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
   switch (ext) {
     case "pdf":
-      return { Icon: FileText, color: "bg-red-100 text-red-600" };
+      return {
+        Icon: FileText,
+        bg: "bg-red-50",
+        border: "border-red-100",
+        color: "text-red-600",
+      };
     case "ai":
     case "eps":
     case "psd":
-      return { Icon: FileImage, color: "bg-blue-100 text-blue-600" };
+      return {
+        Icon: FileImage,
+        bg: "bg-blue-50",
+        border: "border-blue-100",
+        color: "text-blue-600",
+      };
     case "zip":
     case "rar":
-      return { Icon: FileArchive, color: "bg-orange-100 text-orange-600" };
+      return {
+        Icon: FileArchive,
+        bg: "bg-amber-50",
+        border: "border-amber-100",
+        color: "text-amber-600",
+      };
     case "xls":
     case "xlsx":
       return {
         Icon: FileSpreadsheet,
-        color: "bg-emerald-100 text-emerald-600",
+        bg: "bg-emerald-50",
+        border: "border-emerald-100",
+        color: "text-emerald-600",
       };
     default:
-      return { Icon: File, color: "bg-gray-100 text-gray-600" };
+      return {
+        Icon: File,
+        bg: "bg-slate-50",
+        border: "border-slate-100",
+        color: "text-slate-600",
+      };
   }
 };
 
-export function FileStagingArea({
-  files,
-  onRemove,
-  onContextChange,
-}: FileStagingAreaProps) {
-  const visibleFiles = files.filter(
-    (f) => f.status !== "done" || f.fileType === "link"
-  );
-
-  // Nếu không có file nào thì ẩn luôn container (quan trọng để không chiếm chỗ)
-  if (visibleFiles.length === 0) return null;
+export function FileStagingArea({ files, onRemove }: FileStagingAreaProps) {
+  if (files.length === 0) return null;
 
   return (
-    <div className="w-full px-3 pb-1 bg-white border-t border-transparent animate-in slide-in-from-bottom-2">
-      <div className="flex gap-2 overflow-x-auto pb-2 pt-2 custom-scrollbar snap-x">
+    // Clean container, no padding/margin here, let ChatInput handle it
+    <div className="w-full">
+      <div className="flex gap-2 overflow-x-auto custom-scrollbar snap-x items-end">
         <AnimatePresence mode="popLayout">
-          {visibleFiles.map((file) => (
+          {files.map((file) => (
             <FileItem key={file.id} file={file} onRemove={onRemove} />
           ))}
         </AnimatePresence>
@@ -95,7 +127,6 @@ export function FileStagingArea({
   );
 }
 
-// Sub-component cho từng file item - MOBILE OPTIMIZED
 function FileItem({
   file,
   onRemove,
@@ -105,15 +136,12 @@ function FileItem({
 }) {
   const [showPreview, setShowPreview] = useState(false);
   const isImage = file.fileType === "image";
-  const { Icon, color } = getFileIconInfo(
+  const { Icon, bg, border, color } = getFileIconInfo(
     file.file?.name || file.linkMeta?.title || "",
     file.fileType,
     file.linkMeta?.type
   );
   const name = file.file?.name || file.linkMeta?.title || "File";
-  const size = file.file
-    ? (file.file.size / 1024 / 1024).toFixed(1) + "MB"
-    : "Link";
 
   return (
     <>
@@ -121,91 +149,59 @@ function FileItem({
         layout
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.8, width: 0 }}
-        className="relative group flex-shrink-0 w-28 h-28 bg-white rounded-2xl border-2 border-gray-100 overflow-hidden snap-start shadow-sm hover:shadow-md transition-shadow"
+        exit={{ opacity: 0, scale: 0.5, width: 0 }}
+        className="relative group flex-shrink-0 snap-start select-none py-1"
       >
-        {/* Nút xóa - Luôn hiển thị trên mobile */}
+        <div
+          className={cn(
+            "relative w-14 h-14 rounded-xl overflow-hidden cursor-pointer transition-all shadow-sm group-hover:shadow-md ring-1 ring-black/5",
+            isImage ? "bg-black/5" : cn(bg, border, "border")
+          )}
+          onClick={() => isImage && file.previewUrl && setShowPreview(true)}
+        >
+          {isImage && file.previewUrl ? (
+            <img
+              src={file.previewUrl}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              alt="Preview"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center flex-col gap-0.5 p-1">
+              <div
+                className={cn(
+                  "p-1.5 rounded-lg bg-white/60 shadow-sm backdrop-blur-sm",
+                  color
+                )}
+              >
+                <Icon size={16} strokeWidth={2} />
+              </div>
+            </div>
+          )}
+
+          {file.status === "uploading" && (
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-[1px] flex items-center justify-center z-10">
+              <Loader2 className="animate-spin text-blue-600" size={16} />
+            </div>
+          )}
+          {file.status === "error" && (
+            <div className="absolute inset-0 bg-red-50/90 flex items-center justify-center z-10">
+              <FileWarning size={18} className="text-red-500" />
+            </div>
+          )}
+        </div>
+
         <button
           onClick={(e) => {
             e.stopPropagation();
             onRemove(file.id);
           }}
-          className="absolute top-2 right-2 z-10 p-1.5 bg-gray-900/70 hover:bg-red-500 text-white rounded-full opacity-100 group-hover:opacity-100 transition-all active:scale-90 touch-manipulation"
+          className="absolute -top-1 -right-1 z-20 w-5 h-5 flex items-center justify-center bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-red-500 rounded-full shadow-sm border border-stone-200 opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100"
         >
-          <X size={14} />
+          <X size={10} strokeWidth={3} />
         </button>
-
-        <div className="w-full h-full">
-          {/* Preview Area - FULL SIZE */}
-          <div
-            className="w-full h-full relative bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden cursor-pointer active:scale-95 transition-transform"
-            onClick={() => isImage && file.previewUrl && setShowPreview(true)}
-          >
-            {isImage && file.previewUrl ? (
-              <img
-                src={file.previewUrl}
-                className="w-full h-full object-cover"
-                alt="Preview"
-                loading="lazy"
-              />
-            ) : (
-              <div
-                className={cn(
-                  "w-12 h-12 rounded-xl flex items-center justify-center shadow-sm",
-                  color
-                )}
-              >
-                <Icon size={20} />
-              </div>
-            )}
-
-            {/* Loading Overlay - IMPROVED */}
-            {file.status === "uploading" && (
-              <div className="absolute inset-0 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center">
-                <Loader2
-                  className="animate-spin text-blue-600 mb-2"
-                  size={20}
-                />
-                <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full bg-blue-600 rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${file.progress}%` }}
-                    transition={{ duration: 0.3 }}
-                  />
-                </div>
-                <span className="text-xs font-bold text-blue-600 mt-1.5">
-                  {Math.round(file.progress)}%
-                </span>
-              </div>
-            )}
-
-            {/* Error Overlay */}
-            {file.status === "error" && (
-              <div className="absolute inset-0 bg-red-50/95 backdrop-blur-sm flex flex-col items-center justify-center">
-                <FileWarning size={20} className="text-red-500 mb-1" />
-                <span className="text-xs font-bold text-red-600">Lỗi tải</span>
-              </div>
-            )}
-
-            {/* Success Badge */}
-            {file.status === "done" && (
-              <div className="absolute top-2 left-2 p-1 bg-green-500 rounded-full shadow-sm">
-                <CheckCircle2 size={12} className="text-white" />
-              </div>
-            )}
-          </div>
-
-          {/* Hover Overlay - Hiện tên file khi hover */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end p-3 pointer-events-none">
-            <div className="text-white text-xs font-semibold line-clamp-2 leading-tight">
-              {name}
-            </div>
-          </div>
-        </div>
       </motion.div>
 
-      {/* Image Preview Modal */}
+      {/* MODAL PREVIEW */}
       {showPreview && isImage && file.previewUrl && (
         <ImagePreviewModal
           imageUrl={file.previewUrl}
@@ -217,39 +213,29 @@ function FileItem({
   );
 }
 
-// Simple Image Preview Modal
-function ImagePreviewModal({
-  imageUrl,
-  fileName,
-  onClose,
-}: {
-  imageUrl: string;
-  fileName: string;
-  onClose: () => void;
-}) {
+function ImagePreviewModal({ imageUrl, fileName, onClose }: any) {
   return ReactDOM.createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[99999] bg-black/95 backdrop-blur-md flex items-center justify-center p-4"
+      className="fixed inset-0 z-[99999] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 touch-none"
       onClick={onClose}
     >
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+        className="absolute top-4 right-4 p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"
       >
         <X size={24} />
       </button>
-      <div className="max-w-4xl max-h-[90vh] w-full h-full flex flex-col items-center justify-center">
-        <img
-          src={imageUrl}
-          alt={fileName}
-          className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        />
-        <p className="mt-4 text-white text-sm font-medium">{fileName}</p>
-      </div>
+      <motion.img
+        initial={{ scale: 0.9 }}
+        animate={{ scale: 1 }}
+        src={imageUrl}
+        alt={fileName}
+        className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl select-none"
+        onClick={(e) => e.stopPropagation()}
+      />
     </motion.div>,
     document.body
   );

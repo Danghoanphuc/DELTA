@@ -8,26 +8,6 @@ export class CheckoutController {
     this.checkoutService = new CheckoutService();
   }
 
-  // --- HÀM CŨ (GĐ 5.4) - GIỮ NGUYÊN ---
-  createStripePaymentIntent = async (req, res, next) => {
-    try {
-      const result = await this.checkoutService.createStripePaymentIntent(req);
-      res.status(API_CODES.CREATED).json(ApiResponse.success(result));
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  // --- MoMo create payment URL ---
-  createMomoUrl = async (req, res, next) => {
-    try {
-      const result = await this.checkoutService.createMomoPaymentUrl(req);
-      res.status(API_CODES.CREATED).json(ApiResponse.success(result));
-    } catch (error) {
-      next(error);
-    }
-  };
-
   // --- COD confirm order ---
   confirmCodOrder = async (req, res, next) => {
     try {
@@ -38,28 +18,23 @@ export class CheckoutController {
     }
   };
 
-  // --- ✅ NEW: Unified process checkout endpoint ---
+  // --- ✅ Unified process checkout endpoint (COD only) ---
   processCheckout = async (req, res, next) => {
     try {
       const { paymentMethod } = req.body;
 
-      let result;
-      switch (paymentMethod) {
-        case 'cod':
-          result = await this.checkoutService.confirmCodOrder(req);
-          break;
-        case 'momo':
-          result = await this.checkoutService.createMomoPaymentUrl(req);
-          break;
-        case 'stripe':
-          result = await this.checkoutService.createStripePaymentIntent(req);
-          break;
-        default:
-          return res.status(API_CODES.BAD_REQUEST).json(
-            ApiResponse.error(`Invalid payment method: ${paymentMethod}`, API_CODES.BAD_REQUEST)
+      if (paymentMethod !== "cod") {
+        return res
+          .status(API_CODES.BAD_REQUEST)
+          .json(
+            ApiResponse.error(
+              `Only COD payment is supported. Use PayOS for online payment.`,
+              API_CODES.BAD_REQUEST
+            )
           );
       }
 
+      const result = await this.checkoutService.confirmCodOrder(req);
       res.status(API_CODES.CREATED).json(ApiResponse.success(result));
     } catch (error) {
       next(error);

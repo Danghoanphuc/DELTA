@@ -1,34 +1,60 @@
 import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 
+/**
+ * Hook bảo vệ nội dung - CHỈ áp dụng cho các trang cần thiết
+ *
+ * ✅ BẢO VỆ:
+ * - /design-editor - Thiết kế độc quyền
+ * - /printer/studio - Công cụ chuyên nghiệp
+ * - /templates - Preview template
+ *
+ * ❌ KHÔNG BẢO VỆ:
+ * - Landing pages - Cần SEO & share
+ * - Auth/Forms - Cần copy/paste
+ * - Chat/Messages - Cần copy tin nhắn
+ * - Shop/Products - Cần copy thông tin
+ */
 export function useContentProtection() {
+  const location = useLocation();
+
   useEffect(() => {
+    // Danh sách các route CẦN bảo vệ
+    const protectedRoutes = ["/design-editor", "/printer/studio", "/templates"];
+
+    // Kiểm tra xem route hiện tại có cần bảo vệ không
+    const shouldProtect = protectedRoutes.some((route) =>
+      location.pathname.startsWith(route)
+    );
+
+    if (!shouldProtect) {
+      return; // Không bảo vệ route này
+    }
+
     // 1. Chặn Menu Chuột Phải (Right Click)
     const handleContextMenu = (e: MouseEvent) => {
-      // Cho phép chuột phải trong ô input/textarea để sửa lỗi chính tả
+      // Luôn cho phép chuột phải trong input/textarea
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
         return true;
       }
       e.preventDefault();
       return false;
     };
 
-    // 2. Chặn Phím Tắt (Shortcuts)
+    // 2. Chặn Phím Tắt (Chỉ F12 và DevTools, KHÔNG chặn Ctrl+C)
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Chặn F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U (Xem source)
+      // Chỉ chặn F12 và DevTools shortcuts
       if (
-        e.key === 'F12' ||
-        (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) ||
-        (e.ctrlKey && e.key.toUpperCase() === 'U')
+        e.key === "F12" ||
+        (e.ctrlKey &&
+          e.shiftKey &&
+          ["I", "J", "C"].includes(e.key.toUpperCase()))
       ) {
-        e.preventDefault();
-        return false;
-      }
-
-      // Chặn Ctrl+S (Save), Ctrl+P (Print)
-      // Lưu ý: Ctrl+C (Copy) chặn ở đây có thể gây khó chịu nếu khách muốn copy mã đơn hàng
-      // Nên ta chỉ chặn Save/Print trang web
-      if ((e.ctrlKey || e.metaKey) && ['s', 'p'].includes(e.key.toLowerCase())) {
         e.preventDefault();
         return false;
       }
@@ -36,9 +62,12 @@ export function useContentProtection() {
 
     // 3. Chặn kéo ảnh (Drag & Drop)
     const handleDragStart = (e: DragEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "IMG") {
         e.preventDefault();
         return false;
-    }
+      }
+    };
 
     document.addEventListener("contextmenu", handleContextMenu);
     document.addEventListener("keydown", handleKeyDown);
@@ -49,5 +78,5 @@ export function useContentProtection() {
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("dragstart", handleDragStart);
     };
-  }, []);
+  }, [location.pathname]);
 }

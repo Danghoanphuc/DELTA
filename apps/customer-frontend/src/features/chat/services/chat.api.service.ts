@@ -8,46 +8,49 @@ import { Order } from "@/types/order";
 export const normalizeMessage = (msg: any): ChatMessage => {
   // 1. Ép kiểu senderType
   let finalSenderType = msg.senderType;
-  
+
   if (!finalSenderType) {
-      if (msg.role === 'user') finalSenderType = 'User';
-      else if (msg.role === 'assistant' || msg.role === 'system') finalSenderType = 'AI';
-      else if (msg.isBot === true) finalSenderType = 'AI';
-      else if (msg.isBot === false) finalSenderType = 'User';
-      else finalSenderType = 'AI'; // Fallback an toàn
+    if (msg.role === "user") finalSenderType = "User";
+    else if (msg.role === "assistant" || msg.role === "system")
+      finalSenderType = "AI";
+    else if (msg.isBot === true) finalSenderType = "AI";
+    else if (msg.isBot === false) finalSenderType = "User";
+    else finalSenderType = "AI"; // Fallback an toàn
   }
 
   // 2. Ép kiểu type
   let finalType = msg.type;
   if (!finalType) {
-      if (finalSenderType === 'AI') {
-          if (msg.content?.products) finalType = "product_selection";
-          else if (msg.content?.orders) finalType = "order_selection";
-          else if (msg.content?.qrCode) finalType = "payment_request";
-          else finalType = "ai_response";
-      } else {
-          finalType = "text";
-      }
+    if (finalSenderType === "AI") {
+      if (msg.content?.products) finalType = "product_selection";
+      else if (msg.content?.orders) finalType = "order_selection";
+      else if (msg.content?.qrCode) finalType = "payment_request";
+      else finalType = "ai_response";
+    } else {
+      finalType = "text";
+    }
   }
 
   // 3. Đảm bảo content luôn có text
   let finalContent = msg.content;
-  if (typeof finalContent === 'string') {
-      finalContent = { text: finalContent };
+  if (typeof finalContent === "string") {
+    finalContent = { text: finalContent };
   } else if (!finalContent) {
-      finalContent = { text: "" };
+    finalContent = { text: "" };
   }
 
   return {
-      ...msg,
-      senderType: finalSenderType,
-      type: finalType,
-      content: finalContent
+    ...msg,
+    senderType: finalSenderType,
+    type: finalType,
+    content: finalContent,
   } as ChatMessage;
 };
 
 // ✅ 2. CÁC API CƠ BẢN
-export const fetchChatConversations = async (filters?: { type?: string }): Promise<ChatConversation[]> => {
+export const fetchChatConversations = async (filters?: {
+  type?: string;
+}): Promise<ChatConversation[]> => {
   try {
     const res = await api.get("/chat/conversations", { params: filters });
     return Array.isArray(res.data?.data?.conversations)
@@ -88,7 +91,8 @@ export const fetchChatHistory = async (
     }
 
     // 🔥 Áp dụng chuẩn hóa cho từng tin nhắn
-    const transformedMessages: ChatMessage[] = rawMessages.map(normalizeMessage);
+    const transformedMessages: ChatMessage[] =
+      rawMessages.map(normalizeMessage);
 
     return {
       messages: transformedMessages,
@@ -143,14 +147,28 @@ export const uploadChatFile = async (
 
 // ✅ 3. QUẢN LÝ CONVERSATION
 export const fetchConversationById = async (id: string) => {
-    try { const res = await api.get(`/chat/conversations/${id}`); return res.data?.data?.conversation || null; }
-    catch (e) { return null; }
+  try {
+    const res = await api.get(`/chat/conversations/${id}`);
+    return res.data?.data?.conversation || null;
+  } catch (e) {
+    return null;
+  }
 };
 export const renameConversation = async (id: string, title: string) => {
-    try { await api.patch(`/chat/conversations/${id}`, { title }); return true; } catch { return false; }
+  try {
+    await api.patch(`/chat/conversations/${id}`, { title });
+    return true;
+  } catch {
+    return false;
+  }
 };
 export const deleteConversation = async (id: string) => {
-    try { await api.delete(`/chat/conversations/${id}`); return true; } catch { return false; }
+  try {
+    await api.delete(`/chat/conversations/${id}`);
+    return true;
+  } catch {
+    return false;
+  }
 };
 export const createPrinterConversation = async (printerId: string) => {
   const res = await api.post(`/chat/conversations/printer/${printerId}`);
@@ -258,12 +276,14 @@ export const uploadToR2 = async (
     headers: { "Content-Type": "multipart/form-data" },
     onUploadProgress: (progressEvent) => {
       if (progressEvent.total && onProgress) {
-        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        const percent = Math.round(
+          (progressEvent.loaded * 100) / progressEvent.total
+        );
         onProgress(percent);
       }
     },
   });
-  
+
   return res.data?.data;
 };
 
@@ -271,12 +291,14 @@ export const uploadToR2 = async (
 export const postSocialChatMessage = async (
   message: string,
   conversationId: string,
-  attachments?: any[]
+  attachments?: any[],
+  replyToId?: string
 ): Promise<ChatMessage> => {
   const payload = {
     message,
     conversationId,
     attachments,
+    replyToId,
   };
 
   const res = await api.post("/chat/message", payload);
@@ -298,15 +320,19 @@ export const searchMessages = async (
   }
 };
 
-export const getConversationBusinessContext = async (conversationId: string) => {
+export const getConversationBusinessContext = async (
+  conversationId: string
+) => {
   try {
-    const res = await api.get(`/chat/conversations/${conversationId}/business-context`);
+    const res = await api.get(
+      `/chat/conversations/${conversationId}/business-context`
+    );
     return res.data?.data || { activeOrders: [], designFiles: [] };
   } catch (error) {
     console.warn("Failed to fetch business context, using fallback", error);
     return {
       activeOrders: [],
-      designFiles: []
+      designFiles: [],
     };
   }
 };
@@ -321,13 +347,20 @@ export const getConversationFiles = async (conversationId: string) => {
   return res.data?.data?.files || [];
 };
 
+export const deleteMessage = async (
+  messageId: string,
+  deleteForEveryone: boolean = false
+) => {
+  const res = await api.delete(`/chat/messages/${messageId}`, {
+    data: { deleteForEveryone },
+  });
+  return res.data?.data;
+};
+
 export const fetchOrderDetails = async (orderId: string): Promise<Order> => {
   const res = await api.get(`/orders/${orderId}`);
   const order =
-    res.data?.data?.order ||
-    res.data?.order ||
-    res.data?.data ||
-    res.data;
+    res.data?.data?.order || res.data?.order || res.data?.data || res.data;
 
   if (!order) {
     throw new Error("Không tìm thấy đơn hàng");
@@ -339,14 +372,16 @@ export const fetchOrderDetails = async (orderId: string): Promise<Order> => {
 // ========================================================
 // 🔥 FIX QUAN TRỌNG: KHÔNG ĐẢO NGƯỢC MẢNG TIN NHẮN
 // ========================================================
-export const fetchChatMessages = async (conversationId: string): Promise<ChatMessage[]> => {
-    if (!conversationId || conversationId.startsWith("temp")) return [];
-    try {
-      const { messages } = await fetchChatHistory(conversationId, 1, 50);
-      // ✅ ĐÃ XÓA: .reverse() - UI đã tự xử lý sort
-      return messages;
-    } catch (err) {
-      console.error("[API] Error fetching chat messages:", err);
-      return [];
-    }
+export const fetchChatMessages = async (
+  conversationId: string
+): Promise<ChatMessage[]> => {
+  if (!conversationId || conversationId.startsWith("temp")) return [];
+  try {
+    const { messages } = await fetchChatHistory(conversationId, 1, 50);
+    // ✅ ĐÃ XÓA: .reverse() - UI đã tự xử lý sort
+    return messages;
+  } catch (err) {
+    console.error("[API] Error fetching chat messages:", err);
+    return [];
+  }
 };

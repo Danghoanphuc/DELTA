@@ -1,63 +1,43 @@
-// apps/customer-frontend/src/components/OfflineIndicator.tsx
-
-import { WifiOff } from "lucide-react";
+// src/components/OfflineIndicator.tsx
+import { WifiOff, AlertTriangle } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export const OfflineIndicator = () => {
-  // Bắt đầu với trạng thái hiện tại của kết nối
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   useEffect(() => {
-    // Listener cho sự kiện online/offline
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
-  // Nếu đang online thì không hiện gì cả
   if (!isOffline) return null;
 
   return (
-    // Hiển thị cố định ở góc dưới bên trái, z-index cao (trên cùng)
-    <div className="fixed bottom-4 left-4 z-[9999] bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 animate-slide-up-custom border-l-4 border-red-500 max-w-sm">
-      
-      {/* Icon xoay chậm, màu đỏ cảnh báo */}
-      <div className="bg-white/10 p-2 rounded-full flex items-center justify-center">
-        <WifiOff size={24} className="animate-spin-slow text-red-400" />
+    // STYLE CHANGE: Full width bottom bar hoặc Box cảnh báo gắt (Brutal)
+    <div className="fixed bottom-6 left-6 z-[9999] animate-in slide-in-from-bottom-4">
+      <div className="bg-red-600 text-white p-4 min-w-[300px] border-4 border-black shadow-[8px_8px_0px_0px_#000000]">
+        <div className="flex items-start gap-3">
+          <div className="bg-black/20 p-2">
+            <WifiOff size={24} className="animate-pulse" />
+          </div>
+          <div>
+            <h4 className="font-mono text-lg font-black uppercase tracking-widest leading-none mb-1">
+              SYSTEM OFFLINE
+            </h4>
+            <p className="font-mono text-[10px] uppercase opacity-90">
+              Connection lost. Reconnecting...
+            </p>
+          </div>
+        </div>
+        {/* Pattern kẻ sọc để tăng độ 'Industrial' */}
+        <div className="mt-3 h-2 w-full bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjYjkwMTAxIi8+CjxwYXRoIGQ9Ik0wIDhMMCAwTDggOCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjEiLz4KPC9zdmc+')] opacity-30"></div>
       </div>
-      
-      <div>
-        <h4 className="font-bold text-sm uppercase tracking-wider text-red-300">
-          MẤT KẾT NỐI
-        </h4>
-        <p className="text-xs text-slate-300 font-mono">
-          Đang dò tìm tín hiệu xưởng in...
-        </p>
-      </div>
-      
-      {/* CSS Animation: Slide Up khi xuất hiện và Spin chậm */}
-      <style>{`
-        @keyframes slideUpCustom {
-            0% { transform: translateY(100%); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
-        .animate-slide-up-custom { animation: slideUpCustom 0.5s ease-out forwards; }
-        
-        @keyframes spin-slow {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        .animate-spin-slow {
-            animation: spin-slow 1.5s linear infinite;
-        }
-      `}</style>
     </div>
   );
 };

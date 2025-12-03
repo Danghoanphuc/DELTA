@@ -18,7 +18,14 @@ export interface ChatConversation {
   avatarUrl?: string; // ✅ NEW: Avatar URL cho group chat
   description?: string; // ✅ NEW: Mô tả cho group chat
   participants?: Array<{
-    userId: string | { _id: string; username?: string; displayName?: string; avatarUrl?: string };
+    userId:
+      | string
+      | {
+          _id: string;
+          username?: string;
+          displayName?: string;
+          avatarUrl?: string;
+        };
     role?: string;
   }>; // ✅ FIXED: Đúng với backend structure
   isActive?: boolean; // ✅ NEW: Trạng thái active
@@ -69,11 +76,11 @@ export interface PaymentRequestContent {
   checkoutUrl: string;
   paymentLinkId?: string;
   status: "pending" | "paid" | "cancelled";
-  
+
   // ✅ NEW FIELDS FOR MINI INVOICE CONTEXT
-  productName: string;       // e.g., "In Card Visit + 2 others"
-  quantity: number;          // e.g., 100
-  itemsCount: number;        // e.g., 3 (number of different products)
+  productName: string; // e.g., "In Card Visit + 2 others"
+  quantity: number; // e.g., 100
+  itemsCount: number; // e.g., 3 (number of different products)
 }
 
 // ===================================
@@ -92,7 +99,7 @@ export interface ProductMetadata {
   [key: string]: any; // Allow additional fields
 }
 
-// ✅ RICH MESSAGES: Order metadata interface  
+// ✅ RICH MESSAGES: Order metadata interface
 export interface OrderMetadata {
   orderId: string;
   orderNumber?: string;
@@ -102,16 +109,21 @@ export interface OrderMetadata {
 }
 
 // ✅ RICH MESSAGES: Generic metadata type
-export type MessageMetadata = ProductMetadata | OrderMetadata | Record<string, any> | null;
+export type MessageMetadata =
+  | ProductMetadata
+  | OrderMetadata
+  | Record<string, any>
+  | null;
 
 // ✅ ENTERPRISE: Message delivery status
-export type MessageStatus = 
-  | "pending"    // Đang chờ gửi (Optimistic UI)
-  | "sending"    // Đang gửi lên server
-  | "sent"       // Đã gửi thành công
-  | "delivered"  // Đã nhận được (Socket ACK)
-  | "read"       // Đã xem (Seen)
-  | "error";     // Gửi thất bại
+export type MessageStatus =
+  | "pending" // Đang chờ gửi (Optimistic UI)
+  | "sending" // Đang gửi lên server
+  | "sent" // Đã gửi thành công
+  | "delivered" // Đã nhận được (Socket ACK)
+  | "read" // Đã xem (Seen)
+  | "failed" // Gửi thất bại
+  | "retrying"; // Đang retry
 
 interface BaseMessage {
   _id: string;
@@ -128,22 +140,40 @@ interface BaseMessage {
 
   // ✅ THÊM: Liên kết tin nhắn với cuộc trò chuyện
   conversationId: string;
-  
+
   // 🔥 NÂNG CẤP: clientSideId để khớp tin nhắn Optimistic (No-Flicker)
   clientSideId?: string;
-  
+
+  // ✅ REPLY: Reply to message
+  replyToId?: string;
+  replyTo?: ChatMessage;
+
   // ✅ RICH MESSAGES: Thêm type và metadata từ backend
-  type?: "text" | "image" | "file" | "product" | "order" | "system" | "ai_response" | "product_selection" | "order_selection" | "printer_selection" | "payment_request" | "error";
+  type?:
+    | "text"
+    | "image"
+    | "file"
+    | "product"
+    | "order"
+    | "system"
+    | "ai_response"
+    | "product_selection"
+    | "order_selection"
+    | "printer_selection"
+    | "payment_request"
+    | "error";
   metadata?: MessageMetadata;
 
   // ✅ ENTERPRISE: Delivery tracking
   status?: MessageStatus;
-  tempId?: string;        // Temporary ID for optimistic updates
-  retryCount?: number;    // Số lần retry
-  error?: string;         // Error message nếu có
-  readBy?: string[];      // Array of userIds đã đọc (for group chat)
-  deliveredAt?: string;   // Timestamp khi delivered
-  readAt?: string;        // Timestamp khi read
+  tempId?: string; // Temporary ID for optimistic updates
+  retryCount?: number; // Số lần retry
+  error?: string; // Error message nếu có
+  errorCode?: string; // Error code để xử lý cụ thể
+  readBy?: string[]; // Array of userIds đã đọc (for group chat)
+  deliveredAt?: string; // Timestamp khi delivered
+  readAt?: string; // Timestamp khi read
+  lastRetryAt?: string; // Timestamp của lần retry cuối
 }
 
 export interface TextMessage extends BaseMessage {

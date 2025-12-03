@@ -1,59 +1,58 @@
-// src/components/AppNavigationMenu.tsx (TẠO MỚI)
+// apps/customer-frontend/src/components/AppNavigationMenu.tsx
 import { Link, useLocation } from "react-router-dom";
-import { Button } from "@/shared/components/ui/button";
-import {
-  Compass, // Khám phá
-  LayoutGrid, // Cửa hàng
-  Package, // Đơn hàng
-  FolderOpen, // Thiết kế
-  User, // Cá nhân/Cài đặt
-} from "lucide-react";
-import { Card } from "@/shared/components/ui/card";
 import { cn } from "@/shared/lib/utils";
 
-// Đây là các điều hướng CẤP 1 (Primary Navigation) của toàn ứng dụng
 const appNavItems = [
-  { label: "Khám phá", path: "/app", icon: Compass },
-  { label: "Cửa hàng", path: "/shop", icon: LayoutGrid },
-  { label: "Đơn hàng", path: "/orders", icon: Package },
-  { label: "Thiết kế của tôi", path: "/designs", icon: FolderOpen },
-  { label: "Cài đặt tài khoản", path: "/settings", icon: User },
+  { label: "Tổng quan", path: "/app" },
+  { label: "Cửa hàng", path: "/shop" },
+  { label: "Đơn hàng", path: "/orders" },
+  { label: "Thiết kế của tôi", path: "/designs" },
+  { label: "Tài khoản", path: "/settings" },
 ];
 
 export const AppNavigationMenu = () => {
   const location = useLocation();
-
   const getIsActive = (path: string) => {
     if (path === "/app") return location.pathname === "/app";
-    // Giúp /orders/123 vẫn sáng đèn "Đơn hàng"
     return location.pathname.startsWith(path);
   };
 
   return (
-    <Card className="shadow-sm border-none bg-white">
-      <nav className="p-2">
-        <ul className="space-y-1">
-          {appNavItems.map((item) => (
-            <li key={item.path}>
-              <Button
-                asChild
-                variant={getIsActive(item.path) ? "secondary" : "ghost"}
-                className={cn(
-                  "w-full justify-start text-base md:text-sm p-3 h-11",
-                  getIsActive(item.path)
-                    ? "text-blue-700 font-semibold"
-                    : "text-gray-700"
-                )}
-              >
-                <Link to={item.path}>
-                  <item.icon className="w-4 h-4 mr-3 flex-shrink-0" />
-                  {item.label}
+    <div className="w-full pl-2">
+      <div className="mb-8 pl-4">
+        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-stone-400">
+          Mục Lục
+        </span>
+      </div>
+
+      <nav className="pl-4 border-l border-stone-200/60 py-2">
+        <ul className="space-y-6">
+          {appNavItems.map((item) => {
+            const isActive = getIsActive(item.path);
+            return (
+              <li key={item.path} className="relative group">
+                <Link to={item.path} className="block">
+                  {/* LABEL CHÍNH: Font Serif, Tiếng Việt */}
+                  <span
+                    className={cn(
+                      "block font-serif text-2xl tracking-tight transition-all duration-500 origin-left",
+                      isActive
+                        ? "text-stone-900 italic translate-x-3 font-medium"
+                        : "text-stone-400 group-hover:text-stone-600 group-hover:translate-x-1"
+                    )}
+                  >
+                    {item.label}
+                  </span>
                 </Link>
-              </Button>
-            </li>
-          ))}
+
+                {isActive && (
+                  <span className="absolute -left-[21px] top-2.5 w-1.5 h-1.5 rounded-full bg-stone-900 animate-in fade-in zoom-in duration-300" />
+                )}
+              </li>
+            );
+          })}
         </ul>
       </nav>
-    </Card>
+    </div>
   );
 };

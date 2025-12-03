@@ -4,7 +4,7 @@ import { useEffect, useRef, Suspense, lazy, ComponentType } from "react";
 import { useAuthStore } from "./stores/useAuthStore";
 import { useCartStore } from "./stores/useCartStore";
 
-// ✅ HOOK BẢO VỆ NỘI DUNG
+// ✅ HOOK BẢO VỆ NỘI DUNG (Chỉ áp dụng cho route cần thiết)
 import { useContentProtection } from "@/shared/hooks/useContentProtection";
 
 import { AppLayout } from "./components/AppLayout";
@@ -31,6 +31,7 @@ import ProcessPage from "@/features/landing/ProcessPage";
 import TrendsPage from "@/features/landing/TrendsPage";
 import TemplateLibraryPage from "@/features/landing/TemplateLibraryPage";
 import BusinessPage from "@/features/landing/BusinessPage";
+import QuickQuotePage from "@/features/quote/pages/QuickQuotePage";
 
 // --- Auth Pages ---
 import SignInPage from "@/features/auth/pages/SignInPage";
@@ -111,7 +112,7 @@ const DesignEditorPage = lazyWorkaround(
 const InspirationPage = lazy(
   () => import("@/features/customer/pages/InspirationPage")
 );
-const ChatAppPage = lazy(() => import("@/features/chat/pages/AppPage"));
+const ChatAppPage = lazy(() => import("@/features/main/pages/AppPage"));
 const ChatPage = lazy(() => import("@/features/chat/pages/ChatPage"));
 const ChatHistoryPage = lazy(
   () => import("@/features/chat/pages/ChatHistoryPage")
@@ -123,7 +124,8 @@ const MessagesPage = lazy(() => import("@/features/social/pages/MessagesPage"));
 const FriendsPage = lazy(() => import("@/features/social/pages/FriendsPage"));
 const RushPage = lazyWorkaround(() => import("@/features/rush/pages/RushPage"));
 
-function App() {
+// Component wrapper để sử dụng useContentProtection bên trong Router
+function AppContent() {
   const isAuthenticated = useAuthStore((state) => !!state.accessToken);
   const authLoading = useAuthStore((state) => state.loading);
   const fetchMe = useAuthStore((state) => state.fetchMe);
@@ -135,7 +137,7 @@ function App() {
   const hasFetchedRef = useRef<boolean>(false);
   const FETCH_COOLDOWN = 10000;
 
-  // ✅ KÍCH HOẠT LÁ CHẮN BẢO VỆ (Chống copy, chuột phải, F12)
+  // ✅ KÍCH HOẠT LÁ CHẮN BẢO VỆ (Chỉ cho route cần thiết)
   useContentProtection();
 
   // Logic fetch user data
@@ -171,7 +173,7 @@ function App() {
   }, [isAuthenticated, authLoading, mergeGuestCart, fetchCart]);
 
   return (
-    <BrowserRouter>
+    <>
       <GlobalModalProvider>
         <SocketProvider>
           <DynamicIsland />
@@ -192,6 +194,7 @@ function App() {
               <Route path="/trends" element={<TrendsPage />} />
               <Route path="/templates" element={<TemplateLibraryPage />} />
               <Route path="/business" element={<BusinessPage />} />
+              <Route path="/quote" element={<QuickQuotePage />} />
 
               {/* 2. MAIN APP LAYOUT */}
               <Route element={<AppLayout />}>
@@ -280,6 +283,14 @@ function App() {
           <OrderQuickViewModal />
         </SocketProvider>
       </GlobalModalProvider>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
   );
 }

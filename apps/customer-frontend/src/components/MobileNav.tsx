@@ -1,20 +1,9 @@
-// src/components/MobileNav.tsx (CẬP NHẬT)
-import {
-  Compass, // Khám phá
-  LayoutGrid, // Cửa hàng
-  FolderOpen, // Thiết kế
-  MessageCircle, // Chat AI
-  Package, // Đơn hàng
-  User, // Cá nhân
-  Bell, // ✅ Notifications
-  MessageSquare, // ✅ Social Messages
-} from "lucide-react";
+// src/components/MobileNav.tsx
+import { Home, LayoutGrid, MessageCircle, Package, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/shared/lib/utils";
-// ✅ Import stores
-import { useUnreadCount } from "@/features/notifications/hooks/useNotifications";
-import { useSocialChatStore } from "@/features/social/hooks/useSocialChatStore";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useSocialChatStore } from "@/features/social/hooks/useSocialChatStore";
 
 export function MobileNav() {
   const location = useLocation();
@@ -22,108 +11,90 @@ export function MobileNav() {
   const shouldHide = hiddenPatterns.some((pattern) =>
     pattern.test(location.pathname)
   );
-  
-  // ✅ Get unread counts
-  const isAuthenticated = useAuthStore((state) => !!state.accessToken);
-  const { unreadCount: notificationUnread } = useUnreadCount(isAuthenticated);
+
   const totalUnreadMessages = useSocialChatStore((state) => state.totalUnread);
 
-  if (shouldHide) {
-    return null;
-  }
+  if (shouldHide) return null;
 
-  // 5 icon điều hướng chính cho mobile
   const menuItems = [
-    { icon: Compass, label: "Khám phá", path: "/app" },
-    { icon: LayoutGrid, label: "Cửa hàng", path: "/shop" },
-    {
-      icon: MessageCircle,
-      label: "Chat AI",
-      path: "/chat",
-      isCentral: true,
-    },
-    { icon: Package, label: "Đơn hàng", path: "/orders" },
-    { icon: User, label: "Cá nhân", path: "/settings" },
+    { icon: Home, label: "Feed", path: "/app" },
+    { icon: LayoutGrid, label: "Shop", path: "/shop" },
+    { icon: MessageCircle, label: "Chat", path: "/chat", isCentral: true },
+    { icon: Package, label: "Orders", path: "/orders" },
+    { icon: User, label: "Me", path: "/settings" },
   ];
 
   const getIsActive = (path: string) => {
     const [pathname] = path.split("?");
-    if (pathname === "/app") {
-      return location.pathname === "/app";
-    }
-    if (pathname === "/chat") {
-      return location.pathname.startsWith("/chat");
-    }
+    if (pathname === "/app") return location.pathname === "/app";
+    if (pathname === "/chat") return location.pathname.startsWith("/chat");
     return location.pathname.startsWith(pathname);
   };
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 min-h-[50px] h-20 max-h-20 bg-white/95 backdrop-blur-lg border-t border-gray-200 z-30 shadow-lg safe-bottom">
-        <nav className="h-full flex items-center justify-around px-2">
-          {menuItems.map((item) => {
-            const isActive = getIsActive(item.path);
+    // STYLE: Nền giấy #F9F8F6, Border-top siêu mảnh. Không dùng màu đen đặc.
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-[#F9F8F6]/95 backdrop-blur-md border-t border-stone-200 z-30 safe-bottom">
+      <nav className="h-full flex items-center justify-around px-2">
+        {menuItems.map((item) => {
+          const isActive = getIsActive(item.path);
 
-            // NÚT TRUNG TÂM (CHAT AI)
-            if (item.isCentral) {
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={cn(
-                    "relative -translate-y-4 w-16 h-16 rounded-full flex flex-col items-center justify-center shadow-lg transition-all duration-300 active:scale-90 hover:scale-105",
-                    isActive
-                      ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white ring-2 ring-blue-400 ring-offset-2"
-                      : "bg-gradient-to-r from-blue-500 to-purple-500 text-white"
-                  )}
-                  aria-label={item.label}
-                >
-                  <item.icon
-                    size={28}
-                    className={isActive ? "stroke-[2.5]" : "stroke-[2]"}
-                  />
-                  <span className="text-[9px] font-bold mt-0.5 leading-tight">
-                    {item.label}
-                  </span>
-                </Link>
-              );
-            }
-
-            // CÁC NÚT CÒN LẠI
+          // NÚT TRUNG TÂM (Chat): Style tròn, nổi nhẹ, tinh tế
+          if (item.isCentral) {
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-300 min-w-[64px] active:scale-95",
+                  "relative flex items-center justify-center w-12 h-12 rounded-full border transition-all duration-300 shadow-sm",
                   isActive
-                    ? "text-blue-600 bg-blue-50"
-                    : "text-gray-600 hover:text-blue-600 hover:bg-blue-50/50"
+                    ? "bg-stone-900 border-stone-900 text-white"
+                    : "bg-white border-stone-200 text-stone-600 hover:border-stone-400"
                 )}
-                aria-label={item.label}
-                aria-current={isActive ? "page" : undefined}
               >
-                <div className="relative">
-                  <item.icon
-                    size={22}
-                    className={cn(
-                      "transition-all duration-300",
-                      isActive ? "stroke-[2.5]" : "stroke-[2]"
-                    )}
-                  />
-                  {isActive && (
-                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
-                  )}
-                </div>
-                <span
-                  className={cn(
-                    "text-[11px] leading-tight text-center transition-all duration-300",
-                    isActive ? "font-semibold" : "font-medium"
-                  )}
-                >
-                  {item.label}
-                </span>
+                <item.icon size={20} strokeWidth={1.5} />
+                {totalUnreadMessages > 0 && (
+                  <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#F9F8F6]" />
+                )}
               </Link>
             );
+          }
+
+          // CÁC NÚT KHÁC: Minimalist Icon + Label Serif
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className="flex-1 flex flex-col items-center justify-center gap-1 group"
+            >
+              <div
+                className={cn(
+                  "transition-all duration-300",
+                  isActive ? "text-stone-900 -translate-y-1" : "text-stone-400"
+                )}
+              >
+                <item.icon
+                  size={22}
+                  strokeWidth={1.5} // Nét mảnh
+                  className="group-hover:text-stone-700 transition-colors"
+                />
+              </div>
+
+              {/* Label: Chỉ hiện khi Active hoặc rất nhỏ */}
+              <span
+                className={cn(
+                  "text-[9px] uppercase tracking-widest font-medium transition-opacity duration-300",
+                  isActive ? "opacity-100 text-stone-900" : "opacity-0"
+                )}
+              >
+                {item.label}
+              </span>
+
+              {/* Dot Indicator for Active State */}
+              {isActive && (
+                <div className="w-1 h-1 bg-stone-900 rounded-full mt-1 animate-in fade-in" />
+              )}
+            </Link>
+          );
         })}
       </nav>
     </div>

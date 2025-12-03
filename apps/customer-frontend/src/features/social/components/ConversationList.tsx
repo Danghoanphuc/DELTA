@@ -1,11 +1,21 @@
-// apps/customer-frontend/src/features/social/components/ConversationList.tsx
-
-import { Search, ListFilter, Trash2, Users, BellOff, CheckCircle2, Pin } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import {
+  Search,
+  ListFilter,
+  Trash2,
+  Users,
+  BellOff,
+  CheckCircle2,
+  Pin,
+  MoreHorizontal,
+} from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type { ChatConversation } from "@/types/chat";
 import { useSocialChatStore } from "../hooks/useSocialChatStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { deleteConversation, muteConversation } from "../../chat/services/chat.api.service";
+import {
+  deleteConversation,
+  muteConversation,
+} from "../../chat/services/chat.api.service";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 import { cn } from "@/shared/lib/utils";
@@ -13,62 +23,65 @@ import { toast } from "@/shared/utils/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { ConfirmDialog } from "@/shared/components/ui/ConfirmDialog";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/shared/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from "@/shared/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/shared/components/ui/dropdown-menu";
 
-// --- Custom Context Menu Component (Không cần cài thư viện) ---
-const CustomContextMenu = ({ x, y, onClose, onAction }: { x: number, y: number, onClose: () => void, onAction: (action: string) => void }) => {
-    // Click outside handler
-    useEffect(() => {
-        const handleClick = () => onClose();
-        document.addEventListener("click", handleClick);
-        return () => document.removeEventListener("click", handleClick);
-    }, [onClose]);
-
-    return (
-        <div 
-            className="fixed z-[9999] w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 text-sm animate-in fade-in zoom-in-95 duration-100"
-            style={{ top: y, left: x }}
-            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
-        >
-            <button onClick={() => onAction('read')} className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700">
-                <CheckCircle2 size={14}/> Đánh dấu đã đọc
-            </button>
-            <button onClick={() => onAction('mute')} className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700">
-                <BellOff size={14}/> Tắt thông báo
-            </button>
-            <button onClick={() => onAction('pin')} className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700">
-                <Pin size={14}/> Ghim hội thoại
-            </button>
-            <div className="h-px bg-gray-100 my-1"/>
-            <button onClick={() => onAction('delete')} className="w-full text-left px-3 py-2 hover:bg-red-50 flex items-center gap-2 text-red-600 font-medium">
-                <Trash2 size={14}/> Xóa cuộc trò chuyện
-            </button>
-        </div>
-    );
-};
-
-// --- SUB-COMPONENT: AVATAR ---
-const ConversationAvatar = ({ 
-  src, alt, fallback, isGroup, isOnline
-}: { 
-  src: string | null, alt: string, fallback: string, isGroup: boolean, isOnline?: boolean
+// --- AVATAR COMPONENT ---
+const ConversationAvatar = ({
+  src,
+  alt,
+  fallback,
+  isGroup,
+  isOnline,
+}: {
+  src: string | null;
+  alt: string;
+  fallback: string;
+  isGroup: boolean;
+  isOnline?: boolean;
 }) => {
   const [error, setError] = useState(false);
   return (
-    <div className="relative w-12 h-12 flex-shrink-0">
-      <div className={cn(
-        "w-full h-full rounded-full flex items-center justify-center font-bold overflow-hidden border border-gray-100 shadow-sm transition-transform",
-        isGroup ? "bg-gradient-to-br from-orange-400 to-pink-500" : "bg-gradient-to-br from-blue-500 to-purple-600",
-        (!src || error) && "text-white"
-      )}>
+    <div className="relative h-12 w-12 flex-shrink-0">
+      <div
+        className={cn(
+          "h-full w-full overflow-hidden rounded-2xl shadow-sm ring-1 ring-inset ring-black/5 transition-transform",
+          isGroup
+            ? "bg-gradient-to-br from-stone-100 to-stone-200"
+            : "bg-stone-100",
+          (!src || error) && "flex items-center justify-center"
+        )}
+      >
         {!src || error ? (
-          isGroup ? <Users size={20} /> : <span className="text-lg leading-none">{fallback}</span>
+          isGroup ? (
+            <Users size={20} className="text-stone-400" />
+          ) : (
+            <span className="font-serif text-lg font-bold text-stone-500">
+              {fallback}
+            </span>
+          )
         ) : (
-          <img src={src} className="w-full h-full object-cover animate-in fade-in duration-300" alt={alt} onError={() => setError(true)} />
+          <img
+            src={src}
+            className="h-full w-full object-cover"
+            alt={alt}
+            onError={() => setError(true)}
+          />
         )}
       </div>
       {!isGroup && isOnline && (
-        <span className="absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-white shadow-md z-10" />
+        <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-500" />
       )}
     </div>
   );
@@ -92,60 +105,74 @@ export function ConversationList({
   const [isUnreadFilter, setIsUnreadFilter] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // Context Menu State
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string } | null>(null);
+  const [newlyCreatedId, setNewlyCreatedId] = useState<string | null>(null);
 
   const currentUser = useAuthStore((s) => s.user);
-  const { unreadCounts, removeConversation, typingUsers, markAsRead, messagesByConversation } = useSocialChatStore(); // ✅ Lấy messagesByConversation để lấy tin nhắn cuối
+  const {
+    unreadCounts,
+    removeConversation,
+    typingUsers,
+    markAsRead,
+    messagesByConversation,
+  } = useSocialChatStore();
   const queryClient = useQueryClient();
 
-  const filteredConversations = conversations.filter((conv) => {
+  // Track newly created conversations for highlight effect
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (conversations.length > 0) {
+      const newest = conversations[0];
+      const isNew =
+        Date.now() - new Date(newest.createdAt || 0).getTime() < 3000;
+      if (isNew && newest._id !== newlyCreatedId) {
+        setNewlyCreatedId(newest._id);
+
+        // Scroll to top smoothly when new conversation is added
+        if (listRef.current) {
+          listRef.current.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        setTimeout(() => setNewlyCreatedId(null), 3000);
+      }
+    }
+  }, [conversations]);
+
+  // Deduplicate conversations by _id (keep the first occurrence)
+  const uniqueConversations = useMemo(() => {
+    const seen = new Set<string>();
+    return conversations.filter((conv) => {
+      if (seen.has(conv._id)) return false;
+      seen.add(conv._id);
+      return true;
+    });
+  }, [conversations]);
+
+  const filteredConversations = uniqueConversations.filter((conv) => {
     let matchSearch = true;
     if (searchTerm.trim()) {
-        const isGroup = conv.type === "group";
-        let displayName = conv.title || "";
-        if (!isGroup && conv.participants) {
-            const partner = conv.participants.find((p: any) => (p.userId?._id || p.userId) !== currentUser?._id)?.userId;
-            if (partner && typeof partner === 'object') {
-                displayName = partner.displayName || partner.username || "";
-            }
+      const isGroup = conv.type === "group";
+      let displayName = conv.title || "";
+      if (!isGroup && conv.participants) {
+        const partner = conv.participants.find(
+          (p: any) => (p.userId?._id || p.userId) !== currentUser?._id
+        )?.userId;
+        if (partner && typeof partner === "object") {
+          displayName = partner.displayName || partner.username || "";
         }
-        matchSearch = displayName.toLowerCase().includes(searchTerm.toLowerCase());
+      }
+      matchSearch = displayName
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
     }
     let matchUnread = true;
     if (isUnreadFilter) {
-        matchUnread = (unreadCounts[conv._id] || 0) > 0;
+      matchUnread = (unreadCounts[conv._id] || 0) > 0;
     }
     return matchSearch && matchUnread;
   });
 
-  const handleContextMenu = (e: React.MouseEvent, conversationId: string) => {
-      e.preventDefault();
-      setContextMenu({ x: e.clientX, y: e.clientY, id: conversationId });
-  };
-
-  const handleContextAction = async (action: string) => {
-      if (!contextMenu) return;
-      const { id } = contextMenu;
-      setContextMenu(null);
-
-      if (action === 'delete') {
-          setDeleteId(id);
-      } else if (action === 'read') {
-          markAsRead(id);
-      } else if (action === 'mute') {
-          // Mock optimistic update logic here if needed
-          try {
-              await muteConversation(id, true);
-              toast.success("Đã tắt thông báo");
-          } catch (e) { toast.error("Lỗi khi tắt thông báo"); }
-      } else if (action === 'pin') {
-          toast.success("Đã ghim (Demo)");
-      }
-  };
-
-  const handleConfirmDelete = async () => {
+  const handleDelete = async () => {
     if (!deleteId) return;
     setIsDeleting(true);
     try {
@@ -154,7 +181,7 @@ export function ConversationList({
       toast.success("Đã xóa cuộc trò chuyện");
       await deleteConversation(deleteId);
     } catch (error) {
-      toast.error("Lỗi khi xóa, vui lòng thử lại");
+      toast.error("Lỗi khi xóa");
       queryClient.invalidateQueries({ queryKey: ["socialConversations"] });
     } finally {
       setIsDeleting(false);
@@ -162,226 +189,312 @@ export function ConversationList({
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-white relative">
-      {/* Header */}
-      <div className="p-3 border-b border-gray-100 bg-white z-10 sticky top-0">
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h1 className="text-xl font-bold text-gray-900 tracking-tight">Tin nhắn</h1>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button 
-                    onClick={() => setIsUnreadFilter(!isUnreadFilter)} 
-                    className={cn(
-                        "w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 border",
-                        isUnreadFilter 
-                            ? "bg-blue-600 text-white border-blue-600 shadow-md" 
-                            : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-blue-600"
-                    )}
-                  > 
-                    <ListFilter size={16} /> 
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent><p>Lọc tin chưa đọc</p></TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          
-          <div className="relative group">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-              <input 
-                  value={searchTerm} 
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-transparent focus:bg-white focus:border-blue-200 rounded-xl outline-none text-sm transition-all font-medium text-gray-700 placeholder:text-gray-400"
-                  placeholder="Tìm kiếm..."
-              />
-          </div>
+    <div className="flex h-full w-full flex-col bg-white">
+      {/* Header Search */}
+      <div className="sticky top-0 z-10 bg-white/80 px-4 py-4 backdrop-blur-md">
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="font-serif text-2xl font-bold text-stone-900">
+            Tin nhắn
+          </h1>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setIsUnreadFilter(!isUnreadFilter)}
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-full transition-all border",
+                    isUnreadFilter
+                      ? "bg-primary text-white border-primary shadow-md"
+                      : "bg-transparent text-stone-400 border-stone-200 hover:border-primary hover:text-primary"
+                  )}
+                >
+                  <ListFilter size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Lọc tin chưa đọc</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+
+        <div className="relative group">
+          <Search
+            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 transition-colors group-focus-within:text-primary"
+          />
+          <input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-10 w-full rounded-xl bg-stone-50 border-none pl-10 pr-4 text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:ring-1 focus:ring-primary/20 transition-all"
+            placeholder="Tìm kiếm đối thoại..."
+          />
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-          {isLoading ? (
-            [1,2,3,4].map(i => <div key={i} className="h-[72px] bg-gray-50 rounded-xl animate-pulse mx-1"/>)
-          ) : filteredConversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-gray-400 text-sm gap-2">
-               <Search size={32} className="opacity-20" />
-               <p>{isUnreadFilter ? "Đã đọc hết tin nhắn" : "Không tìm thấy tin nhắn"}</p>
+      {/* List */}
+      <div
+        ref={listRef}
+        className="flex-1 space-y-1 overflow-y-auto px-2 pb-2 custom-scrollbar"
+        style={{ scrollBehavior: "smooth" }}
+      >
+        {isLoading ? (
+          [1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="mx-2 h-[76px] rounded-2xl bg-stone-50 animate-pulse"
+            />
+          ))
+        ) : filteredConversations.length === 0 ? (
+          <div className="flex h-64 flex-col items-center justify-center gap-3 text-stone-400">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-stone-50">
+              <Search size={24} className="opacity-20" />
             </div>
-          ) : (
-            <LayoutGroup>
-              <AnimatePresence initial={false}>
-                {filteredConversations.map((conversation: any) => {
-                  const unread = unreadCounts[conversation._id] || 0;
-                  const isActive = activeId === conversation._id;
-                  const isGroup = conversation.type === "group";
+            <p className="font-sans text-sm">
+              {isUnreadFilter
+                ? "Đã đọc hết tin nhắn"
+                : "Không tìm thấy kết quả"}
+            </p>
+          </div>
+        ) : (
+          <LayoutGroup>
+            <AnimatePresence initial={false}>
+              {filteredConversations.map((conversation: any) => {
+                const unread = unreadCounts[conversation._id] || 0;
+                const isActive = activeId === conversation._id;
+                const isGroup = conversation.type === "group";
 
-                  // --- Logic hiển thị tên/avatar ---
-                  let displayTitle = conversation.title || "Cuộc trò chuyện";
-                  let displayAvatar = null;
-                  let displayInitial = "?";
-                  let isOnline = false;
+                // Data Processing
+                let displayTitle = conversation.title || "Cuộc trò chuyện";
+                let displayAvatar = null;
+                let displayInitial = "?";
+                let isOnline = false;
 
-                  if (isGroup) {
-                      displayTitle = conversation.title || "Nhóm mới";
-                      displayAvatar = conversation.avatarUrl;
-                      displayInitial = displayTitle[0]?.toUpperCase() || "G";
-                  } else {
-                      const partner = conversation.participants?.find((p: any) => (p.userId?._id || p.userId) !== currentUser?._id)?.userId;
-                      if (partner && typeof partner === 'object') {
-                          displayTitle = partner.displayName || partner.username || "Người dùng";
-                          displayAvatar = partner.avatarUrl || null;
-                          displayInitial = (displayTitle[0] || "?").toUpperCase();
-                          isOnline = partner.isOnline === true;
-                      }
+                if (isGroup) {
+                  displayTitle = conversation.title || "Nhóm mới";
+                  displayAvatar = conversation.avatarUrl;
+                  displayInitial = displayTitle[0]?.toUpperCase() || "G";
+                } else {
+                  const partner = conversation.participants?.find(
+                    (p: any) => (p.userId?._id || p.userId) !== currentUser?._id
+                  )?.userId;
+                  if (partner && typeof partner === "object") {
+                    displayTitle =
+                      partner.displayName || partner.username || "Người dùng";
+                    displayAvatar = partner.avatarUrl || null;
+                    displayInitial = (displayTitle[0] || "?").toUpperCase();
+                    isOnline = partner.isOnline === true;
                   }
-                  
-                  const lastUpdated = new Date(conversation.updatedAt || conversation.createdAt || Date.now()).getTime();
-                  const finalAvatarUrl = displayAvatar ? `${displayAvatar}?v=${lastUpdated}` : null;
+                }
 
-                  // --- ✅ FEATURE 1: TYPING INDICATOR ---
-                  const typers = typingUsers[conversation._id] || [];
-                  const isTyping = typers.length > 0;
+                // Message Preview Logic (Same as before but refined)
+                const conversationLastMessage = (conversation as any)
+                  .lastMessage;
+                const messages = messagesByConversation[conversation._id] || [];
+                const lastMessage =
+                  conversationLastMessage ||
+                  (messages.length > 0 ? messages[messages.length - 1] : null);
+                const isTyping =
+                  (typingUsers[conversation._id] || []).length > 0;
 
-                  // --- ✅ FEATURE 2: LẤY TIN NHẮN CUỐI CÙNG ---
-                  // Ưu tiên: 1. lastMessage từ conversation (đã được cập nhật từ socket), 2. Messages từ store, 3. lastMessagePreview, 4. Fallback
-                  const conversationLastMessage = (conversation as any).lastMessage;
-                  const messages = messagesByConversation[conversation._id] || [];
-                  const storeLastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
-                  
-                  // Ưu tiên lastMessage từ conversation (real-time từ socket) hơn messages từ store
-                  const lastMessage = conversationLastMessage || storeLastMessage;
-                  
-                  let previewText = "";
-                  let lastSenderId: string | undefined = undefined;
-                  
-                  if (lastMessage) {
-                    // Lấy sender ID
-                    lastSenderId = typeof lastMessage.sender === 'string' 
-                      ? lastMessage.sender 
+                let previewText =
+                  conversation.lastMessagePreview || "Bắt đầu trò chuyện";
+                let isMe = false;
+
+                if (lastMessage) {
+                  const senderId =
+                    typeof lastMessage.sender === "string"
+                      ? lastMessage.sender
                       : lastMessage.sender?._id;
-                    
-                    // Format preview text dựa trên loại message
-                    if (lastMessage.type === 'system') {
-                      previewText = lastMessage.content?.text || "Đã cập nhật thông tin nhóm";
-                    } else if (lastMessage.type === 'image' || (lastMessage.content as any)?.attachments?.some((a: any) => a.type === 'image')) {
-                      previewText = "📷 Đã gửi ảnh";
-                    } else if (lastMessage.type === 'file' || (lastMessage.content as any)?.attachments?.length > 0) {
-                      const attachments = (lastMessage.content as any)?.attachments || [];
-                      const fileCount = attachments.length;
-                      previewText = fileCount > 1 ? `📎 ${fileCount} tệp đính kèm` : `📎 ${attachments[0]?.originalName || 'Tệp đính kèm'}`;
-                    } else if (lastMessage.content?.text) {
-                      previewText = lastMessage.content.text;
-                      // Giới hạn độ dài
-                      if (previewText.length > 50) {
-                        previewText = previewText.substring(0, 50) + "...";
+                  isMe = senderId === currentUser?._id;
+
+                  if (lastMessage.type === "image")
+                    previewText = "Đã gửi một ảnh";
+                  else if (lastMessage.type === "file")
+                    previewText = "Đã gửi một tệp";
+                  else if (lastMessage.content?.text)
+                    previewText = lastMessage.content.text;
+                }
+
+                const isNewlyCreated = conversation._id === newlyCreatedId;
+
+                return (
+                  <motion.div
+                    layout
+                    layoutId={conversation._id}
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                      scale: 1,
+                      transition: {
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 25,
+                      },
+                    }}
+                    exit={{
+                      opacity: 0,
+                      scale: 0.9,
+                      transition: { duration: 0.2 },
+                    }}
+                    key={conversation._id}
+                    onClick={() => onSelect(conversation._id)}
+                    className={cn(
+                      "group relative flex w-full cursor-pointer items-center gap-3 rounded-2xl p-3 transition-all duration-200",
+                      isActive
+                        ? "bg-stone-100"
+                        : "bg-transparent hover:bg-stone-50",
+                      isNewlyCreated && "ring-2 ring-primary/30 bg-primary/5"
+                    )}
+                  >
+                    <ConversationAvatar
+                      src={
+                        displayAvatar
+                          ? `${displayAvatar}?v=${new Date(
+                              conversation.updatedAt
+                            ).getTime()}`
+                          : null
                       }
-                    } else {
-                      previewText = "Tin nhắn";
-                    }
-                  } else if (conversation.lastMessagePreview) {
-                    previewText = conversation.lastMessagePreview;
-                  } else {
-                    previewText = conversation.type === "customer-bot" 
-                      ? "Zin AI Support" 
-                      : isGroup 
-                        ? "Tin nhắn nhóm" 
-                        : "Tin nhắn mới";
-                  }
-                  
-                  // Kiểm tra nếu là mình gửi
-                  const isMe = lastSenderId === currentUser?._id;
+                      alt={displayTitle}
+                      fallback={displayInitial}
+                      isGroup={isGroup}
+                      isOnline={isOnline}
+                    />
 
-                  if (isMe && !isTyping && previewText) {
-                      previewText = `Bạn: ${previewText}`;
-                  }
-
-                  return (
-                    <motion.div
-                      layout
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                      transition={{ duration: 0.2 }}
-                      key={conversation._id}
-                      onClick={() => onSelect(conversation._id)}
-                      onContextMenu={(e) => handleContextMenu(e, conversation._id)} // ✅ FEATURE 3: RIGHT CLICK
-                      className={cn(
-                        "group relative w-full p-3 flex items-center gap-3 rounded-xl cursor-pointer transition-all border border-transparent min-h-[72px]",
-                        isActive ? "bg-blue-50/80 border-blue-100 shadow-sm" : "hover:bg-gray-50 hover:border-gray-100 bg-white"
-                      )}
-                    >
-                      <ConversationAvatar 
-                        src={finalAvatarUrl} alt={displayTitle} fallback={displayInitial} 
-                        isGroup={isGroup} isOnline={isOnline} 
-                      />
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-baseline mb-0.5">
-                          {/* ✅ TYPOGRAPHY: To hơn (15px) và Đậm hơn */}
-                          <h3 className={cn(
-                              "text-[15px] font-bold truncate pr-2 transition-colors", 
-                              unread > 0 ? "text-gray-900" : "text-gray-700 group-hover:text-gray-900"
-                          )}>
-                            {displayTitle}
-                          </h3>
-                          {conversation.lastMessageAt && (
-                            <span className="text-[10px] text-gray-400 flex-shrink-0 font-medium">
-                              {formatDistanceToNow(new Date(conversation.lastMessageAt), { addSuffix: false, locale: vi }).replace("khoảng ", "")}
-                            </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-0.5 flex items-center justify-between">
+                        <h3
+                          className={cn(
+                            "truncate font-sans text-[15px] font-bold transition-colors",
+                            unread > 0
+                              ? "text-stone-900"
+                              : "text-stone-700 group-hover:text-stone-900"
                           )}
-                        </div>
+                        >
+                          {displayTitle}
+                        </h3>
+                        {conversation.lastMessageAt && (
+                          <span className="shrink-0 font-mono text-[10px] text-stone-400">
+                            {formatDistanceToNow(
+                              new Date(conversation.lastMessageAt),
+                              { addSuffix: false, locale: vi }
+                            ).replace("khoảng ", "")}
+                          </span>
+                        )}
+                      </div>
 
-                        <div className="flex justify-between items-center">
-                          <div className={cn(
-                              "text-[13px] truncate max-w-[150px] leading-snug",
-                              unread > 0 ? "text-gray-900 font-semibold" : "text-gray-500"
-                          )}>
-                             {isTyping ? (
-                                 <span className="text-blue-600 font-medium italic animate-pulse flex items-center gap-1">
-                                    <span className="w-1 h-1 bg-blue-600 rounded-full animate-bounce"/> 
-                                    Đang soạn tin...
-                                 </span>
-                             ) : (
-                                 <>
-                                    {isGroup && unread > 0 && !isMe && <span className="text-blue-600 mr-1">Mới:</span>}
-                                    <span className={cn(isMe && "text-gray-400")}>{previewText}</span>
-                                 </>
-                             )}
-                          </div>
-                          
+                      <div className="flex items-center justify-between gap-2">
+                        <p
+                          className={cn(
+                            "truncate text-[13px] leading-snug max-w-[180px]",
+                            unread > 0
+                              ? "font-bold text-stone-800"
+                              : "font-medium text-stone-500",
+                            isTyping && "text-primary animate-pulse"
+                          )}
+                        >
+                          {isTyping ? (
+                            "Đang nhập..."
+                          ) : (
+                            <>
+                              {isMe && (
+                                <span className="mr-1 text-stone-400">
+                                  Bạn:
+                                </span>
+                              )}
+                              {previewText}
+                            </>
+                          )}
+                        </p>
+
+                        {/* Unread Badge / Context Menu */}
+                        <div className="flex shrink-0 items-center gap-1">
                           {unread > 0 && (
-                            <span className="min-w-[18px] h-[18px] px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm ring-2 ring-white">
+                            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
                               {unread > 99 ? "99+" : unread}
                             </span>
                           )}
+
+                          {/* Menu 3 chấm ẩn hiện khi hover */}
+                          <DropdownMenu modal={false}>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                onClick={(e) => e.stopPropagation()}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity flex h-7 w-7 items-center justify-center rounded-full hover:bg-stone-100"
+                              >
+                                <MoreHorizontal
+                                  size={14}
+                                  className="text-stone-400"
+                                />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="end"
+                              className="w-48 bg-white z-50 shadow-xl border border-stone-100 rounded-xl p-1"
+                            >
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markAsRead(conversation._id);
+                                }}
+                                className="rounded-lg cursor-pointer"
+                              >
+                                <CheckCircle2 size={14} className="mr-2" /> Đánh
+                                dấu đã đọc
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toast.success("Đã ghim");
+                                }}
+                                className="rounded-lg cursor-pointer"
+                              >
+                                <Pin size={14} className="mr-2" /> Ghim hội
+                                thoại
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  muteConversation(conversation._id, true);
+                                }}
+                                className="rounded-lg cursor-pointer"
+                              >
+                                <BellOff size={14} className="mr-2" /> Tắt thông
+                                báo
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="my-1 bg-stone-100" />
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteId(conversation._id);
+                                }}
+                                className="text-red-600 focus:text-red-600 focus:bg-red-50 rounded-lg cursor-pointer"
+                              >
+                                <Trash2 size={14} className="mr-2" /> Xóa hội
+                                thoại
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            </LayoutGroup>
-          )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </LayoutGroup>
+        )}
       </div>
-
-      {/* ✅ CUSTOM CONTEXT MENU PORTAL */}
-      {contextMenu && (
-          <CustomContextMenu 
-              x={contextMenu.x} 
-              y={contextMenu.y} 
-              onClose={() => setContextMenu(null)}
-              onAction={handleContextAction}
-          />
-      )}
 
       <ConfirmDialog
         isOpen={!!deleteId}
         onClose={() => setDeleteId(null)}
-        onConfirm={handleConfirmDelete}
+        onConfirm={handleDelete}
         title="Xóa cuộc trò chuyện?"
-        description="Hành động này không thể hoàn tác."
-        confirmText="Xóa vĩnh viễn"
-        cancelText="Giữ lại"
+        description="Lịch sử tin nhắn sẽ bị xóa vĩnh viễn và không thể khôi phục."
+        confirmText="Xóa ngay"
+        cancelText="Hủy"
         variant="danger"
         isLoading={isDeleting}
       />

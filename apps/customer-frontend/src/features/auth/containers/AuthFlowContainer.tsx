@@ -1,5 +1,3 @@
-// apps/customer-frontend/src/features/auth/containers/AuthFlowContainer.tsx
-import React from "react";
 import { Button } from "@/shared/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
@@ -16,95 +14,115 @@ interface AuthFlowContainerProps {
 
 const getStepTitle = (step: AuthStep, mode: AuthMode): string => {
   switch (step) {
-    case "email": return mode === "signIn" ? "Truy cập hệ thống" : "Kích hoạt tài khoản mới"; // ✅ Đổi text rõ hơn
-    case "name": return "Xác nhận danh tính";
-    case "password": return mode === "signIn" ? "Nhập mã bảo mật" : "Thiết lập mật khẩu";
-    case "verifySent": return "Kiểm tra hộp thư";
-    default: return "";
+    case "email":
+      return mode === "signIn" ? "Chào mừng" : "Bắt đầu hành trình";
+    case "name":
+      return "Thông tin cá nhân";
+    case "password":
+      return "Bảo mật tài khoản";
+    case "verifySent":
+      return "Xác thực email";
+    default:
+      return "";
   }
 };
 
 export function AuthFlowContainer({ mode }: AuthFlowContainerProps) {
   const {
-    form, step, showPassword, setShowPassword, isFormLoading, email,
-    handleEmailSubmit, handleNameSubmit, onSubmit, backButtonAction,
+    form,
+    step,
+    setStep,
+    showPassword,
+    setShowPassword,
+    isFormLoading,
+    email,
+    handleEmailSubmit,
+    handleNameSubmit,
+    onSubmit,
+    backButtonAction,
   } = useAuthLogic({ mode });
 
-  // 🔥 THEME CONFIG: Phân biệt màu sắc
   const isSignIn = mode === "signIn";
-  const themeColor = isSignIn ? "bg-indigo-600" : "bg-orange-600";
-  const borderColor = isSignIn ? "group-hover/container:border-indigo-500/30" : "group-hover/container:border-orange-500/30";
 
   return (
-    <div className="w-full relative group/container max-w-sm mx-auto mt-4">
-      {/* Background kính mờ */}
-      <div className={cn(
-        "absolute inset-0 bg-white/40 backdrop-blur-xl rounded-xl border border-white/60 shadow-xl transition-all duration-500",
-        borderColor // Đổi màu viền khi hover
-      )} />
-
-      {/* 🔥 TOP BAR: Thanh màu đánh dấu chế độ */}
-      <div className={cn("absolute top-0 left-4 right-4 h-1 rounded-b-md z-10", themeColor)} />
-
-      <div className="relative p-6 flex flex-col gap-5 pt-8"> {/* Tăng pt để tránh đè top bar */}
-        
-        {/* Header Area */}
-        <div className="flex flex-col gap-1 relative">
+    <div className="w-full">
+      {/* HEADER SECTION */}
+      <div className="mb-10 border-b border-stone-200 pb-6">
+        <div className="flex items-center justify-between mb-4">
+          <span
+            className={cn(
+              "font-mono text-[10px] font-bold tracking-[0.2em] uppercase px-2 py-1",
+              isSignIn ? "bg-stone-900 text-white" : "bg-emerald-800 text-white"
+            )}
+          >
+            {isSignIn ? "ĐĂNG NHẬP" : "ĐĂNG KÝ"}
+          </span>
           {backButtonAction && (
             <Button
               variant="ghost"
-              size="icon"
-              className="absolute -top-1 -left-2 text-slate-400 hover:text-slate-900 hover:bg-white/40 h-8 w-8 rounded-full"
+              size="sm"
               onClick={backButtonAction}
+              className="h-auto p-0 hover:bg-transparent hover:text-emerald-700 text-stone-400 transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4 mr-1" /> Quay lại
             </Button>
           )}
-
-          <div className={cn("space-y-0.5", backButtonAction ? "mt-8" : "mt-2")}>
-            <div className="flex items-center gap-2 mb-1">
-               {/* Badge nhỏ báo hiệu Mode */}
-               <span className={cn(
-                 "text-[9px] font-black px-1.5 py-0.5 rounded text-white tracking-wider uppercase",
-                 isSignIn ? "bg-indigo-600" : "bg-orange-600"
-               )}>
-                 {isSignIn ? "ĐĂNG NHẬP" : "ĐĂNG KÝ"}
-               </span>
-            </div>
-            <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight uppercase">
-              {getStepTitle(step, mode)}
-            </h1>
-            <p className="text-xs font-mono text-slate-500 font-medium tracking-tight">
-              {step === "email" && (isSignIn ? "/// XÁC THỰC NGƯỜI DÙNG ///" : "/// KHỞI TẠO TÀI KHOẢN ///")}
-              {step === "password" && "/// BẢO MẬT ///"}
-              {step === "name" && "/// HỒ SƠ ///"}
-            </p>
-          </div>
         </div>
 
-        {/* Form Area */}
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col">
-          <div className={cn(step !== "email" && "hidden")}>
-            <EmailForm form={form} isLoading={isFormLoading} mode={mode} onSubmit={handleEmailSubmit} />
-          </div>
+        <h2 className="font-serif text-4xl text-stone-900 italic mb-2">
+          {getStepTitle(step, mode)}.
+        </h2>
+        <p className="text-stone-500 font-light text-sm">
+          {step === "email" &&
+            (isSignIn
+              ? "Nhập định danh để truy cập Workspace."
+              : "Thiết lập hồ sơ Brand mới.")}
+          {step === "password" && "Xác thực bảo mật 2 lớp."}
+          {step === "name" && "Thông tin người đại diện."}
+        </p>
+      </div>
 
-          {mode === "signUp" && (
-            <div className={cn(step !== "name" && "hidden")}>
-              <NameForm form={form} isLoading={isFormLoading} onSubmit={handleNameSubmit} />
-            </div>
-          )}
+      {/* FORM SECTION */}
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-8"
+      >
+        <div className={cn(step !== "email" && "hidden")}>
+          <EmailForm
+            form={form}
+            isLoading={isFormLoading}
+            mode={mode}
+            onSubmit={handleEmailSubmit}
+          />
+        </div>
 
-          <div className={cn(step !== "password" && "hidden")}>
-            <PasswordForm
-              form={form} isLoading={isFormLoading} mode={mode} email={email}
-              showPassword={showPassword} onTogglePassword={() => setShowPassword(!showPassword)}
-              onEmailClick={() => form.setValue("email", "")}
+        {mode === "signUp" && (
+          <div className={cn(step !== "name" && "hidden")}>
+            <NameForm
+              form={form}
+              isLoading={isFormLoading}
+              onSubmit={handleNameSubmit}
             />
           </div>
-        </form>
+        )}
 
-        {step === "verifySent" && <VerifySentView email={email} />}
-      </div>
+        <div className={cn(step !== "password" && "hidden")}>
+          <PasswordForm
+            form={form}
+            isLoading={isFormLoading}
+            mode={mode}
+            email={email}
+            showPassword={showPassword}
+            onTogglePassword={() => setShowPassword(!showPassword)}
+            onEmailClick={() => {
+              form.setValue("email", "");
+              setStep("email");
+            }}
+          />
+        </div>
+      </form>
+
+      {step === "verifySent" && <VerifySentView email={email} />}
     </div>
   );
 }

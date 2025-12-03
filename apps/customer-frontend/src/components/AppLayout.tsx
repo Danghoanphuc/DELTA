@@ -10,9 +10,7 @@ import { cn } from "@/shared/lib/utils";
 import { CartSidebar } from "@/features/shop/pages/CartSidebar";
 import { useCartStore } from "@/stores/useCartStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { OfflineIndicator } from "./OfflineIndicator"; // <--- IMPORT MỚI
-// import { EventBanner } from "./EventBanner";
-// import { EventParticles } from "./EventParticles";
+import { OfflineIndicator } from "./OfflineIndicator";
 
 export const AppLayout = () => {
   const { handleSearchSubmit } = useShop();
@@ -38,7 +36,7 @@ export const AppLayout = () => {
   const showSearch =
     location.pathname === "/app" || location.pathname === "/shop";
 
-  // ✅ FIXED: Ẩn header trên các trang auth
+  // 3. Logic Auth
   const authRoutes = [
     "/signin",
     "/signup",
@@ -50,14 +48,14 @@ export const AppLayout = () => {
   const isAuthPage = authRoutes.some((route) => location.pathname === route);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Event Theme: TẮT - Uncomment để bật lại */}
-      {/* {!isAuthPage && <EventBanner />} */}
-      {/* {!isAuthPage && <EventParticles />} */}
+    // STYLE CHANGE: Nền giấy #F9F8F6 thay vì xám lạnh. Font mặc định sans-serif.
+    <div className="min-h-screen bg-[#F9F8F6] text-stone-900 font-sans selection:bg-stone-900 selection:text-white">
+      {/* TEXTURE OVERLAY: Lớp noise mờ, tạo cảm giác giấy in tạp chí */}
+      <div className="fixed inset-0 opacity-[0.03] pointer-events-none z-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-multiply"></div>
 
       {/* Header: Chỉ hiện trên Desktop và không phải trang auth */}
       {!isAuthPage && (
-        <div className="hidden lg:block">
+        <div className="hidden lg:block relative z-20">
           <GlobalHeader
             onSearchSubmit={showSearch ? handleSearchSubmit : undefined}
             cartItemCount={cartItemCount}
@@ -68,19 +66,22 @@ export const AppLayout = () => {
 
       <main
         className={cn(
-          "transition-all duration-200",
-          // ✅ LOGIC PADDING CHUẨN:
-          // 1. Khi Chat: Fullscreen tuyệt đối (pt-0, pb-0, h-100dvh) -> ChatWindow tự lo padding bên trong.
-          // 2. Khi Auth: Không có header nên không cần pt-16
-          // 3. Khi Bình thường: Dùng 'safe-top' (tránh tai thỏ) + pb-24 (tránh footer).
+          "relative z-10 transition-all duration-300 ease-out",
+          // PADDING LOGIC:
+          // Chat: Full screen
+          // Auth: Basic padding
+          // App: Padding rộng, thoáng đãng (Editorial Space)
           isChatting
             ? "pt-0 pb-0 h-[100dvh]"
             : isAuthPage
             ? "safe-top pb-24"
-            : "safe-top pb-24 lg:pt-16 lg:pb-0"
+            : "safe-top pb-32 lg:pt-24 lg:px-12"
         )}
       >
-        <Outlet />
+        {/* Container giới hạn chiều rộng nội dung để đảm bảo tính thẩm mỹ */}
+        <div className="max-w-[1600px] mx-auto">
+          <Outlet />
+        </div>
       </main>
 
       {/* Footer: Ẩn khi đang chat hoặc đang ở trang auth */}
@@ -90,7 +91,6 @@ export const AppLayout = () => {
 
       <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
 
-      {/* ✅ OFFLINE INDICATOR: Hiển thị trạng thái mất kết nối */}
       <OfflineIndicator />
     </div>
   );
