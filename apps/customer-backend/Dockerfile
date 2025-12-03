@@ -31,6 +31,9 @@ RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter "@printz/types" build
 RUN pnpm --filter "@printz/utils" build
 
+# Debug: List files to verify source is copied
+RUN ls -la apps/customer-backend/src || echo "Source directory not found!"
+
 # Build customer-backend
 RUN pnpm --filter customer-backend build
 
