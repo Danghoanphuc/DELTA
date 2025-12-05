@@ -1,14 +1,8 @@
 {
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
-    }
-  ],
-  "buildCommand": "pnpm --filter @printz/types build && pnpm --filter admin-frontend build",
+  "buildCommand": "cd ../.. && pnpm --filter @printz/types build && pnpm --filter @printz/utils build && pnpm --filter @printz/ui build && pnpm --filter admin-frontend build",
   "outputDirectory": "dist",
-  "installCommand": "pnpm install --frozen-lockfile",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "framework": "vite",
   "rewrites": [
     {
       "source": "/api/:path*",
