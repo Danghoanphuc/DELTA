@@ -8,7 +8,7 @@ import {
   productService,
   skuVariantService,
   templateService,
-} from "../services/catalog.service";
+} from "../services/catalog.service.js";
 
 // ============================================
 // CATEGORY CONTROLLERS

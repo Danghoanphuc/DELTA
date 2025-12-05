@@ -2,8 +2,8 @@
 // ✅ Admin Swag Operations Controller - Fulfillment Management
 
 import { Request, Response } from "express";
-import { SwagOperationsService } from "../services/admin.swag-operations.service";
-import { asyncHandler } from "../utils/asyncHandler";
+import { SwagOperationsService } from "../services/admin.swag-operations.service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
 const swagOpsService = new SwagOperationsService();
 

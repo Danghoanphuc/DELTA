@@ -2,8 +2,8 @@
 // ✅ Admin Swag Operations Routes
 
 import { Router } from "express";
-import { swagOperationsController } from "../controllers/admin.swag-operations.controller";
-import { isAuthenticatedAdmin } from "../middleware/admin.auth.middleware";
+import { swagOperationsController } from "../controllers/admin.swag-operations.controller.js";
+import { isAuthenticatedAdmin } from "../middleware/admin.auth.middleware.js";
 
 const router = Router();
 
@@ -174,7 +174,7 @@ router.get("/export", swagOperationsController.exportOrders);
 // ============================================
 // ANALYTICS (imported from analytics controller)
 // ============================================
-import { analyticsController } from "../controllers/admin.analytics.controller";
+import { analyticsController } from "../controllers/admin.analytics.controller.js";
 
 /**
  * @route   GET /api/admin/swag-ops/analytics/trends

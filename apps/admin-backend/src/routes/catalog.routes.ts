@@ -8,7 +8,7 @@ import {
   productController,
   variantController,
   templateController,
-} from "../controllers/catalog.controller";
+} from "../controllers/catalog.controller.js";
 
 const router = Router();
 

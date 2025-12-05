@@ -2,8 +2,8 @@
 // ✅ Admin Analytics Controller
 
 import { Request, Response } from "express";
-import { analyticsService } from "../services/admin.analytics.service";
-import { asyncHandler } from "../utils/asyncHandler";
+import { analyticsService } from "../services/admin.analytics.service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
 export class AnalyticsController {
   /**

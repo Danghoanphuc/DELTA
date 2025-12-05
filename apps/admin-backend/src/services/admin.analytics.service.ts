@@ -5,11 +5,11 @@ import mongoose from "mongoose";
 import {
   SwagOrderRepository,
   swagOrderRepository,
-} from "../repositories/swag-order.repository";
+} from "../repositories/swag-order.repository.js";
 import {
   InventoryRepository,
   inventoryRepository,
-} from "../repositories/inventory.repository";
+} from "../repositories/inventory.repository.js";
 
 interface DateRange {
   from: Date;

@@ -2,8 +2,8 @@
 // ✅ Admin Swag Operations Service - Refactored
 // Re-export từ Facade để maintain backward compatibility
 
-export { SwagOperationsFacade as SwagOperationsService } from "./swag-operations.facade";
-export { swagOperationsService } from "./swag-operations.facade";
+export { SwagOperationsFacade as SwagOperationsService } from "./swag-operations.facade.js";
+export { swagOperationsService } from "./swag-operations.facade.js";
 
 // Re-export interfaces
 export type {
@@ -14,9 +14,9 @@ export type {
   DashboardStats,
   FulfillmentQueue,
   InventoryOverview,
-} from "../interfaces/swag-operations.interface";
+} from "../interfaces/swag-operations.interface.js";
 
 export {
   ORDER_STATUS,
   SHIPMENT_STATUS,
-} from "../interfaces/swag-operations.interface";
+} from "../interfaces/swag-operations.interface.js";
