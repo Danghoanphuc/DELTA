@@ -20,7 +20,7 @@ import {
 import { Loader2 } from "lucide-react";
 import { useCustomerSettings } from "@/features/customer/hooks/useCustomerSettings";
 import { UserAvatar } from "@/components/UserAvatar";
-import { AvatarCropModal } from "@/features/printer/components/AvatarCropModal";
+import { AvatarCropModal } from "@/shared/components/AvatarCropModal";
 import { toast } from "@/shared/utils/toast";
 import api from "@/shared/lib/axios";
 import { useAuthStore } from "@/stores/useAuthStore";

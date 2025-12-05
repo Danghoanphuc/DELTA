@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { toast } from "@/shared/utils/toast";
 import { Loader2, UserCheck, X, Check } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { createPeerConversation } from "../../chat/services/chat.api.service";
 
 export const PendingRequests: React.FC = () => {
   const queryClient = useQueryClient();
@@ -26,11 +27,29 @@ export const PendingRequests: React.FC = () => {
   }, [data, setPendingRequests]);
 
   const acceptMutation = useMutation({
-    mutationFn: (connectionId: string) => acceptConnectionRequest(connectionId),
+    mutationFn: async ({
+      connectionId,
+      userId,
+    }: {
+      connectionId: string;
+      userId: string;
+    }) => {
+      // Step 1: Accept the connection request
+      await acceptConnectionRequest(connectionId);
+
+      // Step 2: Auto-create peer conversation
+      try {
+        await createPeerConversation(userId);
+      } catch (error) {
+        console.warn("Failed to auto-create conversation:", error);
+        // Don't fail the whole operation if conversation creation fails
+      }
+    },
     onSuccess: () => {
       toast.success("Đã kết nối thành công");
       queryClient.invalidateQueries({ queryKey: ["pendingRequests"] });
       queryClient.invalidateQueries({ queryKey: ["friends"] });
+      queryClient.invalidateQueries({ queryKey: ["socialConversations"] });
     },
     onError: () => toast.error("Có lỗi xảy ra"),
   });
@@ -122,7 +141,12 @@ export const PendingRequests: React.FC = () => {
             <div className="grid grid-cols-2 gap-2">
               <Button
                 size="sm"
-                onClick={() => acceptMutation.mutate(request._id)}
+                onClick={() =>
+                  acceptMutation.mutate({
+                    connectionId: request._id,
+                    userId: requester._id,
+                  })
+                }
                 disabled={acceptMutation.isPending}
                 className="w-full rounded-xl bg-primary hover:bg-red-700 text-white shadow-sm"
               >

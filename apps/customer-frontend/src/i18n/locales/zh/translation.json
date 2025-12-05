@@ -1,0 +1,98 @@
+{
+  "seo": {
+    "title": "Printz Enterprise: 品牌管理与B2B印刷平台",
+    "description": "企业印刷工作流程的数字解决方案。标准化品牌指南、透明成本、自动审批和100%增值税发票管理。",
+    "keywords": "品牌管理, 企业印刷, Web-to-Print B2B, 企业印刷, 品牌指南, 审批工作流程, 数字印刷平台"
+  },
+  "header": {
+    "shop": "商店",
+    "business": "商业解决方案",
+    "inspiration": "灵感",
+    "signIn": "登录",
+    "startProject": "开始项目",
+    "selectRegion": "选择地区"
+  },
+  "languages": {
+    "vi": "Tiếng Việt",
+    "en": "English (Global)",
+    "ja": "日本語 (Japan)",
+    "ko": "한국어 (Korea)",
+    "zh": "中文 (China)",
+    "fr": "Français (France)",
+    "de": "Deutsch (Germany)",
+    "es": "Español (Spain)",
+    "it": "Italiano (Italy)",
+    "ru": "Русский (Russia)"
+  },
+  "hero": {
+    "badge": "品牌管理与B2B印刷平台",
+    "title1": "数字化",
+    "title2": "B2B印刷工作流程",
+    "title3": "优化预算。",
+    "description": "企业印刷工作流程的数字平台。标准化品牌指南、透明招标和自动化审批工作流程。",
+    "bookDemo": "预约演示",
+    "viewSolution": "查看解决方案",
+    "brandSafety": "品牌安全",
+    "brandSafetyDesc": "100%色彩准确度保证",
+    "costControl": "成本控制",
+    "costControlDesc": "减少15-20%浪费",
+    "systemStatus": "系统状态",
+    "approvalRequired": "需要批准",
+    "approve": "批准",
+    "reject": "拒绝"
+  },
+  "valueProposition": {
+    "quote": "在B2B中，最低价格不如",
+    "safety": "安全性",
+    "and": "和",
+    "transparency": "透明度"
+  },
+  "solutions": {
+    "sectionTitle1": "不仅仅是印刷。",
+    "sectionTitle2": "这是企业管理。",
+    "sectionDesc": "3个核心模块使Printz成为采购和营销部门的得力助手。",
+    "brandVault": {
+      "title": "Brand Vault™",
+      "subtitle": "品牌保险箱",
+      "desc": "锁定品牌资产。员工只能更改现有模板上的文本内容。完全消除错误颜色、字体或扭曲徽标的风险。",
+      "feature1": "数字资产管理（DAM）",
+      "feature2": "锁定模板",
+      "feature3": "基于角色的访问",
+      "cta": "探索Brand Vault™"
+    },
+    "autoPilot": {
+      "title": "Auto-Pilot",
+      "subtitle": "自动化运营",
+      "desc": "内置多级审批工作流程。从员工订单到经理批准只需30秒。无需来回发送电子邮件，无需手动报价。",
+      "feature1": "智能审批流程",
+      "feature2": "实时跟踪",
+      "feature3": "批量订购",
+      "cta": "探索Auto-Pilot"
+    },
+    "smartCost": {
+      "title": "Smart Cost",
+      "subtitle": "成本透明",
+      "desc": "盲标系统确保最佳市场价格。自动合并应付账款并在月底发出单一增值税发票。",
+      "feature1": "价格基准",
+      "feature2": "合并发票",
+      "feature3": "预算警报",
+      "cta": "探索Smart Cost"
+    }
+  },
+  "aiUsp": {
+    "badge": "Printz Intelligence™",
+    "title1": "设计工程",
+    "title2": "自动化。",
+    "description": "自动文件预检、分辨率警告和出血优化。确保物理打印与数字设计100%匹配。",
+    "feature1": "自动检测低DPI图像",
+    "feature2": "RGB到CMYK颜色警告",
+    "feature3": "优化纸张尺寸以节省30%成本",
+    "fileId": "FILE_ID: A4_BROCHURE_FINAL.PDF",
+    "systemOnline": "系统在线",
+    "analyzingGeometry": "分析几何",
+    "noBleedingIssues": "未发现出血问题。",
+    "colorProfile": "颜色配置文件",
+    "resolution": "分辨率",
+    "dimensions": "尺寸"
+  }
+}

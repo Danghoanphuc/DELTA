@@ -110,7 +110,7 @@ export default function ProcessPage() {
 
       {/* CTA */}
       <section className="py-24 text-center bg-stone-900 text-white">
-        <h2 className="font-serif text-4xl mb-8 italic">
+        <h2 className="font-serif text-4xl mb-8 italic text-white">
           Ready to optimize your workflow?
         </h2>
         <Button

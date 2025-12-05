@@ -6,7 +6,8 @@ export {
   protect, // Required authentication
   optionalAuth, // Optional authentication (guest + auth)
   isPrinter, // Check if user is a printer
-  isAdmin, // ✅ THÊM 'isAdmin' VÀO ĐÂY
+  isOrganization, // ✅ NEW: Check if user is an organization (B2B)
+  isAdmin, // Check if user is admin
   requireAuth, // Require auth with friendly message
   isVerified, // Check if user email is verified
 } from "./auth.middleware.js";

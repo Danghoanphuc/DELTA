@@ -1,0 +1,98 @@
+{
+  "seo": {
+    "title": "Printz Enterprise: Markenmanagement & B2B-Druckplattform",
+    "description": "Digitale Lösung für Unternehmens-Druck-Workflows. Standardisierung von Markenrichtlinien, transparente Kosten, automatisierte Genehmigung und 100% Mehrwertsteuerrechnungsverwaltung.",
+    "keywords": "Markenmanagement, Unternehmensdruck, Web-to-Print B2B, Unternehmensdruck, Markenrichtlinien, Genehmigungsworkflow, Digitale Druckplattform"
+  },
+  "header": {
+    "shop": "Shop",
+    "business": "Geschäftslösungen",
+    "inspiration": "Inspiration",
+    "signIn": "Anmelden",
+    "startProject": "Projekt Starten",
+    "selectRegion": "Region Auswählen"
+  },
+  "languages": {
+    "vi": "Tiếng Việt",
+    "en": "English (Global)",
+    "ja": "日本語 (Japan)",
+    "ko": "한국어 (Korea)",
+    "zh": "中文 (China)",
+    "fr": "Français (France)",
+    "de": "Deutsch (Germany)",
+    "es": "Español (Spain)",
+    "it": "Italiano (Italy)",
+    "ru": "Русский (Russia)"
+  },
+  "hero": {
+    "badge": "Markenmanagement & B2B-Druckplattform",
+    "title1": "Digitalisieren",
+    "title2": "B2B-Druck-Workflow",
+    "title3": "Budget Optimieren.",
+    "description": "Digitale Plattform für Unternehmens-Druck-Workflows. Standardisierung von Markenrichtlinien, transparente Ausschreibungen und automatisierter Genehmigungsworkflow.",
+    "bookDemo": "Demo Buchen",
+    "viewSolution": "Lösungen Ansehen",
+    "brandSafety": "Markensicherheit",
+    "brandSafetyDesc": "100% Farbgenauigkeit Garantiert",
+    "costControl": "Kostenkontrolle",
+    "costControlDesc": "15-20% Verschwendung Reduzieren",
+    "systemStatus": "Systemstatus",
+    "approvalRequired": "Genehmigung Erforderlich",
+    "approve": "GENEHMIGEN",
+    "reject": "ABLEHNEN"
+  },
+  "valueProposition": {
+    "quote": "Im B2B ist der niedrigste Preis weniger wichtig als",
+    "safety": "Sicherheit",
+    "and": "und",
+    "transparency": "Transparenz"
+  },
+  "solutions": {
+    "sectionTitle1": "Nicht nur Drucken.",
+    "sectionTitle2": "Das ist Unternehmensmanagement.",
+    "sectionDesc": "3 Kernmodule, die Printz zur rechten Hand der Beschaffungs- und Marketingabteilungen machen.",
+    "brandVault": {
+      "title": "Brand Vault™",
+      "subtitle": "Markentresor",
+      "desc": "Marken-Assets sperren. Mitarbeiter können nur Textinhalte in vorhandenen Vorlagen ändern. Risiken falscher Farben, Schriftarten oder verzerrter Logos vollständig eliminieren.",
+      "feature1": "Digital Asset Management (DAM)",
+      "feature2": "Gesperrte Vorlagen",
+      "feature3": "Rollenbasierter Zugriff",
+      "cta": "Brand Vault™ Erkunden"
+    },
+    "autoPilot": {
+      "title": "Auto-Pilot",
+      "subtitle": "Automatisierter Betrieb",
+      "desc": "Integrierter mehrstufiger Genehmigungsworkflow. Von der Mitarbeiterbestellung bis zur Managergenehmigung dauert es nur 30 Sekunden. Keine E-Mail-Korrespondenz, keine manuellen Angebote.",
+      "feature1": "Intelligenter Genehmigungsfluss",
+      "feature2": "Echtzeit-Tracking",
+      "feature3": "Massenbestellung",
+      "cta": "Auto-Pilot Erkunden"
+    },
+    "smartCost": {
+      "title": "Smart Cost",
+      "subtitle": "Kostentransparenz",
+      "desc": "Blindausschreibungssystem garantiert beste Marktpreise. Automatische Konsolidierung von Verbindlichkeiten und Ausstellung einer einzigen Mehrwertsteuerrechnung am Monatsende.",
+      "feature1": "Preis-Benchmarking",
+      "feature2": "Konsolidierte Rechnung",
+      "feature3": "Budget-Warnungen",
+      "cta": "Smart Cost Erkunden"
+    }
+  },
+  "aiUsp": {
+    "badge": "Printz Intelligence™",
+    "title1": "Design Engineering",
+    "title2": "Automatisiert.",
+    "description": "Automatisierte Datei-Preflight-Checks, Auflösungswarnungen und Beschnittzugabe-Optimierung. Garantiert 100% Übereinstimmung zwischen physischem Druck und digitalem Design.",
+    "feature1": "Automatische Erkennung niedriger DPI-Bilder",
+    "feature2": "RGB zu CMYK Farbwarnungen",
+    "feature3": "Papiergröße optimieren, um 30% Kosten zu sparen",
+    "fileId": "FILE_ID: A4_BROCHURE_FINAL.PDF",
+    "systemOnline": "SYSTEM ONLINE",
+    "analyzingGeometry": "GEOMETRIE ANALYSIEREN",
+    "noBleedingIssues": "Keine Beschnittzugabe-Probleme gefunden.",
+    "colorProfile": "Farbprofil",
+    "resolution": "Auflösung",
+    "dimensions": "Abmessungen"
+  }
+}

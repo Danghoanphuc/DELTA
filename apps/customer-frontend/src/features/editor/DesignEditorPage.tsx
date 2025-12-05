@@ -2,7 +2,13 @@
 // ✅ NÂNG CẤP: Sử dụng state `items` và `selectedItemIds`
 // ✅ BẢN VÁ: Sửa lỗi `surfaceMapping` (lấp đầy useMemo)
 
-import React, { useCallback, useMemo, useState, useRef, useEffect } from "react";
+import React, {
+  useCallback,
+  useMemo,
+  useState,
+  useRef,
+  useEffect,
+} from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Layers, DollarSign, ArrowLeft } from "lucide-react";
 import * as THREE from "three";
@@ -17,7 +23,7 @@ import { useDesignEditor } from "./hooks/useDesignEditor";
 import { StudioLoadingSkeleton } from "./components/LoadingSkeleton";
 import { InteractionResult, SurfaceDefinition } from "./hooks/use3DInteraction";
 import { LiveQuotePanel } from "@/features/shop/components/LiveQuotePanel";
-import { formatPrice } from "@/features/printer/utils/formatters";
+import { formatCurrency as formatPrice } from "@/shared/utils/formatCurrency";
 import EditorFooterToolbar from "./components/EditorFooterToolbar";
 import { ContextualPropertyBar } from "./components/ContextualPropertyBar";
 import { EditorErrorBoundary } from "./components/EditorErrorBoundary";
@@ -96,7 +102,11 @@ function DesignEditorPageContent() {
     [addItem] // ✅ SỬA
   );
 
-  const handleImageFileRead = (file: File, imageUrl: string, qualityStatus?: "good" | "warning" | "bad") => {
+  const handleImageFileRead = (
+    file: File,
+    imageUrl: string,
+    qualityStatus?: "good" | "warning" | "bad"
+  ) => {
     if (imageDropQueue && imageDropQueue.file === file) {
       const dropData = { type: "image", imageUrl: imageUrl, qualityStatus };
       addItem("decal", dropData, imageDropQueue.interactionResult); // ✅ SỬA
@@ -296,16 +306,19 @@ function DesignEditorPageContent() {
       {/* 6. FOOTER TOOLBAR */}
       {(() => {
         // Debug: Log để kiểm tra handlers
-        console.log('🔍 DesignEditorPage - Passing props to EditorFooterToolbar', {
-          hasUndo: !!undo,
-          hasRedo: !!redo,
-          hasZoomIn: !!handleZoomIn,
-          hasZoomOut: !!handleZoomOut,
-          hasReset: !!handleResetCamera,
-          hasToolModeChange: !!setToolMode,
-          toolMode,
-          zoomLevel
-        });
+        console.log(
+          "🔍 DesignEditorPage - Passing props to EditorFooterToolbar",
+          {
+            hasUndo: !!undo,
+            hasRedo: !!redo,
+            hasZoomIn: !!handleZoomIn,
+            hasZoomOut: !!handleZoomOut,
+            hasReset: !!handleResetCamera,
+            hasToolModeChange: !!setToolMode,
+            toolMode,
+            zoomLevel,
+          }
+        );
         return null;
       })()}
       <EditorFooterToolbar

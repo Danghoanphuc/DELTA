@@ -4,8 +4,11 @@ import { useEffect, useRef, Suspense, lazy, ComponentType } from "react";
 import { useAuthStore } from "./stores/useAuthStore";
 import { useCartStore } from "./stores/useCartStore";
 
-// ✅ HOOK BẢO VỆ NỘI DUNG (Chỉ áp dụng cho route cần thiết)
+// ✅ HOOK BẢO VỆ NỘI DUNG
 import { useContentProtection } from "@/shared/hooks/useContentProtection";
+
+// ✅ SEO COMPONENT
+import { StructuredData } from "@/components/seo/StructuredData";
 
 import { AppLayout } from "./components/AppLayout";
 import ProtectedGuard from "./features/auth/containers/ProtectedGuard";
@@ -31,7 +34,13 @@ import ProcessPage from "@/features/landing/ProcessPage";
 import TrendsPage from "@/features/landing/TrendsPage";
 import TemplateLibraryPage from "@/features/landing/TemplateLibraryPage";
 import BusinessPage from "@/features/landing/BusinessPage";
+import AboutPage from "@/features/landing/AboutPage";
+import CareersPage from "@/features/landing/CareersPage";
+import WarehousingPage from "@/features/solutions/WarehousingPage";
+import KittingPage from "@/features/solutions/KittingPage";
+import CorporateGiftingPage from "@/features/solutions/CorporateGiftingPage";
 import QuickQuotePage from "@/features/quote/pages/QuickQuotePage";
+import CompanySetupWizard from "@/features/organization/pages/CompanySetupWizard";
 
 // --- Auth Pages ---
 import SignInPage from "@/features/auth/pages/SignInPage";
@@ -66,15 +75,16 @@ const AuthCallbackPage = lazyWorkaround(
 const CartPage = lazyWorkaround(
   () => import("@/features/customer/pages/CartPage")
 );
-const PrinterOnboardingPage = lazyWorkaround(
-  () => import("@/features/printer/pages/PrinterOnboardingPage")
-);
-const PrinterApp = lazy(() => import("@/features/printer/pages/PrinterApp"));
-const PrinterStudio = lazyWorkaround(
-  () => import("@/features/printer/printer-studio/PrinterStudio")
-);
+// ❌ REMOVED: Printer Portal (Legacy)
+// const PrinterOnboardingPage = lazyWorkaround(
+//   () => import("@/features/printer/pages/PrinterOnboardingPage")
+// );
+// const PrinterApp = lazy(() => import("@/features/printer/pages/PrinterApp"));
+// const PrinterStudio = lazyWorkaround(
+//   () => import("@/features/printer/printer-studio/PrinterStudio")
+// );
 const ShopPortalPage = lazyWorkaround(
-  () => import("@/features/shop/pages/ShopPortalPage")
+  () => import("@/features/shop/pages/ModernShopPage")
 );
 const ProductDetailPage = lazy(
   () => import("@/features/shop/pages/ProductDetailPage")
@@ -97,9 +107,10 @@ const CustomerOrdersPage = lazyWorkaround(
 const OrderDetailPage = lazyWorkaround(
   () => import("@/features/shop/pages/OrderDetailPage")
 );
-const PrinterOrderDetailPage = lazyWorkaround(
-  () => import("@/features/printer/pages/PrinterOrderDetailPage")
-);
+// ❌ REMOVED: Printer Portal (Legacy)
+// const PrinterOrderDetailPage = lazyWorkaround(
+//   () => import("@/features/printer/pages/PrinterOrderDetailPage")
+// );
 const CustomerDesignsPage = lazyWorkaround(
   () => import("@/features/customer/pages/CustomerDesignsPage")
 );
@@ -124,7 +135,22 @@ const MessagesPage = lazy(() => import("@/features/social/pages/MessagesPage"));
 const FriendsPage = lazy(() => import("@/features/social/pages/FriendsPage"));
 const RushPage = lazyWorkaround(() => import("@/features/rush/pages/RushPage"));
 
-// Component wrapper để sử dụng useContentProtection bên trong Router
+// ✅ Organization Portal (B2B)
+const OrganizationApp = lazy(
+  () => import("@/features/organization/pages/OrganizationApp")
+);
+const RecipientSelfServicePage = lazy(
+  () => import("@/features/organization/pages/RecipientSelfServicePage")
+);
+
+// ✅ Redemption & Company Store (SwagUp-style)
+const RedemptionPage = lazy(
+  () => import("@/features/redemption/pages/RedemptionPage")
+);
+const CompanyStorePage = lazy(
+  () => import("@/features/company-store/pages/CompanyStorePage")
+);
+
 function AppContent() {
   const isAuthenticated = useAuthStore((state) => !!state.accessToken);
   const authLoading = useAuthStore((state) => state.loading);
@@ -137,7 +163,7 @@ function AppContent() {
   const hasFetchedRef = useRef<boolean>(false);
   const FETCH_COOLDOWN = 10000;
 
-  // ✅ KÍCH HOẠT LÁ CHẮN BẢO VỆ (Chỉ cho route cần thiết)
+  // ✅ KÍCH HOẠT LÁ CHẮN BẢO VỆ
   useContentProtection();
 
   // Logic fetch user data
@@ -176,10 +202,14 @@ function AppContent() {
     <>
       <GlobalModalProvider>
         <SocketProvider>
+          {/* ✅ GLOBAL SEO: Organization & Website Schema */}
+          <StructuredData />
+
           <DynamicIsland />
           <NotificationListener />
           <SocialChatSync />
           <GoogleOneTapListener />
+
           {/* 1. GLOBAL SPLASH SCREEN */}
           <PageLoader mode="splash" isLoading={authLoading} />
 
@@ -194,7 +224,30 @@ function AppContent() {
               <Route path="/trends" element={<TrendsPage />} />
               <Route path="/templates" element={<TemplateLibraryPage />} />
               <Route path="/business" element={<BusinessPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/careers" element={<CareersPage />} />
+              <Route
+                path="/solutions/warehousing"
+                element={<WarehousingPage />}
+              />
+              <Route path="/solutions/kitting" element={<KittingPage />} />
+              <Route
+                path="/solutions/corporate-gifting"
+                element={<CorporateGiftingPage />}
+              />
               <Route path="/quote" element={<QuickQuotePage />} />
+
+              {/* Self-Service Portal (Public - No Auth) */}
+              <Route
+                path="/gift/:token"
+                element={<RecipientSelfServicePage />}
+              />
+
+              {/* Redemption Link (Public - No Auth) */}
+              <Route path="/redeem/:token" element={<RedemptionPage />} />
+
+              {/* Company Store (Public - Optional Auth) */}
+              <Route path="/store/:slug" element={<CompanyStorePage />} />
 
               {/* 2. MAIN APP LAYOUT */}
               <Route element={<AppLayout />}>
@@ -250,6 +303,12 @@ function AppContent() {
                     path="/notifications"
                     element={<NotificationsPage />}
                   />
+
+                  {/* Organization Setup */}
+                  <Route
+                    path="/organization/setup"
+                    element={<CompanySetupWizard />}
+                  />
                 </Route>
               </Route>
 
@@ -258,19 +317,10 @@ function AppContent() {
                 <Route path="/chat" element={<ChatPage />} />
                 <Route path="/chat/history" element={<ChatHistoryPage />} />
 
-                {/* Printer Portal */}
+                {/* ✅ Organization Portal (B2B) */}
                 <Route
-                  path="/printer/onboarding"
-                  element={<PrinterOnboardingPage />}
-                />
-                <Route path="/printer/dashboard" element={<PrinterApp />} />
-                <Route
-                  path="/printer/orders/:orderId"
-                  element={<PrinterOrderDetailPage />}
-                />
-                <Route
-                  path="/printer/studio/:productId"
-                  element={<PrinterStudio />}
+                  path="/organization/dashboard"
+                  element={<OrganizationApp />}
                 />
               </Route>
 

@@ -1,0 +1,98 @@
+{
+  "seo": {
+    "title": "Printz Enterprise: ブランド管理とB2B印刷プラットフォーム",
+    "description": "企業向け印刷ワークフローのデジタルソリューション。ブランドガイドラインの標準化、透明なコスト、自動承認、100%VAT請求書管理。",
+    "keywords": "ブランド管理, 企業印刷, Web-to-Print B2B, 企業印刷, ブランドガイドライン, 承認ワークフロー, デジタル印刷プラットフォーム"
+  },
+  "header": {
+    "shop": "ショップ",
+    "business": "ビジネスソリューション",
+    "inspiration": "インスピレーション",
+    "signIn": "サインイン",
+    "startProject": "プロジェクトを開始",
+    "selectRegion": "地域を選択"
+  },
+  "languages": {
+    "vi": "Tiếng Việt",
+    "en": "English (Global)",
+    "ja": "日本語 (Japan)",
+    "ko": "한국어 (Korea)",
+    "zh": "中文 (China)",
+    "fr": "Français (France)",
+    "de": "Deutsch (Germany)",
+    "es": "Español (Spain)",
+    "it": "Italiano (Italy)",
+    "ru": "Русский (Russia)"
+  },
+  "hero": {
+    "badge": "ブランド管理とB2B印刷プラットフォーム",
+    "title1": "デジタル化",
+    "title2": "B2B印刷ワークフロー",
+    "title3": "予算を最適化。",
+    "description": "企業向け印刷ワークフローのデジタルプラットフォーム。ブランドガイドラインの標準化、透明な入札、自動承認ワークフロー。",
+    "bookDemo": "デモを予約",
+    "viewSolution": "ソリューションを見る",
+    "brandSafety": "ブランドセーフティ",
+    "brandSafetyDesc": "100%色精度保証",
+    "costControl": "コスト管理",
+    "costControlDesc": "15-20%の無駄を削減",
+    "systemStatus": "システムステータス",
+    "approvalRequired": "承認が必要",
+    "approve": "承認",
+    "reject": "却下"
+  },
+  "valueProposition": {
+    "quote": "B2Bでは、最低価格よりも重要なのは",
+    "safety": "安全性",
+    "and": "と",
+    "transparency": "透明性"
+  },
+  "solutions": {
+    "sectionTitle1": "単なる印刷ではありません。",
+    "sectionTitle2": "これは企業管理です。",
+    "sectionDesc": "調達部門とマーケティング部門の右腕となる3つのコアモジュール。",
+    "brandVault": {
+      "title": "Brand Vault™",
+      "subtitle": "ブランドセーフ",
+      "desc": "ブランドアセットをロックダウン。従業員は既存のテンプレートのテキストコンテンツのみを変更できます。色、フォント、ロゴの歪みのリスクを完全に排除。",
+      "feature1": "デジタルアセット管理（DAM）",
+      "feature2": "ロックされたテンプレート",
+      "feature3": "ロールベースアクセス",
+      "cta": "Brand Vault™を探索"
+    },
+    "autoPilot": {
+      "title": "Auto-Pilot",
+      "subtitle": "自動運用",
+      "desc": "組み込みの多段階承認ワークフロー。従業員の注文から管理者の承認まで30秒。メールのやり取りなし、手動見積もりなし。",
+      "feature1": "スマート承認フロー",
+      "feature2": "リアルタイム追跡",
+      "feature3": "一括注文",
+      "cta": "Auto-Pilotを探索"
+    },
+    "smartCost": {
+      "title": "Smart Cost",
+      "subtitle": "コストの透明性",
+      "desc": "ブラインド入札システムで最高の市場価格を保証。自動的に買掛金を統合し、月末に単一のVAT請求書を発行。",
+      "feature1": "価格ベンチマーク",
+      "feature2": "統合請求書",
+      "feature3": "予算アラート",
+      "cta": "Smart Costを探索"
+    }
+  },
+  "aiUsp": {
+    "badge": "Printz Intelligence™",
+    "title1": "デザインエンジニアリング",
+    "title2": "自動化。",
+    "description": "自動ファイルプリフライトチェック、解像度警告、裁ち落とし最適化。物理印刷とデジタルデザインの100%一致を保証。",
+    "feature1": "低DPI画像の自動検出",
+    "feature2": "RGBからCMYKへの色警告",
+    "feature3": "用紙サイズを最適化してコストを30%削減",
+    "fileId": "FILE_ID: A4_BROCHURE_FINAL.PDF",
+    "systemOnline": "システムオンライン",
+    "analyzingGeometry": "ジオメトリを分析中",
+    "noBleedingIssues": "裁ち落としの問題は見つかりませんでした。",
+    "colorProfile": "カラープロファイル",
+    "resolution": "解像度",
+    "dimensions": "寸法"
+  }
+}

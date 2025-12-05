@@ -33,6 +33,7 @@ import adminAuditLogRoutes from "./routes/admin.audit-log.routes.js";
 import adminOrderRoutes from "./routes/admin.order.routes.js";
 import adminFinanceRoutes from "./routes/admin.finance.routes.js";
 import adminContentRoutes from "./routes/admin.content.routes.js";
+import catalogRoutes from "./routes/catalog.routes.js";
 
 const app = express();
 
@@ -119,6 +120,7 @@ app.use("/api/admin/audit-logs", adminAuditLogRoutes);
 app.use("/api/admin/orders", adminOrderRoutes);
 app.use("/api/admin/finance", adminFinanceRoutes);
 app.use("/api/admin/content", adminContentRoutes);
+app.use("/api/admin/catalog", catalogRoutes);
 
 // --- 404 Handler ---
 app.use((req: Request, res: Response) => {

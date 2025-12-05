@@ -10,7 +10,31 @@ import type { PrinterProfile } from "@/types/printerProfile";
 import { useNavigate } from "react-router-dom";
 
 // --- TYPES ---
-export type AuthContext = "customer" | "printer";
+export type AuthContext = "customer" | "printer" | "organization";
+
+interface OrganizationProfile {
+  _id: string;
+  businessName: string;
+  taxCode?: string;
+  contactPhone?: string;
+  billingAddress?: string;
+  logoUrl?: string;
+  usageIntent?: string;
+  industry?: string;
+  onboardingCompleted?: boolean;
+  pendingInvites?: Array<{ email: string; status: string; invitedAt?: string }>;
+  teamMembers?: Array<{
+    userId: string;
+    role: string;
+    joinedAt: string;
+    user?: { displayName: string; email: string; avatarUrl?: string };
+  }>;
+  isVerified?: boolean;
+  isActive?: boolean;
+  totalOrders?: number;
+  totalSpent?: number;
+  credits?: number;
+}
 
 interface AuthState {
   accessToken: string | null;
@@ -20,6 +44,7 @@ interface AuthState {
   // --- State cho Bối cảnh (Context) ---
   activeContext: AuthContext;
   activePrinterProfile: PrinterProfile | null;
+  activeOrganizationProfile: OrganizationProfile | null; // ✅ NEW: B2B Organization
   isContextLoading: boolean; // Loading khi chuyển bối cảnh
 
   // --- Setters ---
@@ -54,6 +79,7 @@ const initialState = {
   loading: false,
   activeContext: "customer" as AuthContext,
   activePrinterProfile: null,
+  activeOrganizationProfile: null,
   isContextLoading: false,
 };
 
@@ -240,8 +266,8 @@ export const useAuthStore = create<AuthState>()(
         try {
           if (context === "customer") {
             // ✅ FIX: Chuyển sang customer context - đơn giản và nhanh
-            set({ 
-              activeContext: "customer", 
+            set({
+              activeContext: "customer",
               isContextLoading: false,
               // Không cần clear activePrinterProfile, giữ lại để cache
             });
@@ -261,11 +287,14 @@ export const useAuthStore = create<AuthState>()(
 
             // 2. ✅ FIX: Kiểm tra xem đã fetch profile nhà in chưa
             // Nếu đã có profile và vẫn còn hợp lệ, dùng luôn
-            if (activePrinterProfile && activePrinterProfile._id === user.printerProfileId) {
+            if (
+              activePrinterProfile &&
+              activePrinterProfile._id === user.printerProfileId
+            ) {
               // 2a. Đã có và hợp lệ -> Đặt làm active và điều hướng ngay
-              set({ 
-                activeContext: "printer", 
-                isContextLoading: false 
+              set({
+                activeContext: "printer",
+                isContextLoading: false,
               });
               navigate("/printer/dashboard");
               return;
@@ -281,9 +310,13 @@ export const useAuthStore = create<AuthState>()(
               });
               navigate("/printer/dashboard");
             } catch (err: any) {
-              console.error("❌ [setActiveContext] Lỗi khi fetch profile:", err);
+              console.error(
+                "❌ [setActiveContext] Lỗi khi fetch profile:",
+                err
+              );
               toast.error(
-                err.response?.data?.message || "Không thể tải hồ sơ nhà in của bạn. Vui lòng thử lại."
+                err.response?.data?.message ||
+                  "Không thể tải hồ sơ nhà in của bạn. Vui lòng thử lại."
               );
               set({ isContextLoading: false }); // Vẫn ở context cũ
             }

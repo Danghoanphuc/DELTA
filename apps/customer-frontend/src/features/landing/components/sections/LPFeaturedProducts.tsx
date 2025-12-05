@@ -53,7 +53,7 @@ export function LPFeaturedProducts() {
                 <ImageWithFallback
                   src={product.image}
                   alt={product.title}
-                  className="w-full h-full object-cover transition-transform duration-[1.5s] ease-out group-hover:scale-110 grayscale-[10%] group-hover:grayscale-0"
+                  className="w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-110 grayscale-[10%] group-hover:grayscale-0"
                 />
                 {/* Minimal Overlay Button */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-black/10 backdrop-blur-[2px]">

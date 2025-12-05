@@ -34,9 +34,9 @@ export function SmartLanding() {
 
   // If logged in, redirect to main app
   if (user) {
-    // Redirect based on user role
-    if (user.role === "printer") {
-      return <Navigate to="/printer/dashboard" replace />;
+    // ✅ Organization user -> redirect to organization dashboard
+    if (user.organizationProfileId) {
+      return <Navigate to="/organization/dashboard" replace />;
     }
 
     // Default: redirect to chat app
@@ -77,8 +77,9 @@ export function SmartLandingWithForce() {
 
   // Redirect if logged in
   if (user) {
-    if (user.role === "printer") {
-      return <Navigate to="/printer/dashboard" replace />;
+    // ✅ Organization user -> redirect to organization dashboard
+    if (user.organizationProfileId) {
+      return <Navigate to="/organization/dashboard" replace />;
     }
     return <Navigate to="/app" replace />;
   }

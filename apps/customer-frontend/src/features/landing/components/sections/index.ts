@@ -1,8 +1,8 @@
 export { LPHero } from "./LPHero";
 export { LPSocialProof } from "./LPSocialProof";
-export { LPFeaturedCategories } from "./LPFeaturedCategories";
 export { LPProcess } from "./LPProcess";
-export { LPAiUsp } from "./LPAiUsp";
+export { LPPlatformFeatures } from "./LPPlatformFeatures";
 export { LPFeaturedProducts } from "./LPFeaturedProducts";
-export { LPBlog } from "./LPBlog";
+export { LPMap } from "./LPMap";
 export { LPCta } from "./LPCta";
+export { LPB2BSolutions } from "./LPB2BSolutions";

@@ -91,6 +91,13 @@ const UserSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    // ✅ NEW: B2B Organization Profile Link
+    organizationProfileId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "OrganizationProfile",
+      default: null,
+      index: true,
+    },
 
     // --- Metadata ---
     isAdmin: {
@@ -133,9 +140,15 @@ UserSchema.virtual("isCustomer").get(function () {
   return !!this.customerProfileId;
 });
 
+// ✅ NEW: Virtual for B2B Organization
+UserSchema.virtual("isOrganization").get(function () {
+  return !!this.organizationProfileId;
+});
+
 UserSchema.methods.getRole = function () {
   if (this.isAdmin) return "admin";
   if (this.printerProfileId) return "printer";
+  if (this.organizationProfileId) return "organization"; // ✅ NEW
   if (this.customerProfileId) return "customer";
   return "guest";
 };

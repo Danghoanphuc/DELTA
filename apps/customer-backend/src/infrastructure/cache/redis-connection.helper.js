@@ -29,46 +29,96 @@ export function getRedisConnectionConfig() {
         enableReadyCheck: false, // Tối ưu cho Upstash/Serverless
         connectTimeout: 5000, // 5 second timeout
         retryStrategy(times) {
+          // ✅ FIX: Chỉ retry 3 lần, sau đó dừng hẳn
           if (times > 3) {
             console.warn(
-              "⚠️ [BullMQ] Redis connection failed after 3 attempts"
+              "⚠️ [Redis] Connection failed after 3 attempts. Stopping retries."
             );
-            return null; // Stop retrying
+            return null; // Stop retrying completely
           }
-          return Math.min(times * 500, 2000);
+          const delay = Math.min(times * 1000, 3000);
+          console.log(`⚠️ [Redis] Retry attempt ${times}/3 in ${delay}ms...`);
+          return delay;
         },
         // Nếu vẫn bị lỗi SSL, dòng dưới sẽ ép buộc chấp nhận (thường không cần nếu dùng URL chuẩn)
         tls: {
           rejectUnauthorized: false,
         },
+        // ✅ FIX: Tắt auto-reconnect sau khi hết retry
+        lazyConnect: true, // Không connect ngay, đợi lệnh đầu tiên
       });
 
       // Handle connection errors gracefully
+      let errorLogged = false;
       client.on("error", (err) => {
-        if (err.message?.includes("max requests limit exceeded")) {
-          console.error(
-            "❌ [BullMQ] Redis quota exceeded. Queues will not work."
-          );
-        } else {
-          console.error("❌ [BullMQ] Redis connection error:", err.message);
+        // ✅ FIX: Chỉ log 1 lần để tránh spam console
+        if (!errorLogged) {
+          if (err.message?.includes("max requests limit exceeded")) {
+            console.error("❌ [Redis] Quota exceeded. Queues disabled.");
+          } else if (err.code === "ECONNREFUSED") {
+            console.error(
+              "❌ [Redis] Connection refused. Is Redis/Docker running? Queues disabled."
+            );
+          } else {
+            console.error("❌ [Redis] Connection error:", err.message);
+          }
+          errorLogged = true;
         }
+      });
+
+      // Try to connect
+      client.connect().catch((err) => {
+        console.error("❌ [Redis] Failed to connect:", err.message);
       });
 
       return client;
     }
 
     // Fallback cho Local (nếu không có REDIS_URL)
-    console.log(
-      "🔌 [BullMQ] Creating connection from REDIS_HOST/REDIS_PORT..."
-    );
-    return new IORedis({
+    console.log("🔌 [Redis] Creating connection from REDIS_HOST/REDIS_PORT...");
+    const client = new IORedis({
       host: process.env.REDIS_HOST || "localhost",
       port: parseInt(process.env.REDIS_PORT || "6379", 10),
       password: process.env.REDIS_PASSWORD || undefined,
       username: process.env.REDIS_USERNAME || undefined,
       maxRetriesPerRequest: null, // ⚠️ BẮT BUỘC cho BullMQ
       connectTimeout: 5000,
+      lazyConnect: true,
+      retryStrategy(times) {
+        // ✅ FIX: Chỉ retry 3 lần
+        if (times > 3) {
+          console.warn(
+            "⚠️ [Redis] Connection failed after 3 attempts. Stopping retries."
+          );
+          return null;
+        }
+        const delay = Math.min(times * 1000, 3000);
+        console.log(`⚠️ [Redis] Retry attempt ${times}/3 in ${delay}ms...`);
+        return delay;
+      },
     });
+
+    // Handle errors
+    let errorLogged = false;
+    client.on("error", (err) => {
+      if (!errorLogged) {
+        if (err.code === "ECONNREFUSED") {
+          console.error(
+            "❌ [Redis] Connection refused. Is Redis/Docker running? Queues disabled."
+          );
+        } else {
+          console.error("❌ [Redis] Error:", err.message);
+        }
+        errorLogged = true;
+      }
+    });
+
+    // Try to connect
+    client.connect().catch((err) => {
+      console.error("❌ [Redis] Failed to connect:", err.message);
+    });
+
+    return client;
   } catch (error) {
     console.error(
       "❌ [BullMQ] Failed to create Redis connection:",

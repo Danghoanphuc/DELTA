@@ -1,5 +1,3 @@
-// apps/customer-frontend/src/shared/components/ui/Logo.tsx
-
 import { cn } from "@/shared/lib/utils";
 import { Link } from "react-router-dom";
 
@@ -14,62 +12,74 @@ export const Logo = ({
   variant = "full",
   color = "default",
 }: LogoProps) => {
-  // 🎨 DESIGN SYSTEM: 60-30-10 Rule
-  // 60% Nền: Giấy Dó (bg-background)
-  // 30% Chữ: Mực Tàu (text-foreground)
-  // 10% Điểm nhấn: Đỏ Son (text-primary)
-
-  const textColor = color === "white" ? "text-white" : "text-foreground"; // Mực Tàu (#1C1917)
-  const symbolColor = color === "white" ? "text-white" : "text-primary"; // Đỏ Son (#C63321)
+  // 🎨 DESIGN SYSTEM UPDATE: Ink & Art
+  const textColor = color === "white" ? "text-white" : "text-stone-900";
+  const symbolColor = color === "white" ? "text-white" : "text-[#C63321]"; // Đỏ Son (Vermilion)
 
   return (
     <Link
       to="/"
-      className={cn("group flex items-center gap-2.5 select-none", className)}
+      className={cn("group flex items-center gap-3 select-none", className)}
     >
-      {/* 1. SYMBOL: REGISTRATION MARK (⊕) */}
-      {/* Tao tăng độ dày nét lên 5px để nhìn "đầm" hơn, không bị yếu */}
+      {/* 1. SYMBOL: THE BRUSH REGISTRATION MARK */}
+      {/* Kết hợp: Vòng tròn Enso (Thủ công/Sáng tạo) + Tâm điểm Crosshair (Chính xác/Kỹ thuật) */}
       <div
         className={cn(
-          "relative flex items-center justify-center w-9 h-9 transition-transform duration-700 ease-out group-hover:rotate-180",
+          "relative flex items-center justify-center w-10 h-10 transition-transform duration-700 ease-out group-hover:rotate-6", // Xoay nhẹ tự nhiên hơn
           symbolColor
         )}
       >
         <svg
           viewBox="0 0 100 100"
-          className="w-full h-full fill-none stroke-current"
-          style={{ strokeWidth: "5px" }}
+          className="w-full h-full fill-current"
+          xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Vòng tròn nhỏ lại chút để tạo khoảng thở */}
-          <circle cx="50" cy="50" r="30" />
-          {/* Chữ thập cắt ngang mạnh mẽ */}
-          <line x1="50" y1="8" x2="50" y2="92" strokeLinecap="square" />
-          <line x1="8" y1="50" x2="92" y2="50" strokeLinecap="square" />
+          {/* NÉT CỌ VÒNG TRÒN (Enso Style) - Tạo cảm giác mực loang, không đều */}
+          <path
+            d="M50,90 C27.9,90,10,72.1,10,50 C10,27.9,27.9,10,50,10 C65.5,10,79.8,18.8,86.5,32.5 C87.6,34.8,86.6,37.5,84.3,38.6 C82,39.7,79.3,38.7,78.2,36.4 C73.3,26.4,62.1,19.2,50,19.2 C33,19.2,19.2,33,19.2,50 C19.2,67,33,80.8,50,80.8 C62.6,80.8,73.5,73.2,78.2,62.5 L83.5,65 C77.5,79.5,64.6,90,50,90 Z"
+            opacity="0.9"
+          />
+
+          {/* NÉT NGANG: Đậm ở đầu, vuốt nhọn ở đuôi (Brush feel) */}
+          <path d="M15,50 C15,48.5,16.5,47,20,47 L80,47 C83.5,47,85,48.5,85,50 C85,51.5,83.5,53,80,53 L20,53 C16.5,53,15,51.5,15,50 Z" />
+
+          {/* NÉT DỌC: Tương tự nét ngang */}
+          <path d="M50,15 C48.5,15,47,16.5,47,20 L47,80 C47,83.5,48.5,85,50,85 C51.5,85,53,83.5,53,80 L53,20 C53,16.5,51.5,15,50,15 Z" />
         </svg>
       </div>
 
-      {/* 2. WORDMARK: PRINTZ + SUBTITLE VIỆT */}
+      {/* 2. WORDMARK: BRAND & TAGLINE */}
       {variant === "full" && (
-        <div className="flex flex-col justify-center">
-          {/* PRINTZ: Font Serif cực đậm + Khít chữ -> Nhìn như con dấu */}
+        <div className="flex flex-col justify-center -mt-1">
+          {/* PRINTZ: Serif Font - Giữ nguyên sự sang trọng */}
           <span
             className={cn(
-              "font-serif text-[26px] font-black tracking-tight leading-none scale-y-90", // scale-y-90 làm chữ lùn xuống 1 chút -> trông chắc chắn hơn
+              "font-serif text-[28px] font-black tracking-tighter leading-none text-stone-900",
               textColor
             )}
           >
-            PRINTZ
+            Printz
           </span>
 
-          {/* Subtitle: Font Sans hiện đại, Tiếng Việt rõ ràng */}
-          <span
-            className={cn(
-              "font-sans text-[9px] font-bold uppercase tracking-[0.2em] opacity-70 leading-none mt-0.5",
-              textColor
-            )}
-          >
-            GIẢI PHÁP IN ẤN
-          </span>
+          {/* TAGLINE MỚI: Mạnh mẽ - Hệ thống - Quy mô */}
+          <div className="flex flex-col gap-[2px] mt-1">
+            <span
+              className={cn(
+                "font-sans text-[8px] font-extrabold uppercase tracking-[0.2em] leading-none opacity-80",
+                textColor
+              )}
+            >
+              Nền tảng Quà tặng
+            </span>
+            <span
+              className={cn(
+                "font-sans text-[8px] font-bold uppercase tracking-[0.2em] leading-none opacity-60",
+                textColor
+              )}
+            >
+              & Thương Hiệu
+            </span>
+          </div>
         </div>
       )}
     </Link>

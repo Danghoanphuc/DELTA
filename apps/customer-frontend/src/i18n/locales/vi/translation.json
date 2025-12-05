@@ -1,0 +1,98 @@
+{
+  "header": {
+    "shop": "Shop",
+    "business": "Business Solutions",
+    "inspiration": "Inspiration",
+    "signIn": "Đăng Nhập",
+    "startProject": "Bắt Đầu Dự Án",
+    "selectRegion": "Chọn Khu Vực"
+  },
+  "languages": {
+    "vi": "Tiếng Việt",
+    "en": "English (Global)",
+    "ja": "日本語 (Japan)",
+    "ko": "한국어 (Korea)",
+    "zh": "中文 (China)",
+    "fr": "Français (France)",
+    "de": "Deutsch (Germany)",
+    "es": "Español (Spain)",
+    "it": "Italiano (Italy)",
+    "ru": "Русский (Russia)"
+  },
+  "seo": {
+    "title": "Printz Enterprise: Nền tảng Quản trị Thương hiệu & In ấn B2B",
+    "description": "Giải pháp số hóa quy trình in ấn cho doanh nghiệp. Chuẩn hóa Brand Guideline, minh bạch chi phí, duyệt đơn tự động và xuất hóa đơn VAT 100%.",
+    "keywords": "in ấn cho công ty, đặt in name card, in ấn nhiều chi nhánh, quản lý chi phí in ấn, duyệt đơn in ấn nhanh, in ấn đúng màu, nền tảng in ấn doanh nghiệp, web to print, in brochure công ty, in catalogue, quản lý brand guidelines, hóa đơn VAT in ấn, Quản trị thương hiệu, Brand Management, In ấn doanh nghiệp, Corporate Printing, Web-to-Print B2B, In ấn hóa đơn đỏ, Số hóa quy trình in ấn, Brand Guideline, Approval Workflow"
+  },
+  "hero": {
+    "badge": "Nền tảng Quản trị Thương hiệu & In ấn B2B",
+    "title1": "Số Hóa",
+    "title2": "Quy Trình In Ấn B2B",
+    "title3": "Tối ưu Ngân sách.",
+    "description": "Nền tảng số hóa quy trình in ấn dành cho doanh nghiệp. Chuẩn hóa Brand Guideline, minh bạch đấu thầu và tự động hóa quy trình phê duyệt (Approval Workflow).",
+    "bookDemo": "Đặt lịch Demo",
+    "viewSolution": "Xem giải pháp",
+    "brandSafety": "Brand Safety",
+    "brandSafetyDesc": "Cam kết đúng màu 100%",
+    "costControl": "Cost Control",
+    "costControlDesc": "Giảm 15-20% lãng phí",
+    "systemStatus": "System Status",
+    "approvalRequired": "Approval Required",
+    "approve": "APPROVE",
+    "reject": "REJECT"
+  },
+  "valueProposition": {
+    "quote": "Trong B2B, giá rẻ nhất không quan trọng bằng",
+    "safety": "sự an toàn",
+    "and": "và",
+    "transparency": "tính minh bạch"
+  },
+  "solutions": {
+    "sectionTitle1": "Không chỉ là in ấn.",
+    "sectionTitle2": "Đây là Quản trị Doanh nghiệp.",
+    "sectionDesc": "3 module cốt lõi giúp Printz trở thành cánh tay phải của bộ phận Mua hàng & Marketing.",
+    "brandVault": {
+      "title": "Brand Vault™",
+      "subtitle": "Két sắt thương hiệu",
+      "desc": "Khóa chặt Brand Assets. Nhân viên chỉ được thay đổi nội dung text trên template có sẵn. Loại bỏ hoàn toàn rủi ro in sai màu, sai font hay logo bị méo.",
+      "feature1": "Digital Asset Management (DAM)",
+      "feature2": "Locked Templates",
+      "feature3": "Role-based Access",
+      "cta": "Khám phá Brand Vault™"
+    },
+    "autoPilot": {
+      "title": "Auto-Pilot",
+      "subtitle": "Vận hành tự lái",
+      "desc": "Quy trình duyệt đơn đa cấp (Approval Workflow) tích hợp sẵn. Từ lúc nhân viên đặt đến khi sếp duyệt chỉ mất 30 giây. Không email qua lại, không chờ báo giá thủ công.",
+      "feature1": "Smart Approval Flow",
+      "feature2": "Real-time Tracking",
+      "feature3": "Bulk Ordering",
+      "cta": "Khám phá Auto-Pilot"
+    },
+    "smartCost": {
+      "title": "Smart Cost",
+      "subtitle": "Minh bạch chi phí",
+      "desc": "Hệ thống đấu thầu kín (Blind Bidding) đảm bảo giá thị trường tốt nhất. Tự động tổng hợp công nợ và xuất 01 hóa đơn VAT duy nhất cuối tháng.",
+      "feature1": "Price Benchmarking",
+      "feature2": "Consolidated Invoice",
+      "feature3": "Budget Alerts",
+      "cta": "Khám phá Smart Cost"
+    }
+  },
+  "aiUsp": {
+    "badge": "Printz Intelligence™",
+    "title1": "Design Engineering",
+    "title2": "Automated.",
+    "description": "Hệ thống tự động kiểm tra lỗi file (Pre-flight), cảnh báo độ phân giải và tối ưu vùng biên cắt (Bleed). Đảm bảo bản in vật lý khớp 100% với bản thiết kế số.",
+    "feature1": "Tự động phát hiện ảnh vỡ nét (Low DPI)",
+    "feature2": "Cảnh báo lệch màu (RGB to CMYK)",
+    "feature3": "Tối ưu khổ giấy để tiết kiệm 30% chi phí",
+    "fileId": "FILE_ID: A4_BROCHURE_FINAL.PDF",
+    "systemOnline": "SYSTEM ONLINE",
+    "analyzingGeometry": "ANALYZING GEOMETRY",
+    "noBleedingIssues": "No bleeding issues found.",
+    "colorProfile": "Color Profile",
+    "resolution": "Resolution",
+    "dimensions": "Dimensions"
+  }
+}

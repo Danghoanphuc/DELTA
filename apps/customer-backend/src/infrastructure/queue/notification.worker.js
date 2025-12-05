@@ -59,12 +59,23 @@ const processor = async (job) => {
 };
 
 // Hàm khởi động Worker (Gọi ở file server.ts)
-export const startNotificationWorker = () => {
+export const startNotificationWorker = async () => {
   try {
     // Check if Redis connection is available
     if (!redisConnection) {
       Logger.warn(
         "⚠️ [Notification Worker] Redis not available. Worker disabled."
+      );
+      return null;
+    }
+
+    // ✅ FIX: Check Redis health before starting worker
+    const { isRedisAvailable } = await import("../cache/redis-health.js");
+    const redisHealthy = await isRedisAvailable(redisConnection);
+
+    if (!redisHealthy) {
+      Logger.warn(
+        "⚠️ [Notification Worker] Redis not responding. Worker disabled. Start Docker/Redis to enable."
       );
       return null;
     }
@@ -102,24 +113,36 @@ export const startNotificationWorker = () => {
       );
     });
 
+    // ✅ FIX: Debounce error logging để tránh spam
+    let lastErrorLog = 0;
+    const ERROR_LOG_INTERVAL = 30000; // Log mỗi 30 giây
+
     worker.on("error", (error) => {
+      const now = Date.now();
+      const shouldLog = now - lastErrorLog > ERROR_LOG_INTERVAL;
+
       // Chỉ log lỗi Redis limit 1 lần
       if (error.message?.includes("max requests limit")) {
-        const state = circuitBreaker.getState();
-        if (state.failureCount === 1) {
+        if (shouldLog) {
           Logger.error(
-            `❌ [ERROR] [Notification Worker] Redis limit exceeded. Circuit breaker activating...`
+            `❌ [Notification Worker] Redis limit exceeded. Circuit breaker activating...`
           );
+          lastErrorLog = now;
         }
         return;
       }
-      // ✅ FIX: Chỉ log warning cho Redis connection errors, không throw
+
+      // ✅ FIX: Chỉ log warning cho Redis connection errors, không spam
       if (error.code === "ECONNREFUSED") {
-        Logger.warn(
-          `⚠️ [Worker] Redis connection refused. Worker will retry automatically.`
-        );
-      } else {
+        if (shouldLog) {
+          Logger.warn(
+            `⚠️ [Notification Worker] Redis connection refused. Worker paused.`
+          );
+          lastErrorLog = now;
+        }
+      } else if (shouldLog) {
         Logger.error(`[Worker] ❌ Worker error: ${error.message}`);
+        lastErrorLog = now;
       }
     });
 

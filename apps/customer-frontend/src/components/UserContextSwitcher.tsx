@@ -1,6 +1,6 @@
 // src/components/UserContextSwitcher.tsx
 import { useState } from "react";
-import { LogIn, Repeat, Settings } from "lucide-react";
+import { Settings, Building2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -68,6 +68,33 @@ export function UserContextSwitcher() {
 
             {/* Actions */}
             <div className="p-1 bg-[#F9F8F6]">
+              {/* Nút Organization - hiện khác nhau tùy theo đã có profile hay chưa */}
+              {user.organizationProfileId ? (
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start h-10 px-5 text-xs font-bold font-sans uppercase tracking-wider text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-none transition-colors"
+                  onClick={() => {
+                    setIsOpen(false);
+                    navigate("/organization/dashboard");
+                  }}
+                >
+                  <Building2 size={14} className="mr-3" /> Dashboard doanh
+                  nghiệp
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start h-10 px-5 text-xs font-bold font-sans uppercase tracking-wider text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-none transition-colors"
+                  onClick={() => {
+                    setIsOpen(false);
+                    navigate("/organization/setup");
+                  }}
+                >
+                  <Building2 size={14} className="mr-3" /> Đăng ký tài khoản
+                  doanh nghiệp
+                </Button>
+              )}
+
               <Button
                 variant="ghost"
                 className="w-full justify-start h-10 px-5 text-xs font-bold font-sans uppercase tracking-wider text-stone-600 hover:text-primary hover:bg-white rounded-none transition-colors"

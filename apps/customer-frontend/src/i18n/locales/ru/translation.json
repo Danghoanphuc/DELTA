@@ -1,0 +1,98 @@
+{
+  "seo": {
+    "title": "Printz Enterprise: Управление Брендом и B2B Платформа Печати",
+    "description": "Цифровое решение для корпоративного рабочего процесса печати. Стандартизация руководств по бренду, прозрачные затраты, автоматизированное утверждение и 100% управление счетами НДС.",
+    "keywords": "Управление брендом, Корпоративная печать, Web-to-Print B2B, Корпоративная печать, Руководства по бренду, Рабочий процесс утверждения, Цифровая платформа печати"
+  },
+  "header": {
+    "shop": "Shop",
+    "business": "Business Solutions",
+    "inspiration": "Inspiration",
+    "signIn": "Sign In",
+    "startProject": "Start Project",
+    "selectRegion": "Select Region"
+  },
+  "languages": {
+    "vi": "Tiếng Việt",
+    "en": "English (Global)",
+    "ja": "日本語 (Japan)",
+    "ko": "한국어 (Korea)",
+    "zh": "中文 (China)",
+    "fr": "Français (France)",
+    "de": "Deutsch (Germany)",
+    "es": "Español (Spain)",
+    "it": "Italiano (Italy)",
+    "ru": "Русский (Russia)"
+  },
+  "hero": {
+    "badge": "Brand Management & B2B Printing Platform",
+    "title1": "Digitize",
+    "title2": "B2B Printing Workflow",
+    "title3": "Optimize Budget.",
+    "description": "Digital platform for enterprise printing workflow. Standardize Brand Guidelines, transparent bidding, and automated approval workflow.",
+    "bookDemo": "Book Demo",
+    "viewSolution": "View Solutions",
+    "brandSafety": "Brand Safety",
+    "brandSafetyDesc": "100% Color Accuracy Guaranteed",
+    "costControl": "Cost Control",
+    "costControlDesc": "Reduce 15-20% Waste",
+    "systemStatus": "System Status",
+    "approvalRequired": "Approval Required",
+    "approve": "APPROVE",
+    "reject": "REJECT"
+  },
+  "valueProposition": {
+    "quote": "In B2B, the lowest price is less important than",
+    "safety": "safety",
+    "and": "and",
+    "transparency": "transparency"
+  },
+  "solutions": {
+    "sectionTitle1": "Not just printing.",
+    "sectionTitle2": "This is Enterprise Management.",
+    "sectionDesc": "3 core modules that make Printz the right hand of Procurement & Marketing departments.",
+    "brandVault": {
+      "title": "Brand Vault™",
+      "subtitle": "Brand Safe",
+      "desc": "Lock down Brand Assets. Employees can only change text content on existing templates. Completely eliminate risks of wrong colors, fonts, or distorted logos.",
+      "feature1": "Digital Asset Management (DAM)",
+      "feature2": "Locked Templates",
+      "feature3": "Role-based Access",
+      "cta": "Explore Brand Vault™"
+    },
+    "autoPilot": {
+      "title": "Auto-Pilot",
+      "subtitle": "Automated Operations",
+      "desc": "Built-in multi-level approval workflow. From employee order to manager approval takes only 30 seconds. No back-and-forth emails, no manual quotes.",
+      "feature1": "Smart Approval Flow",
+      "feature2": "Real-time Tracking",
+      "feature3": "Bulk Ordering",
+      "cta": "Explore Auto-Pilot"
+    },
+    "smartCost": {
+      "title": "Smart Cost",
+      "subtitle": "Cost Transparency",
+      "desc": "Blind bidding system ensures best market prices. Automatically consolidate payables and issue a single VAT invoice at month-end.",
+      "feature1": "Price Benchmarking",
+      "feature2": "Consolidated Invoice",
+      "feature3": "Budget Alerts",
+      "cta": "Explore Smart Cost"
+    }
+  },
+  "aiUsp": {
+    "badge": "Printz Intelligence™",
+    "title1": "Design Engineering",
+    "title2": "Automated.",
+    "description": "Automated file pre-flight checks, resolution warnings, and bleed optimization. Ensures 100% match between physical print and digital design.",
+    "feature1": "Auto-detect low DPI images",
+    "feature2": "RGB to CMYK color warnings",
+    "feature3": "Optimize paper size to save 30% costs",
+    "fileId": "FILE_ID: A4_BROCHURE_FINAL.PDF",
+    "systemOnline": "SYSTEM ONLINE",
+    "analyzingGeometry": "ANALYZING GEOMETRY",
+    "noBleedingIssues": "No bleeding issues found.",
+    "colorProfile": "Color Profile",
+    "resolution": "Resolution",
+    "dimensions": "Dimensions"
+  }
+}

@@ -8,13 +8,12 @@ export interface User {
   avatarUrl?: string;
   isVerified: boolean;
   phone?: string;
-  role: 'customer' | 'printer' | 'admin';
+  role: "customer" | "printer" | "organization" | "admin";
 
-  // --- THAY THẾ 'role' ---
+  // --- Profile Links ---
   customerProfileId: string;
-  printerProfileId: string | null; // Có thể chưa phải là nhà in
-  // role: (Đã xóa)
-  // printerProfile: (Đã xóa)
+  printerProfileId: string | null;
+  organizationProfileId: string | null; // ✅ NEW: B2B Organization
 
   createdAt?: string;
   updatedAt?: string;

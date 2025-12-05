@@ -1,0 +1,98 @@
+{
+  "seo": {
+    "title": "Printz Enterprise: Gestion de Marque et Plateforme d'Impression B2B",
+    "description": "Solution numérique pour le flux de travail d'impression d'entreprise. Standardiser les directives de marque, coûts transparents, approbation automatisée et gestion de facture TVA 100%.",
+    "keywords": "Gestion de marque, Impression d'entreprise, Web-to-Print B2B, Impression d'entreprise, Directives de marque, Flux d'approbation, Plateforme d'impression numérique"
+  },
+  "header": {
+    "shop": "Boutique",
+    "business": "Solutions Entreprise",
+    "inspiration": "Inspiration",
+    "signIn": "Se Connecter",
+    "startProject": "Démarrer un Projet",
+    "selectRegion": "Sélectionner la Région"
+  },
+  "languages": {
+    "vi": "Tiếng Việt",
+    "en": "English (Global)",
+    "ja": "日本語 (Japan)",
+    "ko": "한국어 (Korea)",
+    "zh": "中文 (China)",
+    "fr": "Français (France)",
+    "de": "Deutsch (Germany)",
+    "es": "Español (Spain)",
+    "it": "Italiano (Italy)",
+    "ru": "Русский (Russia)"
+  },
+  "hero": {
+    "badge": "Plateforme de Gestion de Marque et d'Impression B2B",
+    "title1": "Numériser",
+    "title2": "Flux de Travail d'Impression B2B",
+    "title3": "Optimiser le Budget.",
+    "description": "Plateforme numérique pour le flux de travail d'impression d'entreprise. Standardiser les directives de marque, enchères transparentes et flux de travail d'approbation automatisé.",
+    "bookDemo": "Réserver une Démo",
+    "viewSolution": "Voir les Solutions",
+    "brandSafety": "Sécurité de la Marque",
+    "brandSafetyDesc": "Précision des Couleurs Garantie à 100%",
+    "costControl": "Contrôle des Coûts",
+    "costControlDesc": "Réduire 15-20% de Gaspillage",
+    "systemStatus": "État du Système",
+    "approvalRequired": "Approbation Requise",
+    "approve": "APPROUVER",
+    "reject": "REJETER"
+  },
+  "valueProposition": {
+    "quote": "En B2B, le prix le plus bas est moins important que",
+    "safety": "la sécurité",
+    "and": "et",
+    "transparency": "la transparence"
+  },
+  "solutions": {
+    "sectionTitle1": "Pas seulement de l'impression.",
+    "sectionTitle2": "C'est de la Gestion d'Entreprise.",
+    "sectionDesc": "3 modules principaux qui font de Printz le bras droit des départements Achats et Marketing.",
+    "brandVault": {
+      "title": "Brand Vault™",
+      "subtitle": "Coffre-fort de Marque",
+      "desc": "Verrouiller les actifs de marque. Les employés ne peuvent modifier que le contenu textuel des modèles existants. Éliminer complètement les risques de mauvaises couleurs, polices ou logos déformés.",
+      "feature1": "Gestion des Actifs Numériques (DAM)",
+      "feature2": "Modèles Verrouillés",
+      "feature3": "Accès Basé sur les Rôles",
+      "cta": "Explorer Brand Vault™"
+    },
+    "autoPilot": {
+      "title": "Auto-Pilot",
+      "subtitle": "Opérations Automatisées",
+      "desc": "Flux de travail d'approbation multi-niveaux intégré. De la commande de l'employé à l'approbation du manager en seulement 30 secondes. Pas d'emails aller-retour, pas de devis manuels.",
+      "feature1": "Flux d'Approbation Intelligent",
+      "feature2": "Suivi en Temps Réel",
+      "feature3": "Commande en Gros",
+      "cta": "Explorer Auto-Pilot"
+    },
+    "smartCost": {
+      "title": "Smart Cost",
+      "subtitle": "Transparence des Coûts",
+      "desc": "Système d'enchères à l'aveugle garantissant les meilleurs prix du marché. Consolider automatiquement les dettes et émettre une seule facture TVA en fin de mois.",
+      "feature1": "Analyse Comparative des Prix",
+      "feature2": "Facture Consolidée",
+      "feature3": "Alertes Budgétaires",
+      "cta": "Explorer Smart Cost"
+    }
+  },
+  "aiUsp": {
+    "badge": "Printz Intelligence™",
+    "title1": "Ingénierie de Conception",
+    "title2": "Automatisée.",
+    "description": "Vérifications pré-vol automatisées des fichiers, avertissements de résolution et optimisation des fonds perdus. Garantit une correspondance à 100% entre l'impression physique et la conception numérique.",
+    "feature1": "Détection automatique des images basse résolution",
+    "feature2": "Avertissements de couleur RGB vers CMJN",
+    "feature3": "Optimiser la taille du papier pour économiser 30% des coûts",
+    "fileId": "FILE_ID: A4_BROCHURE_FINAL.PDF",
+    "systemOnline": "SYSTÈME EN LIGNE",
+    "analyzingGeometry": "ANALYSE DE LA GÉOMÉTRIE",
+    "noBleedingIssues": "Aucun problème de fond perdu trouvé.",
+    "colorProfile": "Profil de Couleur",
+    "resolution": "Résolution",
+    "dimensions": "Dimensions"
+  }
+}

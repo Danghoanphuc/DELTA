@@ -1,0 +1,98 @@
+{
+  "seo": {
+    "title": "Printz Enterprise: 브랜드 관리 및 B2B 인쇄 플랫폼",
+    "description": "기업 인쇄 워크플로우를 위한 디지털 솔루션. 브랜드 가이드라인 표준화, 투명한 비용, 자동 승인 및 100% VAT 송장 관리.",
+    "keywords": "브랜드 관리, 기업 인쇄, Web-to-Print B2B, 기업 인쇄, 브랜드 가이드라인, 승인 워크플로우, 디지털 인쇄 플랫폼"
+  },
+  "header": {
+    "shop": "쇼핑",
+    "business": "비즈니스 솔루션",
+    "inspiration": "영감",
+    "signIn": "로그인",
+    "startProject": "프로젝트 시작",
+    "selectRegion": "지역 선택"
+  },
+  "languages": {
+    "vi": "Tiếng Việt",
+    "en": "English (Global)",
+    "ja": "日本語 (Japan)",
+    "ko": "한국어 (Korea)",
+    "zh": "中文 (China)",
+    "fr": "Français (France)",
+    "de": "Deutsch (Germany)",
+    "es": "Español (Spain)",
+    "it": "Italiano (Italy)",
+    "ru": "Русский (Russia)"
+  },
+  "hero": {
+    "badge": "브랜드 관리 및 B2B 인쇄 플랫폼",
+    "title1": "디지털화",
+    "title2": "B2B 인쇄 워크플로우",
+    "title3": "예산 최적화.",
+    "description": "기업 인쇄 워크플로우를 위한 디지털 플랫폼. 브랜드 가이드라인 표준화, 투명한 입찰, 자동화된 승인 워크플로우.",
+    "bookDemo": "데모 예약",
+    "viewSolution": "솔루션 보기",
+    "brandSafety": "브랜드 안전",
+    "brandSafetyDesc": "100% 색상 정확도 보장",
+    "costControl": "비용 관리",
+    "costControlDesc": "15-20% 낭비 감소",
+    "systemStatus": "시스템 상태",
+    "approvalRequired": "승인 필요",
+    "approve": "승인",
+    "reject": "거부"
+  },
+  "valueProposition": {
+    "quote": "B2B에서 최저 가격보다 중요한 것은",
+    "safety": "안전성",
+    "and": "과",
+    "transparency": "투명성"
+  },
+  "solutions": {
+    "sectionTitle1": "단순한 인쇄가 아닙니다.",
+    "sectionTitle2": "이것은 기업 관리입니다.",
+    "sectionDesc": "조달 및 마케팅 부서의 오른팔이 되는 3가지 핵심 모듈.",
+    "brandVault": {
+      "title": "Brand Vault™",
+      "subtitle": "브랜드 안전",
+      "desc": "브랜드 자산을 잠급니다. 직원은 기존 템플릿의 텍스트 콘텐츠만 변경할 수 있습니다. 잘못된 색상, 글꼴 또는 왜곡된 로고의 위험을 완전히 제거합니다.",
+      "feature1": "디지털 자산 관리(DAM)",
+      "feature2": "잠긴 템플릿",
+      "feature3": "역할 기반 액세스",
+      "cta": "Brand Vault™ 탐색"
+    },
+    "autoPilot": {
+      "title": "Auto-Pilot",
+      "subtitle": "자동화된 운영",
+      "desc": "내장된 다단계 승인 워크플로우. 직원 주문부터 관리자 승인까지 30초만 소요됩니다. 이메일 왕복 없음, 수동 견적 없음.",
+      "feature1": "스마트 승인 흐름",
+      "feature2": "실시간 추적",
+      "feature3": "대량 주문",
+      "cta": "Auto-Pilot 탐색"
+    },
+    "smartCost": {
+      "title": "Smart Cost",
+      "subtitle": "비용 투명성",
+      "desc": "블라인드 입찰 시스템으로 최고의 시장 가격을 보장합니다. 자동으로 미지급금을 통합하고 월말에 단일 VAT 송장을 발행합니다.",
+      "feature1": "가격 벤치마킹",
+      "feature2": "통합 송장",
+      "feature3": "예산 알림",
+      "cta": "Smart Cost 탐색"
+    }
+  },
+  "aiUsp": {
+    "badge": "Printz Intelligence™",
+    "title1": "디자인 엔지니어링",
+    "title2": "자동화.",
+    "description": "자동화된 파일 프리플라이트 검사, 해상도 경고 및 재단 여백 최적화. 물리적 인쇄와 디지털 디자인의 100% 일치를 보장합니다.",
+    "feature1": "낮은 DPI 이미지 자동 감지",
+    "feature2": "RGB에서 CMYK로 색상 경고",
+    "feature3": "용지 크기를 최적화하여 비용 30% 절감",
+    "fileId": "FILE_ID: A4_BROCHURE_FINAL.PDF",
+    "systemOnline": "시스템 온라인",
+    "analyzingGeometry": "지오메트리 분석 중",
+    "noBleedingIssues": "재단 여백 문제가 발견되지 않았습니다.",
+    "colorProfile": "색상 프로필",
+    "resolution": "해상도",
+    "dimensions": "치수"
+  }
+}

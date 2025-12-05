@@ -205,4 +205,36 @@ const isVerified = (req, res, next) => {
   next();
 };
 
-export { protect, optionalAuth, isPrinter, isAdmin, requireAuth, isVerified };
+/**
+ * ✅ NEW: Middleware kiểm tra user có phải Organization không
+ * Dùng cho B2B Platform
+ */
+const isOrganization = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: "Unauthorized: Yêu cầu đăng nhập",
+      requiresAuth: true,
+    });
+  }
+
+  if (req.user.organizationProfileId) {
+    next();
+  } else {
+    res.status(403).json({
+      success: false,
+      message: "Forbidden: Yêu cầu tài khoản tổ chức",
+      requiresOrganizationAccount: true,
+    });
+  }
+};
+
+export {
+  protect,
+  optionalAuth,
+  isPrinter,
+  isOrganization,
+  isAdmin,
+  requireAuth,
+  isVerified,
+};

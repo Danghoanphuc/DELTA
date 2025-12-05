@@ -37,6 +37,13 @@ import {
   DropdownMenuSeparator,
 } from "@/shared/components/ui/dropdown-menu";
 
+// Helper function to strip HTML tags from DOMPurify sanitized content
+const stripHtmlTags = (html: string): string => {
+  const tmp = document.createElement("DIV");
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || "";
+};
+
 // --- AVATAR COMPONENT ---
 const ConversationAvatar = ({
   src,
@@ -52,6 +59,11 @@ const ConversationAvatar = ({
   isOnline?: boolean;
 }) => {
   const [error, setError] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  // Show fallback if no src or error occurred
+  const showFallback = !src || error;
+
   return (
     <div className="relative h-12 w-12 flex-shrink-0">
       <div
@@ -60,22 +72,35 @@ const ConversationAvatar = ({
           isGroup
             ? "bg-gradient-to-br from-stone-100 to-stone-200"
             : "bg-stone-100",
-          (!src || error) && "flex items-center justify-center"
+          "flex items-center justify-center"
         )}
       >
-        {!src || error ? (
-          isGroup ? (
+        {/* Always render fallback as background */}
+        <div
+          className={cn(
+            "absolute inset-0 flex items-center justify-center",
+            !showFallback && loaded && "opacity-0"
+          )}
+        >
+          {isGroup ? (
             <Users size={20} className="text-stone-400" />
           ) : (
             <span className="font-serif text-lg font-bold text-stone-500">
               {fallback}
             </span>
-          )
-        ) : (
+          )}
+        </div>
+
+        {/* Image overlay */}
+        {src && !error && (
           <img
             src={src}
-            className="h-full w-full object-cover"
+            className={cn(
+              "absolute inset-0 h-full w-full object-cover rounded-2xl transition-opacity duration-200",
+              loaded ? "opacity-100" : "opacity-0"
+            )}
             alt={alt}
+            onLoad={() => setLoaded(true)}
             onError={() => setError(true)}
           />
         )}
@@ -138,13 +163,20 @@ export function ConversationList({
     }
   }, [conversations]);
 
-  // Deduplicate conversations by _id (keep the first occurrence)
+  // Deduplicate and sort conversations by lastMessageAt (most recent first)
   const uniqueConversations = useMemo(() => {
     const seen = new Set<string>();
-    return conversations.filter((conv) => {
+    const unique = conversations.filter((conv) => {
       if (seen.has(conv._id)) return false;
       seen.add(conv._id);
       return true;
+    });
+
+    // Sort by lastMessageAt descending (newest first)
+    return unique.sort((a, b) => {
+      const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      return timeB - timeA;
     });
   }, [conversations]);
 
@@ -312,8 +344,10 @@ export function ConversationList({
                     previewText = "Đã gửi một ảnh";
                   else if (lastMessage.type === "file")
                     previewText = "Đã gửi một tệp";
-                  else if (lastMessage.content?.text)
-                    previewText = lastMessage.content.text;
+                  else if (lastMessage.content?.text) {
+                    // Strip HTML tags from DOMPurify formatted content
+                    previewText = stripHtmlTags(lastMessage.content.text);
+                  }
                 }
 
                 const isNewlyCreated = conversation._id === newlyCreatedId;

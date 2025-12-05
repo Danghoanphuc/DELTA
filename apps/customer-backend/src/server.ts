@@ -207,6 +207,9 @@ async function startServer() {
       walletRoutes,
       rushRoutes,
       printerDashboardRoutes;
+    let organizationRoutes;
+    let recipientRoutes, swagPackRoutes, inventoryRoutes;
+    let swagOrderRoutes, teamRoutes, approvalRoutes;
 
     try {
       Logger.info("📦 [Server] Importing auth routes...");
@@ -264,6 +267,40 @@ async function startServer() {
       ).default;
       locationRoutes = (await import("./modules/location/location.routes.js"))
         .default;
+      Logger.info("📦 [Server] Importing organization routes...");
+      organizationRoutes = (
+        await import("./modules/organizations/organization.routes.js")
+      ).default;
+      Logger.info("📦 [Server] Importing recipients routes...");
+      recipientRoutes = (
+        await import("./modules/recipients/recipient.routes.js")
+      ).default;
+      Logger.info("📦 [Server] Importing swag-packs routes...");
+      swagPackRoutes = (
+        await import("./modules/swag-packs/swag-pack.routes.js")
+      ).default;
+      Logger.info("📦 [Server] Importing inventory routes...");
+      inventoryRoutes = (
+        await import("./modules/inventory/inventory.routes.js")
+      ).default;
+      Logger.info("📦 [Server] Importing swag-orders routes...");
+      swagOrderRoutes = (
+        await import("./modules/swag-orders/swag-order.routes.js")
+      ).default;
+      Logger.info("📦 [Server] Importing team routes...");
+      teamRoutes = (await import("./modules/organizations/team.routes.js"))
+        .default;
+      Logger.info("📦 [Server] Importing approval routes...");
+      approvalRoutes = (await import("./modules/approvals/approval.routes.js"))
+        .default;
+      Logger.info("📦 [Server] Importing redemption routes...");
+      var redemptionRoutes = (
+        await import("./modules/redemption/redemption.routes.js")
+      ).default;
+      Logger.info("📦 [Server] Importing company-store routes...");
+      var companyStoreRoutes = (
+        await import("./modules/company-store/company-store.routes.js")
+      ).default;
       Logger.info("✅ [Server] Đã import tất cả routes thành công!");
     } catch (routeError) {
       Logger.error("❌ Lỗi khi import routes:", routeError);
@@ -523,6 +560,24 @@ async function startServer() {
     apiRouter.use("/rush", rushRoutes);
     // ✅ LOCATION: Geocoding routes (public)
     apiRouter.use("/location", locationRoutes);
+    // ✅ ORGANIZATION: B2B Organization routes
+    apiRouter.use("/organizations", organizationRoutes);
+    // ✅ RECIPIENTS: Recipient management routes
+    apiRouter.use("/recipients", recipientRoutes);
+    // ✅ SWAG PACKS: Swag pack builder routes
+    apiRouter.use("/swag-packs", swagPackRoutes);
+    // ✅ INVENTORY: Inventory management routes
+    apiRouter.use("/inventory", inventoryRoutes);
+    // ✅ SWAG ORDERS: Send Swag Flow routes
+    apiRouter.use("/swag-orders", swagOrderRoutes);
+    // ✅ TEAM: Team management routes
+    apiRouter.use("/organizations/team", teamRoutes);
+    // ✅ APPROVALS: Approval workflow routes
+    apiRouter.use("/approvals", approvalRoutes);
+    // ✅ REDEMPTION: Redemption links (SwagUp-style)
+    apiRouter.use("/redemption", redemptionRoutes);
+    // ✅ COMPANY STORE: Company storefront (SwagUp-style)
+    apiRouter.use("/company-store", companyStoreRoutes);
 
     app.use("/api", apiRouter);
 

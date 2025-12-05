@@ -1,68 +1,187 @@
 import { Button } from "@/shared/components/ui/button";
-import { ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
-import { ImageWithFallback } from "@/features/figma/ImageWithFallback";
+import { motion } from "framer-motion";
+import { ArrowRight, Play } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+// Sample product images - replace with actual images
+const FLOATING_PRODUCTS = [
+  { id: 1, emoji: "👕", label: "Áo thun", top: "15%", left: "8%", delay: 0 },
+  { id: 2, emoji: "🎒", label: "Balo", top: "25%", right: "12%", delay: 0.2 },
+  { id: 3, emoji: "☕", label: "Ly sứ", bottom: "30%", left: "5%", delay: 0.4 },
+  {
+    id: 4,
+    emoji: "📓",
+    label: "Sổ tay",
+    bottom: "20%",
+    right: "8%",
+    delay: 0.6,
+  },
+  { id: 5, emoji: "🧢", label: "Nón", top: "45%", left: "2%", delay: 0.3 },
+  { id: 6, emoji: "🖊️", label: "Bút", top: "60%", right: "5%", delay: 0.5 },
+];
+
+const TRUSTED_LOGOS = ["VinGroup", "FPT", "Viettel", "MWG", "Techcombank"];
 
 export function LPHero() {
+  const navigate = useNavigate();
+
   return (
-    <section className="relative bg-[#F9F8F6] min-h-[90vh] flex items-center overflow-hidden">
-      {/* TEXTURE OVERLAY (Giả giấy) */}
-      <div className="absolute inset-0 opacity-[0.4] mix-blend-multiply pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
+    <section className="relative min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
+      {/* Gradient orbs */}
+      <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-blue-500/20 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[100px] pointer-events-none" />
 
-      <div className="w-full max-w-[1440px] mx-auto grid lg:grid-cols-2 h-full">
-        {/* LEFT: Editorial Content */}
-        <div className="relative z-10 px-8 py-20 lg:p-24 flex flex-col justify-center border-r border-stone-200/50">
-          <span className="font-mono text-xs font-bold tracking-[0.2em] text-stone-500 uppercase mb-8">
-            Est. 2025 — Printz Corporate
-          </span>
+      {/* Floating products */}
+      {FLOATING_PRODUCTS.map((product) => (
+        <motion.div
+          key={product.id}
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: product.delay + 0.5, duration: 0.5 }}
+          className="absolute hidden lg:flex items-center justify-center"
+          style={{
+            top: product.top,
+            left: product.left,
+            right: product.right,
+            bottom: product.bottom,
+          }}
+        >
+          <motion.div
+            animate={{ y: [0, -15, 0] }}
+            transition={{
+              duration: 3 + product.delay,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center text-3xl shadow-xl border border-white/20"
+          >
+            {product.emoji}
+          </motion.div>
+        </motion.div>
+      ))}
 
-          <h1 className="font-yrsa text-6xl md:text-8xl text-stone-900 leading-[0.95] tracking-tight mb-8">
-            Make it <br />
-            <span className="italic font-light">Real.</span>
-          </h1>
+      {/* Main content */}
+      <div className="relative z-10 max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 pt-32 lg:pt-40 pb-20">
+        <div className="text-center">
+          {/* Badge */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <span className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white/80 text-sm font-medium mb-8">
+              <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+              Nền tảng quà tặng & ấn phẩm thương hiệu #1 Việt Nam
+            </span>
+          </motion.div>
 
-          <p className="text-xl text-stone-600 font-light leading-relaxed max-w-md mb-12">
-            Nền tảng quản trị thương hiệu vật lý dành cho doanh nghiệp hiện đại.
-            Từ danh thiếp đến bao bì, chúng tôi đảm bảo sự hoàn hảo trong từng
-            điểm chạm.
-          </p>
+          {/* Headline */}
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-[1.1] mb-6"
+          >
+            Quà tặng thương hiệu
+            <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">
+              người nhận muốn giữ
+            </span>
+          </motion.h1>
 
-          <div className="flex flex-col sm:flex-row gap-6 items-start">
+          {/* Subheadline */}
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-lg sm:text-xl text-white/60 max-w-2xl mx-auto mb-10"
+          >
+            Từ thiết kế, sản xuất đến giao hàng tận tay. Chúng tôi lo tất cả để
+            thương hiệu của bạn tỏa sáng.
+          </motion.p>
+
+          {/* CTAs */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16"
+          >
             <Button
-              asChild
-              className="bg-stone-900 text-white hover:bg-emerald-900 rounded-none px-10 py-7 text-base font-medium tracking-wide transition-all duration-300"
+              onClick={() => navigate("/contact")}
+              size="lg"
+              className="bg-white text-slate-900 hover:bg-white/90 rounded-full px-8 py-7 text-base font-bold shadow-2xl shadow-white/20 hover:shadow-white/30 transition-all"
             >
-              <Link to="/business">Giải pháp Doanh nghiệp</Link>
+              Nhận báo giá miễn phí
+              <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
-            <Link
-              to="/shop"
-              className="group flex items-center gap-2 px-4 py-3 text-stone-900 font-bold border-b-2 border-transparent hover:border-stone-900 transition-all"
+            <Button
+              onClick={() => navigate("/shop")}
+              variant="ghost"
+              size="lg"
+              className="text-white/80 hover:text-white hover:bg-white/10 rounded-full px-8 py-7 text-base font-medium"
             >
-              Xem mẫu sản phẩm{" "}
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-        </div>
+              <Play className="mr-2 w-5 h-5 fill-current" />
+              Xem cách hoạt động
+            </Button>
+          </motion.div>
 
-        {/* RIGHT: Product Showcase (Tràn viền) */}
-        <div className="relative h-[50vh] lg:h-auto bg-stone-200 overflow-hidden">
-          <ImageWithFallback
-            src="https://images.unsplash.com/photo-1629079377484-82a0889c2522?q=80&w=2000&auto=format&fit=crop"
-            className="w-full h-full object-cover grayscale-[20%] contrast-[1.1] hover:scale-105 transition-transform duration-[2s] ease-out"
-            alt="Luxury Business Card"
-          />
+          {/* Stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="grid grid-cols-3 gap-8 max-w-xl mx-auto mb-16"
+          >
+            <div className="text-center">
+              <div className="text-3xl sm:text-4xl font-bold text-white mb-1">
+                500+
+              </div>
+              <div className="text-sm text-white/50">Doanh nghiệp</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl sm:text-4xl font-bold text-white mb-1">
+                50K+
+              </div>
+              <div className="text-sm text-white/50">Sản phẩm đã giao</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl sm:text-4xl font-bold text-white mb-1">
+                98%
+              </div>
+              <div className="text-sm text-white/50">Hài lòng</div>
+            </div>
+          </motion.div>
 
-          {/* Badge "Luxe" */}
-          <div className="absolute bottom-8 left-8 bg-white/90 backdrop-blur px-6 py-4 border border-stone-100 max-w-xs">
-            <p className="font-serif text-lg italic text-stone-900">
-              "Printz Luxe Paper"
+          {/* Trusted by */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+          >
+            <p className="text-sm text-white/40 mb-6 uppercase tracking-wider">
+              Được tin dùng bởi
             </p>
-            <p className="text-xs text-stone-500 mt-1 uppercase tracking-wider">
-              600gsm • Cotton Texture • Foil
-            </p>
-          </div>
+            <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-12">
+              {TRUSTED_LOGOS.map((logo, i) => (
+                <motion.div
+                  key={logo}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.5 }}
+                  transition={{ delay: 0.6 + i * 0.1 }}
+                  whileHover={{ opacity: 1 }}
+                  className="text-white font-bold text-lg sm:text-xl tracking-tight cursor-default transition-opacity"
+                >
+                  {logo}
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
         </div>
       </div>
+
+      {/* Bottom gradient fade */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent pointer-events-none" />
     </section>
   );
 }

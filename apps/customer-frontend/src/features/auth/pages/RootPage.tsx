@@ -1,11 +1,10 @@
 // src/pages/RootPage.tsx
 import { useAuthStore } from "@/stores/useAuthStore";
 import ChatAppPage from "@/features/main/pages/AppPage";
-import PrinterApp from "@/features/printer/pages/PrinterApp";
-import { Loader2 } from "lucide-react"; // ✅ THÊM
+import OrganizationApp from "@/features/organization/pages/OrganizationApp";
+import { Loader2 } from "lucide-react";
 
 const RootPage = () => {
-  // ✅ LẤY BỐI CẢNH (CONTEXT)
   const { user, loading, activeContext, isContextLoading } = useAuthStore();
 
   if (loading || isContextLoading || !user) {
@@ -16,12 +15,12 @@ const RootPage = () => {
     );
   }
 
-  // ✅ PHÂN LUỒNG DỰA TRÊN BỐI CẢNH (CONTEXT)
-  if (activeContext === "printer") {
-    return <PrinterApp />; // Trỏ đến PrinterApp
+  // Phân luồng dựa trên context
+  if (activeContext === "organization") {
+    return <OrganizationApp />;
   }
 
-  // Mặc định (activeContext === "customer")
+  // Mặc định (customer)
   return <ChatAppPage />;
 };
 

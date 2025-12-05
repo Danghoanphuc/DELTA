@@ -1,15 +1,16 @@
-import { useEffect, useRef } from 'react';
-import { Inbox } from '@novu/react';
-import { useAuthStore } from '@/stores/useAuthStore';
-import { useTheme } from '@/shared/hooks/useTheme';
-import { Bell } from 'lucide-react';
-import { Button } from '@/shared/components/ui/button';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef } from "react";
+import { Inbox } from "@novu/react";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useTheme } from "@/shared/hooks/useTheme";
+import { Bell } from "lucide-react";
+import { Button } from "@/shared/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { getNovuConfig, isNovuConfigured } from "@/config/novu.config";
 
-const NOTIFICATION_SOUND = '/sounds/message-pop.mp3';
+const NOTIFICATION_SOUND = "/sounds/message-pop.mp3";
 
 export function NotificationInbox() {
-  const applicationIdentifier = import.meta.env.VITE_NOVU_APPLICATION_IDENTIFIER;
+  const novuConfig = getNovuConfig();
   const user = useAuthStore((state) => state.user);
   const { isDark } = useTheme();
   const navigate = useNavigate();
@@ -20,10 +21,10 @@ export function NotificationInbox() {
       const audio = new Audio(NOTIFICATION_SOUND);
       audio.volume = 0.6;
       audio.play().catch((err) => {
-        console.warn('[NotificationInbox] Failed to play sound:', err);
+        console.warn("[NotificationInbox] Failed to play sound:", err);
       });
     } catch (error) {
-      console.warn('[NotificationInbox] Audio error:', error);
+      console.warn("[NotificationInbox] Audio error:", error);
     }
   };
 
@@ -31,25 +32,31 @@ export function NotificationInbox() {
     const unlockAudio = () => {
       const audio = new Audio(NOTIFICATION_SOUND);
       audio.volume = 0;
-      audio.play()
+      audio
+        .play()
         .then(() => {
           audio.pause();
           audio.currentTime = 0;
         })
         .catch(() => {});
-      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener("click", unlockAudio);
     };
-    document.addEventListener('click', unlockAudio);
-    return () => document.removeEventListener('click', unlockAudio);
+    document.addEventListener("click", unlockAudio);
+    return () => document.removeEventListener("click", unlockAudio);
   }, []);
 
   useEffect(() => {
     const checkBadgeCount = () => {
-      const badgeElement = document.querySelector('[data-test-id="notification-bell"] [class*="badge"], [data-test-id="notification-bell"] span[class*="count"]');
+      const badgeElement = document.querySelector(
+        '[data-test-id="notification-bell"] [class*="badge"], [data-test-id="notification-bell"] span[class*="count"]'
+      );
       if (badgeElement) {
-        const text = badgeElement.textContent || '';
-        const count = parseInt(text.replace(/\D/g, '')) || 0;
-        if (count > notificationCountRef.current && notificationCountRef.current > 0) {
+        const text = badgeElement.textContent || "";
+        const count = parseInt(text.replace(/\D/g, "")) || 0;
+        if (
+          count > notificationCountRef.current &&
+          notificationCountRef.current > 0
+        ) {
           playNotificationSound();
         }
         notificationCountRef.current = count;
@@ -62,13 +69,13 @@ export function NotificationInbox() {
 
   // ✅ FALLBACK: Nếu không có Novu config hoặc user chưa load, hiển thị button đơn giản
   // Luôn hiển thị chuông, kể cả khi chưa đăng nhập hoặc chưa có Novu config
-  if (!applicationIdentifier || !user?._id) {
+  if (!isNovuConfigured() || !user?._id) {
     return (
       <Button
         variant="ghost"
         size="icon"
         className="relative"
-        onClick={() => navigate('/notifications')}
+        onClick={() => navigate("/notifications")}
         aria-label="Thông báo"
       >
         <Bell size={20} />
@@ -78,36 +85,37 @@ export function NotificationInbox() {
 
   const subscriberId = user._id.toString();
 
-  const backendUrl = import.meta.env.VITE_NOVU_BACKEND_URL;
-  const socketUrl = import.meta.env.VITE_NOVU_SOCKET_URL;
-
   const inboxProps = {
-    applicationIdentifier,
+    applicationIdentifier: novuConfig.applicationIdentifier,
     subscriberId,
-    backendUrl,
-    socketUrl,
+    backendUrl: novuConfig.backendUrl,
+    socketUrl: novuConfig.socketUrl,
     onNotificationReceived: () => {
       playNotificationSound();
     },
     appearance: {
-      baseTheme: (isDark ? 'dark' : undefined) as any,
+      baseTheme: (isDark ? "dark" : undefined) as any,
       variables: {
-        colorPrimary: 'hsl(221.2, 83.2%, 53.3%)',
-        colorPrimaryForeground: 'hsl(210, 40%, 98%)',
-        colorSecondary: 'hsl(210, 40%, 96.1%)',
-        colorSecondaryForeground: 'hsl(222.2, 47.4%, 11.2%)',
-        colorCounter: 'hsl(0, 84.2%, 60.2%)',
-        colorCounterForeground: 'hsl(210, 40%, 98%)',
-        colorBackground: isDark ? 'hsl(222.2, 84%, 4.9%)' : 'hsl(0, 0%, 100%)',
-        colorRing: 'hsl(221.2, 83.2%, 53.3%)',
-        colorForeground: isDark ? 'hsl(210, 40%, 98%)' : 'hsl(222.2, 47.4%, 11.2%)',
-        colorNeutral: isDark ? 'hsl(217.2, 32.6%, 17.5%)' : 'hsl(214.3, 31.8%, 91.4%)',
-        colorShadow: isDark ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.1)',
-        fontSize: '17px',
+        colorPrimary: "hsl(221.2, 83.2%, 53.3%)",
+        colorPrimaryForeground: "hsl(210, 40%, 98%)",
+        colorSecondary: "hsl(210, 40%, 96.1%)",
+        colorSecondaryForeground: "hsl(222.2, 47.4%, 11.2%)",
+        colorCounter: "hsl(0, 84.2%, 60.2%)",
+        colorCounterForeground: "hsl(210, 40%, 98%)",
+        colorBackground: isDark ? "hsl(222.2, 84%, 4.9%)" : "hsl(0, 0%, 100%)",
+        colorRing: "hsl(221.2, 83.2%, 53.3%)",
+        colorForeground: isDark
+          ? "hsl(210, 40%, 98%)"
+          : "hsl(222.2, 47.4%, 11.2%)",
+        colorNeutral: isDark
+          ? "hsl(217.2, 32.6%, 17.5%)"
+          : "hsl(214.3, 31.8%, 91.4%)",
+        colorShadow: isDark ? "rgba(0, 0, 0, 0.3)" : "rgba(0, 0, 0, 0.1)",
+        fontSize: "17px",
       },
       elements: {
         bellIcon: {
-          color: isDark ? 'hsl(210, 40%, 98%)' : 'hsl(222.2, 47.4%, 11.2%)',
+          color: isDark ? "hsl(210, 40%, 98%)" : "hsl(222.2, 47.4%, 11.2%)",
         },
       },
     },
@@ -117,4 +125,3 @@ export function NotificationInbox() {
 
   return <Inbox {...(inboxProps as any)} />;
 }
-
