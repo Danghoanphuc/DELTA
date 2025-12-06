@@ -25,9 +25,10 @@ WORKDIR /app
 
 # Copy lockfile & package.json trước để tận dụng Docker Layer Caching
 COPY --from=pruner /app/out/json/ .
+COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 
 # OPTIMIZATION: Mount cache để pnpm không tải lại các gói đã có trong store máy chủ
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --no-frozen-lockfile
 
 # Copy source code đầy đủ sau khi đã cài xong node_modules
 COPY --from=pruner /app/out/full/ .
