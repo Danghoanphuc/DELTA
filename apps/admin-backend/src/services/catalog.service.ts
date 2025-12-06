@@ -12,7 +12,7 @@ import {
   ICatalogProduct,
   ISkuVariant,
   IProductTemplate,
-} from "../models/catalog.models";
+} from "../models/catalog.models.js";
 import mongoose from "mongoose";
 
 // ============================================
