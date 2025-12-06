@@ -1,63 +1,67 @@
 FROM node:20-alpine AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
 
-# --- Stage 1: Pruning ---
+# ---------------------------------------------------------
+# Stage 1: Pruner (Cắt tỉa Monorepo)
+# ---------------------------------------------------------
 FROM base AS pruner
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 RUN npm install -g turbo
 COPY . .
+# Chỉ lấy code liên quan đến customer-backend
 RUN turbo prune customer-backend --docker
 
-# --- Stage 2: Installer & Builder ---
+# ---------------------------------------------------------
+# Stage 2: Builder
+# ---------------------------------------------------------
 FROM base AS builder
-# Tăng giới hạn bộ nhớ cho Node lên 4GB để tránh sập khi build
-ENV NODE_OPTIONS="--max-old-space-size=4096"
-
 RUN apk add --no-cache libc6-compat python3 make g++
 WORKDIR /app
-RUN npm install -g pnpm
 
+# Tăng RAM cho node build (quan trọng cho Canvas/Fabric)
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
+# Copy lockfile trước để cache
 COPY --from=pruner /app/out/json/ .
-COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
-COPY --from=pruner /app/out/pnpm-workspace.yaml ./pnpm-workspace.yaml
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
-# Copy source first to have all files available
+# Copy source code
 COPY --from=pruner /app/out/full/ .
 
-# Install dependencies - use no-frozen-lockfile for flexibility in CI/CD
-RUN pnpm install --no-frozen-lockfile
+# Build (Tự động build dependencies: types, utils, ui)
+RUN turbo build --filter=customer-backend...
 
-# Build dependencies first (types and utils packages must be built before customer-backend)
-RUN pnpm --filter "@printz/types" build
-RUN pnpm --filter "@printz/utils" build
-
-# Debug: List files to verify source is copied
-RUN ls -la apps/customer-backend/src || echo "Source directory not found!"
-
-# Build customer-backend
-RUN pnpm --filter customer-backend build
-
-# Verify Engine
-RUN node apps/customer-backend/scripts/verify-canvas.js
-
-# --- Stage 3: Runner ---
+# ---------------------------------------------------------
+# Stage 3: Runner
+# ---------------------------------------------------------
 FROM base AS runner
 WORKDIR /app
-ENV NODE_ENV=production
 
 RUN addgroup --system --gid 1001 expressjs
 RUN adduser --system --uid 1001 expressjs
 
-# Thư viện đồ họa
+# Cài thư viện OS cho Canvas/Fabric (BẮT BUỘC CHO ALPINE)
 RUN apk add --no-cache \
-    libc6-compat font-noto fontconfig ttf-dejavu \
-    lcms2 libpng libjpeg-turbo
+    libc6-compat \
+    font-noto \
+    fontconfig \
+    ttf-dejavu \
+    lcms2 \
+    libpng \
+    libjpeg-turbo
 
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/apps/customer-backend/package.json .
-COPY --from=builder /app/apps/customer-backend/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/customer-backend/node_modules ./apps/customer-backend/node_modules
+# Copy kết quả build
+COPY --from=builder --chown=expressjs:expressjs /app/apps/customer-backend/package.json ./apps/customer-backend/package.json
+COPY --from=builder --chown=expressjs:expressjs /app/apps/customer-backend/dist ./apps/customer-backend/dist
+# Copy node_modules đã cài (production only nếu prune kỹ, ở đây copy full cho an toàn monorepo link)
+COPY --from=builder --chown=expressjs:expressjs /app/node_modules ./node_modules
+COPY --from=builder --chown=expressjs:expressjs /app/apps/customer-backend/node_modules ./apps/customer-backend/node_modules
+
+ENV NODE_ENV=production
+ENV PORT=3000
 
 USER expressjs
 EXPOSE 3000
@@ -65,4 +69,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
-CMD ["node", "dist/server.js"]
+# Chạy đúng đường dẫn trong context Monorepo
+CMD ["node", "apps/customer-backend/dist/server.js"]

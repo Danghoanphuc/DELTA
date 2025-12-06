@@ -11,7 +11,8 @@ on:
       - "pnpm-lock.yaml"
 
 env:
-  IMAGE_NAME: printz-customer-backend
+  # Thay bằng username DockerHub của bạn
+  IMAGE_NAME: hoanphuc/printz-customer-backend
 
 jobs:
   build-and-deploy:
@@ -20,7 +21,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Phân loại môi trường
+      # Phân loại môi trường: main -> PROD, develop -> STAGING
       - name: Set Environment Metadata
         id: meta
         run: |
@@ -41,22 +42,23 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and Push Docker Image
+      - name:QB Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
+          # Trỏ đúng file Dockerfile vừa tạo ở trên
           file: apps/customer-backend/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.TAG }}
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Trigger PROD
+      # Trigger PROD (Gọi Hook Prod từ ảnh secrets bạn gửi)
       - name: Trigger Render Deploy (PRODUCTION)
         if: steps.meta.outputs.ENV_NAME == 'production'
         run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_CUSTOMER_PROD }}
 
-      # Trigger STAGING
+      # Trigger STAGING (Gọi Hook Staging từ ảnh secrets bạn gửi)
       - name: Trigger Render Deploy (STAGING)
         if: steps.meta.outputs.ENV_NAME == 'staging'
         run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_CUSTOMER_STAGING }}
