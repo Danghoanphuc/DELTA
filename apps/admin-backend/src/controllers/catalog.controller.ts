@@ -1,6 +1,6 @@
 // apps/admin-backend/src/controllers/catalog.controller.ts
 // ✅ Catalog Controller - Product Management API
-// Force rebuild: 2025-12-06
+// Force rebuild: 2025-12-06 v2
 
 import { Request, Response } from "express";
 import {
