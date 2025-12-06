@@ -6,9 +6,11 @@ on:
     paths:
       - "apps/customer-backend/**"
       - "packages/**"
-      - "Dockerfile"
       - "turbo.json"
       - "pnpm-lock.yaml"
+    paths-ignore:
+      - ".github/workflows/**"
+      - "**.md"
 
 env:
   IMAGE_NAME: hoanphuc/printz-customer-backend
