@@ -59,6 +59,7 @@ RUN apk add --no-cache \
 # Copy artifacts cần thiết
 # Lưu ý: Monorepo cần copy node_modules từ root và từ app
 COPY --from=builder --chown=expressjs:expressjs /app/node_modules ./node_modules
+COPY --from=builder --chown=expressjs:expressjs /app/packages ./packages
 COPY --from=builder --chown=expressjs:expressjs /app/apps/admin-backend/node_modules ./apps/admin-backend/node_modules
 COPY --from=builder --chown=expressjs:expressjs /app/apps/admin-backend/package.json ./apps/admin-backend/package.json
 COPY --from=builder --chown=expressjs:expressjs /app/apps/admin-backend/dist ./apps/admin-backend/dist
