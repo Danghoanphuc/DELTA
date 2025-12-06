@@ -1,16 +1,16 @@
-name: Deploy Customer Frontend
+name: Deploy Admin Frontend
 
 on:
   push:
     branches: ["main", "develop", "staging"]
     paths:
-      - "apps/customer-frontend/**"
+      - "apps/admin-frontend/**"
       - "packages/**"
       - "pnpm-lock.yaml"
 
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_PROJECT_ID_ADMIN: ${{ secrets.VERCEL_PROJECT_ID_ADMIN }}
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
 jobs:
@@ -32,33 +32,24 @@ jobs:
           cache: "pnpm"
 
       - name: Install Dependencies
-        # Cài toàn bộ dependency của Monorepo để link workspace (@printz/*) hoạt động
         run: pnpm install --frozen-lockfile
 
       - name: Build Shared Packages
-        # Build các gói phụ thuộc trước (quan trọng cho TypeScript)
         run: pnpm --filter "@printz/types" build
 
       - name: Deploy to Vercel
-        working-directory: apps/customer-frontend
+        working-directory: apps/admin-frontend
         run: |
-          # Cài Vercel CLI tạm thời
           npm install -g vercel
 
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "🚀 Deploying to PRODUCTION..."
-            # 1. Pull Config Prod
+            echo "🚀 Deploying Admin Frontend to PRODUCTION..."
             vercel pull --yes --environment=production --token=$VERCEL_TOKEN
-            # 2. Build Artifacts (chạy build script của app)
             vercel build --prod --token=$VERCEL_TOKEN
-            # 3. Deploy Artifacts đã build lên Vercel
             vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
           else
-            echo "cw Deploying to PREVIEW (Staging)..."
-            # 1. Pull Config Preview
+            echo "🔧 Deploying Admin Frontend to PREVIEW (Staging)..."
             vercel pull --yes --environment=preview --token=$VERCEL_TOKEN
-            # 2. Build Artifacts
             vercel build --token=$VERCEL_TOKEN
-            # 3. Deploy Artifacts
             vercel deploy --prebuilt --token=$VERCEL_TOKEN
           fi
