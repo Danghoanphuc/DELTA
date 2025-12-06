@@ -7,9 +7,6 @@ on:
       - "apps/admin-frontend/**"
       - "packages/**"
       - "pnpm-lock.yaml"
-    paths-ignore:
-      - ".github/workflows/**"
-      - "**.md"
 
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

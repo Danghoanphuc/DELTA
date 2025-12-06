@@ -8,9 +8,6 @@ on:
       - "packages/**"
       - "turbo.json"
       - "pnpm-lock.yaml"
-    paths-ignore:
-      - ".github/workflows/**"
-      - "**.md"
 
 env:
   IMAGE_NAME: printz-admin-backend
