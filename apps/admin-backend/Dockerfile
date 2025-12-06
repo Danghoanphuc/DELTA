@@ -33,8 +33,8 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --no-frozen-lockf
 # Copy source code đầy đủ sau khi đã cài xong node_modules
 COPY --from=pruner /app/out/full/ .
 
-# Build
-RUN turbo build --filter=admin-backend...
+# Build - pnpm turbo thay vì turbo trực tiếp
+RUN pnpm turbo build --filter=admin-backend...
 
 # ---------------------------------------------------------
 # Stage 3: Runner (Production Image)
