@@ -2,6 +2,7 @@
 // ✅ B2B Organization Service - Refactored from PrinterService
 
 import { OrganizationRepository } from "./organization.repository.js";
+import { OrganizationMemberService } from "./organization-member.service.js";
 import {
   NotFoundException,
   ConflictException,
@@ -17,6 +18,7 @@ const CACHE_TTL = {
 export class OrganizationService {
   constructor() {
     this.organizationRepository = new OrganizationRepository();
+    this.memberService = new OrganizationMemberService();
     this.cacheService = new CacheService();
   }
 
@@ -113,6 +115,16 @@ export class OrganizationService {
     await this.organizationRepository.updateUser(userId, {
       organizationProfileId: newProfile._id,
     });
+
+    // ✅ NEW: Create owner membership
+    try {
+      await this.memberService.addOwner(userId, newProfile._id);
+      Logger.success(`[OrgSvc] Created owner membership for User: ${userId}`);
+    } catch (memberError) {
+      Logger.error(`[OrgSvc] Failed to create owner membership:`, memberError);
+      // Don't throw - organization is already created
+      // This can be fixed later with a cleanup script
+    }
 
     Logger.success(
       `[OrgSvc] Đăng ký Organization thành công cho User: ${userId}, Profile: ${newProfile._id}`

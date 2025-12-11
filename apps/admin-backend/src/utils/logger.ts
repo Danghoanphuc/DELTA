@@ -1,6 +1,4 @@
 // apps/admin-backend/src/utils/logger.ts
-import { config } from "../config/env.config.js";
-
 type LogLevel = "info" | "warn" | "error" | "debug" | "success";
 
 interface LogOptions {
@@ -11,15 +9,19 @@ interface LogOptions {
 }
 
 class Logger {
-  private static formatMessage(level: LogLevel, message: string, data?: any): string {
+  private static formatMessage(
+    level: LogLevel,
+    message: string,
+    data?: any
+  ): string {
     const timestamp = new Date().toISOString();
     const prefix = this.getPrefix(level);
     const baseMsg = `${timestamp} ${prefix} [Admin Backend] ${message}`;
-    
+
     if (data !== undefined) {
       return `${baseMsg} ${JSON.stringify(data, null, 2)}`;
     }
-    
+
     return baseMsg;
   }
 
@@ -42,7 +44,8 @@ class Logger {
 
   private static shouldLog(level: LogLevel): boolean {
     // In production, skip debug logs
-    if (config.env === "production" && level === "debug") {
+    const env = process.env.NODE_ENV || "development";
+    if (env === "production" && level === "debug") {
       return false;
     }
     return true;
@@ -65,9 +68,10 @@ class Logger {
 
   static error(message: string, error?: any): void {
     if (!this.shouldLog("error")) return;
-    const errorData = error instanceof Error 
-      ? { message: error.message, stack: error.stack }
-      : error;
+    const errorData =
+      error instanceof Error
+        ? { message: error.message, stack: error.stack }
+        : error;
     console.error(this.formatMessage("error", message, errorData));
   }
 
@@ -78,11 +82,11 @@ class Logger {
 
   // Special method for HTTP requests (compatible with morgan)
   static http(message: string): void {
-    if (config.env !== "production") {
+    const env = process.env.NODE_ENV || "development";
+    if (env !== "production") {
       console.log(message);
     }
   }
 }
 
 export { Logger };
-

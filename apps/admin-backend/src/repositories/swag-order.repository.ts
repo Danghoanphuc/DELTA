@@ -2,20 +2,17 @@
 // ✅ SwagOrder Repository - Data Access Layer
 
 import mongoose, { FilterQuery } from "mongoose";
-import { Logger } from "../utils/logger";
+import { Logger } from "../shared/utils/logger.js";
 import {
   IOrderRepository,
   PaginatedResult,
 } from "../interfaces/repository.interface";
+import { SwagOrder, ISwagOrder } from "../models/swag-order.model";
 
-export class SwagOrderRepository implements IOrderRepository<any> {
+export class SwagOrderRepository implements IOrderRepository<ISwagOrder> {
   private getModel() {
-    try {
-      return mongoose.model("SwagOrder");
-    } catch {
-      Logger.warn("[SwagOrderRepo] Model not available");
-      return null;
-    }
+    // Use imported model directly to ensure schema methods are available
+    return SwagOrder;
   }
 
   async findById(id: string): Promise<any | null> {
@@ -78,8 +75,7 @@ export class SwagOrderRepository implements IOrderRepository<any> {
 
     const [data, total] = await Promise.all([
       Model.find(filter)
-        .populate("organization", "businessName")
-        .populate("swagPack", "name")
+        .populate("organization", "name businessName")
         .sort(sort)
         .skip((page - 1) * limit)
         .limit(limit)
@@ -107,16 +103,16 @@ export class SwagOrderRepository implements IOrderRepository<any> {
   async findByIdWithPopulate(id: string): Promise<any | null> {
     const Model = this.getModel();
     if (!Model) return null;
+    // ✅ Chỉ populate organization và createdBy (có model trong admin-backend)
+    // recipientShipments đã có snapshot data (recipientInfo), không cần populate
     return Model.findById(id)
-      .populate("organization", "businessName contactEmail contactPhone")
-      .populate("swagPack", "name items")
+      .populate("organization", "name businessName contactEmail contactPhone")
       .populate("createdBy", "displayName email")
       .lean();
   }
 
-  async findByIdForUpdate(id: string): Promise<any | null> {
+  async findByIdForUpdate(id: string): Promise<ISwagOrder | null> {
     const Model = this.getModel();
-    if (!Model) return null;
     return Model.findById(id);
   }
 
@@ -124,8 +120,7 @@ export class SwagOrderRepository implements IOrderRepository<any> {
     const Model = this.getModel();
     if (!Model) return [];
     return Model.find({ status: { $in: statuses } })
-      .populate("organization", "businessName")
-      .populate("swagPack", "name")
+      .populate("organization", "name businessName")
       .sort({ paidAt: 1 })
       .limit(limit)
       .lean();

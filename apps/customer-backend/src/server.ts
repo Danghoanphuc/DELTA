@@ -53,6 +53,17 @@ async function startServer() {
     await connectDB();
     console.log("[Server] ✅ Database connected");
 
+    // --- 1.5. REGISTER APPLICATION HOOKS ---
+    console.log("[Server] 🔗 Registering application hooks...");
+    try {
+      const { registerAllHooks } = await import("./config/register-hooks.js");
+      registerAllHooks();
+      console.log("[Server] ✅ Application hooks registered");
+    } catch (hookError) {
+      Logger.error("[Server] ❌ Failed to register hooks:", hookError);
+      // Continue server startup even if hooks fail
+    }
+
     console.log("[Server] 📡 Connecting to Redis...");
     const redisClient = await connectToRedis();
     if (redisClient) {
@@ -153,25 +164,25 @@ async function startServer() {
 
     // ✅ Import Real-time Services (dynamic import after DB connection)
     // ✅ NOTE: socketService sẽ được import và initialize sau khi tạo HTTP server
-    Logger.info("📦 [Server] Importing change streams...");
+    Logger.debug("📦 [Server] Importing change streams...");
     const { initChangeStreams } = await import(
       "./infrastructure/database/change-streams.js"
     );
-    Logger.info("✅ [Server] Change streams imported");
+    Logger.debug("✅ [Server] Change streams imported");
 
     // ✅ SECURITY: Import Rate Limiting
-    Logger.info("📦 [Server] Importing rate limiters...");
+    Logger.debug("📦 [Server] Importing rate limiters...");
     const { initRateLimiters, generalRateLimiter } = await import(
       "./shared/middleware/rate-limit.middleware.js"
     );
-    Logger.info("✅ [Server] Rate limiters imported");
+    Logger.debug("✅ [Server] Rate limiters imported");
 
     // ✅ MAINTENANCE: Import Cron Jobs
-    Logger.info("📦 [Server] Importing cron jobs...");
+    Logger.debug("📦 [Server] Importing cron jobs...");
     const { initCronJobs } = await import(
       "./infrastructure/cron/cron.service.js"
     );
-    Logger.info("✅ [Server] Cron jobs imported");
+    Logger.debug("✅ [Server] Cron jobs imported");
 
     const allowedOrigins = config.clientUrls;
 
@@ -186,10 +197,11 @@ async function startServer() {
     ];
 
     // --- 2. IMPORT ROUTES (DYNAMIC IMPORT) ---
-    Logger.info("📦 [Server] Bắt đầu import routes...");
+    Logger.debug("📦 [Server] Importing routes...");
     // Khai báo các biến routes ở ngoài để có thể sử dụng sau
     let authRoutes,
       oauthRoutes,
+      shipperAuthRoutes,
       userRoutes,
       connectionRoutes,
       printerRoutes,
@@ -207,23 +219,27 @@ async function startServer() {
       walletRoutes,
       rushRoutes,
       printerDashboardRoutes;
-    let organizationRoutes;
+    let organizationRoutes, organizationMemberRoutes;
     let recipientRoutes, swagPackRoutes, inventoryRoutes;
     let swagOrderRoutes, teamRoutes, approvalRoutes;
+    let deliveryCheckinRoutes;
+    let threadRoutes, messageRoutes, templateRoutes;
+    let contactRequestRoutes;
 
     try {
-      Logger.info("📦 [Server] Importing auth routes...");
+      // Import all routes silently (no individual logs)
       authRoutes = (await import("./modules/auth/auth.routes.js")).default;
       oauthRoutes = (await import("./modules/auth/auth-oauth.routes.js"))
         .default;
-      Logger.info("📦 [Server] Importing user routes...");
+      shipperAuthRoutes = (
+        await import("./modules/auth/shipper-auth.routes.js")
+      ).default;
       userRoutes = (await import("./modules/users/user.routes.js")).default;
       connectionRoutes = (
         await import("./modules/connections/connection.routes.js")
       ).default;
       printerRoutes = (await import("./modules/printers/printer.routes.js"))
         .default;
-      Logger.info("📦 [Server] Importing product routes...");
       productRoutes = (await import("./modules/products/product.routes.js"))
         .default;
       assetRoutes = (await import("./modules/assets/asset.routes.js")).default;
@@ -232,7 +248,6 @@ async function startServer() {
       ).default;
       designRoutes = (await import("./modules/designs/design.routes.js"))
         .default;
-      Logger.info("📦 [Server] Importing cart & order routes...");
       cartRoutes = (await import("./modules/cart/cart.routes.js")).default;
       orderRoutes = (await import("./modules/orders/order.routes.js")).default;
       studioRoutes = (await import("./modules/printer-studio/studio.routes.js"))
@@ -240,7 +255,6 @@ async function startServer() {
       pdfRenderRoutes = (
         await import("./modules/printer-studio/pdf-render/pdf-render.routes.js")
       ).default;
-      Logger.info("📦 [Server] Importing chat routes...");
       chatRoutes = (await import("./modules/chat/chat.routes.js")).default;
       uploadRoutes = (await import("./modules/uploads/upload.routes.js"))
         .default;
@@ -251,10 +265,8 @@ async function startServer() {
       customerProfileRoutes = (
         await import("./modules/customer-profile/customer-profile.routes.js")
       ).default;
-      Logger.info("📦 [Server] Importing payment routes...");
       payosRoutes = (await import("./modules/payments/payos/payos.routes.js"))
         .default;
-      Logger.info("📦 [Server] Importing notification & AI routes...");
       notificationRoutes = (
         await import("./modules/notifications/notification.routes.js")
       ).default;
@@ -267,41 +279,56 @@ async function startServer() {
       ).default;
       locationRoutes = (await import("./modules/location/location.routes.js"))
         .default;
-      Logger.info("📦 [Server] Importing organization routes...");
       organizationRoutes = (
         await import("./modules/organizations/organization.routes.js")
       ).default;
-      Logger.info("📦 [Server] Importing recipients routes...");
+      organizationMemberRoutes = (
+        await import("./modules/organizations/organization-member.routes.js")
+      ).default;
       recipientRoutes = (
         await import("./modules/recipients/recipient.routes.js")
       ).default;
-      Logger.info("📦 [Server] Importing swag-packs routes...");
       swagPackRoutes = (
         await import("./modules/swag-packs/swag-pack.routes.js")
       ).default;
-      Logger.info("📦 [Server] Importing inventory routes...");
       inventoryRoutes = (
         await import("./modules/inventory/inventory.routes.js")
       ).default;
-      Logger.info("📦 [Server] Importing swag-orders routes...");
       swagOrderRoutes = (
         await import("./modules/swag-orders/swag-order.routes.js")
       ).default;
-      Logger.info("📦 [Server] Importing team routes...");
+      deliveryCheckinRoutes = (
+        await import("./modules/delivery-checkin/delivery-checkin.routes.js")
+      ).default;
+      var deliveryThreadRoutes = (
+        await import("./modules/delivery-thread/delivery-thread.routes.js")
+      ).default;
+      var orderThreadRoutes = (
+        await import("./modules/order-thread/order-thread.routes.js")
+      ).default;
       teamRoutes = (await import("./modules/organizations/team.routes.js"))
         .default;
-      Logger.info("📦 [Server] Importing approval routes...");
       approvalRoutes = (await import("./modules/approvals/approval.routes.js"))
         .default;
-      Logger.info("📦 [Server] Importing redemption routes...");
       var redemptionRoutes = (
         await import("./modules/redemption/redemption.routes.js")
       ).default;
-      Logger.info("📦 [Server] Importing company-store routes...");
       var companyStoreRoutes = (
         await import("./modules/company-store/company-store.routes.js")
       ).default;
-      Logger.info("✅ [Server] Đã import tất cả routes thành công!");
+      threadRoutes = (await import("./routes/thread.routes.js")).default;
+      messageRoutes = (await import("./routes/message.routes.js")).default;
+      var participantRoutes = (await import("./routes/participant.routes.js"))
+        .default;
+      var searchRoutes = (await import("./routes/search.routes.js")).default;
+      var filterRoutes = (await import("./routes/filter.routes.js")).default;
+      templateRoutes = (await import("./routes/template.routes.js")).default;
+      var quickActionRoutes = (await import("./routes/quick-action.routes.js"))
+        .default;
+      contactRequestRoutes = (
+        await import("./modules/contact-requests/contact-request.routes.js")
+      ).default;
+      Logger.info("✅ [Server] Routes imported successfully");
     } catch (routeError) {
       Logger.error("❌ Lỗi khi import routes:", routeError);
       Logger.error(
@@ -312,10 +339,10 @@ async function startServer() {
     }
 
     // --- 3. KHỞI TẠO APP VÀ MIDDLEWARE ---
-    Logger.info("🚀 [Server] Khởi tạo Express app...");
+    Logger.debug("🚀 [Server] Khởi tạo Express app...");
     const app = express();
     const server = http.createServer(app);
-    Logger.info("✅ [Server] Express app đã được khởi tạo");
+    Logger.debug("✅ [Server] Express app đã được khởi tạo");
 
     // ✅ Tăng timeout cho upload ảnh (3 phút)
     server.timeout = 180000; // 3 minutes = 180,000ms
@@ -480,14 +507,16 @@ async function startServer() {
 
     // --- 5. ĐỊNH NGHĨA ROUTES ---
     // ✅ MONITORING: Health Check endpoints (đặt trước các routes khác)
-    Logger.info("📦 [Server] Importing health routes...");
+    Logger.debug("📦 [Server] Importing health routes...");
     const healthRoutes = (await import("./routes/health.routes.js")).default;
     app.use("/", healthRoutes);
-    Logger.info("✅ [Server] Health routes mounted");
+    Logger.debug("✅ [Server] Health routes mounted");
 
     // (Giữ nguyên)
     const apiRouter = express.Router();
-    apiRouter.use("/auth", authRoutes, oauthRoutes);
+    apiRouter.use("/auth", authRoutes, oauthRoutes, shipperAuthRoutes);
+    // ✅ CONTACT REQUESTS: Mount FIRST to ensure public access (no auth middleware)
+    apiRouter.use("/contact-requests", contactRequestRoutes);
     apiRouter.use("/users", protect, userRoutes);
     apiRouter.use("/connections", protect, connectionRoutes); // ✅ SOCIAL: Connection routes
     apiRouter.use("/printers", printerRoutes);
@@ -562,6 +591,8 @@ async function startServer() {
     apiRouter.use("/location", locationRoutes);
     // ✅ ORGANIZATION: B2B Organization routes
     apiRouter.use("/organizations", organizationRoutes);
+    // ✅ ORGANIZATION MEMBERS: Team membership management
+    apiRouter.use("/organizations", organizationMemberRoutes);
     // ✅ RECIPIENTS: Recipient management routes
     apiRouter.use("/recipients", recipientRoutes);
     // ✅ SWAG PACKS: Swag pack builder routes
@@ -570,6 +601,12 @@ async function startServer() {
     apiRouter.use("/inventory", inventoryRoutes);
     // ✅ SWAG ORDERS: Send Swag Flow routes
     apiRouter.use("/swag-orders", swagOrderRoutes);
+    // ✅ DELIVERY CHECK-IN: Shipper delivery check-in routes
+    apiRouter.use("/delivery-checkins", deliveryCheckinRoutes);
+    // ✅ DELIVERY THREAD: Delivery discussion threads
+    apiRouter.use("/delivery-threads", deliveryThreadRoutes);
+    // ✅ ORDER THREAD: Order-level discussion threads
+    apiRouter.use("/order-threads", orderThreadRoutes);
     // ✅ TEAM: Team management routes
     apiRouter.use("/organizations/team", teamRoutes);
     // ✅ APPROVALS: Approval workflow routes
@@ -578,6 +615,20 @@ async function startServer() {
     apiRouter.use("/redemption", redemptionRoutes);
     // ✅ COMPANY STORE: Company storefront (SwagUp-style)
     apiRouter.use("/company-store", companyStoreRoutes);
+    // ✅ THREADED CHAT: Thread management routes
+    apiRouter.use("/threads", threadRoutes);
+    // ✅ THREADED CHAT: Message routes (includes /threads/:threadId/messages)
+    apiRouter.use("/", messageRoutes);
+    // ✅ THREADED CHAT: Participant management routes
+    apiRouter.use("/", participantRoutes);
+    // ✅ THREADED CHAT: Search routes
+    apiRouter.use("/search", searchRoutes);
+    // ✅ THREADED CHAT: Filter routes (mounted under /threads/filter)
+    apiRouter.use("/threads/filter", filterRoutes);
+    // ✅ THREADED CHAT: Template routes
+    apiRouter.use("/thread-templates", templateRoutes);
+    // ✅ THREADED CHAT: Quick Action routes (for ORDER context)
+    apiRouter.use("/orders", quickActionRoutes);
 
     app.use("/api", apiRouter);
 
@@ -586,7 +637,7 @@ async function startServer() {
       const { getBullBoardRouter } = await import("./config/queue.config.js");
       const bullBoardRouter = await getBullBoardRouter();
       app.use("/admin/queues", bullBoardRouter);
-      Logger.info("✅ Bull Board UI available at /admin/queues");
+      Logger.debug("✅ Bull Board UI available at /admin/queues");
     } catch (error) {
       Logger.warn("⚠️ Bull Board router not available:", error);
     }
@@ -613,19 +664,17 @@ async function startServer() {
     app.use(errorHandler);
 
     // Initialize MongoDB Change Streams
-    Logger.info("🔄 [Server] Initializing change streams...");
+    Logger.debug("🔄 [Server] Initializing change streams...");
     initChangeStreams();
-    Logger.info("✅ [Server] Change streams initialized");
+    Logger.debug("✅ [Server] Change streams initialized");
 
     // ✅ MAINTENANCE: Initialize Cron Jobs
-    Logger.info("🔄 [Server] Initializing cron jobs...");
+    Logger.debug("🔄 [Server] Initializing cron jobs...");
     initCronJobs();
-    Logger.info("✅ [Server] Cron jobs initialized");
+    Logger.debug("✅ [Server] Cron jobs initialized");
 
     // --- 8. LẮNG NGHE ---
-    Logger.info("🎧 [Server] Chuẩn bị lắng nghe trên port...");
     const PORT: number = parseInt(process.env.PORT || "8000", 10);
-    Logger.info(`🎧 [Server] Đang lắng nghe trên port ${PORT}...`);
     // ✅ FIX: Listen trên 0.0.0.0 để tránh vấn đề IPv6 trên Windows
     // 0.0.0.0 sẽ lắng nghe trên cả IPv4 và IPv6
     server.listen(PORT, "0.0.0.0", () => {

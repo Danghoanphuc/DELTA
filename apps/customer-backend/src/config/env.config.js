@@ -90,6 +90,9 @@ const envVarsSchema = Joi.object()
 
     // --- APIFLASH (URL Screenshot) ---
     APIFLASH_API_KEY: Joi.string().allow("").optional(),
+
+    // --- GOONG.IO (Maps & Geocoding) ---
+    GOONG_API_KEY: Joi.string().allow("").optional(),
   })
   .unknown(); // Cho phép các biến env khác không được định nghĩa
 
@@ -124,7 +127,11 @@ const normalizeClientUrls = () => {
   }
 
   // Thêm các origin dev mặc định để tránh quên cấu hình
-  ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"].forEach((url) => {
+  [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+  ].forEach((url) => {
     if (envVars.NODE_ENV !== "production") {
       urls.add(url);
     }
@@ -165,6 +172,7 @@ export const config = {
     gemini: envVars.GEMINI_API_KEY,
     openai: envVars.OPENAI_API_KEY,
     resend: envVars.RESEND_API_KEY,
+    goong: envVars.GOONG_API_KEY,
   },
 
   // Cloudinary
@@ -234,5 +242,10 @@ export const config = {
   // --- APIFLASH (URL Screenshot) ---
   apiflash: {
     apiKey: envVars.APIFLASH_API_KEY,
+  },
+
+  // --- GOONG.IO (Maps & Geocoding) ---
+  goong: {
+    apiKey: envVars.GOONG_API_KEY,
   },
 };

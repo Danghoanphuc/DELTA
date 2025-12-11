@@ -1,11 +1,10 @@
 // src/features/organization/pages/InventoryPage.tsx
-// ✅ B2B Organization Inventory Management (Real API)
+// ✅ SOLID Refactored - B2B Organization Inventory Management
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   Package,
   Search,
-  Plus,
   AlertTriangle,
   TrendingDown,
   DollarSign,
@@ -46,35 +45,8 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { Label } from "@/shared/components/ui/label";
-import { toast } from "@/shared/utils/toast";
 import { formatCurrency } from "@/shared/utils/formatCurrency";
-import api from "@/shared/lib/axios";
-
-interface InventoryItem {
-  _id: string;
-  product: string;
-  productName: string;
-  productSku?: string;
-  productImage?: string;
-  quantity: number;
-  reservedQuantity: number;
-  availableQuantity: number;
-  unitCost: number;
-  totalValue: number;
-  status: string;
-  lowStockThreshold: number;
-  warehouseLocation: string;
-  lastRestockedAt?: string;
-  lastShippedAt?: string;
-}
-
-interface InventoryStats {
-  totalSkus: number;
-  totalQuantity: number;
-  totalValue: number;
-  lowStockCount: number;
-  outOfStockCount: number;
-}
+import { useInventory } from "../hooks";
 
 const STATUS_COLORS: Record<string, string> = {
   in_stock: "bg-green-100 text-green-700",
@@ -89,105 +61,73 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function InventoryPage() {
-  const [items, setItems] = useState<InventoryItem[]>([]);
-  const [stats, setStats] = useState<InventoryStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const {
+    items,
+    stats,
+    isLoading,
+    searchTerm,
+    setSearchTerm,
+    statusFilter,
+    setStatusFilter,
+    updateQuantity,
+    removeItem,
+    refetch,
+  } = useInventory();
 
-  // Modals
-  const [showAddModal, setShowAddModal] = useState(false);
+  // Modal state
   const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Form state
   const [quantityUpdate, setQuantityUpdate] = useState({
     quantity: 0,
     operation: "add",
   });
 
-  // Fetch inventory
-  const fetchInventory = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (searchTerm) params.append("search", searchTerm);
-      if (statusFilter !== "all") params.append("status", statusFilter);
-
-      const res = await api.get(`/inventory?${params}`);
-      setItems(res.data?.data?.items || []);
-      setStats(res.data?.data?.stats || null);
-    } catch (error) {
-      console.error("Error fetching inventory:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [searchTerm, statusFilter]);
-
-  useEffect(() => {
-    fetchInventory();
-  }, [fetchInventory]);
-
-  // Search handler
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchInventory();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm, statusFilter, fetchInventory]);
-
-  // Update quantity
-  const handleUpdateQuantity = async () => {
-    if (!selectedItem) return;
-
-    setIsSubmitting(true);
-    try {
-      await api.put(`/inventory/items/${selectedItem._id}/quantity`, {
-        quantity: quantityUpdate.quantity,
-        operation: quantityUpdate.operation,
-      });
-      toast.success("Đã cập nhật số lượng!");
-      setShowUpdateModal(false);
-      setSelectedItem(null);
-      fetchInventory();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Có lỗi xảy ra");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Remove item
-  const handleRemoveItem = async (itemId: string) => {
-    if (!confirm("Bạn có chắc muốn xóa sản phẩm này khỏi kho?")) return;
-
-    try {
-      await api.delete(`/inventory/items/${itemId}`);
-      toast.success("Đã xóa khỏi kho!");
-      fetchInventory();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Có lỗi xảy ra");
-    }
-  };
-
   // Open update modal
-  const openUpdateModal = (item: InventoryItem) => {
+  const openUpdateModal = (item: any) => {
     setSelectedItem(item);
     setQuantityUpdate({ quantity: 0, operation: "add" });
     setShowUpdateModal(true);
   };
 
+  // Handle update quantity
+  const handleUpdateQuantity = async () => {
+    if (!selectedItem) return;
+
+    setIsSubmitting(true);
+    const success = await updateQuantity(
+      selectedItem._id,
+      quantityUpdate.quantity,
+      quantityUpdate.operation
+    );
+    setIsSubmitting(false);
+
+    if (success) {
+      setShowUpdateModal(false);
+      setSelectedItem(null);
+    }
+  };
+
+  // Handle remove item
+  const handleRemoveItem = async (itemId: string) => {
+    if (!confirm("Bạn có chắc muốn xóa sản phẩm này khỏi kho?")) return;
+    await removeItem(itemId);
+  };
+
   return (
-    <div className="flex-1 overflow-auto bg-gray-50">
+    <div className="flex-1 overflow-auto bg-[#FAFAF8]">
       <div className="p-8 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Tồn kho</h1>
-            <p className="text-gray-600">Quản lý hàng hóa lưu kho tại Printz</p>
+            <h1 className="text-2xl font-serif font-bold text-[#1C1917] mb-2">
+              Tồn kho
+            </h1>
+            <p className="text-[#57534E]">
+              Quản lý hàng hóa lưu kho tại Printz
+            </p>
           </div>
-          <Button onClick={fetchInventory} variant="outline">
+          <Button onClick={refetch} variant="outline">
             <RefreshCw className="w-4 h-4 mr-2" />
             Làm mới
           </Button>
@@ -195,63 +135,63 @@ export function InventoryPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-100">
                 <Package className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">Tổng SKU</p>
+                <p className="text-xs text-[#78716C]">Tổng SKU</p>
                 <h3 className="text-xl font-bold">{stats?.totalSkus || 0}</h3>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 rounded-lg bg-green-100">
                 <Warehouse className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">Tổng số lượng</p>
+                <p className="text-xs text-[#78716C]">Tổng số lượng</p>
                 <h3 className="text-xl font-bold">
                   {stats?.totalQuantity || 0}
                 </h3>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 rounded-lg bg-purple-100">
                 <DollarSign className="w-5 h-5 text-purple-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">Giá trị</p>
+                <p className="text-xs text-[#78716C]">Giá trị</p>
                 <h3 className="text-xl font-bold">
                   {formatCurrency(stats?.totalValue || 0)}
                 </h3>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 rounded-lg bg-yellow-100">
                 <TrendingDown className="w-5 h-5 text-yellow-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">Sắp hết</p>
+                <p className="text-xs text-[#78716C]">Sắp hết</p>
                 <h3 className="text-xl font-bold">
                   {stats?.lowStockCount || 0}
                 </h3>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 rounded-lg bg-red-100">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">Hết hàng</p>
+                <p className="text-xs text-[#78716C]">Hết hàng</p>
                 <h3 className="text-xl font-bold">
                   {stats?.outOfStockCount || 0}
                 </h3>
@@ -261,11 +201,11 @@ export function InventoryPage() {
         </div>
 
         {/* Filters */}
-        <Card className="border-none shadow-sm mb-6">
+        <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2] mb-6">
           <CardContent className="p-4">
             <div className="flex gap-4 items-center">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A8A29E]" />
                 <Input
                   placeholder="Tìm sản phẩm..."
                   value={searchTerm}
@@ -289,47 +229,47 @@ export function InventoryPage() {
         </Card>
 
         {/* Inventory List */}
-        <Card className="border-none shadow-sm">
+        <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
           <CardHeader>
             <CardTitle>Danh sách hàng hóa</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                <Loader2 className="w-8 h-8 animate-spin text-[#C63321]" />
               </div>
             ) : items.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                <Package className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <div className="text-center py-12 text-[#78716C]">
+                <Package className="w-16 h-16 mx-auto mb-4 text-[#E5E3DC]" />
                 <p className="text-lg font-medium mb-2">Chưa có hàng hóa nào</p>
                 <p className="text-sm mb-6">
                   Đặt hàng với dịch vụ lưu kho để bắt đầu quản lý tồn kho
                 </p>
-                <Button className="bg-orange-500 hover:bg-orange-600">
+                <Button className="bg-[#C63321] hover:bg-[#A82A1A]">
                   Tìm hiểu dịch vụ lưu kho
                 </Button>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
+                  <thead className="bg-[#FAFAF8] border-b">
                     <tr>
-                      <th className="p-4 text-left text-sm font-medium text-gray-600">
+                      <th className="p-4 text-left text-sm font-medium text-[#57534E]">
                         Sản phẩm
                       </th>
-                      <th className="p-4 text-left text-sm font-medium text-gray-600">
+                      <th className="p-4 text-left text-sm font-medium text-[#57534E]">
                         SKU
                       </th>
-                      <th className="p-4 text-right text-sm font-medium text-gray-600">
+                      <th className="p-4 text-right text-sm font-medium text-[#57534E]">
                         Số lượng
                       </th>
-                      <th className="p-4 text-right text-sm font-medium text-gray-600">
+                      <th className="p-4 text-right text-sm font-medium text-[#57534E]">
                         Khả dụng
                       </th>
-                      <th className="p-4 text-right text-sm font-medium text-gray-600">
+                      <th className="p-4 text-right text-sm font-medium text-[#57534E]">
                         Giá trị
                       </th>
-                      <th className="p-4 text-center text-sm font-medium text-gray-600">
+                      <th className="p-4 text-center text-sm font-medium text-[#57534E]">
                         Trạng thái
                       </th>
                       <th className="p-4"></th>
@@ -337,7 +277,10 @@ export function InventoryPage() {
                   </thead>
                   <tbody>
                     {items.map((item) => (
-                      <tr key={item._id} className="border-b hover:bg-gray-50">
+                      <tr
+                        key={item._id}
+                        className="border-b hover:bg-[#FAFAF8]"
+                      >
                         <td className="p-4">
                           <div className="flex items-center gap-3">
                             {item.productImage ? (
@@ -347,25 +290,25 @@ export function InventoryPage() {
                                 className="w-10 h-10 rounded-lg object-cover"
                               />
                             ) : (
-                              <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                                <Package className="w-5 h-5 text-gray-400" />
+                              <div className="w-10 h-10 rounded-lg bg-[#F7F6F2] flex items-center justify-center">
+                                <Package className="w-5 h-5 text-[#A8A29E]" />
                               </div>
                             )}
-                            <span className="font-medium text-gray-900">
+                            <span className="font-medium text-[#1C1917]">
                               {item.productName}
                             </span>
                           </div>
                         </td>
-                        <td className="p-4 text-gray-600">
+                        <td className="p-4 text-[#57534E]">
                           {item.productSku || "-"}
                         </td>
                         <td className="p-4 text-right font-medium">
                           {item.quantity}
                         </td>
-                        <td className="p-4 text-right text-gray-600">
+                        <td className="p-4 text-right text-[#57534E]">
                           {item.availableQuantity}
                         </td>
-                        <td className="p-4 text-right text-gray-600">
+                        <td className="p-4 text-right text-[#57534E]">
                           {formatCurrency(item.totalValue)}
                         </td>
                         <td className="p-4 text-center">
@@ -415,11 +358,11 @@ export function InventoryPage() {
           </DialogHeader>
           {selectedItem && (
             <div className="space-y-4 py-4">
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <Package className="w-8 h-8 text-gray-400" />
+              <div className="flex items-center gap-3 p-3 bg-[#FAFAF8] rounded-lg">
+                <Package className="w-8 h-8 text-[#A8A29E]" />
                 <div>
                   <p className="font-medium">{selectedItem.productName}</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-[#78716C]">
                     Hiện có: {selectedItem.quantity} | Khả dụng:{" "}
                     {selectedItem.availableQuantity}
                   </p>
@@ -466,7 +409,7 @@ export function InventoryPage() {
               Hủy
             </Button>
             <Button
-              className="bg-orange-500 hover:bg-orange-600"
+              className="bg-[#C63321] hover:bg-[#A82A1A]"
               onClick={handleUpdateQuantity}
               disabled={isSubmitting}
             >

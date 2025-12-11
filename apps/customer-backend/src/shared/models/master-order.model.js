@@ -152,8 +152,27 @@ const MasterOrderSchema = new mongoose.Schema(
     isRushOrder: { type: Boolean, default: false, index: true },
     requiredDeadline: { type: Date },
     rushFeeAmount: { type: Number, default: 0, min: 0 },
+    // Shipper assignment for delivery
+    assignedShipperId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+    },
+    shipperAssignedAt: { type: Date },
+    shipperAssignedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
   { timestamps: true }
 );
+
+// Compound indexes for performance
+MasterOrderSchema.index({
+  assignedShipperId: 1,
+  masterStatus: 1,
+  paymentStatus: 1,
+});
+MasterOrderSchema.index({ assignedShipperId: 1, shipperAssignedAt: -1 });
 
 export const MasterOrder = mongoose.model("MasterOrder", MasterOrderSchema);

@@ -2,7 +2,7 @@
 import mongoose from "mongoose";
 import { Admin } from "../models/admin.model.js";
 import { config } from "../config/env.config.js";
-import { Logger } from "../utils/logger.js";
+import { Logger } from "../shared/utils/logger.js";
 
 const createSuperAdmin = async () => {
   // ✅ IMPROVEMENT: Use config instead of direct env access
@@ -11,7 +11,9 @@ const createSuperAdmin = async () => {
   const PASSWORD = config.superAdmin.password;
 
   if (!EMAIL || !PASSWORD) {
-    Logger.error("Thiếu SUPERADMIN_EMAIL hoặc SUPERADMIN_PASSWORD trong file .env");
+    Logger.error(
+      "Thiếu SUPERADMIN_EMAIL hoặc SUPERADMIN_PASSWORD trong file .env"
+    );
     process.exit(1);
   }
 

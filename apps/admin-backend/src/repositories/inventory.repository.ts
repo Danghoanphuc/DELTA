@@ -1,113 +1,372 @@
-// src/repositories/inventory.repository.ts
-// ✅ Inventory Repository - Data Access Layer
+// apps/admin-backend/src/repositories/inventory.repository.ts
+// ✅ Inventory Repository - Data access layer for inventory management
+// Phase 4.1.1: Implement Inventory Repository
 
-import mongoose, { FilterQuery } from "mongoose";
-import { Logger } from "../utils/logger";
-import { IInventoryRepository } from "../interfaces/repository.interface";
+import { FilterQuery } from "mongoose";
+import {
+  InventoryTransaction,
+  IInventoryTransaction,
+  TRANSACTION_TYPES,
+  REFERENCE_TYPES,
+} from "../models/inventory.models.js";
+import { SkuVariant } from "../models/catalog.models.js";
+import { Logger } from "../shared/utils/logger.js";
 
-export class InventoryRepository implements IInventoryRepository<any> {
-  private getModel() {
+/**
+ * Inventory Repository
+ * Handles all database operations for inventory management
+ */
+export class InventoryRepository {
+  // ============================================
+  // INVENTORY TRANSACTION OPERATIONS
+  // ============================================
+
+  /**
+   * Create a new inventory transaction
+   */
+  async createTransaction(
+    data: Partial<IInventoryTransaction>
+  ): Promise<IInventoryTransaction> {
     try {
-      return mongoose.model("Inventory");
-    } catch {
-      Logger.warn("[InventoryRepo] Model not available");
-      return null;
+      const transaction = new InventoryTransaction(data);
+      await transaction.save();
+
+      Logger.debug(
+        `[InventoryRepo] Created transaction: ${transaction._id} - ${transaction.type} - ${transaction.sku}`
+      );
+
+      return transaction;
+    } catch (error) {
+      Logger.error(`[InventoryRepo] Error creating transaction:`, error);
+      throw error;
     }
   }
 
-  async findById(id: string): Promise<any | null> {
-    const Model = this.getModel();
-    if (!Model) return null;
-    return Model.findById(id).lean();
+  /**
+   * Get transaction by ID
+   */
+  async getTransactionById(id: string): Promise<IInventoryTransaction | null> {
+    return await InventoryTransaction.findById(id).lean();
   }
 
-  async findOne(filter: FilterQuery<any>): Promise<any | null> {
-    const Model = this.getModel();
-    if (!Model) return null;
-    return Model.findOne(filter).lean();
+  /**
+   * Get transactions for a SKU variant
+   */
+  async getTransactionsByVariant(
+    variantId: string,
+    options: {
+      startDate?: Date;
+      endDate?: Date;
+      type?: string;
+      limit?: number;
+      skip?: number;
+    } = {}
+  ): Promise<{
+    transactions: IInventoryTransaction[];
+    total: number;
+  }> {
+    const query: FilterQuery<IInventoryTransaction> = {
+      skuVariantId: variantId,
+    };
+
+    if (options.startDate || options.endDate) {
+      query.createdAt = {};
+      if (options.startDate) query.createdAt.$gte = options.startDate;
+      if (options.endDate) query.createdAt.$lte = options.endDate;
+    }
+
+    if (options.type) {
+      query.type = options.type;
+    }
+
+    const limit = options.limit || 50;
+    const skip = options.skip || 0;
+
+    const [transactions, total] = await Promise.all([
+      InventoryTransaction.find(query)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .skip(skip)
+        .lean(),
+      InventoryTransaction.countDocuments(query),
+    ]);
+
+    return { transactions, total };
   }
 
-  async find(filter: FilterQuery<any>): Promise<any[]> {
-    const Model = this.getModel();
-    if (!Model) return [];
-    return Model.find(filter).lean();
-  }
-
-  async create(data: Partial<any>): Promise<any> {
-    const Model = this.getModel();
-    if (!Model) throw new Error("Model not available");
-    const doc = new Model(data);
-    return doc.save();
-  }
-
-  async update(id: string, data: any): Promise<any | null> {
-    const Model = this.getModel();
-    if (!Model) return null;
-    return Model.findByIdAndUpdate(id, data, { new: true });
-  }
-
-  async delete(id: string): Promise<boolean> {
-    const Model = this.getModel();
-    if (!Model) return false;
-    const result = await Model.findByIdAndDelete(id);
-    return !!result;
-  }
-
-  async count(filter?: FilterQuery<any>): Promise<number> {
-    const Model = this.getModel();
-    if (!Model) return 0;
-    return Model.countDocuments(filter || {});
-  }
-
-  async findByOrganization(organizationId: string): Promise<any[]> {
-    const Model = this.getModel();
-    if (!Model) return [];
-    return Model.find({
-      organization: new mongoose.Types.ObjectId(organizationId),
+  /**
+   * Get transactions by reference (order, production order, etc.)
+   */
+  async getTransactionsByReference(
+    referenceType: string,
+    referenceId: string
+  ): Promise<IInventoryTransaction[]> {
+    return await InventoryTransaction.find({
+      referenceType,
+      referenceId,
     })
-      .populate("organization", "businessName")
+      .sort({ createdAt: -1 })
       .lean();
   }
 
-  async findAllWithOrganization(): Promise<any[]> {
-    const Model = this.getModel();
-    if (!Model) return [];
-    return Model.find().populate("organization", "businessName").lean();
+  /**
+   * Get all transactions for a date range
+   */
+  async getTransactionsByDateRange(
+    startDate: Date,
+    endDate: Date,
+    options: {
+      type?: string;
+      limit?: number;
+      skip?: number;
+    } = {}
+  ): Promise<{
+    transactions: IInventoryTransaction[];
+    total: number;
+  }> {
+    const query: FilterQuery<IInventoryTransaction> = {
+      createdAt: {
+        $gte: startDate,
+        $lte: endDate,
+      },
+    };
+
+    if (options.type) {
+      query.type = options.type;
+    }
+
+    const limit = options.limit || 100;
+    const skip = options.skip || 0;
+
+    const [transactions, total] = await Promise.all([
+      InventoryTransaction.find(query)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .skip(skip)
+        .lean(),
+      InventoryTransaction.countDocuments(query),
+    ]);
+
+    return { transactions, total };
   }
 
-  async findItemById(
-    itemId: string
-  ): Promise<{ inventory: any; itemIndex: number } | null> {
-    const Model = this.getModel();
-    if (!Model) return null;
+  // ============================================
+  // SKU VARIANT INVENTORY OPERATIONS
+  // ============================================
 
-    const inventory = await Model.findOne({ "items._id": itemId });
-    if (!inventory) return null;
+  /**
+   * Get current inventory levels for a variant
+   */
+  async getInventoryLevels(variantId: string) {
+    const variant = await SkuVariant.findById(variantId)
+      .select("sku name inventory stockQuantity reservedQuantity")
+      .lean();
 
-    const itemIndex = inventory.items.findIndex(
-      (i: any) => i._id.toString() === itemId
+    if (!variant) {
+      return null;
+    }
+
+    // Support both old and new schema
+    if (variant.inventory) {
+      return {
+        sku: variant.sku,
+        name: variant.name,
+        onHand: variant.inventory.onHand,
+        reserved: variant.inventory.reserved,
+        available: variant.inventory.available,
+        inTransit: variant.inventory.inTransit,
+        reorderPoint: variant.inventory.reorderPoint,
+        reorderQuantity: variant.inventory.reorderQuantity,
+      };
+    } else {
+      // Fallback to old schema
+      return {
+        sku: variant.sku,
+        name: variant.name,
+        onHand: variant.stockQuantity || 0,
+        reserved: variant.reservedQuantity || 0,
+        available:
+          (variant.stockQuantity || 0) - (variant.reservedQuantity || 0),
+        inTransit: 0,
+        reorderPoint: 10,
+        reorderQuantity: 50,
+      };
+    }
+  }
+
+  /**
+   * Update inventory levels for a variant
+   */
+  async updateInventoryLevels(
+    variantId: string,
+    updates: {
+      onHand?: number;
+      reserved?: number;
+      inTransit?: number;
+    }
+  ) {
+    const variant = await SkuVariant.findById(variantId);
+    if (!variant) {
+      throw new Error(`SKU Variant ${variantId} not found`);
+    }
+
+    // Initialize inventory object if it doesn't exist
+    if (!variant.inventory) {
+      variant.inventory = {
+        onHand: variant.stockQuantity || 0,
+        reserved: variant.reservedQuantity || 0,
+        available: 0,
+        inTransit: 0,
+        reorderPoint: 10,
+        reorderQuantity: 50,
+      };
+    }
+
+    // Apply updates
+    if (updates.onHand !== undefined) {
+      variant.inventory.onHand = updates.onHand;
+    }
+    if (updates.reserved !== undefined) {
+      variant.inventory.reserved = updates.reserved;
+    }
+    if (updates.inTransit !== undefined) {
+      variant.inventory.inTransit = updates.inTransit;
+    }
+
+    // Calculate available
+    variant.inventory.available = Math.max(
+      0,
+      variant.inventory.onHand - variant.inventory.reserved
     );
-    if (itemIndex === -1) return null;
 
-    return { inventory, itemIndex };
+    // Update old fields for backward compatibility
+    variant.stockQuantity = variant.inventory.onHand;
+    variant.reservedQuantity = variant.inventory.reserved;
+
+    await variant.save();
+
+    Logger.debug(
+      `[InventoryRepo] Updated inventory for ${variant.sku}: onHand=${variant.inventory.onHand}, reserved=${variant.inventory.reserved}, available=${variant.inventory.available}`
+    );
+
+    return variant;
   }
 
-  async updateItem(
-    inventoryId: string,
-    itemIndex: number,
-    update: any
-  ): Promise<any | null> {
-    const Model = this.getModel();
-    if (!Model) return null;
+  /**
+   * Get low stock items
+   */
+  async getLowStockItems(threshold?: number): Promise<any[]> {
+    const reorderThreshold = threshold || 10;
 
-    const inventory = await Model.findById(inventoryId);
-    if (!inventory) return null;
+    // Query variants where available <= reorderPoint
+    const variants = await SkuVariant.find({
+      isActive: true,
+      $or: [
+        // New schema
+        { "inventory.available": { $lte: reorderThreshold } },
+        // Old schema fallback
+        {
+          $and: [
+            { inventory: { $exists: false } },
+            {
+              $expr: {
+                $lte: [
+                  { $subtract: ["$stockQuantity", "$reservedQuantity"] },
+                  reorderThreshold,
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    })
+      .populate("productId", "name categoryId")
+      .select("sku name productId inventory stockQuantity reservedQuantity")
+      .lean();
 
-    Object.assign(inventory.items[itemIndex], update);
-    await inventory.save();
+    return variants.map((v: any) => ({
+      variantId: v._id,
+      sku: v.sku,
+      name: v.name,
+      productName: v.productId?.name,
+      onHand: v.inventory?.onHand || v.stockQuantity || 0,
+      reserved: v.inventory?.reserved || v.reservedQuantity || 0,
+      available:
+        v.inventory?.available ||
+        (v.stockQuantity || 0) - (v.reservedQuantity || 0),
+      reorderPoint: v.inventory?.reorderPoint || reorderThreshold,
+      reorderQuantity: v.inventory?.reorderQuantity || 50,
+    }));
+  }
 
-    return inventory.items[itemIndex];
+  /**
+   * Get inventory overview (summary statistics)
+   */
+  async getInventoryOverview() {
+    const variants = await SkuVariant.find({ isActive: true })
+      .select("inventory stockQuantity reservedQuantity cost")
+      .lean();
+
+    let totalOnHand = 0;
+    let totalReserved = 0;
+    let totalAvailable = 0;
+    let totalValue = 0;
+    let lowStockCount = 0;
+
+    variants.forEach((v: any) => {
+      const onHand = v.inventory?.onHand || v.stockQuantity || 0;
+      const reserved = v.inventory?.reserved || v.reservedQuantity || 0;
+      const available = v.inventory?.available || onHand - reserved;
+      const reorderPoint = v.inventory?.reorderPoint || 10;
+      const cost = v.cost || 0;
+
+      totalOnHand += onHand;
+      totalReserved += reserved;
+      totalAvailable += available;
+      totalValue += onHand * cost;
+
+      if (available <= reorderPoint) {
+        lowStockCount++;
+      }
+    });
+
+    return {
+      totalVariants: variants.length,
+      totalOnHand,
+      totalReserved,
+      totalAvailable,
+      totalValue,
+      lowStockCount,
+    };
+  }
+
+  /**
+   * Check if variant has sufficient stock
+   */
+  async hasSufficientStock(
+    variantId: string,
+    requiredQuantity: number
+  ): Promise<boolean> {
+    const levels = await this.getInventoryLevels(variantId);
+    if (!levels) return false;
+
+    return levels.available >= requiredQuantity;
+  }
+
+  /**
+   * Get variants by SKU list
+   */
+  async getVariantsBySkus(skus: string[]) {
+    return await SkuVariant.find({
+      sku: { $in: skus },
+      isActive: true,
+    })
+      .select("sku name inventory stockQuantity reservedQuantity cost")
+      .lean();
   }
 }
 
+export default InventoryRepository;
+
+// Export singleton instance
 export const inventoryRepository = new InventoryRepository();

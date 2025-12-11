@@ -4,11 +4,11 @@ import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAdminAuthStore } from "@/store/useAdminAuthStore";
 import { signOut } from "@/services/adminAuthService";
 import { swagOpsService } from "@/services/admin.swag-operations.service";
+import { NotificationBell } from "./NotificationBell";
 import {
   LayoutDashboard,
   Package,
   Truck,
-  BarChart3,
   Boxes,
   Users,
   Building,
@@ -16,13 +16,16 @@ import {
   Menu,
   X,
   Search,
-  Bell,
   ChevronRight,
   Settings,
   HelpCircle,
   ShoppingBag,
   FolderTree,
   Factory,
+  PackageCheck,
+  FileText,
+  TrendingUp,
+  ClipboardList,
 } from "lucide-react";
 
 interface NavItem {
@@ -72,30 +75,20 @@ export default function AdminLayout() {
       path: "/",
       icon: LayoutDashboard,
     },
-    { type: "divider", label: "SWAG OPERATIONS" },
+    { type: "divider", label: "ĐƠN HÀNG & GIAO HÀNG" },
     {
-      label: "Đơn hàng",
-      path: "/swag-ops/orders",
-      icon: Package,
+      label: "Quản lý giao hàng",
+      path: "/delivery",
+      icon: Truck,
       badge: pendingCount,
     },
     {
       label: "Fulfillment",
       path: "/swag-ops/fulfillment",
-      icon: Truck,
+      icon: Package,
       badge: fulfillmentCount,
     },
-    {
-      label: "Tồn kho",
-      path: "/swag-ops/inventory",
-      icon: Boxes,
-    },
-    {
-      label: "Analytics",
-      path: "/swag-ops/analytics",
-      icon: BarChart3,
-    },
-    { type: "divider", label: "PRODUCT CATALOG" },
+    { type: "divider", label: "SẢN PHẨM & KHO" },
     {
       label: "Sản phẩm",
       path: "/catalog/products",
@@ -107,11 +100,53 @@ export default function AdminLayout() {
       icon: FolderTree,
     },
     {
+      label: "Tồn kho",
+      path: "/inventory",
+      icon: Boxes,
+    },
+    {
       label: "Nhà cung cấp",
       path: "/catalog/suppliers",
       icon: Factory,
     },
-    { type: "divider", label: "QUẢN TRỊ" },
+    { type: "divider", label: "SẢN XUẤT" },
+    {
+      label: "Đơn sản xuất",
+      path: "/production",
+      icon: Factory,
+    },
+    {
+      label: "Kitting",
+      path: "/kitting",
+      icon: PackageCheck,
+    },
+    {
+      label: "Chứng từ",
+      path: "/documents/invoices",
+      icon: FileText,
+    },
+    { type: "divider", label: "BÁO CÁO & PHÂN TÍCH" },
+    {
+      label: "Tổng quan",
+      path: "/analytics",
+      icon: TrendingUp,
+    },
+    {
+      label: "Phân tích sản phẩm",
+      path: "/analytics/products",
+      icon: ShoppingBag,
+    },
+    {
+      label: "Phân tích NCC",
+      path: "/analytics/suppliers",
+      icon: Factory,
+    },
+    {
+      label: "Xu hướng đơn hàng",
+      path: "/analytics/orders",
+      icon: ClipboardList,
+    },
+    { type: "divider", label: "QUẢN TRỊ HỆ THỐNG" },
     {
       label: "Quản lý Users",
       path: "/users",
@@ -128,13 +163,32 @@ export default function AdminLayout() {
   const getBreadcrumb = () => {
     const pathMap: Record<string, string> = {
       "/": "Dashboard",
-      "/swag-ops/orders": "Đơn hàng",
+      // Delivery Management
+      "/delivery": "Quản lý giao hàng",
+      // Swag Operations
       "/swag-ops/fulfillment": "Fulfillment",
       "/swag-ops/inventory": "Tồn kho",
       "/swag-ops/analytics": "Analytics",
+      // Product Catalog
       "/catalog/products": "Sản phẩm",
       "/catalog/categories": "Danh mục",
       "/catalog/suppliers": "Nhà cung cấp",
+      "/catalog/suppliers-performance": "Hiệu suất NCC",
+      // Inventory Management
+      "/inventory": "Tồn kho",
+      "/inventory/transactions": "Lịch sử giao dịch",
+      // Production Orders
+      "/production": "Sản xuất",
+      // Kitting
+      "/kitting": "Kitting",
+      // Documents
+      "/documents/invoices": "Hóa đơn",
+      // Analytics
+      "/analytics": "Analytics",
+      "/analytics/products": "Phân tích sản phẩm",
+      "/analytics/suppliers": "Phân tích NCC",
+      "/analytics/orders": "Xu hướng đơn hàng",
+      // Admin
       "/users": "Quản lý Users",
       "/printer-vetting": "Duyệt Nhà in",
     };
@@ -147,6 +201,24 @@ export default function AdminLayout() {
     }
     if (path.startsWith("/catalog/products/") && path !== "/catalog/products") {
       return ["Sản phẩm", "Chi tiết"];
+    }
+    if (
+      path.startsWith("/catalog/suppliers/") &&
+      path !== "/catalog/suppliers"
+    ) {
+      return ["Nhà cung cấp", "Chi tiết"];
+    }
+    if (path.startsWith("/production/") && path !== "/production") {
+      return ["Sản xuất", "Chi tiết đơn"];
+    }
+    if (path.startsWith("/kitting/") && path !== "/kitting") {
+      return ["Kitting", "Chi tiết"];
+    }
+    if (
+      path.startsWith("/documents/invoices/") &&
+      path !== "/documents/invoices"
+    ) {
+      return ["Hóa đơn", "Chi tiết"];
     }
 
     return [pathMap[path] || "Dashboard"];
@@ -299,12 +371,7 @@ export default function AdminLayout() {
             </div>
 
             {/* Notifications */}
-            <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <Bell className="w-5 h-5 text-gray-600" />
-              {pendingCount > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-              )}
-            </button>
+            <NotificationBell />
 
             {/* User menu */}
             <div className="relative">

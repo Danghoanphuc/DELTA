@@ -43,6 +43,23 @@ const processor = async (job) => {
           Logger.info(`[Worker] Order notification not implemented yet`);
           break;
 
+        case "delivery-thread-message":
+          // ✅ FIX: Handle delivery thread notifications
+          Logger.debug(
+            `[Worker] Processing delivery-thread-message for recipient: ${data.recipientId}`
+          );
+          await novuService.triggerDeliveryThreadNotification(
+            data.recipientId,
+            data.recipientModel,
+            data.threadId,
+            data.orderNumber,
+            data.senderName,
+            data.senderRole,
+            data.messagePreview,
+            data.checkinId
+          );
+          break;
+
         default:
           Logger.warn(`[Worker] Unknown job type: ${job.name}`);
       }

@@ -68,3 +68,6 @@ export const hasRole = (roles: AdminRole[]) => {
     next();
   };
 };
+
+// Export alias for backward compatibility
+export const authenticate = isAuthenticatedAdmin;

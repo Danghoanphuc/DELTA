@@ -123,9 +123,13 @@ export class SwagOrderService {
       sendImmediately: !scheduledSendDate,
       notifyRecipients: notifyRecipients !== false,
       customMessage,
+      // ✅ FIX: Đơn hàng B2B được tạo là đã submit, chờ admin xử lý
+      // Nếu cần người nhận điền thông tin → PENDING_INFO (admin vẫn thấy)
+      // Nếu không → PENDING_PAYMENT (sẵn sàng xử lý)
       status: needsSizeSelection
         ? SWAG_ORDER_STATUS.PENDING_INFO
-        : SWAG_ORDER_STATUS.DRAFT,
+        : SWAG_ORDER_STATUS.PENDING_PAYMENT,
+      submittedAt: new Date(), // Đánh dấu đã submit ngay khi tạo
     });
 
     // Calculate pricing

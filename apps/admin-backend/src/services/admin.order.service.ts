@@ -36,10 +36,7 @@ const ADMIN_STATUS_FILTER_MAP: Record<
     MASTER_ORDER_STATUS.PENDING_PAYMENT,
     MASTER_ORDER_STATUS.PAID_WAITING_FOR_PRINTER,
   ],
-  Processing: [
-    MASTER_ORDER_STATUS.PROCESSING,
-    MASTER_ORDER_STATUS.SHIPPING,
-  ],
+  Processing: [MASTER_ORDER_STATUS.PROCESSING, MASTER_ORDER_STATUS.SHIPPING],
   Completed: [MASTER_ORDER_STATUS.COMPLETED],
   Cancelled: [MASTER_ORDER_STATUS.CANCELLED],
 };
@@ -196,7 +193,7 @@ export const forceUpdateStatus = async (
   await order.save();
 
   const orderIdStr = String(order._id);
-  
+
   void recordAdminAuditLog({
     action: "ORDER_STATUS_FORCE_UPDATED",
     actor: admin,
@@ -215,3 +212,146 @@ export const forceUpdateStatus = async (
   return await getOrderDetails(orderIdStr);
 };
 
+export const assignShipperToOrder = async (
+  orderId: string,
+  shipperId: string,
+  admin: IAdmin,
+  context: RequestContextMeta = {}
+): Promise<IMasterOrder> => {
+  ensureValidObjectId(orderId, "orderId");
+  ensureValidObjectId(shipperId, "shipperId");
+
+  if (!admin) {
+    throw new ValidationException("Thiếu thông tin Admin thực hiện hành động.");
+  }
+
+  const order = await MasterOrderModel.findById(orderId);
+  if (!order) {
+    throw new NotFoundException("Đơn hàng", orderId);
+  }
+
+  const previousShipperId = order.assignedShipperId
+    ? String(order.assignedShipperId)
+    : null;
+
+  // Update shipper assignment
+  order.assignedShipperId =
+    shipperId as unknown as typeof order.assignedShipperId;
+  order.shipperAssignedAt = new Date();
+  order.shipperAssignedBy =
+    admin._id as unknown as typeof order.shipperAssignedBy;
+  await order.save();
+
+  const orderIdStr = String(order._id);
+
+  // Add shipper to delivery thread
+  try {
+    const { DeliveryThread } = await import(
+      "../models/delivery-thread.model.js"
+    );
+    const { Admin } = await import("../models/admin.model.js");
+
+    const thread = await DeliveryThread.findOne({
+      orderId: order._id,
+      checkinId: { $exists: false },
+      isDeleted: false,
+    });
+
+    if (thread) {
+      // Check if shipper is already a participant
+      const isParticipant = thread.participants.some(
+        (p: any) => p.userId.toString() === shipperId
+      );
+
+      if (!isParticipant) {
+        // Get shipper info (shipper is also an Admin user)
+        const shipper = await Admin.findById(shipperId).lean();
+        if (shipper) {
+          await DeliveryThread.findByIdAndUpdate(thread._id, {
+            $push: {
+              participants: {
+                userId: shipperId,
+                userModel: "Admin",
+                userName:
+                  (shipper as any).displayName ||
+                  (shipper as any).email ||
+                  "Shipper",
+                role: "shipper",
+                joinedAt: new Date(),
+              },
+            },
+          });
+
+          console.log(
+            `[OrderService] Added shipper ${shipperId} to thread ${thread._id}`
+          );
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[OrderService] Failed to add shipper to thread:", error);
+    // Don't fail the whole operation if thread update fails
+  }
+
+  void recordAdminAuditLog({
+    action: "ORDER_SHIPPER_ASSIGNED",
+    actor: admin,
+    targetType: "MasterOrder",
+    targetId: orderIdStr,
+    metadata: {
+      orderNumber: order.orderNumber,
+      previousShipperId,
+      newShipperId: shipperId,
+    },
+    ipAddress: context.ipAddress ?? undefined,
+    userAgent: context.userAgent ?? undefined,
+  });
+
+  return await getOrderDetails(orderIdStr);
+};
+
+export const unassignShipperFromOrder = async (
+  orderId: string,
+  admin: IAdmin,
+  context: RequestContextMeta = {}
+): Promise<IMasterOrder> => {
+  ensureValidObjectId(orderId, "orderId");
+
+  if (!admin) {
+    throw new ValidationException("Thiếu thông tin Admin thực hiện hành động.");
+  }
+
+  const order = await MasterOrderModel.findById(orderId);
+  if (!order) {
+    throw new NotFoundException("Đơn hàng", orderId);
+  }
+
+  if (!order.assignedShipperId) {
+    throw new ValidationException("Đơn hàng chưa được gán shipper.");
+  }
+
+  const previousShipperId = String(order.assignedShipperId);
+
+  // Remove shipper assignment
+  order.assignedShipperId = undefined;
+  order.shipperAssignedAt = undefined;
+  order.shipperAssignedBy = undefined;
+  await order.save();
+
+  const orderIdStr = String(order._id);
+
+  void recordAdminAuditLog({
+    action: "ORDER_SHIPPER_UNASSIGNED",
+    actor: admin,
+    targetType: "MasterOrder",
+    targetId: orderIdStr,
+    metadata: {
+      orderNumber: order.orderNumber,
+      previousShipperId,
+    },
+    ipAddress: context.ipAddress ?? undefined,
+    userAgent: context.userAgent ?? undefined,
+  });
+
+  return await getOrderDetails(orderIdStr);
+};

@@ -92,7 +92,7 @@ const PACK_TYPES = [
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-700",
+  draft: "bg-[#F7F6F2] text-[#44403C]",
   active: "bg-green-100 text-green-700",
   archived: "bg-red-100 text-red-700",
 };
@@ -283,26 +283,27 @@ export function SwagPacksPage() {
   }
 
   return (
-    <div className="flex-1 overflow-auto bg-gray-50">
+    <div className="flex-1 overflow-auto bg-[#FAFAF8]">
       <div className="p-8 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Swag Packs
+            <h1 className="text-2xl font-serif font-bold text-[#1C1917] mb-2">
+              Bộ quà sẵn có
             </h1>
-            <p className="text-gray-600">Tạo và quản lý các bộ quà tặng</p>
+            <p className="text-[#57534E]">Tạo và quản lý các bộ quà tặng</p>
           </div>
           <div className="flex gap-3">
             <Button
               variant="outline"
+              className="border-2 border-[#1C1917] text-[#1C1917] hover:bg-[#1C1917] hover:text-[#F7F6F2]"
               onClick={() => setShowTemplatesModal(true)}
             >
               <Sparkles className="w-4 h-4 mr-2" />
               Từ Template
             </Button>
             <Button
-              className="bg-orange-500 hover:bg-orange-600"
+              className="bg-[#C63321] hover:bg-[#A82A1A] text-[#F7F6F2] shadow-[0_2px_8px_rgba(198,51,33,0.2)]"
               onClick={() => openPackBuilder()}
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -313,35 +314,35 @@ export function SwagPacksPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-orange-100">
-                <Package className="w-6 h-6 text-orange-600" />
+              <div className="p-3 rounded-xl bg-[#FFF5F3]">
+                <Package className="w-6 h-6 text-[#C63321]" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Tổng bộ quà</p>
+                <p className="text-sm text-[#57534E]">Tổng bộ quà</p>
                 <h3 className="text-2xl font-bold">{stats.totalPacks}</h3>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="p-4 flex items-center gap-4">
               <div className="p-3 rounded-xl bg-green-100">
                 <Gift className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Đang hoạt động</p>
+                <p className="text-sm text-[#57534E]">Đang hoạt động</p>
                 <h3 className="text-2xl font-bold">{stats.activePacks}</h3>
               </div>
             </CardContent>
           </Card>
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-gray-100">
-                <Edit className="w-6 h-6 text-gray-600" />
+              <div className="p-3 rounded-xl bg-[#F7F6F2]">
+                <Edit className="w-6 h-6 text-[#57534E]" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Bản nháp</p>
+                <p className="text-sm text-[#57534E]">Bản nháp</p>
                 <h3 className="text-2xl font-bold">{stats.draftPacks}</h3>
               </div>
             </CardContent>
@@ -349,11 +350,11 @@ export function SwagPacksPage() {
         </div>
 
         {/* Filters */}
-        <Card className="border-none shadow-sm mb-6">
+        <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2] mb-6">
           <CardContent className="p-4">
             <div className="flex gap-4 items-center">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A8A29E]" />
                 <Input
                   placeholder="Tìm bộ quà..."
                   value={searchTerm}
@@ -379,16 +380,16 @@ export function SwagPacksPage() {
         {/* Packs Grid */}
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+            <Loader2 className="w-8 h-8 animate-spin text-[#C63321]" />
           </div>
         ) : packs.length === 0 ? (
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="text-center py-12">
-              <Package className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium mb-2 text-gray-900">
+              <Package className="w-16 h-16 mx-auto mb-4 text-[#E5E3DC]" />
+              <p className="text-lg font-medium mb-2 text-[#1C1917]">
                 Chưa có bộ quà nào
               </p>
-              <p className="text-sm text-gray-500 mb-6">
+              <p className="text-sm text-[#78716C] mb-6">
                 Tạo bộ quà đầu tiên hoặc chọn từ template có sẵn
               </p>
               <div className="flex gap-3 justify-center">
@@ -400,7 +401,7 @@ export function SwagPacksPage() {
                   Chọn Template
                 </Button>
                 <Button
-                  className="bg-orange-500 hover:bg-orange-600"
+                  className="bg-[#C63321] hover:bg-[#A82A1A]"
                   onClick={() => setShowCreateModal(true)}
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -414,7 +415,7 @@ export function SwagPacksPage() {
             {packs.map((pack) => (
               <Card
                 key={pack._id}
-                className="border-none shadow-sm hover:shadow-md transition-shadow"
+                className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2] hover:shadow-md transition-shadow"
               >
                 <CardContent className="p-0">
                   {/* Pack Image/Preview */}
@@ -424,7 +425,7 @@ export function SwagPacksPage() {
                         {pack.items.slice(0, 3).map((item, i) => (
                           <div
                             key={item._id}
-                            className="w-16 h-16 rounded-lg bg-white shadow-md flex items-center justify-center overflow-hidden"
+                            className="w-16 h-16 rounded-lg bg-[#F7F6F2] shadow-md flex items-center justify-center overflow-hidden"
                           >
                             {item.productImage ? (
                               <img
@@ -433,12 +434,12 @@ export function SwagPacksPage() {
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <Package className="w-8 h-8 text-gray-400" />
+                              <Package className="w-8 h-8 text-[#A8A29E]" />
                             )}
                           </div>
                         ))}
                         {pack.items.length > 3 && (
-                          <div className="w-16 h-16 rounded-lg bg-orange-500 shadow-md flex items-center justify-center text-white font-bold">
+                          <div className="w-16 h-16 rounded-lg bg-[#C63321] shadow-md flex items-center justify-center text-white font-bold">
                             +{pack.items.length - 3}
                           </div>
                         )}
@@ -452,10 +453,10 @@ export function SwagPacksPage() {
                   <div className="p-4">
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        <h3 className="font-semibold text-gray-900">
+                        <h3 className="font-semibold text-[#1C1917]">
                           {pack.name}
                         </h3>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-[#78716C]">
                           {pack.items.length} sản phẩm
                         </p>
                       </div>
@@ -468,7 +469,7 @@ export function SwagPacksPage() {
                       </Badge>
                     </div>
 
-                    <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
+                    <div className="flex items-center justify-between text-sm text-[#57534E] mb-4">
                       <span>
                         {formatCurrency(pack.pricing?.unitPrice || 0)}/bộ
                       </span>
@@ -479,7 +480,7 @@ export function SwagPacksPage() {
                       {pack.status === "draft" && (
                         <Button
                           size="sm"
-                          className="flex-1 bg-orange-500 hover:bg-orange-600"
+                          className="flex-1 bg-[#C63321] hover:bg-[#A82A1A]"
                           onClick={() => handlePublish(pack._id)}
                         >
                           Kích hoạt
@@ -488,7 +489,7 @@ export function SwagPacksPage() {
                       {pack.status === "active" && (
                         <Button
                           size="sm"
-                          className="flex-1 bg-orange-500 hover:bg-orange-600"
+                          className="flex-1 bg-[#C63321] hover:bg-[#A82A1A]"
                         >
                           Gửi quà
                         </Button>
@@ -594,7 +595,7 @@ export function SwagPacksPage() {
               Hủy
             </Button>
             <Button
-              className="bg-orange-500 hover:bg-orange-600"
+              className="bg-[#C63321] hover:bg-[#A82A1A]"
               onClick={handleCreatePack}
               disabled={isSubmitting}
             >
@@ -620,12 +621,12 @@ export function SwagPacksPage() {
                 key={template.id}
                 onClick={() => handleCreateFromTemplate(template)}
                 disabled={isSubmitting}
-                className="p-4 border rounded-lg text-left hover:border-orange-300 hover:bg-orange-50 transition-all"
+                className="p-4 border rounded-lg text-left hover:border-[#C63321] hover:bg-[#FFF5F3] transition-all"
               >
-                <h3 className="font-semibold text-gray-900 mb-1">
+                <h3 className="font-semibold text-[#1C1917] mb-1">
                   {template.name}
                 </h3>
-                <p className="text-sm text-gray-500 mb-2">
+                <p className="text-sm text-[#78716C] mb-2">
                   {template.description}
                 </p>
                 <div className="flex flex-wrap gap-1 mb-2">
@@ -640,7 +641,7 @@ export function SwagPacksPage() {
                     </Badge>
                   )}
                 </div>
-                <p className="text-sm font-medium text-orange-600">
+                <p className="text-sm font-medium text-[#C63321]">
                   ~{formatCurrency(template.estimatedPrice)}
                 </p>
               </button>

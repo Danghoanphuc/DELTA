@@ -12,10 +12,20 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import mongoose from "mongoose";
+import { createServer } from "http";
+import { Server as SocketIOServer } from "socket.io";
 
 // --- Import configuration ---
 import { config } from "./config/env.config.js";
 import { Logger } from "./utils/logger.js";
+
+// --- Import Socket.IO middleware and services ---
+import { socketAuthMiddleware } from "./middleware/socket-auth.middleware.js";
+import { productionEventEmitter } from "./services/production-event-emitter.service.js";
+
+// --- Import shared models (register with mongoose) ---
+import "./models/shared.models.js";
+import "./models/delivery-thread.model.js";
 
 // --- Import routes ---
 import healthRoutes from "./routes/health.routes.js";
@@ -34,8 +44,53 @@ import adminOrderRoutes from "./routes/admin.order.routes.js";
 import adminFinanceRoutes from "./routes/admin.finance.routes.js";
 import adminContentRoutes from "./routes/admin.content.routes.js";
 import catalogRoutes from "./routes/catalog.routes.js";
+import adminSwagOpsRoutes from "./routes/admin.swag-operations.routes.js";
+import adminInventoryRoutes from "./routes/admin.inventory.routes.js";
+import adminProductionRoutes from "./routes/admin.production.routes.js";
+import adminKittingRoutes from "./routes/admin.kitting.routes.js";
+import adminDocumentRoutes from "./routes/admin.document.routes.js";
+import adminAlertRoutes from "./routes/admin.alert.routes.js";
+import adminSupplierRoutes from "./routes/admin.supplier.routes.js";
+import adminShippingRoutes from "./routes/admin.shipping.routes.js";
+import adminAnalyticsRoutes from "./routes/admin.analytics.routes.js";
+import adminCostTrackingRoutes from "./routes/admin.cost-tracking.routes.js";
+import adminPricingRoutes from "./routes/admin.pricing.routes.js";
+import adminProposalRoutes from "./routes/admin.proposal.routes.js";
+import adminAssetRoutes from "./routes/admin.asset.routes.js";
+import adminProductionStatusRoutes from "./routes/admin.production-status.routes.js";
+import adminJobTicketRoutes from "./routes/admin.job-ticket.routes.js";
+import adminReorderRoutes from "./routes/admin.reorder.routes.js";
+import webhookRoutes from "./routes/webhook.routes.js";
+import adminDeliveryCheckinRoutes from "./routes/admin.delivery-checkin.routes.js";
+import adminDeliveryThreadRoutes from "./routes/admin.delivery-thread.routes.js";
+import adminOrderThreadRoutes from "./routes/admin.order-thread.routes.js";
 
 const app = express();
+const httpServer = createServer(app);
+
+// --- ✅ REAL-TIME: Initialize Socket.IO ---
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: config.cors.origins,
+    credentials: true,
+  },
+  transports: ["websocket", "polling"],
+});
+
+// Apply authentication middleware to Socket.IO
+io.use(socketAuthMiddleware);
+
+// Initialize production event emitter with Socket.IO
+productionEventEmitter.initializeSocketIO(io);
+
+// Socket.IO connection handler
+io.on("connection", (socket) => {
+  Logger.success(`[Socket.IO] Client connected: ${socket.id}`);
+
+  socket.on("disconnect", () => {
+    Logger.info(`[Socket.IO] Client disconnected: ${socket.id}`);
+  });
+});
 
 // --- ✅ SECURITY FIX: Cấu hình Helmet với các security headers ---
 app.use(
@@ -121,6 +176,26 @@ app.use("/api/admin/orders", adminOrderRoutes);
 app.use("/api/admin/finance", adminFinanceRoutes);
 app.use("/api/admin/content", adminContentRoutes);
 app.use("/api/admin/catalog", catalogRoutes);
+app.use("/api/admin/swag-ops", adminSwagOpsRoutes);
+app.use("/api/admin/inventory", adminInventoryRoutes);
+app.use("/api/admin/production-orders", adminProductionRoutes);
+app.use("/api/admin/kitting", adminKittingRoutes);
+app.use("/api/admin/documents", adminDocumentRoutes);
+app.use("/api/admin/suppliers", adminSupplierRoutes);
+app.use("/api/admin/shipments", adminShippingRoutes);
+app.use("/api/admin/analytics", adminAnalyticsRoutes);
+app.use("/api/admin/costs", adminCostTrackingRoutes);
+app.use("/api/admin/pricing", adminPricingRoutes);
+app.use("/api/admin/proposals", adminProposalRoutes);
+app.use("/api/admin", adminAssetRoutes);
+app.use("/api/production", adminProductionStatusRoutes);
+app.use("/api/admin", adminJobTicketRoutes);
+app.use("/api/orders", adminReorderRoutes);
+app.use("/api/alerts", adminAlertRoutes);
+app.use("/api/webhooks", webhookRoutes);
+app.use("/api/admin/delivery-checkins", adminDeliveryCheckinRoutes);
+app.use("/api/admin/delivery-threads", adminDeliveryThreadRoutes);
+app.use("/api/admin/order-threads", adminOrderThreadRoutes);
 
 // --- 404 Handler ---
 app.use((req: Request, res: Response) => {
@@ -134,7 +209,7 @@ app.use((req: Request, res: Response) => {
 app.use(errorHandler);
 
 // --- ✅ IMPROVEMENT: Khởi động server với async pattern ---
-let server: ReturnType<typeof app.listen>;
+let server: ReturnType<typeof httpServer.listen>;
 
 async function startServer() {
   try {
@@ -145,9 +220,10 @@ async function startServer() {
     // Initialize cron jobs after DB connection
     initializeCronJobs();
 
-    // Start HTTP server
-    server = app.listen(config.port, () => {
+    // Start HTTP server with Socket.IO
+    server = httpServer.listen(config.port, () => {
       Logger.success(`Server running on http://localhost:${config.port}`);
+      Logger.success(`Socket.IO server ready on ws://localhost:${config.port}`);
       Logger.info(`Environment: ${config.env}`);
       Logger.info(`Health Check: http://localhost:${config.port}/health`);
     });
@@ -169,6 +245,14 @@ const gracefulShutdown = async (signal: string) => {
   }
 
   try {
+    // Close Socket.IO connections
+    io.close(() => {
+      Logger.info("Socket.IO server closed");
+    });
+
+    // Close production event emitter
+    await productionEventEmitter.close();
+
     // Close database connection
     await mongoose.connection.close();
     Logger.success("MongoDB connection closed");

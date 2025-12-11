@@ -16,3 +16,4 @@ export * from "./models/printer-profile.model.js";
 export * from "./models/product.model.js";
 export * from "./models/design-template.model.js";
 export * from "./models/customer-profile.model.js";
+export * from "./models/shipper-profile.model.js";

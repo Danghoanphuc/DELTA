@@ -52,3 +52,13 @@ export class BadRequestException extends Error {
     this.statusCode = 400;
   }
 }
+
+export class ConflictException extends Error {
+  public statusCode: number;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "ConflictException";
+    this.statusCode = 409;
+  }
+}

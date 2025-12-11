@@ -10,7 +10,7 @@ import type { PrinterProfile } from "@/types/printerProfile";
 import { useNavigate } from "react-router-dom";
 
 // --- TYPES ---
-export type AuthContext = "customer" | "printer" | "organization";
+export type AuthContext = "customer" | "printer" | "organization" | "shipper";
 
 interface OrganizationProfile {
   _id: string;
@@ -36,6 +36,15 @@ interface OrganizationProfile {
   credits?: number;
 }
 
+interface ShipperProfile {
+  _id: string;
+  displayName: string;
+  phone?: string;
+  vehicleType?: string;
+  licensePlate?: string;
+  isActive?: boolean;
+}
+
 interface AuthState {
   accessToken: string | null;
   user: User | null;
@@ -45,6 +54,7 @@ interface AuthState {
   activeContext: AuthContext;
   activePrinterProfile: PrinterProfile | null;
   activeOrganizationProfile: OrganizationProfile | null; // ✅ NEW: B2B Organization
+  activeShipperProfile: ShipperProfile | null; // ✅ NEW: Shipper
   isContextLoading: boolean; // Loading khi chuyển bối cảnh
 
   // --- Setters ---
@@ -80,6 +90,7 @@ const initialState = {
   activeContext: "customer" as AuthContext,
   activePrinterProfile: null,
   activeOrganizationProfile: null,
+  activeShipperProfile: null,
   isContextLoading: false,
 };
 
@@ -157,78 +168,238 @@ export const useAuthStore = create<AuthState>()(
       // --- FETCH ME (ĐÃ SỬA VÀ NÂNG CẤP) ---
       fetchMe: async (silent = false) => {
         if (!silent) set({ loading: true });
+        set({ isContextLoading: true }); // ✅ Set loading at start
         try {
           const user = await authService.fetchMe();
-          set({ user }); // Cập nhật user ngay
 
           const currentContext = get().activeContext;
-          const isUserInStore = get().user;
 
-          if (!isUserInStore) return;
+          // ✅ AUTO-DETECT CONTEXT: Ưu tiên organization > shipper > printer > customer
+          let detectedContext: AuthContext = "customer";
 
-          // 1. Tự động KIỂM TRA và SỬA LỖI bối cảnh
-          if (currentContext === "printer") {
-            const printerProfileId = isUserInStore.printerProfileId;
+          console.log("[FetchMe] User profile IDs:", {
+            organizationProfileId: user.organizationProfileId,
+            shipperProfileId: user.shipperProfileId,
+            printerProfileId: user.printerProfileId,
+            customerProfileId: user.customerProfileId,
+          });
 
-            if (!printerProfileId) {
-              set({ activeContext: "customer", activePrinterProfile: null });
+          if (user.organizationProfileId) {
+            detectedContext = "organization";
+            console.log("[FetchMe] Detected organization context");
+          } else if (user.shipperProfileId) {
+            detectedContext = "shipper";
+            console.log("[FetchMe] Detected shipper context");
+          } else if (user.printerProfileId) {
+            detectedContext = "printer";
+            console.log("[FetchMe] Detected printer context");
+          } else {
+            console.log("[FetchMe] Detected customer context");
+          }
+
+          // 1. Xử lý SHIPPER context
+          if (detectedContext === "shipper") {
+            const shipperProfileId = user.shipperProfileId;
+
+            if (!shipperProfileId) {
+              set({
+                user,
+                activeContext: "customer",
+                activeShipperProfile: null,
+                loading: false,
+                isContextLoading: false, // ✅ Always set to false
+              });
               return;
             }
 
-            // 2. Tải profile nếu đang ở context 'printer' và CÓ profile ID
+            // Load shipper profile nếu chưa có
+            if (!get().activeShipperProfile) {
+              try {
+                const res = await authService.getShipperProfile();
+                const profile = res.data?.data?.profile;
+
+                set({
+                  user,
+                  activeShipperProfile: profile,
+                  activeContext: "shipper",
+                  loading: false,
+                  isContextLoading: false,
+                });
+              } catch (profileError) {
+                console.error(
+                  "❌ [FetchMe] Failed to load shipper profile:",
+                  profileError
+                );
+                toast.error("Lỗi khi tải hồ sơ shipper. Vui lòng thử lại.");
+                set({
+                  user,
+                  activeContext: "customer",
+                  activeShipperProfile: null,
+                  loading: false,
+                  isContextLoading: false,
+                });
+              }
+            } else {
+              set({
+                user,
+                activeContext: "shipper",
+                loading: false,
+                isContextLoading: false, // ✅ Always set to false
+              });
+            }
+            return;
+          }
+
+          // 2. Xử lý ORGANIZATION context
+          if (detectedContext === "organization") {
+            const organizationProfileId = user.organizationProfileId;
+
+            if (!organizationProfileId) {
+              // ✅ Single state update
+              set({
+                user,
+                activeContext: "customer",
+                activeOrganizationProfile: null,
+                loading: false,
+                isContextLoading: false, // ✅ Always set to false
+              });
+              return;
+            }
+
+            // Load organization profile nếu chưa có
+            if (!get().activeOrganizationProfile) {
+              try {
+                const res = await authService.getOrganizationProfile();
+                const profile = res.data?.data?.profile;
+
+                // ✅ Single state update - combine all changes
+                set({
+                  user,
+                  activeOrganizationProfile: profile,
+                  activeContext: "organization",
+                  loading: false,
+                  isContextLoading: false,
+                });
+              } catch (profileError) {
+                console.error(
+                  "❌ [FetchMe] Failed to load organization profile:",
+                  profileError
+                );
+                toast.error(
+                  "Lỗi khi tải hồ sơ doanh nghiệp. Vui lòng thử lại."
+                );
+                // ✅ Fallback to customer context on error
+                set({
+                  user,
+                  activeContext: "customer",
+                  activeOrganizationProfile: null,
+                  loading: false,
+                  isContextLoading: false,
+                });
+              }
+            } else {
+              // ✅ Already have profile - just update user and context
+              set({
+                user,
+                activeContext: "organization",
+                loading: false,
+                isContextLoading: false, // ✅ Always set to false
+              });
+            }
+            return;
+          }
+
+          // 3. Xử lý PRINTER context
+          if (detectedContext === "printer") {
+            const printerProfileId = user.printerProfileId;
+
+            if (!printerProfileId) {
+              // ✅ Single state update
+              set({
+                user,
+                activeContext: "customer",
+                activePrinterProfile: null,
+                loading: false,
+                isContextLoading: false, // ✅ Always set to false
+              });
+              return;
+            }
 
             // 2.1. Sử dụng Lightweight API để kiểm tra tính hợp lệ của ID
-            set({ isContextLoading: true });
             const isValid = await printerService.validateProfileExistence();
 
             if (!isValid) {
               // ✅ FIX LỖI STALE ID: Nếu ID cũ không còn tồn tại trên DB
               console.error("❌ [FetchMe] Printer Profile is STALE/DELETED.");
-              set((state) => {
-                const userWithClearedId = state.user
-                  ? { ...state.user, printerProfileId: null } // <--- BƯỚC QUAN TRỌNG: Xóa ID lỗi
-                  : null;
-                if (!silent) {
-                  toast.error(
-                    "Hồ sơ nhà in không tồn tại. Đang chuyển về chế độ mua hàng."
-                  );
-                }
-                return {
-                  user: userWithClearedId,
-                  activeContext: "customer",
-                  activePrinterProfile: null,
-                };
+              const userWithClearedId = { ...user, printerProfileId: null };
+              if (!silent) {
+                toast.error(
+                  "Hồ sơ nhà in không tồn tại. Đang chuyển về chế độ mua hàng."
+                );
+              }
+              // ✅ Single state update
+              set({
+                user: userWithClearedId,
+                activeContext: "customer",
+                activePrinterProfile: null,
+                loading: false,
+                isContextLoading: false,
               });
-              return; // Dừng lại ở đây
+              return;
             }
 
             // 2.2. Nếu ID HỢP LỆ -> Chỉ tải full profile nếu chưa có sẵn
             if (!get().activePrinterProfile) {
               try {
                 const profile = await printerService.getMyProfile();
+                // ✅ Single state update
                 set({
+                  user,
                   activePrinterProfile: profile,
                   activeContext: "printer",
+                  loading: false,
+                  isContextLoading: false,
                 });
               } catch (profileError) {
-                // Nếu lỗi tải full profile (500 internal server error)
                 console.error(
                   "❌ [FetchMe] Failed to load full profile:",
                   profileError
                 );
                 toast.error("Lỗi khi tải hồ sơ nhà in. Vui lòng thử lại.");
-                // Vẫn giữ ID và context 'printer' để người dùng thử lại
+                // ✅ Fallback to customer
+                set({
+                  user,
+                  activeContext: "customer",
+                  loading: false,
+                  isContextLoading: false,
+                });
               }
+            } else {
+              // ✅ Already have profile
+              set({
+                user,
+                activeContext: "printer",
+                loading: false,
+                isContextLoading: false, // ✅ Always set to false
+              });
             }
+            return;
           }
-          // Nếu context là 'customer' thì không cần làm gì thêm.
+
+          // 4. CUSTOMER context - simple update
+          set({
+            user,
+            activeContext: "customer",
+            loading: false,
+            isContextLoading: false, // ✅ Always set to false
+          });
         } catch (err: any) {
           console.error("❌ [FetchMe Error]", err);
           get().clearState(); // Xóa state hỏng
           if (!silent)
             toast.error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!");
         } finally {
-          set({ loading: false, isContextLoading: false }); // Tắt tất cả loading
+          set({ loading: false, isContextLoading: false }); // ✅ Ensure always set to false
         }
       },
 
@@ -254,6 +425,9 @@ export const useAuthStore = create<AuthState>()(
 
       // --- HÀNH ĐỘNG CHUYỂN BỐI CẢNH ---
       setActiveContext: async (context, navigate) => {
+        console.log("[setActiveContext] ⚠️ Called with context:", context);
+        console.trace("[setActiveContext] Call stack");
+
         const { user, activePrinterProfile } = get();
         if (!user) {
           console.warn("⚠️ [setActiveContext] User chưa đăng nhập");
@@ -272,6 +446,24 @@ export const useAuthStore = create<AuthState>()(
               // Không cần clear activePrinterProfile, giữ lại để cache
             });
             navigate("/app"); // Điều hướng về trang chat
+            return;
+          }
+
+          if (context === "shipper") {
+            // Kiểm tra xem user có hồ sơ shipper không
+            if (!user.shipperProfileId) {
+              toast.info("Bạn chưa có quyền shipper.");
+              set({ isContextLoading: false });
+              navigate("/app");
+              return;
+            }
+
+            // Đã có shipperProfileId -> chuyển context
+            set({
+              activeContext: "shipper",
+              isContextLoading: false,
+            });
+            navigate("/shipper/app");
             return;
           }
 
@@ -349,20 +541,31 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         user: state.user,
         activeContext: state.activeContext,
-        // Không persist activePrinterProfile, sẽ fetch lại
+        // Không persist profiles, sẽ fetch lại
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
-          // Khi tải lại trang, nếu bối cảnh là 'printer' nhưng user không có
-          // printerProfileId (ví dụ: data cũ), reset về 'customer'
+          // Reset về customer nếu context không hợp lệ
           if (
             state.activeContext === "printer" &&
             !state.user?.printerProfileId
           ) {
             state.activeContext = "customer";
           }
+          if (
+            state.activeContext === "shipper" &&
+            !state.user?.shipperProfileId
+          ) {
+            state.activeContext = "customer";
+          }
+          if (
+            state.activeContext === "organization" &&
+            !state.user?.organizationProfileId
+          ) {
+            state.activeContext = "customer";
+          }
           state.isContextLoading = false;
-          state.loading = false; // Luôn bắt đầu với loading = false
+          state.loading = false;
         }
       },
     }

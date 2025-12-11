@@ -64,7 +64,11 @@ export function SocialButton({
             description: "Chào mừng bạn quay trở lại!",
           });
 
-          navigate("/app", { replace: true });
+          // ✅ Use centralized redirect helper
+          const { redirectAfterAuth } = await import(
+            "@/features/auth/utils/redirect-helpers"
+          );
+          redirectAfterAuth(navigate);
         } else {
           throw new Error("Invalid response from server");
         }

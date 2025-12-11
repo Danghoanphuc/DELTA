@@ -2,7 +2,7 @@
 // ✅ Order Service - Single Responsibility: Order CRUD & Status Management
 
 import mongoose from "mongoose";
-import { Logger } from "../../utils/logger";
+import { Logger } from "../../shared/utils/logger.js";
 import { SwagOrderRepository } from "../../repositories/swag-order.repository";
 import {
   OrderFilters,

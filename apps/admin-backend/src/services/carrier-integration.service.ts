@@ -2,7 +2,7 @@
 // ✅ Carrier Integration Service - Refactored with Strategy Pattern
 // Tuân thủ SOLID: OCP, DIP, SRP
 
-import { Logger } from "../utils/logger";
+import { Logger } from "../shared/utils/logger.js";
 import { CarrierFactory } from "./carriers/carrier.factory";
 import {
   ShipmentRequest,

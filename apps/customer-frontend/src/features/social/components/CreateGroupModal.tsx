@@ -209,7 +209,7 @@ export function CreateGroupModal({
             </div>
             {isCreating ? "Đang tạo nhóm..." : "Tạo nhóm mới"}
           </DialogTitle>
-          <DialogClose asChild>
+          <DialogClose>
             <Button
               variant="ghost"
               size="icon"

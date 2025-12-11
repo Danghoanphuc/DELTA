@@ -67,7 +67,8 @@ const RecipientShipmentSchema = new mongoose.Schema(
     },
 
     // Self-service token (để người nhận tự điền thông tin)
-    selfServiceToken: { type: String, index: true },
+    // ✅ FIX: Remove index here to avoid duplicate index warning
+    selfServiceToken: { type: String },
     selfServiceExpiry: { type: Date },
     selfServiceCompleted: { type: Boolean, default: false },
     selfServiceCompletedAt: { type: Date },
@@ -205,6 +206,105 @@ const SwagOrderSchema = new mongoose.Schema(
     submittedAt: { type: Date },
     processedAt: { type: Date },
     completedAt: { type: Date },
+
+    // === 🎨 POD CATALOG OPTIMIZATION: PRODUCTION TRACKING ===
+    production: {
+      productionOrders: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "ProductionOrder",
+        },
+      ],
+      status: {
+        type: String,
+        enum: ["pending", "in_production", "completed"],
+        default: "pending",
+      },
+      startedAt: { type: Date },
+      completedAt: { type: Date },
+
+      // Kitting
+      kittingStatus: {
+        type: String,
+        enum: ["pending", "in_progress", "completed"],
+        default: "pending",
+      },
+      kittingStartedAt: { type: Date },
+      kittingCompletedAt: { type: Date },
+      kittedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+
+      // QC
+      qcRequired: { type: Boolean, default: false },
+      qcStatus: {
+        type: String,
+        enum: ["pending", "passed", "failed"],
+        default: "pending",
+      },
+      qcCheckedAt: { type: Date },
+      qcCheckedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      qcPhotos: [{ type: String }],
+      qcNotes: { type: String },
+    },
+
+    // === 🎨 POD CATALOG OPTIMIZATION: COST BREAKDOWN ===
+    costBreakdown: {
+      // Product Costs
+      baseProductsCost: { type: Number, default: 0 },
+      customizationCost: { type: Number, default: 0 },
+      setupFees: { type: Number, default: 0 },
+
+      // Operational Costs
+      kittingFee: { type: Number, default: 0 },
+      packagingCost: { type: Number, default: 0 },
+      shippingCost: { type: Number, default: 0 },
+
+      // Overhead
+      handlingFee: { type: Number, default: 0 },
+
+      // Total
+      totalCost: { type: Number, default: 0 },
+      totalPrice: { type: Number, default: 0 },
+      grossMargin: { type: Number, default: 0 },
+      marginPercentage: { type: Number, default: 0 },
+    },
+
+    // === 🎨 POD CATALOG OPTIMIZATION: DOCUMENT REFERENCES ===
+    documents: {
+      invoice: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Invoice",
+      },
+      invoiceNumber: { type: String },
+      invoiceUrl: { type: String },
+
+      packingSlips: [
+        {
+          recipient: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Recipient",
+          },
+          url: { type: String },
+          generatedAt: { type: Date },
+        },
+      ],
+
+      deliveryNotes: [
+        {
+          supplier: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Supplier",
+          },
+          url: { type: String },
+          generatedAt: { type: Date },
+        },
+      ],
+    },
   },
   {
     timestamps: true,
@@ -285,3 +385,8 @@ SwagOrderSchema.statics.generateOrderNumber = async function () {
 export const SwagOrder =
   mongoose.models.SwagOrder || mongoose.model("SwagOrder", SwagOrderSchema);
 export { SWAG_ORDER_STATUS, SHIPMENT_STATUS };
+
+// === 🎨 THREADED CHAT INTEGRATION ===
+// Register order-thread integration hooks
+// Note: Hooks are registered in a separate file to avoid circular dependencies
+// Import and call registerOrderThreadHooks(SwagOrder) in server.ts after models are loaded

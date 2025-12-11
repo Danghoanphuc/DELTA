@@ -1,7 +1,6 @@
 // src/pages/SwagAnalyticsPage.tsx
-// ✅ Admin Swag Analytics Dashboard
+// ✅ SOLID Refactored: UI composition only
 
-import { useState, useEffect, useCallback } from "react";
 import {
   BarChart3,
   TrendingUp,
@@ -14,7 +13,8 @@ import {
   Calendar,
   Building2,
 } from "lucide-react";
-import api from "@/lib/axios";
+import { useAnalytics } from "@/hooks/useSwagAnalytics";
+import { MetricCard } from "@/components/analytics/MetricCard";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("vi-VN", {
@@ -23,122 +23,19 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-interface OrderTrend {
-  date: string;
-  orders: number;
-  revenue: number;
-  recipients: number;
-}
-
-interface FulfillmentMetrics {
-  avgProcessingTime: number;
-  avgShippingTime: number;
-  avgDeliveryTime: number;
-  totalProcessed: number;
-  totalShipped: number;
-  totalDelivered: number;
-  fulfillmentRate: number;
-}
-
-interface TopOrganization {
-  organizationId: string;
-  businessName: string;
-  orders: number;
-  revenue: number;
-  recipients: number;
-}
-
-interface CarrierPerformance {
-  carrier: string;
-  carrierName: string;
-  shipments: number;
-  delivered: number;
-  failed: number;
-  successRate: number;
-}
-
-interface InventoryAlert {
-  type: string;
-  severity: string;
-  item: string;
-  sku: string;
-  quantity: number;
-  threshold?: number;
-  organization: string;
-}
-
 export default function SwagAnalyticsPage() {
-  const [dateRange, setDateRange] = useState({
-    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0],
-    to: new Date().toISOString().split("T")[0],
-  });
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Data states
-  const [orderTrends, setOrderTrends] = useState<OrderTrend[]>([]);
-  const [fulfillmentMetrics, setFulfillmentMetrics] =
-    useState<FulfillmentMetrics | null>(null);
-  const [topOrganizations, setTopOrganizations] = useState<TopOrganization[]>(
-    []
-  );
-  const [carrierPerformance, setCarrierPerformance] = useState<
-    CarrierPerformance[]
-  >([]);
-  const [inventoryAlerts, setInventoryAlerts] = useState<InventoryAlert[]>([]);
-
-  const fetchAnalytics = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const [trendsRes, metricsRes, orgsRes, carriersRes, alertsRes] =
-        await Promise.all([
-          api.get("/admin/swag-ops/analytics/trends", { params: dateRange }),
-          api.get("/admin/swag-ops/analytics/fulfillment", {
-            params: dateRange,
-          }),
-          api.get("/admin/swag-ops/analytics/top-organizations", {
-            params: dateRange,
-          }),
-          api.get("/admin/swag-ops/analytics/carriers", { params: dateRange }),
-          api.get("/admin/swag-ops/analytics/inventory-alerts"),
-        ]);
-
-      setOrderTrends(trendsRes.data?.data || []);
-      setFulfillmentMetrics(metricsRes.data?.data || null);
-      setTopOrganizations(orgsRes.data?.data || []);
-      setCarrierPerformance(carriersRes.data?.data || []);
-      setInventoryAlerts(alertsRes.data?.data || []);
-    } catch (error) {
-      console.error("Error fetching analytics:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [dateRange]);
-
-  useEffect(() => {
-    fetchAnalytics();
-  }, [fetchAnalytics]);
-
-  // Export CSV
-  const handleExport = async () => {
-    try {
-      const res = await api.get("/admin/swag-ops/export", {
-        params: { dateFrom: dateRange.from, dateTo: dateRange.to },
-        responseType: "blob",
-      });
-
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `swag-orders-${Date.now()}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (error) {
-      console.error("Export error:", error);
-    }
-  };
+  const {
+    dateRange,
+    setDateRange,
+    isLoading,
+    orderTrends,
+    fulfillmentMetrics,
+    topOrganizations,
+    carrierPerformance,
+    inventoryAlerts,
+    fetchAnalytics,
+    exportCSV,
+  } = useAnalytics();
 
   if (isLoading) {
     return (
@@ -178,7 +75,7 @@ export default function SwagAnalyticsPage() {
             />
           </div>
           <button
-            onClick={handleExport}
+            onClick={exportCSV}
             className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
           >
             <Download className="w-4 h-4" />
@@ -196,42 +93,31 @@ export default function SwagAnalyticsPage() {
       {/* Fulfillment Metrics */}
       {fulfillmentMetrics && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Clock className="w-5 h-5 text-blue-500" />
-              <span className="text-sm text-gray-600">Thời gian xử lý TB</span>
-            </div>
-            <p className="text-2xl font-bold">
-              {fulfillmentMetrics.avgProcessingTime}h
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Truck className="w-5 h-5 text-cyan-500" />
-              <span className="text-sm text-gray-600">Thời gian gửi TB</span>
-            </div>
-            <p className="text-2xl font-bold">
-              {fulfillmentMetrics.avgShippingTime}h
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Package className="w-5 h-5 text-green-500" />
-              <span className="text-sm text-gray-600">Thời gian giao TB</span>
-            </div>
-            <p className="text-2xl font-bold">
-              {fulfillmentMetrics.avgDeliveryTime}h
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <TrendingUp className="w-5 h-5 text-orange-500" />
-              <span className="text-sm text-gray-600">Tỷ lệ hoàn thành</span>
-            </div>
-            <p className="text-2xl font-bold text-green-600">
-              {fulfillmentMetrics.fulfillmentRate}%
-            </p>
-          </div>
+          <MetricCard
+            icon={Clock}
+            iconColor="text-blue-500"
+            label="Thời gian xử lý TB"
+            value={`${fulfillmentMetrics.avgProcessingTime}h`}
+          />
+          <MetricCard
+            icon={Truck}
+            iconColor="text-cyan-500"
+            label="Thời gian gửi TB"
+            value={`${fulfillmentMetrics.avgShippingTime}h`}
+          />
+          <MetricCard
+            icon={Package}
+            iconColor="text-green-500"
+            label="Thời gian giao TB"
+            value={`${fulfillmentMetrics.avgDeliveryTime}h`}
+          />
+          <MetricCard
+            icon={TrendingUp}
+            iconColor="text-orange-500"
+            label="Tỷ lệ hoàn thành"
+            value={`${fulfillmentMetrics.fulfillmentRate}%`}
+            valueColor="text-green-600"
+          />
         </div>
       )}
 

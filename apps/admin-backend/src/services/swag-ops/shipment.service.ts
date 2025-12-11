@@ -1,7 +1,7 @@
 // src/services/swag-ops/shipment.service.ts
 // ✅ Shipment Service - Single Responsibility: Shipment Management
 
-import { Logger } from "../../utils/logger";
+import { Logger } from "../../shared/utils/logger.js";
 import { SwagOrderRepository } from "../../repositories/swag-order.repository";
 import { CarrierFactory } from "../carriers/carrier.factory";
 import {

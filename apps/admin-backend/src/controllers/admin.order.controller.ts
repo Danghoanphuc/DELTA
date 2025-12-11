@@ -77,3 +77,51 @@ export const forceUpdateOrderStatus = asyncHandler(
   }
 );
 
+export const assignShipper = asyncHandler(
+  async (req: Request, res: Response, _next: NextFunction) => {
+    const { shipperId } = req.body as { shipperId?: string };
+
+    if (!shipperId || typeof shipperId !== "string") {
+      throw new ValidationException("Thiếu trường 'shipperId'.");
+    }
+
+    const admin = getAuthenticatedAdmin(req);
+
+    const updatedOrder = await orderService.assignShipperToOrder(
+      req.params.id,
+      shipperId.trim(),
+      admin,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent") ?? undefined,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Đã gán shipper cho đơn hàng.",
+      data: updatedOrder,
+    });
+  }
+);
+
+export const unassignShipper = asyncHandler(
+  async (req: Request, res: Response, _next: NextFunction) => {
+    const admin = getAuthenticatedAdmin(req);
+
+    const updatedOrder = await orderService.unassignShipperFromOrder(
+      req.params.id,
+      admin,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent") ?? undefined,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Đã gỡ shipper khỏi đơn hàng.",
+      data: updatedOrder,
+    });
+  }
+);

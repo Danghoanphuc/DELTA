@@ -34,7 +34,10 @@ export const AppLayout = () => {
     (location.pathname === "/messages" && !!searchParams.get("conversationId"));
 
   const showSearch =
-    location.pathname === "/app" || location.pathname === "/shop";
+    location.pathname === "/app" ||
+    location.pathname === "/shop" ||
+    location.pathname === "/designs" ||
+    location.pathname === "/orders";
 
   // 3. Logic Auth
   const authRoutes = [

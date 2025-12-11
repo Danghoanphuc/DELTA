@@ -36,9 +36,14 @@ export const categoryController = {
   // POST /api/admin/catalog/categories
   async createCategory(req: Request, res: Response) {
     try {
+      console.log(
+        "[CategoryController] Creating category with data:",
+        req.body
+      );
       const category = await categoryService.createCategory(req.body);
       res.status(201).json({ success: true, data: category });
     } catch (error: any) {
+      console.error("[CategoryController] Error creating category:", error);
       res.status(400).json({ success: false, error: error.message });
     }
   },
@@ -143,6 +148,20 @@ export const supplierController = {
       res.status(400).json({ success: false, error: error.message });
     }
   },
+
+  // GET /api/admin/catalog/suppliers/compare
+  async compareSuppliers(req: Request, res: Response) {
+    try {
+      const { ids } = req.query;
+      const supplierIds = ids ? (ids as string).split(",") : undefined;
+
+      // For now, return empty array since we don't have suppliers with performance data
+      // This will be implemented when we have actual supplier performance tracking
+      res.json({ success: true, data: [] });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
 };
 
 // ============================================
@@ -204,6 +223,29 @@ export const productController = {
       const product = await productService.createProduct(req.body);
       res.status(201).json({ success: true, data: product });
     } catch (error: any) {
+      // Handle Mongoose validation errors
+      if (error.name === "ValidationError") {
+        const errors = Object.values(error.errors).map(
+          (err: any) => err.message
+        );
+        return res.status(400).json({
+          success: false,
+          error: "Validation failed",
+          message: errors.join(", "),
+          details: error.errors,
+        });
+      }
+
+      // Handle duplicate key errors
+      if (error.code === 11000) {
+        const field = Object.keys(error.keyPattern)[0];
+        return res.status(400).json({
+          success: false,
+          error: "Duplicate value",
+          message: `${field} đã tồn tại trong hệ thống`,
+        });
+      }
+
       res.status(400).json({ success: false, error: error.message });
     }
   },

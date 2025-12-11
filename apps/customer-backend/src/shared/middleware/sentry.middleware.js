@@ -11,7 +11,7 @@ export const sentryContextMiddleware = (req, res, next) => {
       id: req.user._id?.toString() || req.user.id,
       username: req.user.username,
       email: req.user.email,
-      role: req.user.role,
+      role: req.user.getRole(),
     });
   }
 

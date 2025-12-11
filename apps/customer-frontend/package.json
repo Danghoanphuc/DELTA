@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.app.json && vite build",
     "preview": "vite preview",
+    "test": "jest --passWithNoTests",
+    "test:run": "jest --passWithNoTests --runInBand",
     "clear-cache": "rimraf node_modules/.vite dist && echo Cache cleared! Please restart dev server."
   },
   "dependencies": {

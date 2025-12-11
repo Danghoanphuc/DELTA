@@ -30,6 +30,10 @@
       "import": "./dist/models/design-template.model.js",
       "types": "./dist/models/design-template.model.d.ts"
     },
+    "./models/shipper-profile.model": {
+      "import": "./dist/models/shipper-profile.model.js",
+      "types": "./dist/models/shipper-profile.model.d.ts"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

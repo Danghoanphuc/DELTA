@@ -1,8 +1,6 @@
 // apps/customer-backend/src/shared/models/product.model.js
 import mongoose from "mongoose";
 
-const { Schema } = mongoose;
-
 const ProductSchema = new mongoose.Schema(
   {
     // === SỬA ĐỔI QUAN TRỌNG ===
@@ -126,8 +124,8 @@ const ProductSchema = new mongoose.Schema(
     // === RAG: VECTOR EMBEDDING FOR SEMANTIC SEARCH ===
     embedding: {
       type: [Number], // Array of floats (1536 dimensions for text-embedding-3-small)
-      select: false,  // Do not return by default in queries (privacy & performance)
-      index: false,   // Mongoose index not needed - Atlas Vector Search handles indexing
+      select: false, // Do not return by default in queries (privacy & performance)
+      index: false, // Mongoose index not needed - Atlas Vector Search handles indexing
     },
     // ================================================
 
@@ -172,6 +170,84 @@ const ProductSchema = new mongoose.Schema(
     validationErrors: {
       type: Map,
       of: String, // { "name": "Tên quá ngắn", "pricing": "Giá không hợp lệ" }
+    },
+    // ================================================
+
+    // === 🎨 POD CATALOG OPTIMIZATION: PRINT METHODS ===
+    printMethods: [
+      {
+        method: {
+          type: String,
+          enum: [
+            "screen_print",
+            "dtg",
+            "embroidery",
+            "heat_transfer",
+            "sublimation",
+            "vinyl",
+            "laser_engraving",
+          ],
+          required: true,
+        },
+        areas: [
+          {
+            name: { type: String, required: true }, // "front", "back", "left_chest", "sleeve"
+            maxWidth: { type: Number, required: true }, // mm
+            maxHeight: { type: Number, required: true }, // mm
+            position: {
+              x: { type: Number, default: 0 },
+              y: { type: Number, default: 0 },
+            },
+            allowedColors: { type: Number, default: 1 }, // max colors for this area
+            setupFee: { type: Number, default: 0 }, // one-time setup cost
+            unitCost: { type: Number, default: 0 }, // cost per unit
+          },
+        ],
+        artworkRequirements: {
+          minResolution: { type: Number, default: 300 }, // DPI
+          acceptedFormats: {
+            type: [String],
+            default: ["AI", "EPS", "PDF", "PNG"],
+          },
+          colorMode: {
+            type: String,
+            enum: ["CMYK", "RGB", "Pantone"],
+            default: "CMYK",
+          },
+          maxFileSize: { type: Number, default: 50 }, // MB
+        },
+        leadTime: {
+          min: { type: Number, required: true }, // days
+          max: { type: Number, required: true }, // days
+          unit: { type: String, default: "days" },
+        },
+      },
+    ],
+
+    // === 🎨 POD CATALOG OPTIMIZATION: MOQ BY PRINT METHOD ===
+    moqByPrintMethod: [
+      {
+        printMethod: {
+          type: String,
+          enum: [
+            "screen_print",
+            "dtg",
+            "embroidery",
+            "heat_transfer",
+            "sublimation",
+            "vinyl",
+            "laser_engraving",
+          ],
+          required: true,
+        },
+        moq: { type: Number, required: true, default: 1 },
+      },
+    ],
+
+    // === 🎨 POD CATALOG OPTIMIZATION: PRODUCTION COMPLEXITY ===
+    productionComplexity: {
+      score: { type: Number, min: 1, max: 10, default: 5 }, // 1=simple, 10=complex
+      factors: [{ type: String }], // ["multiple_colors", "embroidery", "special_material"]
     },
     // ================================================
   },

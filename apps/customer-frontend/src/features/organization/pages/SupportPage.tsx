@@ -33,8 +33,8 @@ export function SupportPage() {
       title: "Email",
       description: "support@printz.vn",
       action: "Gửi email",
-      color: "text-orange-500",
-      bgColor: "bg-orange-50",
+      color: "text-[#C63321]",
+      bgColor: "bg-[#FFF5F3]",
     },
   ];
 
@@ -57,12 +57,12 @@ export function SupportPage() {
   ];
 
   return (
-    <div className="flex-1 overflow-auto bg-gray-50">
+    <div className="flex-1 overflow-auto bg-[#FAFAF8]">
       <div className="p-8 max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Hỗ trợ</h1>
-          <p className="text-gray-600">Chúng tôi luôn sẵn sàng hỗ trợ bạn</p>
+          <h1 className="text-2xl font-serif font-bold text-[#1C1917] mb-2">Hỗ trợ</h1>
+          <p className="text-[#57534E]">Chúng tôi luôn sẵn sàng hỗ trợ bạn</p>
         </div>
 
         {/* Support Options */}
@@ -70,7 +70,7 @@ export function SupportPage() {
           {supportOptions.map((option, index) => (
             <Card
               key={index}
-              className="border-none shadow-sm hover:shadow-md transition-shadow"
+              className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2] hover:shadow-md transition-shadow"
             >
               <CardContent className="p-6 text-center">
                 <div
@@ -78,10 +78,10 @@ export function SupportPage() {
                 >
                   <option.icon className={option.color} size={28} />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-1">
+                <h3 className="font-semibold text-[#1C1917] mb-1">
                   {option.title}
                 </h3>
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="text-sm text-[#78716C] mb-4">
                   {option.description}
                 </p>
                 <Button variant="outline" className="w-full">
@@ -93,21 +93,21 @@ export function SupportPage() {
         </div>
 
         {/* FAQs */}
-        <Card className="border-none shadow-sm">
+        <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-orange-500" />
+              <FileText className="w-5 h-5 text-[#C63321]" />
               Câu hỏi thường gặp
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {faqs.map((faq, index) => (
-                <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-2">
+                <div key={index} className="p-4 bg-[#FAFAF8] rounded-lg">
+                  <h4 className="font-medium text-[#1C1917] mb-2">
                     {faq.question}
                   </h4>
-                  <p className="text-sm text-gray-600">{faq.answer}</p>
+                  <p className="text-sm text-[#57534E]">{faq.answer}</p>
                 </div>
               ))}
             </div>

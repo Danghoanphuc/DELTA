@@ -4,6 +4,7 @@
 // ==================== Authentication Middlewares ====================
 export {
   protect, // Required authentication
+  authenticate, // Alias for protect (backward compatibility)
   optionalAuth, // Optional authentication (guest + auth)
   isPrinter, // Check if user is a printer
   isOrganization, // ✅ NEW: Check if user is an organization (B2B)
@@ -11,6 +12,15 @@ export {
   requireAuth, // Require auth with friendly message
   isVerified, // Check if user email is verified
 } from "./auth.middleware.js";
+
+// ==================== Organization Member Middlewares ====================
+export {
+  requireOrgMembership, // Check if user is member of organization
+  requireOrgRole, // Check if user has specific role
+  requireOwner, // Require owner role
+  requireAdminOrOwner, // Require admin or owner role
+  requirePermission, // Check custom permission
+} from "./organization-member.middleware.js";
 
 // ==================== Error Handlers ====================
 export {

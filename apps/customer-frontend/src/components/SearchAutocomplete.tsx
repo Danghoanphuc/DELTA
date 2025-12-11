@@ -30,17 +30,20 @@ export function SearchAutocomplete({
   // ... (Effect logic giữ nguyên) ...
 
   return (
-    <div ref={searchRef} className={cn("relative w-full group", className)}>
+    <div
+      ref={searchRef}
+      className={cn("relative w-full group z-[100]", className)}
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();
           onSearchSubmit(searchTerm);
           setIsOpen(false);
         }}
-        className="relative"
+        className="relative z-[100]"
       >
         {/* INPUT STYLE: Transparent, Border Bottom Only, Font Serif Placeholder */}
-        <div className="relative flex items-center border-b border-stone-300 group-focus-within:border-stone-900 transition-colors duration-500 pb-1">
+        <div className="relative flex items-center border-b border-stone-300 group-focus-within:border-stone-900 transition-colors duration-500 pb-1 bg-[#F9F8F6] z-[100]">
           <Search
             size={16}
             className="text-stone-400 group-focus-within:text-stone-900 transition-colors mr-3"
@@ -49,7 +52,7 @@ export function SearchAutocomplete({
 
           <input
             type="text"
-            className="flex-1 bg-transparent border-none outline-none text-stone-900 placeholder:text-stone-400 placeholder:font-serif placeholder:italic text-sm h-9"
+            className="flex-1 bg-[#F9F8F6] border-none outline-none text-stone-900 placeholder:text-stone-400 placeholder:font-serif placeholder:italic text-sm h-9"
             placeholder={placeholder}
             value={searchTerm}
             onChange={(e) => {
@@ -76,7 +79,7 @@ export function SearchAutocomplete({
 
       {/* DROPDOWN STYLE: Nền giấy, Shadow nhẹ, Typography tinh tế */}
       {isOpen && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-[#F9F8F6] border border-stone-100 shadow-xl shadow-stone-200/50 p-4 z-50 animate-in fade-in slide-in-from-top-2">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-[#F9F8F6] border border-stone-100 shadow-xl shadow-stone-200/50 p-4 z-[9999] animate-in fade-in slide-in-from-top-2 rounded-lg">
           {/* Sections... */}
           {/* Render logic giữ nguyên nhưng đổi class style */}
           {suggestions.map((s) => (

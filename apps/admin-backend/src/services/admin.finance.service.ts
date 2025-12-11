@@ -24,7 +24,7 @@ import {
 } from "../interfaces/finance.interface.js";
 import { type IAdmin } from "../models/admin.model.js";
 import { recordAdminAuditLog } from "./admin.audit-log.service.js";
-import { Logger } from "../utils/logger.js";
+import { Logger } from "../shared/utils/logger.js";
 import BalanceLedgerModel from "../models/balance-ledger.model.js";
 import { MasterOrder as MasterOrderModel } from "../models/master-order.model.js";
 
@@ -47,9 +47,7 @@ const normalizeTransactionType = (
     : null;
 };
 
-const normalizeLedgerStatus = (
-  value?: string
-): BalanceLedgerStatus | null => {
+const normalizeLedgerStatus = (value?: string): BalanceLedgerStatus | null => {
   if (!value) return null;
   const normalized = value.trim().toUpperCase();
   return Object.values(BalanceLedgerStatus).includes(
@@ -145,7 +143,9 @@ export const getPlatformStats = async (): Promise<PlatformStatsSnapshot> => {
       {
         $match: {
           transactionType: BalanceTransactionType.SALE,
-          status: { $in: [BalanceLedgerStatus.UNPAID, BalanceLedgerStatus.PENDING] },
+          status: {
+            $in: [BalanceLedgerStatus.UNPAID, BalanceLedgerStatus.PENDING],
+          },
         },
       },
       {
@@ -170,8 +170,10 @@ export const getPlatformStats = async (): Promise<PlatformStatsSnapshot> => {
   );
 
   const totalGMV = breakdown[BalanceTransactionType.SALE]?.totalAmount ?? 0;
-  const payoutTotal = breakdown[BalanceTransactionType.PAYOUT]?.totalAmount ?? 0;
-  const refundTotal = breakdown[BalanceTransactionType.REFUND]?.totalAmount ?? 0;
+  const payoutTotal =
+    breakdown[BalanceTransactionType.PAYOUT]?.totalAmount ?? 0;
+  const refundTotal =
+    breakdown[BalanceTransactionType.REFUND]?.totalAmount ?? 0;
   const adjustmentTotal =
     breakdown[BalanceTransactionType.ADJUSTMENT]?.totalAmount ?? 0;
 
@@ -213,7 +215,9 @@ export const getPayoutRequests = async (
   if (status) {
     filter.status = status;
   } else {
-    filter.status = { $in: [BalanceLedgerStatus.PENDING, BalanceLedgerStatus.PROCESSING] };
+    filter.status = {
+      $in: [BalanceLedgerStatus.PENDING, BalanceLedgerStatus.PROCESSING],
+    };
   }
 
   if (printerObjectId) {
@@ -336,10 +340,12 @@ export const confirmPayoutSuccess = async (
     // Update status to PAID
     payoutRequest.status = BalanceLedgerStatus.PAID;
     payoutRequest.paidAt = new Date();
-    
+
     // Store proof image if provided
     if (proofImage) {
-      payoutRequest.notes = `${payoutRequest.notes || ""}\nProof: ${proofImage}`.trim();
+      payoutRequest.notes = `${
+        payoutRequest.notes || ""
+      }\nProof: ${proofImage}`.trim();
     }
 
     await payoutRequest.save({ session });
@@ -427,7 +433,9 @@ export const rejectPayoutRequest = async (
 
     // Update status to CANCELLED
     payoutRequest.status = BalanceLedgerStatus.CANCELLED;
-    payoutRequest.notes = `${payoutRequest.notes || ""}\nRejected: ${reason}`.trim();
+    payoutRequest.notes = `${
+      payoutRequest.notes || ""
+    }\nRejected: ${reason}`.trim();
     await payoutRequest.save({ session });
 
     // CRITICAL: Create refund entry to give money back
@@ -831,4 +839,3 @@ export const approvePayout = async (
     remainingUnpaidAmount,
   };
 };
-

@@ -43,16 +43,15 @@ class ProductService {
 
     // ✅ Kiểm tra product có printerProfileId không
     if (!product.printerProfileId) {
-      throw new ForbiddenException(
-        "Sản phẩm này không thuộc về nhà in nào."
-      );
+      throw new ForbiddenException("Sản phẩm này không thuộc về nhà in nào.");
     }
 
     // BẢO MẬT: Kiểm tra quyền sở hữu
     // ✅ SỬA: Đảm bảo cả hai đều được convert sang string để so sánh
     const productPrinterId = product.printerProfileId.toString();
-    const userPrinterId = printerProfileId?.toString() || String(printerProfileId);
-    
+    const userPrinterId =
+      printerProfileId?.toString() || String(printerProfileId);
+
     if (productPrinterId !== userPrinterId) {
       // Log để debug (chỉ trong development)
       if (process.env.NODE_ENV === "development") {
@@ -139,7 +138,7 @@ class ProductService {
   async generateUniqueSlug(baseSlug) {
     let slug = baseSlug;
     let counter = 1;
-    
+
     while (true) {
       const existing = await productRepository.findOne({ slug });
       if (!existing) {
@@ -184,25 +183,32 @@ class ProductService {
     // 4. ✅ RAG: Generate embedding for semantic search
     if (embeddingService.isAvailable()) {
       try {
-        const embedding = await embeddingService.generateProductEmbedding(productData);
+        const embedding = await embeddingService.generateProductEmbedding(
+          productData
+        );
         if (embedding) {
           productData.embedding = embedding;
         }
       } catch (error) {
         // Log error but don't fail product creation
-        console.error("[ProductService] Failed to generate embedding:", error.message);
+        console.error(
+          "[ProductService] Failed to generate embedding:",
+          error.message
+        );
       }
     }
 
     const product = await productRepository.create(productData);
-    
+
     // ✅ SYNC NGAY: Bắn lên Algolia (async, không block)
     if (product && product.isActive) {
-      algoliaService.syncProduct(product.toObject ? product.toObject() : product).catch(err => {
-        Logger.error("[ProductService] Algolia sync failed on create:", err);
-      });
+      algoliaService
+        .syncProduct(product.toObject ? product.toObject() : product)
+        .catch((err) => {
+          Logger.error("[ProductService] Algolia sync failed on create:", err);
+        });
     }
-    
+
     return product;
   }
 
@@ -250,19 +256,21 @@ class ProductService {
     }
 
     await product.save();
-    
+
     // ✅ SYNC UPDATE: Cập nhật lên Algolia (async, không block)
     if (product.isActive) {
-      algoliaService.syncProduct(product.toObject ? product.toObject() : product).catch(err => {
-        Logger.error("[ProductService] Algolia sync failed on update:", err);
-      });
+      algoliaService
+        .syncProduct(product.toObject ? product.toObject() : product)
+        .catch((err) => {
+          Logger.error("[ProductService] Algolia sync failed on update:", err);
+        });
     } else {
       // Nếu sản phẩm bị deactivate, xóa khỏi Algolia
-      algoliaService.deleteProduct(product._id.toString()).catch(err => {
+      algoliaService.deleteProduct(product._id.toString()).catch((err) => {
         Logger.error("[ProductService] Algolia delete failed:", err);
       });
     }
-    
+
     return product;
   }
 
@@ -275,12 +283,12 @@ class ProductService {
 
     // 2. Xóa
     await productRepository.deleteById(productId);
-    
+
     // ✅ SYNC DELETE: Xóa khỏi Algolia (async, không block)
-    algoliaService.deleteProduct(productId.toString()).catch(err => {
+    algoliaService.deleteProduct(productId.toString()).catch((err) => {
       Logger.error("[ProductService] Algolia delete failed:", err);
     });
-    
+
     return { message: "Đã xóa sản phẩm thành công." };
   }
 
@@ -463,37 +471,40 @@ class ProductService {
   async getAllProducts(query) {
     const { page = 1, limit = 20, sort = "created", category, search } = query;
 
-    // Filter: Chỉ lấy sản phẩm active
-    // Tạm thời đơn giản hóa để test: chỉ cần isActive không phải false
-    // (Bỏ qua isPublished và healthStatus để tương thích với dữ liệu cũ)
-    const baseFilter = {
+    // ✅ FIX: Query both Product (from printers) and CatalogProduct (from admin)
+    const { CatalogProduct } = await import(
+      "../catalog/catalog-product.model.js"
+    );
+
+    // Filter for Product collection (printer products)
+    const productFilter = {
+      isDraft: false, // ✅ FIX: Exclude drafts
       $or: [
         { isActive: true },
-        { isActive: { $exists: false } }, // Dữ liệu cũ có thể không có field này
+        { isActive: { $exists: false } },
         { isActive: null },
       ],
     };
 
-    // Xây dựng filter với các điều kiện bổ sung
-    const conditions = [baseFilter];
+    // Filter for CatalogProduct collection (admin products)
+    const catalogFilter = {
+      isActive: true,
+      isPublished: true,
+    };
 
-    // Filter theo category
+    // Add category filter
     if (category && category !== "all") {
-      conditions.push({ category });
+      productFilter.category = category;
+      // Note: CatalogProduct uses categoryId, not category string
+      // Skip category filter for catalog products for now
     }
 
-    // Filter theo search
+    // Add search filter
     if (search) {
-      conditions.push({
-        $or: [
-          { name: new RegExp(search, "i") },
-          { description: new RegExp(search, "i") },
-        ],
-      });
+      const searchRegex = new RegExp(search, "i");
+      productFilter.$or = [{ name: searchRegex }, { description: searchRegex }];
+      catalogFilter.$or = [{ name: searchRegex }, { description: searchRegex }];
     }
-
-    // Nếu có nhiều điều kiện, dùng $and, nếu không thì dùng baseFilter
-    const filter = conditions.length > 1 ? { $and: conditions } : baseFilter;
 
     // Sort options
     let sortOption = { createdAt: -1 }; // default
@@ -507,19 +518,47 @@ class ProductService {
       sortOption = { createdAt: -1 };
     }
 
-    const [products, total] = await Promise.all([
-      productRepository.find(filter, {
-        page: +page,
-        limit: +limit,
+    // Query both collections
+    const [printerProducts, catalogProducts] = await Promise.all([
+      productRepository.find(productFilter, {
+        page: 1,
+        limit: 100, // Get more to merge
         sort: sortOption,
       }),
-      productRepository.count(filter),
+      CatalogProduct.find(catalogFilter).sort(sortOption).limit(100).lean(),
     ]);
 
-    // Populate printerProfileId để lấy thông tin nhà in
+    // Merge and mark source
+    const allProducts = [
+      ...printerProducts.map((p) => ({ ...p, source: "printer" })),
+      ...catalogProducts.map((p) => ({ ...p, source: "catalog" })),
+    ];
+
+    // Sort merged results
+    allProducts.sort((a, b) => {
+      if (sort === "popular") {
+        return (
+          (b.totalSold || 0) - (a.totalSold || 0) ||
+          (b.views || 0) - (a.views || 0)
+        );
+      } else if (sort === "price-asc") {
+        return (a.basePrice || 0) - (b.basePrice || 0);
+      } else if (sort === "price-desc") {
+        return (b.basePrice || 0) - (a.basePrice || 0);
+      } else {
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+    });
+
+    // Paginate merged results
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + parseInt(limit);
+    const paginatedProducts = allProducts.slice(startIndex, endIndex);
+
+    // Populate printer info for printer products
     const populatedProducts = await Promise.all(
-      products.map(async (product) => {
-        if (product.printerProfileId) {
+      paginatedProducts.map(async (product) => {
+        if (product.source === "printer" && product.printerProfileId) {
           const printerProfile = await PrinterProfile.findById(
             product.printerProfileId
           )
@@ -533,6 +572,8 @@ class ProductService {
         return product;
       })
     );
+
+    const total = allProducts.length;
 
     return {
       data: populatedProducts,
@@ -549,50 +590,78 @@ class ProductService {
    * @param {string|null} printerProfileId - ID của nhà in (nếu đã authenticated) - cho phép owner truy cập dù chưa active
    */
   async getProductById(productId, printerProfileId = null) {
-    const product = await productRepository.findById(productId);
+    // ✅ FIX: Try both Product and CatalogProduct collections
+    const { CatalogProduct } = await import(
+      "../catalog/catalog-product.model.js"
+    );
 
-    if (!product) {
-      throw new NotFoundException("Sản phẩm", productId);
-    }
-
-    // ✅ SỬA: Nếu user đã authenticated và là owner của sản phẩm, cho phép truy cập dù chưa active
-    const isOwner = printerProfileId && 
-                     product.printerProfileId && 
-                     product.printerProfileId.toString() === printerProfileId.toString();
-    
-    if (!isOwner) {
-      // ✅ Kiểm tra linh hoạt hơn để tương thích với dữ liệu cũ
-      // Chỉ kiểm tra isActive nếu có, các field khác có thể null/undefined
-      if (product.isActive === false) {
-        throw new NotFoundException("Sản phẩm", productId);
-      }
-      
-      // Nếu có isPublished và healthStatus, kiểm tra chúng
-      if (product.isPublished === false || product.healthStatus === "Inactive") {
-        throw new NotFoundException("Sản phẩm", productId);
-      }
-    }
-
-    // Populate printerProfileId
+    let product = await productRepository.findById(productId);
+    let source = "printer";
     let printer = null;
+
+    // If not found in Product collection, try CatalogProduct
+    if (!product) {
+      product = await CatalogProduct.findById(productId).lean();
+      source = "catalog";
+
+      if (!product) {
+        throw new NotFoundException("Sản phẩm", productId);
+      }
+
+      // Check if catalog product is active and published
+      if (!product.isActive || !product.isPublished) {
+        throw new NotFoundException("Sản phẩm", productId);
+      }
+
+      // Increment views for catalog product
+      await CatalogProduct.updateOne(
+        { _id: product._id },
+        { $inc: { views: 1 } }
+      );
+
+      return {
+        ...product,
+        source,
+        printer: null, // Catalog products don't have printer info
+      };
+    }
+
+    // Handle printer product
+    const isOwner =
+      printerProfileId &&
+      product.printerProfileId &&
+      product.printerProfileId.toString() === printerProfileId.toString();
+
+    if (!isOwner) {
+      // Check if product is active and published
+      if (product.isActive === false || product.isDraft === true) {
+        throw new NotFoundException("Sản phẩm", productId);
+      }
+
+      if (
+        product.isPublished === false ||
+        product.healthStatus === "Inactive"
+      ) {
+        throw new NotFoundException("Sản phẩm", productId);
+      }
+    }
+
+    // Populate printer info
     if (product.printerProfileId) {
       printer = await PrinterProfile.findById(product.printerProfileId)
         .select("businessName avatarUrl tier")
         .lean();
     }
 
-    // ✅ SỬA: Tăng views bằng updateOne để tránh validation error
-    // Không dùng save() vì có thể gây validation error nếu product thiếu fields
-    await Product.updateOne(
-      { _id: product._id },
-      { $inc: { views: 1 } }
-    );
+    // Increment views
+    await Product.updateOne({ _id: product._id }, { $inc: { views: 1 } });
 
-    // Lấy lại product sau khi update để có views mới nhất
+    // Get updated product
     const updatedProduct = await productRepository.findById(productId);
 
     return {
-      ...updatedProduct.toObject(),
+      ...updatedProduct,
+      source,
       printer: printer || null,
     };
   }

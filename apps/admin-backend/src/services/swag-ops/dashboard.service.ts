@@ -1,7 +1,7 @@
 // src/services/swag-ops/dashboard.service.ts
 // ✅ Dashboard Service - Single Responsibility: Dashboard Stats
 
-import { Logger } from "../../utils/logger";
+import { Logger } from "../../shared/utils/logger.js";
 import { SwagOrderRepository } from "../../repositories/swag-order.repository";
 import { OrganizationRepository } from "../../repositories/organization.repository";
 import {

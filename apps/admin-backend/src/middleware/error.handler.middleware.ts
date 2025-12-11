@@ -1,7 +1,7 @@
 // apps/admin-backend/src/middleware/error.handler.middleware.ts
 import type { Request, Response, NextFunction } from "express";
 import { config } from "../config/env.config.js";
-import { Logger } from "../utils/logger.js";
+import { Logger } from "../shared/utils/logger.js";
 
 // ✅ IMPROVEMENT: Middleware bắt lỗi với proper logging và error handling
 export const errorHandler = (
@@ -25,9 +25,10 @@ export const errorHandler = (
   const response: any = {
     success: false,
     status: statusCode,
-    message: config.env === "production" && statusCode === 500 
-      ? "Có lỗi xảy ra, vui lòng thử lại sau" 
-      : message,
+    message:
+      config.env === "production" && statusCode === 500
+        ? "Có lỗi xảy ra, vui lòng thử lại sau"
+        : message,
   };
 
   // Only include stack trace in development

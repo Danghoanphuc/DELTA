@@ -26,7 +26,12 @@ export const getListUsers = async (
   params: IGetUserParams
 ): Promise<IPaginatedUsers> => {
   try {
-    const res = await api.get("/admin/users", { params });
+    const res = await api.get("/admin/users", {
+      params: {
+        ...params,
+        _t: Date.now(), // Cache busting
+      },
+    });
     return res.data.data;
   } catch (error: any) {
     const message =
@@ -64,6 +69,27 @@ export const impersonateUser = async (
   } catch (error: any) {
     const message =
       error.response?.data?.message || "Lỗi khi thực hiện giả mạo";
+    throw new Error(message);
+  }
+};
+
+/**
+ * Toggle Shipper Role - Đổi user thành shipper hoặc remove shipper role
+ */
+export const toggleShipperRole = async (
+  userId: string
+): Promise<{
+  success: boolean;
+  message: string;
+  isShipper: boolean;
+  user?: any;
+}> => {
+  try {
+    const res = await api.post(`/admin/users/${userId}/toggle-shipper`);
+    return res.data.data;
+  } catch (error: any) {
+    const message =
+      error.response?.data?.message || "Lỗi khi đổi vai trò Shipper";
     throw new Error(message);
   }
 };

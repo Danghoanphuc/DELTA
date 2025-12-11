@@ -23,6 +23,7 @@ router.delete("/categories/:id", categoryController.deleteCategory);
 // ============================================
 // SUPPLIER ROUTES
 // ============================================
+router.get("/suppliers/compare", supplierController.compareSuppliers);
 router.get("/suppliers", supplierController.getSuppliers);
 router.get("/suppliers/:id", supplierController.getSupplierById);
 router.post("/suppliers", supplierController.createSupplier);

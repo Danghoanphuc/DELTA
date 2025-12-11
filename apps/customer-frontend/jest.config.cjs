@@ -25,8 +25,14 @@ module.exports = {
     // ✅ SỬA LỖI 3: Dạy Jest hiểu "Đường tắt" @/*
     // Nó phải khớp 100% với "paths" trong tsconfig.json
     "^@/(.*)$": "<rootDir>/src/$1",
+
+    // Mock axios module to avoid import.meta issues
+    "^@/shared/lib/axios$": "<rootDir>/__mocks__/axios.js",
   },
 
   // ✅ CHỈNH CHU: Thay thế thư mục .next (Next.js) bằng dist (Vite)
   testPathIgnorePatterns: ["<rootDir>/dist/", "<rootDir>/node_modules/"],
+
+  // Ignore empty test files
+  testMatch: ["**/__tests__/**/*.[jt]s?(x)", "**/?(*.)+(spec|test).[jt]s?(x)"],
 };

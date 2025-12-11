@@ -28,6 +28,8 @@ export interface IUser {
 
   customerProfile?: Types.ObjectId | ICustomerProfile; // Cho phép populate
   printerProfile?: Types.ObjectId; // Ref: PrinterProfile
+  shipperProfileId?: Types.ObjectId; // Ref: ShipperProfile
+  organizationProfileId?: Types.ObjectId; // Ref: OrganizationProfile
 
   // === BỔ SUNG CÁC TRƯỜNG CÒN THIẾU ===
 

@@ -14,6 +14,7 @@ import { BusinessComboGrid } from "../components/BusinessComboGrid";
 
 // Hooks
 import { useShop } from "@/features/shop/hooks/useShop";
+import { cn } from "@/shared/lib/utils";
 
 // Lazy-load
 const InspirationFeed = lazy(() =>
@@ -23,7 +24,11 @@ const InspirationFeed = lazy(() =>
 );
 
 const FeedSkeleton = () => (
-  <div className="w-full">
+  <div className="w-full mt-8">
+    <div className="flex items-center gap-4 mb-6">
+      <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
+      <div className="h-px flex-1 bg-gray-200" />
+    </div>
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
       {[...Array(10)].map((_, i) => (
         <div
@@ -65,110 +70,115 @@ const ChatAppView = () => {
 
   const openChat = () => navigate("/chat");
 
-  // Sticky Top Offset cho Sidebar
-  const STICKY_TOP_OFFSET = "top-24";
-
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50/50 pb-20 font-sans">
+    <div className="flex flex-col min-h-screen bg-[#F9F8F6] pb-20 font-sans">
       {/* ======================== MOBILE VIEW (< 1024px) ======================== */}
+      {/* Giữ nguyên ContextNav ở đây */}
       <div className="lg:hidden flex flex-col gap-4 pb-4">
-        {/* Header tìm kiếm thông minh */}
         <MobileHomeHeader onSearch={handleSearchSubmit} />
 
         <div className="px-4 flex flex-col gap-5">
-          {/* ✅ 1. Context Nav (Đã hồi sinh) */}
           <ContextNav layout="mobile-grid" />
 
-          {/* 2. Banner Mobile */}
-          <BannerHero
-            aspectRatio="superSlim"
-            className="rounded-2xl shadow-sm overflow-hidden"
-          />
+          <div className="space-y-3">
+            <BannerHero
+              aspectRatio="superSlim"
+              className="rounded-2xl shadow-sm overflow-hidden"
+            />
+            <div className="bg-stone-900 rounded-xl p-4 text-white flex items-center justify-between shadow-lg shadow-stone-900/20">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">
+                  Dành cho HR/Admin
+                </p>
+                <p className="font-serif font-bold">
+                  Mở tài khoản Doanh Nghiệp
+                </p>
+              </div>
+              <button
+                onClick={() => navigate("/business")}
+                className="bg-white text-stone-900 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider"
+              >
+                Mở ngay
+              </button>
+            </div>
+          </div>
 
-          {/* 3. Business Combo Section */}
+          <div className="overflow-x-auto hide-scrollbar -mx-4 px-4 pb-2"></div>
+
           <div>
-            <div className="flex items-center justify-between mb-3 px-1">
-              <h3 className="font-bold text-gray-900 text-xs uppercase tracking-widest flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                Gói Doanh nghiệp
+            <div className="flex items-center justify-between mb-2 px-1">
+              <h3 className="font-bold text-stone-900 text-xs uppercase tracking-widest flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                Giải pháp Ngành hàng
               </h3>
             </div>
-            {/* Pop-out nhẹ sang trái để tạo điểm nhấn thị giác */}
             <div className="-ml-1">
               <BusinessComboGrid />
             </div>
           </div>
 
-          {/* 4. Mobile Category Grid */}
           <CategorySidebar layout="mobile-grid" />
         </div>
       </div>
 
-      {/* ======================== DESKTOP VIEW (Grid 12 Cột) ======================== */}
-      <div className="hidden lg:grid max-w-[1440px] mx-auto w-full px-6 pt-6 grid-cols-12 gap-8 items-start">
-        {/* === LEFT SIDEBAR (Context Nav) === */}
-        <div
-          className={`col-span-3 sticky ${STICKY_TOP_OFFSET} z-30 transition-all`}
-        >
-          <ContextNav />
-        </div>
-
-        {/* === MAIN CONTENT (Center) === */}
-        <div className="col-span-6 flex flex-col gap-6">
-          {/* 1. Hero Block: Banner + Combo ghép chung */}
-          <div className="group rounded-3xl bg-white shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-300">
-            <BannerHero className="w-full" aspectRatio="superSlim" />
-
-            <div className="p-6 pt-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-gray-800 text-sm uppercase tracking-wider flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
-                  Giải pháp B2B
-                </h3>
-                <button
-                  onClick={() => navigate("/business")}
-                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded-full transition-colors"
-                >
-                  Xem toàn bộ
-                </button>
-              </div>
-              <BusinessComboGrid />
-            </div>
-          </div>
-
-          {/* 2. Category Rail (Ngang) */}
+      {/* ======================== DESKTOP VIEW ======================== */}
+      <div className="hidden lg:grid max-w-[1600px] mx-auto w-full px-12 pt-1 grid-cols-12 gap-8 items-start">
+        {/* === LEFT MAIN BLOCK (9 Cột) === */}
+        <div className="col-span-9 flex flex-col gap-6">
+          {/* 1. BusinessComboGrid (Top) */}
           <div className="w-full">
-            <CategorySidebar layout="horizontal" />
+            <BusinessComboGrid className="py-0" />
           </div>
 
-          {/* 3. Feed Sản phẩm */}
-          <div className="mt-2">
-            <div className="flex items-center gap-4 mb-6 px-1">
-              <h2 className="text-xl font-bold text-gray-900 tracking-tight">
-                Gợi ý hôm nay
-              </h2>
-              <div className="h-px flex-1 bg-gradient-to-r from-gray-200 to-transparent"></div>
-            </div>
+          {/* 2. BannerHero (Middle) */}
+          <div className="rounded-3xl overflow-hidden shadow-sm border border-stone-100 bg-white">
+            <BannerHero className="w-full" aspectRatio="superSlim" />
+          </div>
 
-            <Suspense fallback={<FeedSkeleton />}>
-              <InspirationFeed
-                products={products}
-                isLoading={productsLoading}
-                fetchNextPage={fetchNextPage}
-                hasNextPage={hasNextPage}
-                isFetchingNextPage={isFetchingNextPage}
-              />
-            </Suspense>
+          {/* 3. CategorySidebar (Bottom) - Đã xóa ContextNav khỏi vị trí này */}
+          <div className="w-full">
+            <CategorySidebar
+              layout="horizontal"
+              className="bg-transparent border-b-0 p-0"
+            />
           </div>
         </div>
 
-        {/* === RIGHT SIDEBAR (User Tools) === */}
-        <div className={`col-span-3 sticky ${STICKY_TOP_OFFSET} z-30`}>
+        {/* === RIGHT SIDEBAR (3 Cột) === */}
+        <div className="col-span-3 flex flex-col gap-6">
+          {/* User Actions */}
           <UserQuickActions onOpenChat={openChat} />
+        </div>
+
+        {/* === INSPIRATION FEED (12/12 Cột) === */}
+        <div className="col-span-12 mt-8 pt-8 border-t border-stone-200">
+          <div className="flex items-center justify-between mb-6 px-1">
+            <h2 className="text-3xl font-serif font-bold text-stone-900">
+              Gợi ý thiết kế
+            </h2>
+            <div className="flex gap-2">
+              <button className="px-4 py-1.5 rounded-full bg-stone-900 text-white text-xs font-bold">
+                Tất cả
+              </button>
+              <button className="px-4 py-1.5 rounded-full bg-stone-900 text-white text-stone-600 border border-stone-200 text-xs font-bold hover:border-stone-900">
+                Mới nhất
+              </button>
+            </div>
+          </div>
+
+          <Suspense fallback={<FeedSkeleton />}>
+            <InspirationFeed
+              products={products}
+              isLoading={productsLoading}
+              fetchNextPage={fetchNextPage}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+            />
+          </Suspense>
         </div>
       </div>
 
-      {/* Chat FAB (Nút nổi) */}
+      {/* Chat FAB */}
       <div className="hidden lg:block">
         <AiFab />
       </div>

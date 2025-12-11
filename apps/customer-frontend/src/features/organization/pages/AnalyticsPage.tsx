@@ -1,7 +1,7 @@
 // src/features/organization/pages/AnalyticsPage.tsx
-// ✅ Analytics & Reports - Báo cáo và thống kê (VN Optimized)
+// ✅ SOLID Refactored - Analytics & Reports
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   BarChart3,
   TrendingUp,
@@ -9,16 +9,13 @@ import {
   Package,
   DollarSign,
   Calendar,
-  Download,
-  Loader2,
   Gift,
-  Truck,
   CheckCircle,
   PieChart,
   FileSpreadsheet,
   FileText,
+  Loader2,
 } from "lucide-react";
-import * as XLSX from "xlsx";
 import {
   Card,
   CardContent,
@@ -33,284 +30,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
+import { Badge } from "@/shared/components/ui/badge";
 import { formatCurrency } from "@/shared/utils/formatCurrency";
-import api from "@/shared/lib/axios";
+import { useAnalytics, useExportReport } from "../hooks";
 import { SimpleBarChart, SimpleDonutChart } from "../components/SimpleBarChart";
 
-interface AnalyticsData {
-  overview: {
-    totalOrders: number;
-    totalRecipients: number;
-    totalSpent: number;
-    deliveryRate: number;
-  };
-  ordersByStatus: Record<
-    string,
-    { count: number; totalRecipients: number; totalSpent: number }
-  >;
-  topPacks: Array<{ name: string; count: number; recipients: number }>;
-  monthlyTrend: Array<{ month: string; orders: number; spent: number }>;
-  recipientStats: {
-    totalActive: number;
-    totalGiftsSent: number;
-    avgGiftsPerRecipient: number;
-  };
-  inventoryStats: {
-    totalSkus: number;
-    totalQuantity: number;
-    totalValue: number;
-    lowStockCount: number;
-  };
-}
-
 export function AnalyticsPage() {
-  const [isLoading, setIsLoading] = useState(true);
   const [timeRange, setTimeRange] = useState("30d");
-  const [data, setData] = useState<AnalyticsData | null>(null);
-
-  // Fetch analytics data
-  const fetchAnalytics = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      // Fetch all stats in parallel
-      const [ordersRes, recipientsRes, inventoryRes, packsRes] =
-        await Promise.allSettled([
-          api.get("/swag-orders/stats"),
-          api.get("/recipients/filters"),
-          api.get("/inventory/stats"),
-          api.get("/swag-packs/stats"),
-        ]);
-
-      const ordersData =
-        ordersRes.status === "fulfilled" ? ordersRes.value.data?.data : {};
-      const recipientsData =
-        recipientsRes.status === "fulfilled"
-          ? recipientsRes.value.data?.data
-          : {};
-      const inventoryData =
-        inventoryRes.status === "fulfilled"
-          ? inventoryRes.value.data?.data?.stats
-          : {};
-      const packsData =
-        packsRes.status === "fulfilled" ? packsRes.value.data?.data : {};
-
-      // Calculate delivery rate
-      const totalDelivered =
-        ordersData.byStatus?.delivered?.totalRecipients || 0;
-      const totalRecipients = ordersData.totalRecipients || 0;
-      const deliveryRate =
-        totalRecipients > 0
-          ? Math.round((totalDelivered / totalRecipients) * 100)
-          : 0;
-
-      setData({
-        overview: {
-          totalOrders: ordersData.totalOrders || 0,
-          totalRecipients: ordersData.totalRecipients || 0,
-          totalSpent: ordersData.totalSpent || 0,
-          deliveryRate,
-        },
-        ordersByStatus: ordersData.byStatus || {},
-        topPacks: packsData.popularPacks || [],
-        monthlyTrend: [], // TODO: Implement monthly trend API
-        recipientStats: {
-          totalActive: recipientsData.totalCount || 0,
-          totalGiftsSent: totalDelivered,
-          avgGiftsPerRecipient:
-            recipientsData.totalCount > 0
-              ? Math.round((totalDelivered / recipientsData.totalCount) * 10) /
-                10
-              : 0,
-        },
-        inventoryStats: {
-          totalSkus: inventoryData.totalSkus || 0,
-          totalQuantity: inventoryData.totalQuantity || 0,
-          totalValue: inventoryData.totalValue || 0,
-          lowStockCount: inventoryData.lowStockCount || 0,
-        },
-      });
-    } catch (error) {
-      console.error("Error fetching analytics:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [timeRange]);
-
-  useEffect(() => {
-    fetchAnalytics();
-  }, [fetchAnalytics]);
-
-  // Export Excel report
-  const exportExcel = () => {
-    if (!data) return;
-
-    const timeRangeLabel =
-      timeRange === "30d"
-        ? "30 ngày qua"
-        : timeRange === "90d"
-        ? "90 ngày qua"
-        : "Năm nay";
-
-    // Sheet 1: Tổng quan
-    const overviewData = [
-      ["BÁO CÁO PRINTZ", "", ""],
-      ["Ngày xuất:", new Date().toLocaleString("vi-VN"), ""],
-      ["Khoảng thời gian:", timeRangeLabel, ""],
-      ["", "", ""],
-      ["TỔNG QUAN", "", ""],
-      ["Chỉ số", "Giá trị", "Ghi chú"],
-      ["Tổng đơn gửi quà", data.overview.totalOrders, "đơn"],
-      ["Tổng người nhận", data.overview.totalRecipients, "người"],
-      ["Tổng chi tiêu", data.overview.totalSpent, "VNĐ"],
-      ["Tỷ lệ giao thành công", `${data.overview.deliveryRate}%`, ""],
-      ["", "", ""],
-      ["NGƯỜI NHẬN", "", ""],
-      ["Người nhận active", data.recipientStats.totalActive, "người"],
-      ["Tổng quà đã gửi", data.recipientStats.totalGiftsSent, "quà"],
-      [
-        "Trung bình quà/người",
-        data.recipientStats.avgGiftsPerRecipient,
-        "quà/người",
-      ],
-      ["", "", ""],
-      ["TỒN KHO", "", ""],
-      ["Tổng SKU", data.inventoryStats.totalSkus, "SKU"],
-      ["Tổng số lượng", data.inventoryStats.totalQuantity, "sản phẩm"],
-      ["Giá trị tồn kho", data.inventoryStats.totalValue, "VNĐ"],
-      ["Sản phẩm sắp hết", data.inventoryStats.lowStockCount, "SKU"],
-    ];
-
-    // Sheet 2: Chi tiết theo trạng thái
-    const statusLabels: Record<string, string> = {
-      draft: "Nháp",
-      pending_info: "Chờ thông tin",
-      pending_payment: "Chờ thanh toán",
-      processing: "Đang xử lý",
-      shipped: "Đang giao",
-      delivered: "Đã giao",
-      cancelled: "Đã hủy",
-    };
-
-    const statusData = [
-      ["PHÂN BỔ THEO TRẠNG THÁI", "", "", ""],
-      ["Trạng thái", "Số đơn", "Người nhận", "Chi tiêu (VNĐ)"],
-      ...Object.entries(data.ordersByStatus || {}).map(([status, stats]) => [
-        statusLabels[status] || status,
-        stats.count,
-        stats.totalRecipients,
-        stats.totalSpent,
-      ]),
-    ];
-
-    // Sheet 3: Top Packs
-    const topPacksData = [
-      ["BỘ QUÀ PHỔ BIẾN", "", ""],
-      ["Tên bộ quà", "Số đơn", "Người nhận"],
-      ...(data.topPacks || []).map((pack) => [
-        pack.name,
-        pack.count,
-        pack.recipients,
-      ]),
-    ];
-
-    // Create workbook
-    const wb = XLSX.utils.book_new();
-
-    const ws1 = XLSX.utils.aoa_to_sheet(overviewData);
-    ws1["!cols"] = [{ wch: 25 }, { wch: 20 }, { wch: 15 }];
-    XLSX.utils.book_append_sheet(wb, ws1, "Tổng quan");
-
-    const ws2 = XLSX.utils.aoa_to_sheet(statusData);
-    ws2["!cols"] = [{ wch: 20 }, { wch: 12 }, { wch: 15 }, { wch: 18 }];
-    XLSX.utils.book_append_sheet(wb, ws2, "Theo trạng thái");
-
-    const ws3 = XLSX.utils.aoa_to_sheet(topPacksData);
-    ws3["!cols"] = [{ wch: 30 }, { wch: 12 }, { wch: 15 }];
-    XLSX.utils.book_append_sheet(wb, ws3, "Top bộ quà");
-
-    // Download
-    const fileName = `Printz_BaoCao_${
-      new Date().toISOString().split("T")[0]
-    }.xlsx`;
-    XLSX.writeFile(wb, fileName);
-  };
-
-  // Export PDF (simple text version for now)
-  const exportPDF = () => {
-    if (!data) return;
-
-    const timeRangeLabel =
-      timeRange === "30d"
-        ? "30 ngày qua"
-        : timeRange === "90d"
-        ? "90 ngày qua"
-        : "Năm nay";
-
-    const reportContent = `
-BÁO CÁO PRINTZ
-══════════════════════════════════════
-Ngày xuất: ${new Date().toLocaleString("vi-VN")}
-Khoảng thời gian: ${timeRangeLabel}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-TỔNG QUAN
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Tổng đơn gửi quà: ${data.overview.totalOrders} đơn
-• Tổng người nhận: ${data.overview.totalRecipients} người
-• Tổng chi tiêu: ${formatCurrency(data.overview.totalSpent)}
-• Tỷ lệ giao thành công: ${data.overview.deliveryRate}%
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-NGƯỜI NHẬN
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Người nhận active: ${data.recipientStats.totalActive}
-• Tổng quà đã gửi: ${data.recipientStats.totalGiftsSent}
-• Trung bình quà/người: ${data.recipientStats.avgGiftsPerRecipient}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-TỒN KHO
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Tổng SKU: ${data.inventoryStats.totalSkus}
-• Tổng số lượng: ${data.inventoryStats.totalQuantity}
-• Giá trị tồn kho: ${formatCurrency(data.inventoryStats.totalValue)}
-• Sản phẩm sắp hết: ${data.inventoryStats.lowStockCount}
-
-══════════════════════════════════════
-Xuất bởi Printz Enterprise
-    `.trim();
-
-    const blob = new Blob([reportContent], {
-      type: "text/plain;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Printz_BaoCao_${
-      new Date().toISOString().split("T")[0]
-    }.txt`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
+  const { data, isLoading } = useAnalytics(timeRange);
+  const { exportExcel, exportPDF } = useExportReport();
 
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#C63321]" />
       </div>
     );
   }
 
+  if (!data) return null;
+
   return (
-    <div className="flex-1 overflow-auto bg-gray-50">
+    <div className="flex-1 overflow-auto bg-[#FAFAF8]">
       <div className="p-8 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-              <BarChart3 className="w-6 h-6 text-orange-500" />
+            <h1 className="text-2xl font-serif font-bold text-[#1C1917] mb-2 flex items-center gap-2">
+              <BarChart3 className="w-6 h-6 text-[#C63321]" />
               Báo cáo & Thống kê
             </h1>
-            <p className="text-gray-600">Tổng quan hoạt động của tổ chức</p>
+            <p className="text-[#57534E]">Tổng quan hoạt động của tổ chức</p>
           </div>
           <div className="flex gap-3">
             <Select value={timeRange} onValueChange={setTimeRange}>
@@ -327,13 +77,16 @@ Xuất bởi Printz Enterprise
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                onClick={exportExcel}
+                onClick={() => exportExcel(data, timeRange)}
                 className="bg-green-50 hover:bg-green-100 border-green-200"
               >
                 <FileSpreadsheet className="w-4 h-4 mr-2 text-green-600" />
                 Excel
               </Button>
-              <Button variant="outline" onClick={exportPDF}>
+              <Button
+                variant="outline"
+                onClick={() => exportPDF(data, timeRange)}
+              >
                 <FileText className="w-4 h-4 mr-2" />
                 Text
               </Button>
@@ -343,29 +96,31 @@ Xuất bởi Printz Enterprise
 
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Tổng đơn gửi quà</p>
-                  <h3 className="text-3xl font-bold text-gray-900">
-                    {data?.overview.totalOrders || 0}
+                  <p className="text-sm text-[#57534E] mb-1">
+                    Tổng đơn gửi quà
+                  </p>
+                  <h3 className="text-3xl font-bold text-[#1C1917]">
+                    {data.overview.totalOrders}
                   </h3>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
-                  <Gift className="w-6 h-6 text-orange-600" />
+                <div className="w-12 h-12 rounded-xl bg-[#FFF5F3] flex items-center justify-center">
+                  <Gift className="w-6 h-6 text-[#C63321]" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Người nhận</p>
-                  <h3 className="text-3xl font-bold text-gray-900">
-                    {data?.overview.totalRecipients || 0}
+                  <p className="text-sm text-[#57534E] mb-1">Người nhận</p>
+                  <h3 className="text-3xl font-bold text-[#1C1917]">
+                    {data.overview.totalRecipients}
                   </h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
@@ -375,13 +130,13 @@ Xuất bởi Printz Enterprise
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Tổng chi tiêu</p>
-                  <h3 className="text-3xl font-bold text-orange-600">
-                    {formatCurrency(data?.overview.totalSpent || 0)}
+                  <p className="text-sm text-[#57534E] mb-1">Tổng chi tiêu</p>
+                  <h3 className="text-3xl font-bold text-[#C63321]">
+                    {formatCurrency(data.overview.totalSpent)}
                   </h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
@@ -391,15 +146,15 @@ Xuất bởi Printz Enterprise
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">
+                  <p className="text-sm text-[#57534E] mb-1">
                     Tỷ lệ giao thành công
                   </p>
                   <h3 className="text-3xl font-bold text-green-600">
-                    {data?.overview.deliveryRate || 0}%
+                    {data.overview.deliveryRate}%
                   </h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
@@ -411,19 +166,18 @@ Xuất bởi Printz Enterprise
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Order Status Breakdown with Donut Chart */}
-          <Card className="border-none shadow-sm">
+          {/* Order Status Breakdown */}
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <PieChart className="w-5 h-5 text-orange-500" />
+                <PieChart className="w-5 h-5 text-[#C63321]" />
                 Phân bổ trạng thái đơn hàng
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Donut Chart */}
               <div className="flex justify-center mb-6">
                 <SimpleDonutChart
-                  data={Object.entries(data?.ordersByStatus || {}).map(
+                  data={Object.entries(data.ordersByStatus).map(
                     ([status, stats]) => {
                       const statusColors: Record<string, string> = {
                         draft: "#9ca3af",
@@ -442,62 +196,59 @@ Xuất bởi Printz Enterprise
                     }
                   )}
                   size={160}
-                  centerValue={data?.overview.totalOrders || 0}
+                  centerValue={data.overview.totalOrders}
                   centerLabel="Tổng đơn"
                 />
               </div>
 
-              {/* Legend */}
               <div className="space-y-2">
-                {Object.entries(data?.ordersByStatus || {}).map(
-                  ([status, stats]) => {
-                    const statusLabels: Record<string, string> = {
-                      draft: "Nháp",
-                      pending_info: "Chờ thông tin",
-                      pending_payment: "Chờ thanh toán",
-                      processing: "Đang xử lý",
-                      shipped: "Đang giao",
-                      delivered: "Đã giao",
-                      cancelled: "Đã hủy",
-                    };
-                    const statusColors: Record<string, string> = {
-                      draft: "bg-gray-500",
-                      pending_info: "bg-yellow-500",
-                      pending_payment: "bg-orange-500",
-                      processing: "bg-blue-500",
-                      shipped: "bg-indigo-500",
-                      delivered: "bg-green-500",
-                      cancelled: "bg-red-500",
-                    };
-                    const total = data?.overview.totalOrders || 1;
-                    const percent = Math.round((stats.count / total) * 100);
+                {Object.entries(data.ordersByStatus).map(([status, stats]) => {
+                  const statusLabels: Record<string, string> = {
+                    draft: "Nháp",
+                    pending_info: "Chờ thông tin",
+                    pending_payment: "Chờ thanh toán",
+                    processing: "Đang xử lý",
+                    shipped: "Đang giao",
+                    delivered: "Đã giao",
+                    cancelled: "Đã hủy",
+                  };
+                  const statusColors: Record<string, string> = {
+                    draft: "bg-gray-500",
+                    pending_info: "bg-yellow-500",
+                    pending_payment: "bg-[#C63321]",
+                    processing: "bg-blue-500",
+                    shipped: "bg-indigo-500",
+                    delivered: "bg-green-500",
+                    cancelled: "bg-red-500",
+                  };
+                  const total = data.overview.totalOrders || 1;
+                  const percent = Math.round((stats.count / total) * 100);
 
-                    return (
-                      <div
-                        key={status}
-                        className="flex items-center justify-between text-sm"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`w-3 h-3 rounded-full ${statusColors[status]}`}
-                          />
-                          <span className="text-gray-600">
-                            {statusLabels[status] || status}
-                          </span>
-                        </div>
-                        <span className="font-medium">
-                          {stats.count} ({percent}%)
+                  return (
+                    <div
+                      key={status}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-3 h-3 rounded-full ${statusColors[status]}`}
+                        />
+                        <span className="text-[#57534E]">
+                          {statusLabels[status] || status}
                         </span>
                       </div>
-                    );
-                  }
-                )}
+                      <span className="font-medium">
+                        {stats.count} ({percent}%)
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
 
           {/* Recipient Stats */}
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-500" />
@@ -508,21 +259,21 @@ Xuất bởi Printz Enterprise
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <p className="text-2xl font-bold text-blue-600">
-                    {data?.recipientStats.totalActive || 0}
+                    {data.recipientStats.totalActive}
                   </p>
-                  <p className="text-sm text-gray-600">Người nhận active</p>
+                  <p className="text-sm text-[#57534E]">Người nhận active</p>
                 </div>
                 <div className="text-center p-4 bg-green-50 rounded-lg">
                   <p className="text-2xl font-bold text-green-600">
-                    {data?.recipientStats.totalGiftsSent || 0}
+                    {data.recipientStats.totalGiftsSent}
                   </p>
-                  <p className="text-sm text-gray-600">Quà đã gửi</p>
+                  <p className="text-sm text-[#57534E]">Quà đã gửi</p>
                 </div>
                 <div className="text-center p-4 bg-purple-50 rounded-lg">
                   <p className="text-2xl font-bold text-purple-600">
-                    {data?.recipientStats.avgGiftsPerRecipient || 0}
+                    {data.recipientStats.avgGiftsPerRecipient}
                   </p>
-                  <p className="text-sm text-gray-600">TB quà/người</p>
+                  <p className="text-sm text-[#57534E]">TB quà/người</p>
                 </div>
               </div>
             </CardContent>
@@ -530,7 +281,7 @@ Xuất bởi Printz Enterprise
         </div>
 
         {/* Inventory Overview */}
-        <Card className="border-none shadow-sm mb-8">
+        <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2] mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Package className="w-5 h-5 text-green-500" />
@@ -539,45 +290,44 @@ Xuất bởi Printz Enterprise
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Tổng SKU</p>
+              <div className="p-4 bg-[#FAFAF8] rounded-lg">
+                <p className="text-sm text-[#57534E] mb-1">Tổng SKU</p>
                 <p className="text-2xl font-bold">
-                  {data?.inventoryStats.totalSkus || 0}
+                  {data.inventoryStats.totalSkus}
                 </p>
               </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Tổng số lượng</p>
+              <div className="p-4 bg-[#FAFAF8] rounded-lg">
+                <p className="text-sm text-[#57534E] mb-1">Tổng số lượng</p>
                 <p className="text-2xl font-bold">
-                  {data?.inventoryStats.totalQuantity || 0}
+                  {data.inventoryStats.totalQuantity}
                 </p>
               </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Giá trị tồn kho</p>
+              <div className="p-4 bg-[#FAFAF8] rounded-lg">
+                <p className="text-sm text-[#57534E] mb-1">Giá trị tồn kho</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {formatCurrency(data?.inventoryStats.totalValue || 0)}
+                  {formatCurrency(data.inventoryStats.totalValue)}
                 </p>
               </div>
               <div className="p-4 bg-yellow-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Sắp hết hàng</p>
+                <p className="text-sm text-[#57534E] mb-1">Sắp hết hàng</p>
                 <p className="text-2xl font-bold text-yellow-600">
-                  {data?.inventoryStats.lowStockCount || 0}
+                  {data.inventoryStats.lowStockCount}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Top Packs with Bar Chart */}
-        {data?.topPacks && data.topPacks.length > 0 && (
-          <Card className="border-none shadow-sm">
+        {/* Top Packs */}
+        {data.topPacks && data.topPacks.length > 0 && (
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-orange-500" />
+                <TrendingUp className="w-5 h-5 text-[#C63321]" />
                 Bộ quà phổ biến nhất
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Bar Chart */}
               <div className="mb-6">
                 <SimpleBarChart
                   data={data.topPacks.slice(0, 5).map((pack) => ({
@@ -592,25 +342,24 @@ Xuất bởi Printz Enterprise
                 />
               </div>
 
-              {/* List */}
               <div className="space-y-3">
                 {data.topPacks.map((pack, index) => (
                   <div
                     key={index}
-                    className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center gap-4 p-3 bg-[#FAFAF8] rounded-lg"
                   >
-                    <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center font-bold text-orange-600">
+                    <div className="w-8 h-8 rounded-full bg-[#FFF5F3] flex items-center justify-center font-bold text-[#C63321]">
                       {index + 1}
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium text-gray-900">{pack.name}</p>
-                      <p className="text-sm text-gray-500">
+                      <p className="font-medium text-[#1C1917]">{pack.name}</p>
+                      <p className="text-sm text-[#78716C]">
                         {pack.recipients} người nhận
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-orange-600">{pack.count}</p>
-                      <p className="text-sm text-gray-500">đơn hàng</p>
+                      <p className="font-bold text-[#C63321]">{pack.count}</p>
+                      <p className="text-sm text-[#78716C]">đơn hàng</p>
                     </div>
                   </div>
                 ))}

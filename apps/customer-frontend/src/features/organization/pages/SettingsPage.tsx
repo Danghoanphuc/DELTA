@@ -52,21 +52,21 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="flex-1 overflow-auto bg-gray-50">
+    <div className="flex-1 overflow-auto bg-[#FAFAF8]">
       <div className="p-8 max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Cài đặt</h1>
-          <p className="text-gray-600">
+          <h1 className="text-2xl font-serif font-bold text-[#1C1917] mb-2">Cài đặt</h1>
+          <p className="text-[#57534E]">
             Quản lý thông tin doanh nghiệp của bạn
           </p>
         </div>
 
         {/* Business Info */}
-        <Card className="border-none shadow-sm mb-6">
+        <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2] mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-orange-500" />
+              <Building2 className="w-5 h-5 text-[#C63321]" />
               Thông tin doanh nghiệp
             </CardTitle>
             <CardDescription>
@@ -96,7 +96,7 @@ export function SettingsPage() {
                   onChange={handleChange}
                   placeholder="0123456789"
                 />
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[#78716C]">
                   Cần thiết để xuất hóa đơn VAT
                 </p>
               </div>
@@ -126,7 +126,7 @@ export function SettingsPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="bg-orange-500 hover:bg-orange-600"
+                className="bg-[#C63321] hover:bg-[#A82A1A]"
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -140,10 +140,10 @@ export function SettingsPage() {
         </Card>
 
         {/* Brand Assets */}
-        <Card className="border-none shadow-sm">
+        <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Upload className="w-5 h-5 text-orange-500" />
+              <Upload className="w-5 h-5 text-[#C63321]" />
               Tài sản thương hiệu
             </CardTitle>
             <CardDescription>
@@ -166,9 +166,9 @@ export function SettingsPage() {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
-                <Upload className="w-10 h-10 mx-auto mb-3 text-gray-400" />
-                <p className="text-gray-600 mb-2">Chưa có logo</p>
+              <div className="text-center py-8 border-2 border-dashed border-[#E5E3DC] rounded-lg">
+                <Upload className="w-10 h-10 mx-auto mb-3 text-[#A8A29E]" />
+                <p className="text-[#57534E] mb-2">Chưa có logo</p>
                 <Button variant="outline">Upload logo</Button>
               </div>
             )}

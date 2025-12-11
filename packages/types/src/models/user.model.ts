@@ -82,6 +82,18 @@ const UserSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    shipperProfileId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ShipperProfile",
+      default: null,
+      index: true,
+    },
+    organizationProfileId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "OrganizationProfile",
+      default: null,
+      index: true,
+    },
 
     // --- Metadata ---
     isAdmin: {
@@ -122,9 +134,14 @@ UserSchema.virtual("isCustomer").get(function () {
   return !!this.customerProfileId;
 });
 
+UserSchema.virtual("isShipper").get(function () {
+  return !!this.shipperProfileId;
+});
+
 UserSchema.methods.getRole = function () {
   if (this.isAdmin) return "admin";
   if (this.printerProfileId) return "printer";
+  if (this.shipperProfileId) return "shipper";
   if (this.customerProfileId) return "customer";
   return "guest";
 };

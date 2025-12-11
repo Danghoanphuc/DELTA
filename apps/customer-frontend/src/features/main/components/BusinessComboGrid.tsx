@@ -41,12 +41,6 @@ const combos = [
 export const BusinessComboGrid = ({ className }: { className?: string }) => {
   return (
     <div className={cn("w-full py-8", className)}>
-      <div className="mb-6 px-4 md:px-0">
-        <h3 className="font-serif text-2xl font-bold text-foreground">
-          Giải pháp Ngành hàng
-        </h3>
-      </div>
-
       {/* Grid Layout thay vì Scroll ngang */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 px-4 md:px-0">
         {combos.map((item, idx) => (

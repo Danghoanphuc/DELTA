@@ -14,6 +14,7 @@ export interface User {
   customerProfileId: string;
   printerProfileId: string | null;
   organizationProfileId: string | null; // ✅ NEW: B2B Organization
+  shipperProfileId: string | null; // ✅ NEW: Shipper Profile
 
   createdAt?: string;
   updatedAt?: string;

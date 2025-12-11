@@ -5,15 +5,14 @@
 import {
   SwagOrderRepository,
   swagOrderRepository,
-} from "../repositories/swag-order.repository";
-import {
-  InventoryRepository,
+} from "../repositories/swag-order.repository.js";
+import InventoryRepository, {
   inventoryRepository,
-} from "../repositories/inventory.repository";
+} from "../repositories/inventory.repository.js";
 import {
   OrganizationRepository,
   organizationRepository,
-} from "../repositories/organization.repository";
+} from "../repositories/organization.repository.js";
 
 import { DashboardService } from "./swag-ops/dashboard.service";
 import { OrderService } from "./swag-ops/order.service";

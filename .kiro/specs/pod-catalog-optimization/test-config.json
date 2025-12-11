@@ -1,0 +1,237 @@
+{
+  "description": "POD Catalog Optimization Test Configuration",
+  "version": "1.0.0",
+  "environments": {
+    "development": {
+      "adminApiUrl": "http://localhost:5001/api/admin",
+      "customerApiUrl": "http://localhost:5000/api",
+      "timeout": 30000
+    },
+    "staging": {
+      "adminApiUrl": "https://staging-admin-api.deltaswag.com/api/admin",
+      "customerApiUrl": "https://staging-api.deltaswag.com/api",
+      "timeout": 30000
+    },
+    "production": {
+      "adminApiUrl": "https://admin-api.deltaswag.com/api/admin",
+      "customerApiUrl": "https://api.deltaswag.com/api",
+      "timeout": 30000
+    }
+  },
+  "testData": {
+    "artwork": {
+      "testImagePath": "./test-assets/test-logo.png",
+      "validFormats": ["PNG", "JPG", "PDF", "AI", "EPS"],
+      "minResolution": 300,
+      "maxFileSize": 52428800
+    },
+    "product": {
+      "printMethods": [
+        "screen_print",
+        "dtg",
+        "embroidery",
+        "heat_transfer",
+        "sublimation"
+      ],
+      "defaultPrintAreas": [
+        "front",
+        "back",
+        "left_chest",
+        "right_chest",
+        "sleeve"
+      ],
+      "sampleSizes": ["S", "M", "L", "XL", "2XL"],
+      "sampleColors": ["White", "Black", "Navy", "Gray", "Red"]
+    },
+    "pricing": {
+      "defaultTiers": [
+        { "minQty": 1, "maxQty": 10, "unitPrice": 100000 },
+        { "minQty": 11, "maxQty": 50, "unitPrice": 90000 },
+        { "minQty": 51, "maxQty": 100, "unitPrice": 80000 },
+        { "minQty": 101, "maxQty": null, "unitPrice": 70000 }
+      ]
+    },
+    "inventory": {
+      "defaultStock": 100,
+      "lowStockThreshold": 20,
+      "reorderPoint": 30,
+      "reorderQuantity": 50
+    }
+  },
+  "phases": {
+    "phase2": {
+      "name": "Artwork Management",
+      "status": "complete",
+      "tests": [
+        "Upload artwork",
+        "Get artwork library",
+        "Get artwork detail",
+        "Validate artwork",
+        "Create artwork version",
+        "Delete artwork"
+      ]
+    },
+    "phase3": {
+      "name": "Product Catalog",
+      "status": "complete",
+      "tests": [
+        "Configure print methods",
+        "Set pricing tiers",
+        "Calculate price",
+        "Generate variants",
+        "Estimate lead time",
+        "Validate customization"
+      ]
+    },
+    "phase4": {
+      "name": "Inventory Management",
+      "status": "complete",
+      "tests": [
+        "Get inventory overview",
+        "Reserve inventory",
+        "Release inventory",
+        "Manual adjustment",
+        "Get transaction history",
+        "Get low stock items"
+      ]
+    },
+    "phase5": {
+      "name": "Production Orders",
+      "status": "complete",
+      "tests": [
+        "Create production order",
+        "Get production orders",
+        "Update production status",
+        "Perform QC check",
+        "Complete production"
+      ]
+    },
+    "phase6": {
+      "name": "Kitting & Fulfillment",
+      "status": "complete",
+      "tests": [
+        "Get kitting queue",
+        "Start kitting",
+        "Scan item",
+        "Complete kitting",
+        "Generate packing slip"
+      ]
+    },
+    "phase7": {
+      "name": "Document Management",
+      "status": "complete",
+      "tests": [
+        "Generate invoice",
+        "Get invoice detail",
+        "Generate credit note",
+        "Generate delivery note",
+        "Get all documents"
+      ]
+    },
+    "phase8": {
+      "name": "Supplier Management",
+      "status": "partial",
+      "tests": [
+        "Get supplier performance",
+        "Update supplier rating",
+        "Get supplier comparison"
+      ]
+    },
+    "phase9": {
+      "name": "Templates",
+      "status": "complete",
+      "tests": [
+        "Create template from order",
+        "Get template library",
+        "Create order from template",
+        "Get substitute suggestions"
+      ]
+    },
+    "phase10": {
+      "name": "Shipping Integration",
+      "status": "complete",
+      "tests": [
+        "Create shipment",
+        "Get tracking info",
+        "Handle carrier webhook",
+        "Bulk shipment creation"
+      ]
+    },
+    "phase11": {
+      "name": "Analytics & Reporting",
+      "status": "not_started",
+      "tests": []
+    },
+    "phase12": {
+      "name": "Cost & Margin Tracking",
+      "status": "not_started",
+      "tests": []
+    }
+  },
+  "integrationTests": [
+    {
+      "name": "Complete Order Flow",
+      "steps": [
+        "Upload artwork",
+        "Customize product",
+        "Reserve inventory",
+        "Create order",
+        "Generate production order",
+        "Complete production",
+        "QC check",
+        "Kitting",
+        "Generate invoice",
+        "Ship order"
+      ]
+    },
+    {
+      "name": "Inventory Lifecycle",
+      "steps": [
+        "Record purchase",
+        "Reserve for order",
+        "Release on cancel",
+        "Adjust manually",
+        "Check low stock alert"
+      ]
+    },
+    {
+      "name": "Template Reorder Flow",
+      "steps": [
+        "Create order",
+        "Save as template",
+        "Load template",
+        "Modify quantities",
+        "Create new order"
+      ]
+    }
+  ],
+  "performanceTests": {
+    "enabled": false,
+    "scenarios": [
+      {
+        "name": "Concurrent Orders",
+        "virtualUsers": 50,
+        "duration": "5m",
+        "rampUp": "30s"
+      },
+      {
+        "name": "Bulk Variant Generation",
+        "attributes": 5,
+        "valuesPerAttribute": 10,
+        "expectedTime": "< 5s"
+      },
+      {
+        "name": "Inventory Transactions",
+        "transactionsPerSecond": 100,
+        "duration": "1m"
+      }
+    ]
+  },
+  "reporting": {
+    "outputFormat": "json",
+    "outputPath": "./test-results",
+    "screenshots": true,
+    "videos": false,
+    "coverage": true
+  }
+}

@@ -60,8 +60,15 @@ export class CategoryService {
 
   // Create category
   async createCategory(data: Partial<IProductCategory>) {
+    console.log("[CategoryService] Creating category with data:", data);
+
+    // Validate required fields
+    if (!data.name || data.name.trim().length === 0) {
+      throw new Error("Tên danh mục không được để trống");
+    }
+
     // Generate slug
-    const slug = this.generateSlug(data.name!);
+    const slug = this.generateSlug(data.name);
 
     // Calculate path and level
     let path = slug;
@@ -82,7 +89,9 @@ export class CategoryService {
       level,
     });
 
-    return category.save();
+    const saved = await category.save();
+    console.log("[CategoryService] Category created successfully:", saved._id);
+    return saved;
   }
 
   // Update category
@@ -229,6 +238,24 @@ export class ProductService {
   }
 
   async createProduct(data: Partial<ICatalogProduct>) {
+    console.log(
+      "[ProductService] Creating product with data:",
+      JSON.stringify(data, null, 2)
+    );
+
+    // Validate required fields
+    if (!data.name || data.name.trim().length === 0) {
+      throw new Error("Tên sản phẩm không được để trống");
+    }
+
+    if (!data.categoryId) {
+      throw new Error("Vui lòng chọn danh mục sản phẩm");
+    }
+
+    if (data.basePrice === undefined || data.basePrice === null) {
+      throw new Error("Giá bán không được để trống");
+    }
+
     // Generate slug and SKU
     const slug = this.generateSlug(data.name!);
     const sku = data.sku || this.generateSku(data.name!);
@@ -237,7 +264,10 @@ export class ProductService {
     let categoryPath = "";
     if (data.categoryId) {
       const category = await ProductCategory.findById(data.categoryId);
-      if (category) categoryPath = category.path;
+      if (!category) {
+        throw new Error("Danh mục không tồn tại");
+      }
+      categoryPath = category.path;
     }
 
     const product = new CatalogProduct({
@@ -248,6 +278,7 @@ export class ProductService {
     });
 
     const saved = await product.save();
+    console.log("[ProductService] Product created successfully:", saved._id);
 
     // Update category product count
     if (data.categoryId) {

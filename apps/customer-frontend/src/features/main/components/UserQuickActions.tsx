@@ -1,224 +1,241 @@
-// apps/customer-frontend/src/features/chat/components/UserQuickActions.tsx
+// apps/customer-frontend/src/features/main/components/UserQuickActions.tsx
 
-import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/shared/components/ui/button";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import {
-  Star,
-  Heart,
-  Clock,
-  Package,
-  Sparkles,
-  Building2,
-  Users,
-  FileCheck,
-  Wallet,
   ArrowRight,
   LogOut,
-  ChevronRight,
+  PenTool,
+  Warehouse,
+  LayoutDashboard,
+  Lock,
+  LogIn,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { UserAvatar } from "@/components/UserAvatar";
 import { cn } from "@/shared/lib/utils";
 
+// --- B2B Features Data ---
+const B2B_FEATURES = [
+  {
+    id: "01",
+    icon: PenTool,
+    title: "Thiết kế",
+    subtitle: "Miễn phí hoàn toàn",
+    desc: "Đội ngũ họa sĩ tinh hoa. Chỉnh sửa 1:1.",
+  },
+  {
+    id: "02",
+    icon: Warehouse,
+    title: "Lưu kho",
+    subtitle: "Không lo mặt bằng",
+    desc: "In số lượng lớn, giá vốn thấp. Bảo quản 24/7.",
+  },
+  {
+    id: "03",
+    icon: LayoutDashboard,
+    title: "Phần mềm",
+    subtitle: "Quản trị trọn đời",
+    desc: "Dashboard quản lý tồn kho & quà tặng. 0đ duy trì.",
+  },
+];
+
 // --- Sub-components ---
 
-const AiAssistantCTA = ({ onOpenChat }: { onOpenChat?: () => void }) => (
-  <div className="mt-auto pt-6">
+const SignInCTA = ({ onClick }: { onClick: () => void }) => (
+  <div className="mb-6">
     <div
-      className="group relative flex cursor-pointer items-center justify-between overflow-hidden rounded-3xl border border-primary/10 bg-white p-1 pr-2 shadow-sm transition-all duration-500 hover:border-primary/40 hover:shadow-md"
-      onClick={onOpenChat}
+      className="group relative flex cursor-pointer items-center justify-between overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-1 pr-2 shadow-sm transition-all duration-500 hover:border-primary/40 hover:shadow-lg hover:from-primary/10 hover:to-primary/15"
+      onClick={onClick}
     >
       <div className="flex items-center gap-3">
-        {/* Icon Circle - Tối giản */}
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-stone-50 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
-          <Sparkles size={16} />
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-white group-hover:scale-110">
+          <LogIn size={16} strokeWidth={2.5} />
         </div>
-
         <div className="flex flex-col">
-          <span className="font-serif text-sm font-bold text-foreground">
-            Zin Assistant
+          <span className="font-serif text-sm font-bold text-stone-900 group-hover:text-primary transition-colors">
+            Bắt đầu ngay
           </span>
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground group-hover:text-primary transition-colors">
-            AI Design Support
+          <span className="text-[10px] uppercase tracking-wider text-stone-500 group-hover:text-primary transition-colors">
+            Đăng ký & Nhận đặc quyền
           </span>
         </div>
       </div>
-
       <div className="flex h-8 w-8 -translate-x-2 items-center justify-center rounded-full opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100">
-        <ArrowRight size={14} className="text-primary" />
+        <ArrowRight size={14} className="text-primary" strokeWidth={2.5} />
       </div>
     </div>
   </div>
 );
 
-const ActionItem = ({ icon: Icon, label, path, badge }: any) => (
-  <Link
-    to={path}
-    className="group flex items-center gap-4 py-3 pl-2 transition-all hover:pl-4"
-  >
-    <Icon
-      size={18}
-      strokeWidth={1.5}
-      className="text-stone-400 transition-colors group-hover:text-primary"
-    />
-    <span className="flex-1 font-serif text-base text-stone-600 transition-colors group-hover:text-foreground group-hover:font-medium">
-      {label}
-    </span>
-    {badge && (
-      <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-white shadow-sm">
-        {badge}
-      </span>
-    )}
-  </Link>
-);
-
-// --- 1. Authenticated View ---
-const AuthenticatedView = ({
-  user,
-  onOpenChat,
+const FeatureCard = ({
+  item,
+  isLocked,
 }: {
-  user: any;
-  onOpenChat?: () => void;
-}) => {
-  const isBusinessUser =
-    user?.role === "business_admin" || user?.email?.includes("@company.com");
+  item: (typeof B2B_FEATURES)[0];
+  isLocked?: boolean;
+}) => (
+  <div
+    className={cn(
+      "group relative flex flex-col justify-start py-4 px-3 border-b border-stone-200 last:border-0 transition-all duration-300 rounded-lg",
+      isLocked
+        ? "bg-stone-50/50 hover:bg-stone-100/50 hover:border-stone-300"
+        : "hover:bg-stone-50"
+    )}
+  >
+    {/* Lock Icon for Guest - More prominent */}
+    {isLocked && (
+      <div className="absolute top-4 right-3 w-6 h-6 flex items-center justify-center rounded-full bg-stone-200 text-stone-500 group-hover:bg-stone-300 transition-colors">
+        <Lock size={13} strokeWidth={2.5} />
+      </div>
+    )}
 
-  // A. Menu
-  const businessActions = [
-    {
-      label: "Duyệt đơn",
-      icon: FileCheck,
-      path: "/business/approvals",
-      badge: "3",
-    },
-    { label: "Nhân sự", icon: Users, path: "/business/employees" },
-    { label: "Ngân sách", icon: Wallet, path: "/business/budget" },
-    { label: "Lịch sử", icon: Package, path: "/orders" },
-  ];
+    {/* Decorative Dot for Authenticated */}
+    {!isLocked && (
+      <div className="absolute top-4 right-3 w-1.5 h-1.5 rounded-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+    )}
 
-  const personalActions = [
-    { label: "Đơn hàng", icon: Package, path: "/orders" },
-    { label: "Lưu trữ", icon: Heart, path: "/designs" },
-    { label: "Yêu thích", icon: Star, path: "/wishlist" },
-    { label: "Xem gần đây", icon: Clock, path: "/history" },
-  ];
+    <div className="flex items-center justify-between mb-2">
+      <div className="flex items-baseline gap-2">
+        <span
+          className={cn(
+            "font-serif font-black text-lg transition-all duration-500",
+            isLocked
+              ? "text-stone-400 group-hover:text-stone-500"
+              : "text-primary opacity-30 group-hover:opacity-100"
+          )}
+        >
+          {item.id}.
+        </span>
+        <h3
+          className={cn(
+            "font-serif text-lg font-bold leading-none transition-colors",
+            isLocked
+              ? "text-stone-700 group-hover:text-stone-900"
+              : "text-stone-900"
+          )}
+        >
+          {item.title}
+        </h3>
+      </div>
+      <item.icon
+        strokeWidth={isLocked ? 2 : 1.5}
+        className={cn(
+          "w-5 h-5 transition-colors",
+          isLocked
+            ? "text-stone-400 group-hover:text-stone-600"
+            : "text-stone-400 group-hover:text-stone-900"
+        )}
+      />
+    </div>
 
-  const actions = isBusinessUser ? businessActions : personalActions;
+    <p
+      className={cn(
+        "font-serif italic text-sm font-medium mb-1.5 transition-colors",
+        isLocked ? "text-stone-500 group-hover:text-stone-600" : "text-primary"
+      )}
+    >
+      {item.subtitle}
+    </p>
 
-  return (
-    <Card className="flex h-full flex-col border-none bg-transparent shadow-none">
-      <CardContent className="flex h-full flex-1 flex-col p-2">
-        {/* User Header - Minimal Layout */}
-        <div className="mb-6 flex items-center gap-4 px-2">
-          <UserAvatar
-            name={user.displayName || "User"}
-            src={user.avatarUrl}
-            size={52}
-            fallbackClassName="bg-stone-100 text-stone-500 rounded-full border border-white shadow-sm"
-          />
-          <div className="min-w-0 flex-1">
-            <h4 className="truncate font-serif text-lg font-bold text-foreground">
-              {user.displayName}
-            </h4>
-            <div className="flex items-center gap-2">
-              {isBusinessUser ? (
-                <span className="inline-block rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-stone-500">
-                  Business
-                </span>
-              ) : (
-                <span className="text-xs text-stone-400">Personal Account</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Divider mờ */}
-        <div className="mb-4 h-px w-full bg-gradient-to-r from-transparent via-stone-200 to-transparent" />
-
-        {/* Action List */}
-        <div className="flex-1 space-y-1">
-          {actions.map((action) => (
-            <ActionItem key={action.path} {...action} />
-          ))}
-        </div>
-
-        {/* Footer Actions */}
-        <div className="mb-4 mt-2 border-t border-dashed border-stone-200 pt-2">
-          <div
-            className="group flex cursor-pointer items-center gap-4 py-2 pl-2 text-stone-400 transition-all hover:text-red-600"
-            onClick={() => {
-              /* Handle Logout */
-            }}
-          >
-            <LogOut size={16} strokeWidth={1.5} />
-            <span className="font-serif text-sm">Đăng xuất</span>
-          </div>
-        </div>
-
-        <AiAssistantCTA onOpenChat={onOpenChat} />
-      </CardContent>
-    </Card>
-  );
-};
-
-// --- 2. Guest View ---
-const GuestView = ({ onOpenChat }: { onOpenChat?: () => void }) => {
-  const navigate = useNavigate();
-  return (
-    <Card className="flex h-full flex-col border-none bg-transparent shadow-none">
-      <CardContent className="flex flex-1 flex-col justify-center p-4">
-        <div className="text-center">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-stone-50 text-stone-300 ring-1 ring-inset ring-stone-100">
-            <UserAvatar
-              name="?"
-              size={40}
-              fallbackClassName="bg-transparent text-stone-400"
-            />
-          </div>
-
-          <h3 className="mb-2 font-serif text-2xl font-bold text-foreground">
-            Chào bạn mới,
-          </h3>
-          <p className="mx-auto mb-8 max-w-[240px] text-sm leading-relaxed text-muted-foreground">
-            Đăng nhập để trải nghiệm không gian thiết kế và lưu trữ sáng tạo của
-            riêng bạn.
-          </p>
-
-          <Button
-            className="h-12 w-full rounded-full bg-foreground font-sans text-xs font-bold uppercase tracking-widest text-white transition-transform hover:scale-[1.02] hover:bg-primary"
-            onClick={() => navigate("/signin")}
-          >
-            Đăng nhập ngay
-          </Button>
-        </div>
-
-        <div className="mt-auto">
-          <AiAssistantCTA onOpenChat={onOpenChat} />
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
+    <p
+      className={cn(
+        "font-sans text-[11px] leading-snug line-clamp-2 transition-colors",
+        isLocked
+          ? "text-stone-500 group-hover:text-stone-600"
+          : "text-stone-500"
+      )}
+    >
+      {item.desc}
+    </p>
+  </div>
+);
 
 interface UserQuickActionsProps {
   className?: string;
-  onOpenChat?: () => void;
+  onOpenChat?: () => void | Promise<void>;
 }
 
-export const UserQuickActions = ({
-  className = "",
-  onOpenChat,
-}: UserQuickActionsProps) => {
-  const { user } = useAuthStore();
+export const UserQuickActions = ({ className = "" }: UserQuickActionsProps) => {
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const signOut = useAuthStore((s) => s.signOut);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate("/");
+    } catch (error) {
+      console.error("[UserQuickActions] Logout error:", error);
+      navigate("/");
+    }
+  };
+
+  const handleSignInClick = () => {
+    // Lưu redirectTo với expiry 10 phút để tránh redirect nhầm sau này
+    const redirectData = {
+      path: "/organization/setup",
+      expiry: Date.now() + 10 * 60 * 1000, // 10 phút
+    };
+    localStorage.setItem("postAuthRedirect", JSON.stringify(redirectData));
+    navigate("/signin");
+  };
 
   return (
     <div className={cn("h-full", className)}>
-      {user ? (
-        <AuthenticatedView user={user} onOpenChat={onOpenChat} />
-      ) : (
-        <GuestView onOpenChat={onOpenChat} />
-      )}
+      <Card className="flex h-full flex-col border-none bg-transparent shadow-none">
+        <CardContent className="flex h-full flex-1 flex-col p-2">
+          {/* Sign In CTA - Only show for guests at top */}
+          {!user && <SignInCTA onClick={handleSignInClick} />}
+
+          {/* User Info Section - Only show if authenticated */}
+          {user && (
+            <>
+              <div className="mb-6 flex items-center gap-4 px-2">
+                <UserAvatar
+                  name={user.displayName || "User"}
+                  src={user.avatarUrl}
+                  size={52}
+                  fallbackClassName="bg-stone-100 text-stone-500 rounded-full border border-white shadow-sm"
+                />
+                <div className="min-w-0 flex-1">
+                  <h4 className="truncate font-serif text-lg font-bold text-foreground">
+                    {user.displayName}
+                  </h4>
+                  <span className="text-xs text-stone-400">
+                    Personal Account
+                  </span>
+                </div>
+              </div>
+
+              <div className="mb-4 h-px w-full bg-gradient-to-r from-transparent via-stone-200 to-transparent" />
+            </>
+          )}
+
+          {/* B2B Features Section - Always visible */}
+          <div className="flex-1 space-y-0">
+            <h3 className="font-serif text-sm font-bold text-stone-900 mb-3 px-2">
+              Đặc quyền Đối tác
+            </h3>
+            {B2B_FEATURES.map((feature) => (
+              <FeatureCard key={feature.id} item={feature} isLocked={!user} />
+            ))}
+          </div>
+
+          {/* Logout Button - Only show for authenticated users */}
+          {user && (
+            <div className="mt-4 border-t border-dashed border-stone-200 pt-2">
+              <div
+                className="group flex cursor-pointer items-center gap-4 py-2 pl-2 text-stone-400 transition-all hover:text-red-600"
+                onClick={handleLogout}
+              >
+                <LogOut size={16} strokeWidth={1.5} />
+                <span className="font-serif text-sm">Đăng xuất</span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

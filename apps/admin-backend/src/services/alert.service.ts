@@ -1,0 +1,450 @@
+/**
+ * Alert Service
+ *
+ * Business logic for deadline alerts and notifications
+ */
+
+import mongoose from "mongoose";
+import { AlertRepository } from "../repositories/alert.repository.js";
+import {
+  IAlert,
+  ALERT_TYPE,
+  ALERT_URGENCY,
+  ALERT_STATUS,
+} from "../models/alert.model.js";
+import {
+  AlertThreshold,
+  IAlertThreshold,
+} from "../models/alert-threshold.model.js";
+import { ProductionOrder } from "../models/production-order.model.js";
+import { Logger } from "../utils/logger.js";
+import {
+  NotFoundException,
+  ValidationException,
+} from "../shared/exceptions/index.js";
+
+export interface AlertThresholds {
+  deadlineWarningHours: number;
+  deadlineCriticalHours: number;
+  escalationHours: number;
+}
+
+export interface DeadlineCheckResult {
+  alertsCreated: number;
+  ordersChecked: number;
+  escalationsCreated: number;
+}
+
+export class AlertService {
+  private alertRepository: AlertRepository;
+
+  constructor() {
+    this.alertRepository = new AlertRepository();
+  }
+
+  /**
+   * Check deadlines and generate alerts
+   * This is the main job that runs periodically
+   */
+  async checkDeadlines(): Promise<DeadlineCheckResult> {
+    Logger.debug("[AlertSvc] Starting deadline check job");
+
+    let alertsCreated = 0;
+    let ordersChecked = 0;
+    let escalationsCreated = 0;
+
+    try {
+      // Get default thresholds
+      const defaultThresholds = await this.getAlertThresholds("standard");
+
+      // Check for orders within warning threshold (48h)
+      const warningOrders =
+        await this.alertRepository.findOrdersWithUpcomingDeadlines(
+          defaultThresholds.deadlineWarningHours
+        );
+
+      ordersChecked = warningOrders.length;
+      Logger.debug(
+        `[AlertSvc] Found ${ordersChecked} orders with upcoming deadlines`
+      );
+
+      for (const order of warningOrders) {
+        const hoursRemaining = this.calculateHoursRemaining(
+          order.expectedCompletionDate
+        );
+
+        // Determine alert type and urgency based on hours remaining
+        let alertType = ALERT_TYPE.DEADLINE_WARNING;
+        let urgency = ALERT_URGENCY.MEDIUM;
+
+        if (hoursRemaining <= defaultThresholds.deadlineCriticalHours) {
+          alertType = ALERT_TYPE.DEADLINE_CRITICAL;
+          urgency = ALERT_URGENCY.CRITICAL;
+        }
+
+        // Check if we already sent an alert of this type for this order recently
+        const alertExists = await this.alertRepository.existsForOrder(
+          order._id.toString(),
+          alertType,
+          24
+        );
+
+        if (alertExists) {
+          Logger.debug(
+            `[AlertSvc] Alert already exists for order ${order.swagOrderNumber}`
+          );
+          continue;
+        }
+
+        // Create alert
+        const alert = await this.createDeadlineAlert(
+          order._id.toString(),
+          order.swagOrderNumber,
+          order.expectedCompletionDate,
+          hoursRemaining,
+          alertType,
+          urgency
+        );
+
+        alertsCreated++;
+        Logger.success(
+          `[AlertSvc] Created ${alertType} alert for order ${order.swagOrderNumber}`
+        );
+
+        // Check if escalation is needed
+        if (
+          hoursRemaining <= defaultThresholds.escalationHours &&
+          order.status === "pending"
+        ) {
+          // Use a placeholder ObjectId for manager - this should be replaced with actual manager ID
+          const managerId = new mongoose.Types.ObjectId().toString();
+          await this.escalateAlert(alert._id.toString(), managerId);
+          escalationsCreated++;
+          Logger.warn(
+            `[AlertSvc] Escalated alert for order ${order.swagOrderNumber} - production not started`
+          );
+        }
+      }
+
+      Logger.success(
+        `[AlertSvc] Deadline check complete: ${alertsCreated} alerts created, ${escalationsCreated} escalations`
+      );
+
+      return {
+        alertsCreated,
+        ordersChecked,
+        escalationsCreated,
+      };
+    } catch (error) {
+      Logger.error("[AlertSvc] Error during deadline check:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a deadline alert
+   */
+  private async createDeadlineAlert(
+    orderId: string,
+    orderNumber: string,
+    deadline: Date,
+    hoursRemaining: number,
+    type: string,
+    urgency: string,
+    recipientId?: string
+  ): Promise<IAlert> {
+    // Get assigned sales person for the order
+    // For now, we'll use a placeholder if not provided - this should be fetched from the order
+    const recipient = recipientId || new mongoose.Types.ObjectId().toString();
+
+    const message = this.generateAlertMessage(
+      type,
+      orderNumber,
+      deadline,
+      hoursRemaining
+    );
+
+    return await this.alertRepository.create({
+      type,
+      orderId,
+      orderNumber,
+      recipientId: recipient,
+      message,
+      urgency,
+      deadline,
+      hoursRemaining,
+      status: ALERT_STATUS.PENDING,
+      metadata: {
+        autoGenerated: true,
+      },
+    });
+  }
+
+  /**
+   * Generate alert message based on type
+   */
+  private generateAlertMessage(
+    type: string,
+    orderNumber: string,
+    deadline: Date,
+    hoursRemaining: number
+  ): string {
+    const deadlineStr = deadline.toLocaleString("vi-VN");
+
+    if (type === ALERT_TYPE.DEADLINE_CRITICAL) {
+      return `🚨 KHẨN CẤP: Đơn hàng ${orderNumber} sắp đến hạn trong ${hoursRemaining} giờ (${deadlineStr}). Vui lòng kiểm tra tiến độ sản xuất ngay!`;
+    }
+
+    return `⚠️ Cảnh báo: Đơn hàng ${orderNumber} sẽ đến hạn trong ${hoursRemaining} giờ (${deadlineStr}). Vui lòng theo dõi tiến độ.`;
+  }
+
+  /**
+   * Calculate hours remaining until deadline
+   */
+  private calculateHoursRemaining(deadline: Date): number {
+    const now = new Date();
+    const diff = deadline.getTime() - now.getTime();
+    return Math.floor(diff / (1000 * 60 * 60));
+  }
+
+  /**
+   * Send alert (placeholder for actual notification implementation)
+   */
+  async sendAlert(alert: IAlert): Promise<void> {
+    Logger.debug(`[AlertSvc] Sending alert ${alert._id}`);
+
+    // TODO: Implement actual notification sending
+    // - Email
+    // - WebSocket
+    // - Zalo
+    // - SMS
+
+    await this.alertRepository.markSent(alert._id.toString());
+
+    Logger.success(`[AlertSvc] Alert ${alert._id} sent successfully`);
+  }
+
+  /**
+   * Escalate alert to another user (e.g., Sales Manager)
+   */
+  async escalateAlert(alertId: string, escalateTo: string): Promise<IAlert> {
+    Logger.debug(`[AlertSvc] Escalating alert ${alertId} to ${escalateTo}`);
+
+    // Get alert without populate to avoid User model dependency in tests
+    const { Alert } = await import("../models/alert.model.js");
+    const alert = await Alert.findById(alertId).lean();
+    if (!alert) {
+      throw new NotFoundException("Alert", alertId);
+    }
+
+    const escalatedAlert = await this.alertRepository.escalate(
+      alertId,
+      escalateTo
+    );
+
+    if (!escalatedAlert) {
+      throw new Error("Failed to escalate alert");
+    }
+
+    // Create escalation alert
+    await this.alertRepository.create({
+      type: ALERT_TYPE.ESCALATION,
+      orderId: alert.orderId,
+      orderNumber: alert.orderNumber,
+      recipientId: escalateTo,
+      message: `🔺 ESCALATION: ${alert.message}`,
+      urgency: ALERT_URGENCY.CRITICAL,
+      deadline: alert.deadline,
+      hoursRemaining: alert.hoursRemaining,
+      status: ALERT_STATUS.PENDING,
+      metadata: {
+        originalAlertId: alertId,
+        escalatedFrom: alert.recipientId,
+      },
+    });
+
+    Logger.success(`[AlertSvc] Alert ${alertId} escalated to ${escalateTo}`);
+
+    return escalatedAlert;
+  }
+
+  /**
+   * Get alert thresholds for a customer tier
+   */
+  async getAlertThresholds(customerTier: string): Promise<AlertThresholds> {
+    const threshold = await AlertThreshold.findOne({
+      customerTier,
+      isActive: true,
+    }).lean();
+
+    if (threshold) {
+      return {
+        deadlineWarningHours: threshold.deadlineWarningHours,
+        deadlineCriticalHours: threshold.deadlineCriticalHours,
+        escalationHours: threshold.escalationHours,
+      };
+    }
+
+    // Return default thresholds if not configured
+    return {
+      deadlineWarningHours: 48,
+      deadlineCriticalHours: 24,
+      escalationHours: 48,
+    };
+  }
+
+  /**
+   * Configure alert thresholds for a customer tier
+   */
+  async configureThresholds(
+    customerTier: string,
+    thresholds: AlertThresholds,
+    createdBy: string
+  ): Promise<IAlertThreshold> {
+    Logger.debug(`[AlertSvc] Configuring thresholds for tier: ${customerTier}`);
+
+    // Validate thresholds
+    if (thresholds.deadlineWarningHours < thresholds.deadlineCriticalHours) {
+      throw new ValidationException(
+        "Warning threshold must be greater than critical threshold"
+      );
+    }
+
+    const existing = await AlertThreshold.findOne({ customerTier });
+
+    if (existing) {
+      // Update existing
+      existing.deadlineWarningHours = thresholds.deadlineWarningHours;
+      existing.deadlineCriticalHours = thresholds.deadlineCriticalHours;
+      existing.escalationHours = thresholds.escalationHours;
+      await existing.save();
+
+      Logger.success(`[AlertSvc] Updated thresholds for tier: ${customerTier}`);
+      return existing;
+    }
+
+    // Create new
+    const threshold = new AlertThreshold({
+      customerTier,
+      ...thresholds,
+      createdBy,
+    });
+
+    await threshold.save();
+
+    Logger.success(`[AlertSvc] Created thresholds for tier: ${customerTier}`);
+    return threshold;
+  }
+
+  /**
+   * Get pending alerts for a recipient
+   */
+  async getPendingAlerts(recipientId: string): Promise<IAlert[]> {
+    const { alerts } = await this.alertRepository.findByRecipient(recipientId, {
+      status: ALERT_STATUS.PENDING,
+    });
+
+    return alerts;
+  }
+
+  /**
+   * Acknowledge an alert
+   */
+  async acknowledgeAlert(
+    alertId: string,
+    acknowledgedBy: string
+  ): Promise<IAlert> {
+    Logger.debug(`[AlertSvc] Acknowledging alert ${alertId}`);
+
+    const alert = await this.alertRepository.findById(alertId);
+    if (!alert) {
+      throw new NotFoundException("Alert", alertId);
+    }
+
+    const acknowledged = await this.alertRepository.markAcknowledged(
+      alertId,
+      acknowledgedBy
+    );
+
+    if (!acknowledged) {
+      throw new Error("Failed to acknowledge alert");
+    }
+
+    Logger.success(`[AlertSvc] Alert ${alertId} acknowledged`);
+
+    return acknowledged;
+  }
+
+  /**
+   * Get orders sorted by deadline urgency
+   */
+  async getOrdersByDeadlineUrgency(
+    options: {
+      limit?: number;
+      includeCompleted?: boolean;
+    } = {}
+  ): Promise<any[]> {
+    const { limit = 50, includeCompleted = false } = options;
+
+    const query: any = {
+      expectedCompletionDate: { $exists: true },
+    };
+
+    if (!includeCompleted) {
+      query.status = { $nin: ["completed", "failed", "cancelled"] };
+    }
+
+    const orders = await ProductionOrder.find(query)
+      .sort({ expectedCompletionDate: 1 }) // Earliest deadline first
+      .limit(limit)
+      .select("_id swagOrderNumber expectedCompletionDate status orderedAt")
+      .lean();
+
+    // Calculate hours remaining and add urgency flag
+    const now = new Date();
+    return orders.map((order) => {
+      const hoursRemaining = this.calculateHoursRemaining(
+        order.expectedCompletionDate
+      );
+
+      return {
+        ...order,
+        hoursRemaining,
+        isAtRisk: hoursRemaining <= 24,
+        isCritical: hoursRemaining <= 12,
+      };
+    });
+  }
+
+  /**
+   * Get alert statistics for a recipient
+   */
+  async getAlertStats(recipientId: string): Promise<{
+    pending: number;
+    acknowledged: number;
+    critical: number;
+  }> {
+    const [pending, acknowledged, critical] = await Promise.all([
+      this.alertRepository.countPendingByRecipient(recipientId),
+      AlertRepository.prototype.constructor
+        .countDocuments({
+          recipientId,
+          status: ALERT_STATUS.ACKNOWLEDGED,
+        })
+        .exec(),
+      AlertRepository.prototype.constructor
+        .countDocuments({
+          recipientId,
+          urgency: ALERT_URGENCY.CRITICAL,
+          status: { $in: [ALERT_STATUS.PENDING, ALERT_STATUS.SENT] },
+        })
+        .exec(),
+    ]);
+
+    return {
+      pending,
+      acknowledged,
+      critical,
+    };
+  }
+}

@@ -79,3 +79,19 @@ export const impersonateUser = asyncHandler(
     });
   }
 );
+
+/**
+ * Toggle Shipper Role - Đổi user thành shipper hoặc remove shipper role
+ */
+export const toggleShipperRole = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+
+    const result = await userService.toggleShipperRole(id);
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      data: result,
+    });
+  }
+);

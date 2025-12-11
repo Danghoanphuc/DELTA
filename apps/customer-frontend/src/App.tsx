@@ -25,10 +25,14 @@ import { SocialChatSync } from "@/features/social/components/SocialChatSync";
 // ✅ CORE UI
 import PageLoader from "@/components/PageLoader";
 import NotFoundPage from "./pages/NotFoundPage";
+import CookieConsent from "@/shared/components/CookieConsent";
 
 // --- Public Pages ---
 import SmartLanding from "@/features/landing/SmartLanding";
 import PolicyPage from "@/features/landing/PolicyPage";
+import WarrantyPage from "@/features/landing/WarrantyPage";
+import QualityStandardsPage from "@/features/landing/QualityStandardsPage";
+import ShippingPolicyPage from "@/features/landing/ShippingPolicyPage";
 import ContactPage from "@/features/landing/ContactPage";
 import ProcessPage from "@/features/landing/ProcessPage";
 import TrendsPage from "@/features/landing/TrendsPage";
@@ -36,6 +40,9 @@ import TemplateLibraryPage from "@/features/landing/TemplateLibraryPage";
 import BusinessPage from "@/features/landing/BusinessPage";
 import AboutPage from "@/features/landing/AboutPage";
 import CareersPage from "@/features/landing/CareersPage";
+import DesignGuidelinesPage from "@/features/landing/DesignGuidelinesPage";
+import FAQPage from "@/features/landing/FAQPage";
+import BlogPage from "@/features/landing/BlogPage";
 import WarehousingPage from "@/features/solutions/WarehousingPage";
 import KittingPage from "@/features/solutions/KittingPage";
 import CorporateGiftingPage from "@/features/solutions/CorporateGiftingPage";
@@ -114,6 +121,10 @@ const OrderDetailPage = lazyWorkaround(
 const CustomerDesignsPage = lazyWorkaround(
   () => import("@/features/customer/pages/CustomerDesignsPage")
 );
+const DesignsPage = lazy(() => import("@/features/designs/pages/DesignsPage"));
+const ServicesPage = lazy(
+  () => import("@/features/services/pages/ServicesPage")
+);
 const CustomerSettingsPage = lazyWorkaround(
   () => import("@/features/customer/pages/CustomerSettingsPage")
 );
@@ -151,6 +162,17 @@ const CompanyStorePage = lazy(
   () => import("@/features/company-store/pages/CompanyStorePage")
 );
 
+// ✅ Shipper Portal (Delivery Check-in)
+const ShipperApp = lazy(
+  () => import("@/features/delivery-checkin/pages/ShipperApp")
+);
+const ShipperRegisterPage = lazy(
+  () => import("@/features/delivery-checkin/pages/ShipperRegisterPage")
+);
+const ShipperLandingPage = lazy(
+  () => import("@/features/delivery-checkin/pages/ShipperLandingPage")
+);
+
 function AppContent() {
   const isAuthenticated = useAuthStore((state) => !!state.accessToken);
   const authLoading = useAuthStore((state) => state.loading);
@@ -166,11 +188,24 @@ function AppContent() {
   // ✅ KÍCH HOẠT LÁ CHẮN BẢO VỆ
   useContentProtection();
 
+  // ✅ Only show loading when we're actually fetching user data (not during redirect)
+  const shouldShowLoading = authLoading && !user;
+
   // Logic fetch user data
   useEffect(() => {
+    console.log(
+      "[App] useEffect triggered - isAuthenticated:",
+      isAuthenticated,
+      "user:",
+      !!user,
+      "hasFetched:",
+      hasFetchedRef.current
+    );
+
     if (isAuthenticated && !user && !hasFetchedRef.current) {
       const now = Date.now();
       if (now - lastFetchTimeRef.current > FETCH_COOLDOWN) {
+        console.log("[App] ⚠️ Calling fetchMe()");
         lastFetchTimeRef.current = now;
         hasFetchedRef.current = true;
         fetchMe(true).catch((err) => {
@@ -210,8 +245,8 @@ function AppContent() {
           <SocialChatSync />
           <GoogleOneTapListener />
 
-          {/* 1. GLOBAL SPLASH SCREEN */}
-          <PageLoader mode="splash" isLoading={authLoading} />
+          {/* 1. GLOBAL SPLASH SCREEN - Only show when actually loading user data */}
+          <PageLoader mode="splash" isLoading={shouldShowLoading} />
 
           {/* 2. SUSPENSE LOADER */}
           <Suspense fallback={<PageLoader mode="loading" isLoading={true} />}>
@@ -219,8 +254,20 @@ function AppContent() {
               {/* 1. PUBLIC LANDING */}
               <Route path="/" element={<SmartLanding />} />
               <Route path="/policy" element={<PolicyPage />} />
+              <Route path="/warranty" element={<WarrantyPage />} />
+              <Route
+                path="/quality-standards"
+                element={<QualityStandardsPage />}
+              />
+              <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/process" element={<ProcessPage />} />
+              <Route
+                path="/design-guidelines"
+                element={<DesignGuidelinesPage />}
+              />
+              <Route path="/faq" element={<FAQPage />} />
+              <Route path="/blog" element={<BlogPage />} />
               <Route path="/trends" element={<TrendsPage />} />
               <Route path="/templates" element={<TemplateLibraryPage />} />
               <Route path="/business" element={<BusinessPage />} />
@@ -265,6 +312,8 @@ function AppContent() {
 
                 {/* Shop */}
                 <Route path="/shop" element={<ShopPortalPage />} />
+                <Route path="/designs" element={<DesignsPage />} />
+                <Route path="/orders" element={<ServicesPage />} />
                 <Route path="/rush" element={<RushPage />} />
                 <Route path="/app" element={<ChatAppPage />} />
                 <Route path="/product/:slug" element={<ProductDetailPage />} />
@@ -287,12 +336,12 @@ function AppContent() {
                     path="/checkout/confirmation/:orderId?"
                     element={<CheckoutConfirmationPage />}
                   />
-                  <Route path="/orders" element={<CustomerOrdersPage />} />
+                  <Route path="/my-orders" element={<CustomerOrdersPage />} />
                   <Route
-                    path="/orders/:orderId"
+                    path="/my-orders/:orderId"
                     element={<OrderDetailPage />}
                   />
-                  <Route path="/designs" element={<CustomerDesignsPage />} />
+                  <Route path="/my-designs" element={<CustomerDesignsPage />} />
                   <Route path="/design-editor" element={<DesignEditorPage />} />
 
                   {/* Social & Settings */}
@@ -318,11 +367,18 @@ function AppContent() {
                 <Route path="/chat/history" element={<ChatHistoryPage />} />
 
                 {/* ✅ Organization Portal (B2B) */}
-                <Route
-                  path="/organization/dashboard"
-                  element={<OrganizationApp />}
-                />
+                <Route path="/organization/*" element={<OrganizationApp />} />
+
+                {/* ✅ Shipper Portal (Delivery Check-in) */}
+                <Route path="/shipper/*" element={<ShipperApp />} />
               </Route>
+
+              {/* ✅ Shipper Portal Public Routes */}
+              <Route
+                path="/shipper/register"
+                element={<ShipperRegisterPage />}
+              />
+              <Route path="/shipper/welcome" element={<ShipperLandingPage />} />
 
               {/* 4. 404 CÁ NHÂN HÓA */}
               <Route path="*" element={<NotFoundPage />} />
@@ -331,6 +387,7 @@ function AppContent() {
 
           <ProductQuickViewModal />
           <OrderQuickViewModal />
+          <CookieConsent />
         </SocketProvider>
       </GlobalModalProvider>
     </>

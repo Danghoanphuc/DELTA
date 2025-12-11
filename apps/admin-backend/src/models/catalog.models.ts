@@ -69,8 +69,59 @@ export interface ISupplier extends Document {
   isActive: boolean;
   isPreferred: boolean;
   notes?: string;
+
+  // ✅ PHASE 8.1.1: Performance Metrics
+  performanceMetrics: {
+    // Delivery Performance
+    totalOrders: number;
+    completedOrders: number;
+    onTimeDeliveries: number;
+    lateDeliveries: number;
+    onTimeDeliveryRate: number; // Percentage
+
+    // Quality Performance
+    totalQCChecks: number;
+    passedQCChecks: number;
+    failedQCChecks: number;
+    qualityScore: number; // Percentage
+
+    // Lead Time Performance
+    averageLeadTime: number; // In days
+    minLeadTime: number;
+    maxLeadTime: number;
+
+    // Cost Performance
+    averageCost: number;
+    totalSpent: number;
+
+    // Last Updated
+    lastUpdated: Date;
+  };
+
+  // ✅ PHASE 8.1.1: Lead Time History
+  leadTimeHistory: {
+    productionOrderId: mongoose.Types.ObjectId;
+    orderedAt: Date;
+    expectedCompletionDate: Date;
+    actualCompletionDate: Date;
+    leadTimeDays: number;
+    wasOnTime: boolean;
+  }[];
+
   createdAt: Date;
   updatedAt: Date;
+
+  // Methods
+  updatePerformanceMetrics(): Promise<void>;
+  recordLeadTime(
+    productionOrderId: mongoose.Types.ObjectId,
+    orderedAt: Date,
+    expectedDate: Date,
+    actualDate: Date
+  ): Promise<void>;
+  calculateOnTimeRate(): number;
+  calculateQualityScore(): number;
+  calculateAverageLeadTime(): number;
 }
 
 const SupplierSchema = new Schema<ISupplier>(
@@ -101,12 +152,211 @@ const SupplierSchema = new Schema<ISupplier>(
     isActive: { type: Boolean, default: true },
     isPreferred: { type: Boolean, default: false },
     notes: { type: String },
+
+    // ✅ PHASE 8.1.1: Performance Metrics
+    performanceMetrics: {
+      totalOrders: { type: Number, default: 0 },
+      completedOrders: { type: Number, default: 0 },
+      onTimeDeliveries: { type: Number, default: 0 },
+      lateDeliveries: { type: Number, default: 0 },
+      onTimeDeliveryRate: { type: Number, default: 0 },
+
+      totalQCChecks: { type: Number, default: 0 },
+      passedQCChecks: { type: Number, default: 0 },
+      failedQCChecks: { type: Number, default: 0 },
+      qualityScore: { type: Number, default: 0 },
+
+      averageLeadTime: { type: Number, default: 0 },
+      minLeadTime: { type: Number, default: 0 },
+      maxLeadTime: { type: Number, default: 0 },
+
+      averageCost: { type: Number, default: 0 },
+      totalSpent: { type: Number, default: 0 },
+
+      lastUpdated: { type: Date, default: Date.now },
+    },
+
+    // ✅ PHASE 8.1.1: Lead Time History
+    leadTimeHistory: [
+      {
+        productionOrderId: {
+          type: Schema.Types.ObjectId,
+          ref: "ProductionOrder",
+        },
+        orderedAt: { type: Date, required: true },
+        expectedCompletionDate: { type: Date, required: true },
+        actualCompletionDate: { type: Date, required: true },
+        leadTimeDays: { type: Number, required: true },
+        wasOnTime: { type: Boolean, required: true },
+      },
+    ],
   },
   { timestamps: true }
 );
 
 SupplierSchema.index({ type: 1, isActive: 1 });
 SupplierSchema.index({ isPreferred: 1 });
+SupplierSchema.index({ "performanceMetrics.onTimeDeliveryRate": -1 });
+SupplierSchema.index({ "performanceMetrics.qualityScore": -1 });
+
+// ============================================
+// SUPPLIER METHODS
+// ============================================
+
+/**
+ * Calculate on-time delivery rate
+ */
+SupplierSchema.methods.calculateOnTimeRate = function (): number {
+  if (this.performanceMetrics.totalOrders === 0) return 0;
+  return (
+    (this.performanceMetrics.onTimeDeliveries /
+      this.performanceMetrics.totalOrders) *
+    100
+  );
+};
+
+/**
+ * Calculate quality score
+ */
+SupplierSchema.methods.calculateQualityScore = function (): number {
+  if (this.performanceMetrics.totalQCChecks === 0) return 0;
+  return (
+    (this.performanceMetrics.passedQCChecks /
+      this.performanceMetrics.totalQCChecks) *
+    100
+  );
+};
+
+/**
+ * Calculate average lead time from history
+ */
+SupplierSchema.methods.calculateAverageLeadTime = function (): number {
+  if (this.leadTimeHistory.length === 0) return 0;
+
+  const totalLeadTime = this.leadTimeHistory.reduce(
+    (sum, record) => sum + record.leadTimeDays,
+    0
+  );
+
+  return totalLeadTime / this.leadTimeHistory.length;
+};
+
+/**
+ * Record lead time for a production order
+ */
+SupplierSchema.methods.recordLeadTime = async function (
+  productionOrderId: mongoose.Types.ObjectId,
+  orderedAt: Date,
+  expectedDate: Date,
+  actualDate: Date
+): Promise<void> {
+  // Calculate lead time in days
+  const leadTimeDays = Math.ceil(
+    (actualDate.getTime() - orderedAt.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  // Check if on time
+  const wasOnTime = actualDate <= expectedDate;
+
+  // Add to history (keep last 100 records)
+  this.leadTimeHistory.push({
+    productionOrderId,
+    orderedAt,
+    expectedCompletionDate: expectedDate,
+    actualCompletionDate: actualDate,
+    leadTimeDays,
+    wasOnTime,
+  });
+
+  // Keep only last 100 records
+  if (this.leadTimeHistory.length > 100) {
+    this.leadTimeHistory = this.leadTimeHistory.slice(-100);
+  }
+
+  // Update metrics
+  await this.updatePerformanceMetrics();
+};
+
+/**
+ * Update performance metrics from production orders
+ */
+SupplierSchema.methods.updatePerformanceMetrics =
+  async function (): Promise<void> {
+    const ProductionOrder = mongoose.model("ProductionOrder");
+
+    // Get all production orders for this supplier
+    const orders = await ProductionOrder.find({ supplierId: this._id });
+
+    // Calculate metrics
+    const totalOrders = orders.length;
+    const completedOrders = orders.filter(
+      (o) => o.status === "completed"
+    ).length;
+
+    // On-time delivery
+    const onTimeDeliveries = orders.filter(
+      (o) =>
+        o.status === "completed" &&
+        o.actualCompletionDate &&
+        o.actualCompletionDate <= o.expectedCompletionDate
+    ).length;
+
+    const lateDeliveries = completedOrders - onTimeDeliveries;
+
+    // QC metrics
+    const ordersWithQC = orders.filter(
+      (o) => o.qcChecks && o.qcChecks.length > 0
+    );
+    const totalQCChecks = ordersWithQC.reduce(
+      (sum, o) => sum + o.qcChecks.length,
+      0
+    );
+    const passedQCChecks = ordersWithQC.reduce(
+      (sum, o) => sum + o.qcChecks.filter((qc) => qc.passed).length,
+      0
+    );
+    const failedQCChecks = totalQCChecks - passedQCChecks;
+
+    // Lead time metrics from history
+    const averageLeadTime = this.calculateAverageLeadTime();
+    const minLeadTime =
+      this.leadTimeHistory.length > 0
+        ? Math.min(...this.leadTimeHistory.map((h) => h.leadTimeDays))
+        : 0;
+    const maxLeadTime =
+      this.leadTimeHistory.length > 0
+        ? Math.max(...this.leadTimeHistory.map((h) => h.leadTimeDays))
+        : 0;
+
+    // Cost metrics
+    const totalSpent = orders.reduce((sum, o) => sum + (o.actualCost || 0), 0);
+    const averageCost = completedOrders > 0 ? totalSpent / completedOrders : 0;
+
+    // Update metrics
+    this.performanceMetrics = {
+      totalOrders,
+      completedOrders,
+      onTimeDeliveries,
+      lateDeliveries,
+      onTimeDeliveryRate: this.calculateOnTimeRate(),
+
+      totalQCChecks,
+      passedQCChecks,
+      failedQCChecks,
+      qualityScore: this.calculateQualityScore(),
+
+      averageLeadTime,
+      minLeadTime,
+      maxLeadTime,
+
+      averageCost,
+      totalSpent,
+
+      lastUpdated: new Date(),
+    };
+
+    await this.save();
+  };
 
 // ============================================
 // 3. CATALOG PRODUCT - Sản phẩm trong catalog
@@ -434,14 +684,23 @@ export interface IProductTemplate extends Document {
   description?: string;
   type: "welcome_kit" | "event_swag" | "client_gift" | "holiday" | "custom";
 
+  // Organization (if template is private to an org)
+  organizationId?: mongoose.Types.ObjectId;
+
   // Template Items
   items: {
     productId: mongoose.Types.ObjectId;
     productName: string;
+    productSku: string;
     quantity: number;
     isRequired: boolean;
     allowSubstitute: boolean;
-    substituteProducts?: mongoose.Types.ObjectId[];
+    substituteProducts?: {
+      productId: mongoose.Types.ObjectId;
+      productName: string;
+      productSku: string;
+      reason?: string; // Why this is a good substitute
+    }[];
   }[];
 
   // Default Customization
@@ -449,6 +708,7 @@ export interface IProductTemplate extends Document {
     includeLogo: boolean;
     logoPosition?: string;
     includePersonalization: boolean;
+    personalizationFields?: string[];
   };
 
   // Packaging
@@ -466,12 +726,52 @@ export interface IProductTemplate extends Document {
   isActive: boolean;
   isPublic: boolean; // Visible to customers
 
-  // Stats
-  timesUsed: number;
+  // ✅ PHASE 9.1.1: Usage Tracking
+  usageTracking: {
+    timesUsed: number;
+    lastUsedAt?: Date;
+    lastUsedBy?: mongoose.Types.ObjectId;
+    totalRevenue: number;
+    averageOrderValue: number;
+  };
+
+  // ✅ PHASE 9.1.1: Order History
+  orderHistory: {
+    orderId: mongoose.Types.ObjectId;
+    orderNumber: string;
+    organizationId: mongoose.Types.ObjectId;
+    createdAt: Date;
+    totalAmount: number;
+    recipientCount: number;
+  }[];
+
+  // ✅ PHASE 9.1.1: Substitute Product Support
+  discontinuedProducts: mongoose.Types.ObjectId[]; // Track products that are no longer available
 
   createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
+
+  // Methods
+  recordUsage(
+    orderId: mongoose.Types.ObjectId,
+    orderNumber: string,
+    organizationId: mongoose.Types.ObjectId,
+    totalAmount: number,
+    recipientCount: number,
+    userId?: mongoose.Types.ObjectId
+  ): Promise<void>;
+  getSuggestedSubstitutes(
+    productId: mongoose.Types.ObjectId
+  ): Promise<mongoose.Types.ObjectId[]>;
+  checkProductAvailability(): Promise<{
+    allAvailable: boolean;
+    unavailableProducts: {
+      productId: mongoose.Types.ObjectId;
+      productName: string;
+      suggestedSubstitutes: mongoose.Types.ObjectId[];
+    }[];
+  }>;
 }
 
 const ProductTemplateSchema = new Schema<IProductTemplate>(
@@ -484,6 +784,13 @@ const ProductTemplateSchema = new Schema<IProductTemplate>(
       default: "custom",
     },
 
+    // Organization (if template is private)
+    organizationId: {
+      type: Schema.Types.ObjectId,
+      ref: "OrganizationProfile",
+      index: true,
+    },
+
     items: [
       {
         productId: {
@@ -492,11 +799,21 @@ const ProductTemplateSchema = new Schema<IProductTemplate>(
           required: true,
         },
         productName: { type: String, required: true },
+        productSku: { type: String, required: true },
         quantity: { type: Number, default: 1 },
         isRequired: { type: Boolean, default: true },
         allowSubstitute: { type: Boolean, default: false },
         substituteProducts: [
-          { type: Schema.Types.ObjectId, ref: "CatalogProduct" },
+          {
+            productId: {
+              type: Schema.Types.ObjectId,
+              ref: "CatalogProduct",
+              required: true,
+            },
+            productName: { type: String, required: true },
+            productSku: { type: String, required: true },
+            reason: { type: String },
+          },
         ],
       },
     ],
@@ -505,6 +822,7 @@ const ProductTemplateSchema = new Schema<IProductTemplate>(
       includeLogo: { type: Boolean, default: true },
       logoPosition: { type: String },
       includePersonalization: { type: Boolean, default: false },
+      personalizationFields: [{ type: String }],
     },
 
     packaging: {
@@ -519,7 +837,34 @@ const ProductTemplateSchema = new Schema<IProductTemplate>(
     isActive: { type: Boolean, default: true },
     isPublic: { type: Boolean, default: false },
 
-    timesUsed: { type: Number, default: 0 },
+    // ✅ PHASE 9.1.1: Usage Tracking
+    usageTracking: {
+      timesUsed: { type: Number, default: 0 },
+      lastUsedAt: { type: Date },
+      lastUsedBy: { type: Schema.Types.ObjectId, ref: "User" },
+      totalRevenue: { type: Number, default: 0 },
+      averageOrderValue: { type: Number, default: 0 },
+    },
+
+    // ✅ PHASE 9.1.1: Order History (keep last 50 orders)
+    orderHistory: [
+      {
+        orderId: { type: Schema.Types.ObjectId, ref: "SwagOrder" },
+        orderNumber: { type: String, required: true },
+        organizationId: {
+          type: Schema.Types.ObjectId,
+          ref: "OrganizationProfile",
+        },
+        createdAt: { type: Date, required: true },
+        totalAmount: { type: Number, required: true },
+        recipientCount: { type: Number, required: true },
+      },
+    ],
+
+    // ✅ PHASE 9.1.1: Discontinued Products
+    discontinuedProducts: [
+      { type: Schema.Types.ObjectId, ref: "CatalogProduct" },
+    ],
 
     createdBy: { type: Schema.Types.ObjectId, ref: "Admin" },
   },
@@ -528,6 +873,155 @@ const ProductTemplateSchema = new Schema<IProductTemplate>(
 
 ProductTemplateSchema.index({ type: 1, isActive: 1 });
 ProductTemplateSchema.index({ isPublic: 1 });
+ProductTemplateSchema.index({ organizationId: 1, isActive: 1 });
+ProductTemplateSchema.index({ "usageTracking.timesUsed": -1 });
+ProductTemplateSchema.index({ "usageTracking.lastUsedAt": -1 });
+
+// ============================================
+// PRODUCT TEMPLATE METHODS
+// ============================================
+
+/**
+ * Record template usage when an order is created from this template
+ */
+ProductTemplateSchema.methods.recordUsage = async function (
+  orderId: mongoose.Types.ObjectId,
+  orderNumber: string,
+  organizationId: mongoose.Types.ObjectId,
+  totalAmount: number,
+  recipientCount: number,
+  userId?: mongoose.Types.ObjectId
+): Promise<void> {
+  // Update usage tracking
+  this.usageTracking.timesUsed += 1;
+  this.usageTracking.lastUsedAt = new Date();
+  if (userId) {
+    this.usageTracking.lastUsedBy = userId;
+  }
+
+  // Update revenue metrics
+  this.usageTracking.totalRevenue += totalAmount;
+  this.usageTracking.averageOrderValue =
+    this.usageTracking.totalRevenue / this.usageTracking.timesUsed;
+
+  // Add to order history (keep last 50)
+  this.orderHistory.push({
+    orderId,
+    orderNumber,
+    organizationId,
+    createdAt: new Date(),
+    totalAmount,
+    recipientCount,
+  });
+
+  // Keep only last 50 orders
+  if (this.orderHistory.length > 50) {
+    this.orderHistory = this.orderHistory.slice(-50);
+  }
+
+  await this.save();
+};
+
+/**
+ * Get suggested substitutes for a discontinued product
+ */
+ProductTemplateSchema.methods.getSuggestedSubstitutes = async function (
+  productId: mongoose.Types.ObjectId
+): Promise<mongoose.Types.ObjectId[]> {
+  // Find the item in template
+  const item = this.items.find(
+    (i: any) => i.productId.toString() === productId.toString()
+  );
+
+  if (!item || !item.allowSubstitute) {
+    return [];
+  }
+
+  // Return configured substitutes
+  if (item.substituteProducts && item.substituteProducts.length > 0) {
+    return item.substituteProducts.map((s: any) => s.productId);
+  }
+
+  // If no substitutes configured, find similar products
+  const product = await CatalogProduct.findById(productId);
+  if (!product) return [];
+
+  // Find products in same category with similar price
+  const similarProducts = await CatalogProduct.find({
+    categoryId: product.categoryId,
+    _id: { $ne: productId },
+    status: "active",
+    isPublished: true,
+    basePrice: {
+      $gte: product.basePrice * 0.8,
+      $lte: product.basePrice * 1.2,
+    },
+  })
+    .limit(5)
+    .select("_id");
+
+  return similarProducts.map((p) => p._id);
+};
+
+/**
+ * Check if all products in template are available
+ */
+ProductTemplateSchema.methods.checkProductAvailability =
+  async function (): Promise<{
+    allAvailable: boolean;
+    unavailableProducts: {
+      productId: mongoose.Types.ObjectId;
+      productName: string;
+      suggestedSubstitutes: mongoose.Types.ObjectId[];
+    }[];
+  }> {
+    const unavailableProducts: {
+      productId: mongoose.Types.ObjectId;
+      productName: string;
+      suggestedSubstitutes: mongoose.Types.ObjectId[];
+    }[] = [];
+
+    // Check each product
+    for (const item of this.items) {
+      const product = await CatalogProduct.findById(item.productId);
+
+      // Check if product is discontinued or inactive
+      if (
+        !product ||
+        product.status === "discontinued" ||
+        product.status === "inactive" ||
+        !product.isPublished
+      ) {
+        // Get suggested substitutes
+        const substitutes = await this.getSuggestedSubstitutes(item.productId);
+
+        unavailableProducts.push({
+          productId: item.productId,
+          productName: item.productName,
+          suggestedSubstitutes: substitutes,
+        });
+
+        // Add to discontinued list if not already there
+        if (
+          !this.discontinuedProducts.some(
+            (id) => id.toString() === item.productId.toString()
+          )
+        ) {
+          this.discontinuedProducts.push(item.productId);
+        }
+      }
+    }
+
+    // Save if we added any discontinued products
+    if (unavailableProducts.length > 0) {
+      await this.save();
+    }
+
+    return {
+      allAvailable: unavailableProducts.length === 0,
+      unavailableProducts,
+    };
+  };
 
 // ============================================
 // EXPORT MODELS

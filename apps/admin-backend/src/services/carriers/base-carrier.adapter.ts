@@ -1,7 +1,7 @@
 // src/services/carriers/base-carrier.adapter.ts
 // ✅ Base Carrier Adapter - Template Method Pattern
 
-import { Logger } from "../../utils/logger";
+import { Logger } from "../../shared/utils/logger.js";
 import {
   ICarrierAdapter,
   ShipmentRequest,

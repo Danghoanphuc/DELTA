@@ -176,49 +176,51 @@ router.get("/export", swagOperationsController.exportOrders);
 // ============================================
 import { analyticsController } from "../controllers/admin.analytics.controller.js";
 
-/**
- * @route   GET /api/admin/swag-ops/analytics/trends
- * @desc    Get order trends over time
- */
-router.get("/analytics/trends", analyticsController.getOrderTrends);
+// TODO: Implement these analytics methods in analytics.controller.ts
+// /**
+//  * @route   GET /api/admin/swag-ops/analytics/trends
+//  * @desc    Get order trends over time
+//  */
+// router.get("/analytics/trends", analyticsController.getOrderTrends);
 
-/**
- * @route   GET /api/admin/swag-ops/analytics/fulfillment
- * @desc    Get fulfillment performance metrics
- */
-router.get("/analytics/fulfillment", analyticsController.getFulfillmentMetrics);
+// /**
+//  * @route   GET /api/admin/swag-ops/analytics/fulfillment
+//  * @desc    Get fulfillment performance metrics
+//  */
+// router.get("/analytics/fulfillment", analyticsController.getFulfillmentMetrics);
 
-/**
- * @route   GET /api/admin/swag-ops/analytics/top-organizations
- * @desc    Get top organizations by order volume
- */
-router.get(
-  "/analytics/top-organizations",
-  analyticsController.getTopOrganizations
-);
+// /**
+//  * @route   GET /api/admin/swag-ops/analytics/top-organizations
+//  * @desc    Get top organizations by order volume
+//  */
+// router.get(
+//   "/analytics/top-organizations",
+//   analyticsController.getTopOrganizations
+// );
 
-/**
- * @route   GET /api/admin/swag-ops/analytics/status-distribution
- * @desc    Get order status distribution
- */
-router.get(
-  "/analytics/status-distribution",
-  analyticsController.getStatusDistribution
-);
+// TODO: Implement these analytics methods
+// /**
+//  * @route   GET /api/admin/swag-ops/analytics/status-distribution
+//  * @desc    Get order status distribution
+//  */
+// router.get(
+//   "/analytics/status-distribution",
+//   analyticsController.getStatusDistribution
+// );
 
-/**
- * @route   GET /api/admin/swag-ops/analytics/carriers
- * @desc    Get carrier performance metrics
- */
-router.get("/analytics/carriers", analyticsController.getCarrierPerformance);
+// /**
+//  * @route   GET /api/admin/swag-ops/analytics/carriers
+//  * @desc    Get carrier performance metrics
+//  */
+// router.get("/analytics/carriers", analyticsController.getCarrierPerformance);
 
-/**
- * @route   GET /api/admin/swag-ops/analytics/inventory-alerts
- * @desc    Get inventory alerts
- */
-router.get(
-  "/analytics/inventory-alerts",
-  analyticsController.getInventoryAlerts
-);
+// /**
+//  * @route   GET /api/admin/swag-ops/analytics/inventory-alerts
+//  * @desc    Get inventory alerts
+//  */
+// router.get(
+//   "/analytics/inventory-alerts",
+//   analyticsController.getInventoryAlerts
+// );
 
 export default router;

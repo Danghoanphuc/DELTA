@@ -2,7 +2,7 @@
 // ✅ Organization Repository - Data Access Layer
 
 import mongoose, { FilterQuery } from "mongoose";
-import { Logger } from "../utils/logger";
+import { Logger } from "../shared/utils/logger.js";
 import { IRepository } from "../interfaces/repository.interface";
 
 export class OrganizationRepository implements IRepository<any> {

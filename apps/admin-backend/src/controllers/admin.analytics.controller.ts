@@ -1,110 +1,206 @@
-// src/controllers/admin.analytics.controller.ts
-// ✅ Admin Analytics Controller
+/**
+ * Analytics Controller
+ *
+ * Handles HTTP requests for analytics and reporting
+ *
+ * Requirements: 13.1, 13.2, 13.3, 13.4, 13.5
+ */
 
-import { Request, Response } from "express";
-import { analyticsService } from "../services/admin.analytics.service.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
+import { Request, Response, NextFunction } from "express";
+import { AnalyticsService } from "../services/analytics.service.js";
+import { ApiResponse } from "../shared/utils/api-response.js";
+import { API_CODES } from "../shared/constants/api-codes.js";
+import { ValidationException } from "../shared/exceptions/index.js";
 
 export class AnalyticsController {
-  /**
-   * Get order trends
-   */
-  getOrderTrends = asyncHandler(async (req: Request, res: Response) => {
-    const { from, to, organizationId, groupBy } = req.query;
+  private analyticsService: AnalyticsService;
 
-    const dateRange =
-      from && to
-        ? { from: new Date(from as string), to: new Date(to as string) }
-        : undefined;
-
-    const trends = await analyticsService.getOrderTrends({
-      dateRange,
-      organizationId: organizationId as string,
-      groupBy: (groupBy as "day" | "week" | "month") || "day",
-    });
-
-    res.json({ success: true, data: trends });
-  });
+  constructor() {
+    this.analyticsService = new AnalyticsService();
+  }
 
   /**
-   * Get fulfillment metrics
+   * Get product analytics
+   * @route GET /api/admin/analytics/products
+   * Requirements: 13.1, 13.4
    */
-  getFulfillmentMetrics = asyncHandler(async (req: Request, res: Response) => {
-    const { from, to, organizationId } = req.query;
+  getProductAnalytics = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const organizationId = req.user.organizationProfileId;
+      const { startDate, endDate, topN, slowMovingThreshold } = req.query;
 
-    const dateRange =
-      from && to
-        ? { from: new Date(from as string), to: new Date(to as string) }
-        : undefined;
+      // Validate and parse dates
+      if (!startDate || !endDate) {
+        throw new ValidationException("Start date and end date are required");
+      }
 
-    const metrics = await analyticsService.getFulfillmentMetrics({
-      dateRange,
-      organizationId: organizationId as string,
-    });
+      const dateRange = {
+        startDate: new Date(startDate as string),
+        endDate: new Date(endDate as string),
+      };
 
-    res.json({ success: true, data: metrics });
-  });
+      const options = {
+        topN: topN ? parseInt(topN as string) : undefined,
+        slowMovingThreshold: slowMovingThreshold
+          ? parseInt(slowMovingThreshold as string)
+          : undefined,
+      };
+
+      const analytics = await this.analyticsService.getProductAnalytics(
+        organizationId,
+        dateRange,
+        options
+      );
+
+      res
+        .status(API_CODES.SUCCESS)
+        .json(
+          ApiResponse.success(
+            { analytics },
+            "Product analytics retrieved successfully"
+          )
+        );
+    } catch (error) {
+      next(error);
+    }
+  };
 
   /**
-   * Get top organizations
+   * Get supplier analytics
+   * @route GET /api/admin/analytics/suppliers
+   * Requirements: 13.2
    */
-  getTopOrganizations = asyncHandler(async (req: Request, res: Response) => {
-    const { from, to, limit } = req.query;
+  getSupplierAnalytics = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const organizationId = req.user.organizationProfileId;
+      const { startDate, endDate } = req.query;
 
-    const dateRange =
-      from && to
-        ? { from: new Date(from as string), to: new Date(to as string) }
-        : undefined;
+      // Validate and parse dates
+      if (!startDate || !endDate) {
+        throw new ValidationException("Start date and end date are required");
+      }
 
-    const orgs = await analyticsService.getTopOrganizations(
-      parseInt(limit as string) || 10,
-      dateRange
-    );
+      const dateRange = {
+        startDate: new Date(startDate as string),
+        endDate: new Date(endDate as string),
+      };
 
-    res.json({ success: true, data: orgs });
-  });
+      const analytics = await this.analyticsService.getSupplierAnalytics(
+        organizationId,
+        dateRange
+      );
+
+      res
+        .status(API_CODES.SUCCESS)
+        .json(
+          ApiResponse.success(
+            { analytics },
+            "Supplier analytics retrieved successfully"
+          )
+        );
+    } catch (error) {
+      next(error);
+    }
+  };
 
   /**
-   * Get status distribution
+   * Get order analytics
+   * @route GET /api/admin/analytics/orders
+   * Requirements: 13.3
    */
-  getStatusDistribution = asyncHandler(async (req: Request, res: Response) => {
-    const { from, to } = req.query;
+  getOrderAnalytics = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const organizationId = req.user.organizationProfileId;
+      const { startDate, endDate, groupBy } = req.query;
 
-    const dateRange =
-      from && to
-        ? { from: new Date(from as string), to: new Date(to as string) }
-        : undefined;
+      // Validate and parse dates
+      if (!startDate || !endDate) {
+        throw new ValidationException("Start date and end date are required");
+      }
 
-    const distribution = await analyticsService.getStatusDistribution(
-      dateRange
-    );
+      const dateRange = {
+        startDate: new Date(startDate as string),
+        endDate: new Date(endDate as string),
+      };
 
-    res.json({ success: true, data: distribution });
-  });
+      const groupByPeriod = (groupBy as "day" | "week" | "month") || "month";
+
+      const analytics = await this.analyticsService.getOrderAnalytics(
+        organizationId,
+        dateRange,
+        groupByPeriod
+      );
+
+      res
+        .status(API_CODES.SUCCESS)
+        .json(
+          ApiResponse.success(
+            { analytics },
+            "Order analytics retrieved successfully"
+          )
+        );
+    } catch (error) {
+      next(error);
+    }
+  };
 
   /**
-   * Get carrier performance
+   * Export analytics report
+   * @route GET /api/admin/analytics/export
+   * Requirements: 13.5
    */
-  getCarrierPerformance = asyncHandler(async (req: Request, res: Response) => {
-    const { from, to } = req.query;
+  exportReport = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const organizationId = req.user.organizationProfileId;
+      const { reportType, startDate, endDate, format } = req.query;
 
-    const dateRange =
-      from && to
-        ? { from: new Date(from as string), to: new Date(to as string) }
-        : undefined;
+      // Validate parameters
+      if (!reportType) {
+        throw new ValidationException("Report type is required");
+      }
 
-    const performance = await analyticsService.getCarrierPerformance(dateRange);
+      if (!startDate || !endDate) {
+        throw new ValidationException("Start date and end date are required");
+      }
 
-    res.json({ success: true, data: performance });
-  });
+      const dateRange = {
+        startDate: new Date(startDate as string),
+        endDate: new Date(endDate as string),
+      };
 
-  /**
-   * Get inventory alerts
-   */
-  getInventoryAlerts = asyncHandler(async (req: Request, res: Response) => {
-    const alerts = await analyticsService.getInventoryAlerts();
-    res.json({ success: true, data: alerts });
-  });
+      const reportFormat = (format as "csv" | "excel") || "csv";
+
+      const report = await this.analyticsService.exportReport(
+        organizationId,
+        reportType as "products" | "suppliers" | "orders",
+        dateRange,
+        reportFormat
+      );
+
+      // Set headers for file download
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${report.filename}"`
+      );
+      res.send(report.data);
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
+// Export singleton instance
 export const analyticsController = new AnalyticsController();

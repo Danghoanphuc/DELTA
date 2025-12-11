@@ -52,6 +52,11 @@
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem; /* Offset cho fixed header */
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
     /* Noise Texture: Giữ nguyên vì nó tạo độ lì (Matte) rất sang */

@@ -1,187 +1,275 @@
+import { useState } from "react";
+import {
+  Gift,
+  Calendar,
+  PartyPopper,
+  Trophy,
+  Leaf,
+  ArrowRight,
+  Info,
+  MessageCircle,
+} from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { motion } from "framer-motion";
-import { ArrowRight, Play } from "lucide-react";
+import { cn } from "@/shared/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { SampleRequestModal } from "../SampleRequestModal";
 
-// Sample product images - replace with actual images
-const FLOATING_PRODUCTS = [
-  { id: 1, emoji: "👕", label: "Áo thun", top: "15%", left: "8%", delay: 0 },
-  { id: 2, emoji: "🎒", label: "Balo", top: "25%", right: "12%", delay: 0.2 },
-  { id: 3, emoji: "☕", label: "Ly sứ", bottom: "30%", left: "5%", delay: 0.4 },
-  {
-    id: 4,
-    emoji: "📓",
-    label: "Sổ tay",
-    bottom: "20%",
-    right: "8%",
-    delay: 0.6,
-  },
-  { id: 5, emoji: "🧢", label: "Nón", top: "45%", left: "2%", delay: 0.3 },
-  { id: 6, emoji: "🖊️", label: "Bút", top: "60%", right: "5%", delay: 0.5 },
-];
-
-const TRUSTED_LOGOS = ["VinGroup", "FPT", "Viettel", "MWG", "Techcombank"];
-
+// Hero Component
 export function LPHero() {
   const navigate = useNavigate();
+  const [showSampleModal, setShowSampleModal] = useState(false);
 
   return (
-    <section className="relative min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
-      {/* Gradient orbs */}
-      <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-blue-500/20 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[100px] pointer-events-none" />
-
-      {/* Floating products */}
-      {FLOATING_PRODUCTS.map((product) => (
-        <motion.div
-          key={product.id}
-          initial={{ opacity: 0, scale: 0.5 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: product.delay + 0.5, duration: 0.5 }}
-          className="absolute hidden lg:flex items-center justify-center"
+    <section className="relative min-h-[100vh] flex items-center justify-center bg-gradient-to-br from-stone-50 via-white to-emerald-50 overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div
+          className="absolute inset-0"
           style={{
-            top: product.top,
-            left: product.left,
-            right: product.right,
-            bottom: product.bottom,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
           }}
-        >
-          <motion.div
-            animate={{ y: [0, -15, 0] }}
-            transition={{
-              duration: 3 + product.delay,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center text-3xl shadow-xl border border-white/20"
-          >
-            {product.emoji}
-          </motion.div>
-        </motion.div>
-      ))}
+        />
+      </div>
 
-      {/* Main content */}
-      <div className="relative z-10 max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 pt-32 lg:pt-40 pb-20">
-        <div className="text-center">
-          {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <span className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white/80 text-sm font-medium mb-8">
-              <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-              Nền tảng quà tặng & ấn phẩm thương hiệu #1 Việt Nam
-            </span>
-          </motion.div>
+      <div className="relative max-w-[1440px] mx-auto px-6 md:px-12 py-20 text-center">
+        {/* Main Heading */}
+        <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl text-stone-900 mb-8 leading-tight">
+          Xây dựng thương hiệu
+          <br />
+          <span className="italic text-emerald-700">qua từng điểm chạm.</span>
+        </h1>
 
-          {/* Headline */}
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-[1.1] mb-6"
-          >
-            Quà tặng thương hiệu
-            <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">
-              người nhận muốn giữ
-            </span>
-          </motion.h1>
+        {/* Subheading */}
+        <p className="text-lg md:text-xl text-stone-600 max-w-3xl mx-auto mb-12 leading-relaxed font-light">
+          Từ thiết kế đến sản xuất, từ kho vận đến giao hàng.
+          <br className="hidden md:block" />
+          Printz đồng hành cùng doanh nghiệp hiện thực hóa ý tưởng thương hiệu.
+        </p>
 
-          {/* Subheadline */}
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-lg sm:text-xl text-white/60 max-w-2xl mx-auto mb-10"
+        {/* CTA Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <Button
+            onClick={() => navigate("/shop")}
+            className="h-14 px-8 bg-emerald-700 hover:bg-emerald-800 text-white rounded-full font-medium text-base shadow-lg hover:shadow-xl transition-all"
           >
-            Từ thiết kế, sản xuất đến giao hàng tận tay. Chúng tôi lo tất cả để
-            thương hiệu của bạn tỏa sáng.
-          </motion.p>
+            Khám phá sản phẩm
+            <ArrowRight className="w-5 h-5 ml-2" />
+          </Button>
+          <Button
+            onClick={() => setShowSampleModal(true)}
+            variant="outline"
+            className="h-14 px-8 border-2 border-stone-900 text-stone-900 hover:bg-stone-900 hover:text-white rounded-full font-medium text-base transition-all"
+          >
+            Nhận mẫu thử miễn phí
+          </Button>
+        </div>
 
-          {/* CTAs */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16"
-          >
-            <Button
-              onClick={() => navigate("/contact")}
-              size="lg"
-              className="bg-white text-slate-900 hover:bg-white/90 rounded-full px-8 py-7 text-base font-bold shadow-2xl shadow-white/20 hover:shadow-white/30 transition-all"
-            >
-              Nhận báo giá miễn phí
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
-            <Button
-              onClick={() => navigate("/shop")}
-              variant="ghost"
-              size="lg"
-              className="text-white/80 hover:text-white hover:bg-white/10 rounded-full px-8 py-7 text-base font-medium"
-            >
-              <Play className="mr-2 w-5 h-5 fill-current" />
-              Xem cách hoạt động
-            </Button>
-          </motion.div>
-
-          {/* Stats */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="grid grid-cols-3 gap-8 max-w-xl mx-auto mb-16"
-          >
-            <div className="text-center">
-              <div className="text-3xl sm:text-4xl font-bold text-white mb-1">
-                500+
-              </div>
-              <div className="text-sm text-white/50">Doanh nghiệp</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl sm:text-4xl font-bold text-white mb-1">
-                50K+
-              </div>
-              <div className="text-sm text-white/50">Sản phẩm đã giao</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl sm:text-4xl font-bold text-white mb-1">
-                98%
-              </div>
-              <div className="text-sm text-white/50">Hài lòng</div>
-            </div>
-          </motion.div>
-
-          {/* Trusted by */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.5 }}
-          >
-            <p className="text-sm text-white/40 mb-6 uppercase tracking-wider">
-              Được tin dùng bởi
-            </p>
-            <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-12">
-              {TRUSTED_LOGOS.map((logo, i) => (
-                <motion.div
-                  key={logo}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 0.5 }}
-                  transition={{ delay: 0.6 + i * 0.1 }}
-                  whileHover={{ opacity: 1 }}
-                  className="text-white font-bold text-lg sm:text-xl tracking-tight cursor-default transition-opacity"
-                >
-                  {logo}
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
+        {/* Trust Indicators */}
+        <div className="mt-16 flex flex-wrap justify-center gap-8 text-sm text-stone-500">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-emerald-600 rounded-full" />
+            <span>500+ Doanh nghiệp tin dùng</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-emerald-600 rounded-full" />
+            <span>10,000+ Đơn hàng hoàn thành</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-emerald-600 rounded-full" />
+            <span>Giao hàng toàn quốc</span>
+          </div>
         </div>
       </div>
 
-      {/* Bottom gradient fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+      <SampleRequestModal
+        open={showSampleModal}
+        onOpenChange={setShowSampleModal}
+      />
+    </section>
+  );
+}
+
+// Mock Data - Cần thay thế bằng API từ backend hoặc Sanity CMS
+const CATEGORIES = [
+  { id: "intro", label: "Giới thiệu chung", icon: Info },
+  { id: "client", label: "Quà tặng Khách hàng", icon: Gift },
+  { id: "event", label: "Sự kiện Doanh nghiệp", icon: Calendar },
+  { id: "birthday", label: "Sinh nhật & Nhân sự", icon: PartyPopper },
+  { id: "anniversary", label: "Kỷ niệm & Tri ân", icon: Trophy },
+  { id: "eco", label: "Sống xanh (Eco)", icon: Leaf },
+];
+
+const SOLUTIONS_DATA: Record<
+  string,
+  Array<{
+    title: string;
+    client: string;
+    image: string;
+    desc: string;
+  }>
+> = {
+  intro: [
+    {
+      title: "Think It Kit",
+      client: "Notion",
+      image:
+        "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=800",
+      desc: "Bộ Kit Canvas tối giản, định hình phong cách làm việc hiện đại.",
+    },
+    {
+      title: "Eco-Luxe Bottle",
+      client: "Spotify",
+      image:
+        "https://images.unsplash.com/photo-1602143407151-11115cd4e69b?auto=format&fit=crop&q=80&w=800",
+      desc: "Bình giữ nhiệt vỏ tre khắc laser, cam kết bền vững.",
+    },
+    {
+      title: "Tech Backpack",
+      client: "VNG",
+      image:
+        "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=800",
+      desc: "Balo chống sốc cao cấp, đồng hành cùng Developer.",
+    },
+  ],
+  client: [
+    {
+      title: "VIP Welcome Box",
+      client: "Techcombank",
+      image:
+        "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=80&w=800",
+      desc: "Hộp quà sơn mài cao cấp dành cho khách hàng Private Banking.",
+    },
+    {
+      title: "Signature Pen",
+      client: "MB Bank",
+      image:
+        "https://images.unsplash.com/photo-1585336261022-680e295ce3fe?auto=format&fit=crop&q=80&w=800",
+      desc: "Bút ký kim loại khắc tên riêng, khẳng định vị thế.",
+    },
+    {
+      title: "Leather Folio",
+      client: "VinFast",
+      image:
+        "https://images.unsplash.com/photo-1606293926075-69a00febfbd2?auto=format&fit=crop&q=80&w=800",
+      desc: "Bìa da đựng tài liệu thủ công, tinh tế từng đường kim mũi chỉ.",
+    },
+  ],
+};
+
+export function LPB2BSolutions() {
+  const [activeTab, setActiveTab] = useState("intro");
+  const [showConsultationModal, setShowConsultationModal] = useState(false);
+  const activeItems = SOLUTIONS_DATA[activeTab] || SOLUTIONS_DATA["intro"];
+
+  return (
+    <section className="py-24 bg-white text-[#1a1a1a]">
+      <div className="max-w-[1440px] mx-auto px-6 md:px-12">
+        <div className="text-center mb-16 max-w-4xl mx-auto">
+          <p className="font-mono text-xs font-bold tracking-[0.2em] text-[#999] uppercase mb-4">
+            Printz Case Study
+          </p>
+          <h2 className="font-serif text-4xl md:text-5xl leading-tight mb-6">
+            Giải pháp Quà tặng & Ấn phẩm <br className="hidden md:block" />
+            <span className="italic text-[#BA2525]">
+              cho mọi điểm chạm thương hiệu.
+            </span>
+          </h2>
+          <p className="text-[#666] text-lg font-light leading-relaxed max-w-2xl mx-auto">
+            Từ quà tặng khách hàng cao cấp đến bộ kit chào đón nhân sự. Hãy chọn
+            một danh mục để xem cách chúng tôi hiện thực hóa ý tưởng.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-3 md:gap-4 mb-20">
+          {CATEGORIES.map((cat) => {
+            const Icon = cat.icon;
+            const isActive = activeTab === cat.id;
+
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setActiveTab(cat.id)}
+                className={cn(
+                  "group flex items-center gap-2 px-6 py-3 rounded-full border text-sm font-bold tracking-wide uppercase transition-all duration-300",
+                  isActive
+                    ? "border-[#1a1a1a] bg-white text-[#1a1a1a] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-y-[-2px]"
+                    : "border-[#e5e5e5] bg-white text-[#999] hover:border-[#BA2525] hover:text-[#BA2525]"
+                )}
+              >
+                <Icon
+                  className={cn(
+                    "w-4 h-4",
+                    isActive ? "text-[#BA2525]" : "text-current"
+                  )}
+                />
+                {cat.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-8 md:gap-12">
+          {activeItems.map((item, index) => (
+            <div
+              key={index}
+              className="group flex flex-col h-full cursor-pointer"
+            >
+              <div className="relative overflow-hidden rounded-2xl bg-[#F5F5F0] aspect-[4/5] mb-6 border border-[#e5e5e5]">
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500 z-10" />
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+
+                <div className="absolute top-4 left-4 z-20">
+                  <span className="bg-white/95 backdrop-blur px-3 py-1 rounded-md text-[10px] font-bold tracking-widest uppercase shadow-sm border border-black/5">
+                    {item.client}
+                  </span>
+                </div>
+
+                <div className="absolute bottom-4 right-4 z-20 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+                  <div className="bg-[#BA2525] text-white p-3 rounded-full shadow-lg">
+                    <ArrowRight className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col flex-grow">
+                <h3 className="font-serif text-2xl text-[#1a1a1a] mb-2 group-hover:text-[#BA2525] transition-colors">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-[#666] leading-relaxed line-clamp-2">
+                  {item.desc}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-20 text-center border-t border-[#1a1a1a]/10 pt-12">
+          <p className="text-[#1a1a1a] text-lg font-medium mb-6">
+            Bạn chưa tìm thấy ý tưởng phù hợp?
+          </p>
+          <Button
+            onClick={() => setShowConsultationModal(true)}
+            variant="outline"
+            className="h-12 px-8 rounded-full border-2 border-[#1a1a1a] text-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-white font-bold tracking-widest uppercase transition-all"
+          >
+            Tư vấn giải pháp riêng (1:1)
+          </Button>
+        </div>
+      </div>
+
+      <SampleRequestModal
+        open={showConsultationModal}
+        onOpenChange={setShowConsultationModal}
+        title="Tư vấn giải pháp riêng biệt"
+        subtitle="Chúng tôi sẽ tư vấn 1:1 để tìm giải pháp phù hợp nhất cho doanh nghiệp của bạn"
+        message="Yêu cầu tư vấn giải pháp riêng (1:1) từ Landing Page"
+        buttonText="Đặt lịch tư vấn"
+        icon={<MessageCircle className="w-10 h-10 text-white" />}
+      />
     </section>
   );
 }

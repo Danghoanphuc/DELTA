@@ -78,15 +78,15 @@ export function RecipientsPage() {
   };
 
   return (
-    <div className="flex-1 overflow-auto bg-gray-50">
+    <div className="flex-1 overflow-auto bg-[#FAFAF8]">
       <div className="p-8 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-serif font-bold text-[#1C1917] mb-2">
               Người nhận
             </h1>
-            <p className="text-gray-600">
+            <p className="text-[#57534E]">
               Quản lý danh sách người nhận quà tặng
               {filterOptions && ` • ${filterOptions.totalCount} người`}
             </p>
@@ -97,7 +97,7 @@ export function RecipientsPage() {
               Import CSV
             </Button>
             <Button
-              className="bg-orange-500 hover:bg-orange-600"
+              className="bg-[#C63321] hover:bg-[#A82A1A]"
               onClick={() => setShowAddModal(true)}
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -113,11 +113,11 @@ export function RecipientsPage() {
         />
 
         {/* Filters & Actions */}
-        <Card className="border-none shadow-sm mb-6">
+        <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2] mb-6">
           <CardContent className="p-4">
             <div className="flex gap-4 items-center">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A8A29E]" />
                 <Input
                   placeholder="Tìm theo tên hoặc email..."
                   value={searchTerm}
@@ -136,7 +136,7 @@ export function RecipientsPage() {
         </Card>
 
         {/* Recipients Table */}
-        <Card className="border-none shadow-sm">
+        <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
           <CardContent className="p-0">
             <RecipientTable
               recipients={recipients}
@@ -155,7 +155,7 @@ export function RecipientsPage() {
                     Import CSV
                   </Button>
                   <Button
-                    className="bg-orange-500 hover:bg-orange-600"
+                    className="bg-[#C63321] hover:bg-[#A82A1A]"
                     onClick={() => setShowAddModal(true)}
                   >
                     <Plus className="w-4 h-4 mr-2" />

@@ -1,92 +1,87 @@
-# VNPay Payment Scripts
+# Customer Backend Scripts
 
-Các script hỗ trợ kiểm tra và debug VNPay payment integration.
+## Available Scripts
 
-## Scripts có sẵn
+### 1. Create Novu Workflow
 
-### 1. `check-vnpay-config.js`
-Kiểm tra cấu hình VNPay (biến môi trường, URLs, etc.)
+Automatically create the `delivery-thread-message` workflow in Novu Dashboard.
 
-```bash
-npm run check:vnpay
-```
-
-**Kiểm tra:**
-- Tất cả biến môi trường VNPay đã được set
-- IPN URL không phải localhost
-- Tất cả URLs có format đúng
-
-### 2. `test-vnpay-ipn.js`
-Tạo dữ liệu test cho IPN endpoint
+**Usage**:
 
 ```bash
-npm run test:vnpay-ipn
+cd apps/customer-backend
+node scripts/create-novu-workflow.js
 ```
 
-**Output:**
-- Dữ liệu test giống như VNPay gửi
-- Query string với chữ ký hợp lệ
-- Hướng dẫn test bằng curl
+**Requirements**:
 
-### 3. `vnpay-health-check.js`
-Kiểm tra toàn bộ hệ thống VNPay
+- `NOVU_API_KEY` must be set in `.env` file
+- Node.js 18+ with ES modules support
+
+**What it does**:
+
+1. Connects to Novu API using your API key
+2. Creates a new workflow with identifier `delivery-thread-message`
+3. Configures in-app notification template
+4. Sets up payload variables
+5. Activates the workflow
+
+**Output**:
+
+```
+✅ Workflow created successfully!
+
+📋 Workflow Details:
+   ID: 64abc123...
+   Identifier: delivery-thread-message
+   Name: Delivery Thread Message
+   Active: true
+
+🎯 Next steps:
+   1. Update novu.service.ts to use the new workflow identifier
+   2. Restart the server
+   3. Test by sending a message in delivery thread
+```
+
+**Troubleshooting**:
+
+If workflow already exists:
+
+```
+❌ Failed to create workflow: Workflow already exists
+```
+
+Solution: Delete existing workflow from Novu Dashboard or use it as-is.
+
+If API key is invalid:
+
+```
+❌ NOVU_API_KEY not found in .env file
+```
+
+Solution: Add `NOVU_API_KEY=your_key_here` to `.env` file.
+
+### 2. Manual Setup (Alternative)
+
+If the script fails, follow manual setup instructions in:
+`apps/customer-backend/DELIVERY_THREAD_NOTIFICATIONS.md`
+
+## Environment Variables
+
+Required in `.env`:
 
 ```bash
-npm run health:vnpay
+NOVU_API_KEY=your_novu_api_key_here
 ```
 
-**Kiểm tra:**
-- Cấu hình môi trường
-- VnPayService hoạt động
-- IPN URL và Return URL
-- Tạo payment URL thành công
-
-## Sử dụng
-
-### Kiểm tra nhanh
+Optional:
 
 ```bash
-# Kiểm tra tất cả
-npm run health:vnpay
-
-# Chỉ kiểm tra cấu hình
-npm run check:vnpay
-
-# Test IPN
-npm run test:vnpay-ipn
+NOVU_NOTIFICATION_GROUP_ID=your_group_id  # Default: 'default'
 ```
 
-### Debug lỗi 99
+## Notes
 
-1. Chạy health check:
-   ```bash
-   npm run health:vnpay
-   ```
-
-2. Kiểm tra IPN URL:
-   - Đảm bảo không phải localhost
-   - Đảm bảo là HTTPS (hoặc HTTP nếu dev)
-   - Đảm bảo VNPay có thể gọi được
-
-3. Test IPN endpoint:
-   ```bash
-   npm run test:vnpay-ipn
-   # Copy query string và test bằng curl
-   ```
-
-4. Xem logs backend khi VNPay gọi IPN
-
-## Troubleshooting
-
-Xem file `vnpay-troubleshooting.md` để biết chi tiết về:
-- Nguyên nhân lỗi 99
-- Cách khắc phục từng lỗi
-- Checklist trước khi deploy
-- Debug tips
-
-## Lưu ý
-
-- Tất cả scripts cần chạy từ thư mục `apps/customer-backend`
-- Scripts sẽ load `.env` tự động (nếu không phải production)
-- IPN URL phải là URL public (không thể là localhost)
-
+- Scripts use ES modules (`.js` with `import` statements)
+- Make sure `package.json` has `"type": "module"`
+- Scripts are safe to run multiple times (will skip if workflow exists)

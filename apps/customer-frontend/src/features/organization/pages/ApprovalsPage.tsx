@@ -1,7 +1,7 @@
 // src/features/organization/pages/ApprovalsPage.tsx
-// ✅ Approval Workflow Page - Quản lý duyệt đơn
+// ✅ SOLID Refactored - Approval Workflow Page
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   CheckCircle,
   XCircle,
@@ -13,7 +13,6 @@ import {
   Users,
   DollarSign,
   ChevronRight,
-  MessageSquare,
 } from "lucide-react";
 import {
   Card,
@@ -34,56 +33,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/shared/components/ui/dialog";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/shared/components/ui/tabs";
-import { toast } from "@/shared/utils/toast";
 import { formatCurrency } from "@/shared/utils/formatCurrency";
-import api from "@/shared/lib/axios";
-
-interface ApprovalRequest {
-  _id: string;
-  type: string;
-  status: string;
-  summary: {
-    title: string;
-    description?: string;
-    amount?: number;
-    itemCount?: number;
-    recipientCount?: number;
-  };
-  requestedBy: {
-    displayName: string;
-    email: string;
-    avatarUrl?: string;
-  };
-  requestedAt: string;
-  dueDate?: string;
-  reviewedBy?: {
-    displayName: string;
-  };
-  reviewedAt?: string;
-  reviewNote?: string;
-}
-
-interface ApprovalSettings {
-  enabled: boolean;
-  rules: {
-    swag_order: {
-      enabled: boolean;
-      autoApproveThreshold: number;
-      autoApproveMaxRecipients: number;
-      dueDurationHours: number;
-    };
-  };
-  notifications: {
-    zaloOnNewRequest: boolean;
-    emailOnNewRequest: boolean;
-  };
-}
+import { useApprovals } from "../hooks";
 
 const TYPE_CONFIG: Record<string, { label: string; icon: any; color: string }> =
   {
@@ -100,119 +51,72 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 };
 
 export function ApprovalsPage() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [requests, setRequests] = useState<ApprovalRequest[]>([]);
-  const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0 });
-  const [settings, setSettings] = useState<ApprovalSettings | null>(null);
-  const [activeTab, setActiveTab] = useState("pending");
+  const {
+    isLoading,
+    requests,
+    stats,
+    settings,
+    setSettings,
+    approveRequest,
+    rejectRequest,
+    updateSettings,
+  } = useApprovals();
 
-  // Modals
+  // Modal state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [selectedRequest, setSelectedRequest] =
-    useState<ApprovalRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [reviewNote, setReviewNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch data
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const [requestsRes, statsRes, settingsRes] = await Promise.allSettled([
-        api.get("/approvals/pending"),
-        api.get("/approvals/stats"),
-        api.get("/approvals/settings"),
-      ]);
+  // Open review modal
+  const openReviewModal = (request: any) => {
+    setSelectedRequest(request);
+    setReviewNote("");
+    setShowReviewModal(true);
+  };
 
-      if (requestsRes.status === "fulfilled") {
-        setRequests(requestsRes.value.data?.data?.requests || []);
-      }
-      if (statsRes.status === "fulfilled") {
-        setStats(
-          statsRes.value.data?.data || { pending: 0, approved: 0, rejected: 0 }
-        );
-      }
-      if (settingsRes.status === "fulfilled") {
-        setSettings(settingsRes.value.data?.data?.settings);
-      }
-    } catch (error) {
-      console.error("Error fetching approvals:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Approve request
+  // Handle approve
   const handleApprove = async () => {
     if (!selectedRequest) return;
 
     setIsSubmitting(true);
-    try {
-      await api.post(`/approvals/${selectedRequest._id}/approve`, {
-        note: reviewNote,
-      });
-      toast.success("Đã duyệt yêu cầu!");
+    const success = await approveRequest(selectedRequest._id, reviewNote);
+    setIsSubmitting(false);
+
+    if (success) {
       setShowReviewModal(false);
       setSelectedRequest(null);
       setReviewNote("");
-      fetchData();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Có lỗi xảy ra");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  // Reject request
+  // Handle reject
   const handleReject = async () => {
     if (!selectedRequest) return;
-    if (!reviewNote.trim()) {
-      toast.error("Vui lòng nhập lý do từ chối");
-      return;
-    }
 
     setIsSubmitting(true);
-    try {
-      await api.post(`/approvals/${selectedRequest._id}/reject`, {
-        note: reviewNote,
-      });
-      toast.success("Đã từ chối yêu cầu!");
+    const success = await rejectRequest(selectedRequest._id, reviewNote);
+    setIsSubmitting(false);
+
+    if (success) {
       setShowReviewModal(false);
       setSelectedRequest(null);
       setReviewNote("");
-      fetchData();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Có lỗi xảy ra");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  // Update settings
+  // Handle update settings
   const handleUpdateSettings = async () => {
     if (!settings) return;
 
     setIsSubmitting(true);
-    try {
-      await api.put("/approvals/settings", settings);
-      toast.success("Đã lưu cài đặt!");
-      setShowSettingsModal(false);
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Có lỗi xảy ra");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    const success = await updateSettings(settings);
+    setIsSubmitting(false);
 
-  // Open review modal
-  const openReviewModal = (request: ApprovalRequest) => {
-    setSelectedRequest(request);
-    setReviewNote("");
-    setShowReviewModal(true);
+    if (success) {
+      setShowSettingsModal(false);
+    }
   };
 
   // Format date
@@ -411,7 +315,6 @@ export function ApprovalsPage() {
           </DialogHeader>
           {selectedRequest && (
             <div className="space-y-4 py-4">
-              {/* Request Info */}
               <div className="p-4 bg-gray-50 rounded-lg">
                 <h3 className="font-semibold text-gray-900 mb-2">
                   {selectedRequest.summary.title}
@@ -453,7 +356,6 @@ export function ApprovalsPage() {
                 </div>
               </div>
 
-              {/* Note */}
               <div>
                 <Label>Ghi chú (bắt buộc khi từ chối)</Label>
                 <Textarea
@@ -572,9 +474,6 @@ export function ApprovalsPage() {
                             }
                             placeholder="0 = luôn cần duyệt"
                           />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Đơn dưới số tiền này sẽ tự động được duyệt
-                          </p>
                         </div>
 
                         <div>

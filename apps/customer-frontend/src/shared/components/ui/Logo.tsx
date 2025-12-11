@@ -62,22 +62,14 @@ export const Logo = ({
           </span>
 
           {/* TAGLINE MỚI: Mạnh mẽ - Hệ thống - Quy mô */}
-          <div className="flex flex-col gap-[2px] mt-1">
+          <div className="flex flex-col gap-[1px] mt-1">
             <span
               className={cn(
-                "font-sans text-[8px] font-extrabold uppercase tracking-[0.2em] leading-none opacity-80",
+                "font-sans text-[1px] font-extrabold uppercase tracking-[0.4em] leading-none opacity-80",
                 textColor
               )}
             >
-              Nền tảng Quà tặng
-            </span>
-            <span
-              className={cn(
-                "font-sans text-[8px] font-bold uppercase tracking-[0.2em] leading-none opacity-60",
-                textColor
-              )}
-            >
-              & Thương Hiệu
+              ẤN PHẨM & QUÀ TẶNG
             </span>
           </div>
         </div>

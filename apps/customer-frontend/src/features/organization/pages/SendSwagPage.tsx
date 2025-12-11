@@ -42,15 +42,15 @@ export function SendSwagPage() {
   const pricing = calculatePricing();
 
   return (
-    <div className="flex-1 overflow-auto bg-gray-50">
+    <div className="flex-1 overflow-auto bg-[#FAFAF8]">
       <div className="p-8 max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-            <Send className="w-6 h-6 text-orange-500" />
+          <h1 className="text-2xl font-serif font-bold text-[#1C1917] mb-2 flex items-center gap-2">
+            <Send className="w-6 h-6 text-[#C63321]" strokeWidth={2} />
             Gửi quà
           </h1>
-          <p className="text-gray-600">
+          <p className="text-[#57534E]">
             Chọn bộ quà và người nhận để bắt đầu gửi
           </p>
         </div>
@@ -59,7 +59,7 @@ export function SendSwagPage() {
         <StepProgress currentStep={currentStep} />
 
         {/* Step Content */}
-        <Card className="border-none shadow-sm mb-6">
+        <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] mb-6 bg-[#F7F6F2]">
           <CardContent className="p-6">
             {currentStep === 1 && (
               <PackSelector
@@ -105,7 +105,7 @@ export function SendSwagPage() {
             <Button
               onClick={goNext}
               disabled={!canGoNext()}
-              className="bg-orange-500 hover:bg-orange-600"
+              className="bg-[#C63321] hover:bg-[#A82A1A] text-[#F7F6F2] shadow-[0_2px_8px_rgba(198,51,33,0.2)]"
             >
               Tiếp tục
               <ChevronRight className="w-4 h-4 ml-2" />
@@ -114,7 +114,7 @@ export function SendSwagPage() {
             <Button
               onClick={submitOrder}
               disabled={isSubmitting}
-              className="bg-orange-500 hover:bg-orange-600"
+              className="bg-[#C63321] hover:bg-[#A82A1A] text-[#F7F6F2] shadow-[0_2px_8px_rgba(198,51,33,0.2)]"
             >
               {isSubmitting ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />

@@ -229,12 +229,43 @@ const isOrganization = (req, res, next) => {
   }
 };
 
+/**
+ * ✅ NEW: Middleware kiểm tra user có phải Shipper không
+ * Dùng cho Delivery Check-in System
+ *
+ * **Feature: delivery-checkin-system, Property 1: Shipper Role Assignment**
+ * **Validates: Requirements 1.1**
+ */
+const isShipperRole = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: "Unauthorized: Yêu cầu đăng nhập",
+      requiresAuth: true,
+    });
+  }
+
+  if (req.user.shipperProfileId) {
+    next();
+  } else {
+    res.status(403).json({
+      success: false,
+      message: "Forbidden: Yêu cầu quyền shipper",
+      requiresShipperAccount: true,
+    });
+  }
+};
+
 export {
   protect,
   optionalAuth,
   isPrinter,
   isOrganization,
+  isShipperRole,
   isAdmin,
   requireAuth,
   isVerified,
 };
+
+// Alias for backward compatibility
+export { protect as authenticate };

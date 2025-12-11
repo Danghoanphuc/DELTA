@@ -1,6 +1,7 @@
 // frontend/src/pages/SmartLanding.tsx
 // Component này tự động điều hướng based on authentication status
 
+import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/useAuthStore";
 import LandingPage from "./LandingPage";
@@ -18,10 +19,22 @@ import LandingPage from "./LandingPage";
  * ```
  */
 export function SmartLanding() {
-  const { user, loading } = useAuthStore();
+  const { user, loading, isContextLoading, accessToken } = useAuthStore();
+  const [authChecked, setAuthChecked] = React.useState(false);
+
+  // ✅ BLOCKING: Đợi auth check hoàn tất
+  React.useEffect(() => {
+    // Nếu có token nhưng chưa có user, đợi fetchMe() complete
+    if (accessToken && !user && !loading) {
+      // fetchMe đang chạy, chờ...
+      return;
+    }
+    // Auth đã check xong (có user hoặc không có token)
+    setAuthChecked(true);
+  }, [accessToken, user, loading]);
 
   // Show loading while checking auth status
-  if (loading) {
+  if (!authChecked || loading || isContextLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-cyan-50">
         <div className="text-center">
@@ -34,12 +47,25 @@ export function SmartLanding() {
 
   // If logged in, redirect to main app
   if (user) {
+    console.log("[SmartLanding] User detected:", {
+      organizationProfileId: user.organizationProfileId,
+      printerProfileId: user.printerProfileId,
+    });
+
     // ✅ Organization user -> redirect to organization dashboard
     if (user.organizationProfileId) {
+      console.log("[SmartLanding] Redirecting to /organization/dashboard");
       return <Navigate to="/organization/dashboard" replace />;
     }
 
+    // Printer user -> redirect to printer dashboard
+    if (user.printerProfileId) {
+      console.log("[SmartLanding] Redirecting to /printer/dashboard");
+      return <Navigate to="/printer/dashboard" replace />;
+    }
+
     // Default: redirect to chat app
+    console.log("[SmartLanding] Redirecting to /app");
     return <Navigate to="/app" replace />;
   }
 

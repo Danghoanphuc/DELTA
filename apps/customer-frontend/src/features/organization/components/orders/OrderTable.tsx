@@ -8,6 +8,7 @@ import {
   Eye,
   XCircle,
   Loader2,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -27,6 +28,7 @@ interface OrderTableProps {
   onViewDetail: (orderId: string) => void;
   onCancel: (orderId: string) => void;
   onCreateNew: () => void;
+  onOpenChat: (orderId: string) => void;
 }
 
 const formatDate = (dateString: string) => {
@@ -45,6 +47,7 @@ export function OrderTable({
   onViewDetail,
   onCancel,
   onCreateNew,
+  onOpenChat,
 }: OrderTableProps) {
   if (isLoading) {
     return (
@@ -155,30 +158,45 @@ export function OrderTable({
                   {formatCurrency(order.pricing?.total || 0)}
                 </td>
                 <td className="p-4">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onViewDetail(order._id)}>
-                        <Eye className="w-4 h-4 mr-2" />
-                        Xem chi tiết
-                      </DropdownMenuItem>
-                      {["draft", "pending_info", "pending_payment"].includes(
-                        order.status
-                      ) && (
+                  <div className="flex items-center gap-2">
+                    {/* Chat Icon - Always visible */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onOpenChat(order._id)}
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      title="Chat với admin và shipper"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                    </Button>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          className="text-red-600"
-                          onClick={() => onCancel(order._id)}
+                          onClick={() => onViewDetail(order._id)}
                         >
-                          <XCircle className="w-4 h-4 mr-2" />
-                          Hủy đơn
+                          <Eye className="w-4 h-4 mr-2" />
+                          Xem chi tiết
                         </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        {["draft", "pending_info", "pending_payment"].includes(
+                          order.status
+                        ) && (
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => onCancel(order._id)}
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Hủy đơn
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </td>
               </tr>
             );

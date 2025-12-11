@@ -9,19 +9,23 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@novu/js": "^3.11.0",
     "@printz/types": "workspace:*",
     "@printz/ui": "workspace:*",
     "@printz/utils": "workspace:*",
+    "@radix-ui/react-dialog": "^1.1.15",
     "@sentry/react": "^8.55.0",
     "@tanstack/react-query": "^5.90.7",
     "@vercel/analytics": "^1.6.0",
     "@vercel/speed-insights": "^1.3.0",
     "axios": "^1.7.2",
+    "clsx": "^2.1.1",
     "lucide-react": "^0.546.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-router-dom": "^6.25.1",
     "recharts": "^3.4.1",
+    "tailwind-merge": "^3.4.0",
     "zustand": "^4.5.4"
   },
   "devDependencies": {

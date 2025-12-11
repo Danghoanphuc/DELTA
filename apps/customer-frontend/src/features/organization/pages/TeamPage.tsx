@@ -1,5 +1,5 @@
 // src/features/organization/pages/TeamPage.tsx
-// ✅ B2B Organization Team Management (Real API)
+// ✅ SOLID Refactored - B2B Organization Team Management
 
 import { useState } from "react";
 import {
@@ -36,27 +36,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
-import { Label } from "@/shared/components/ui/label";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { toast } from "@/shared/utils/toast";
-import api from "@/shared/lib/axios";
-
-interface PendingInvite {
-  email: string;
-  invitedAt?: string;
-  status: string;
-}
-
-interface TeamMember {
-  userId: string;
-  role: string;
-  joinedAt: string;
-  user?: {
-    displayName: string;
-    email: string;
-    avatarUrl?: string;
-  };
-}
+import { useTeamMembers } from "../hooks";
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Chủ sở hữu",
@@ -65,22 +46,18 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const ROLE_COLORS: Record<string, string> = {
-  owner: "bg-orange-100 text-orange-700",
+  owner: "bg-[#FFF5F3] text-[#C63321]",
   admin: "bg-blue-100 text-blue-700",
-  member: "bg-gray-100 text-gray-700",
+  member: "bg-[#F7F6F2] text-[#44403C]",
 };
 
 export function TeamPage() {
   const user = useAuthStore((s) => s.user);
-  const profile = useAuthStore((s) => s.activeOrganizationProfile);
-  const fetchMe = useAuthStore((s) => s.fetchMe);
+  const { pendingInvites, teamMembers, isSubmitting, sendInvites, formatDate } =
+    useTeamMembers();
 
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [emails, setEmails] = useState<string[]>([""]);
-
-  const pendingInvites: PendingInvite[] = profile?.pendingInvites || [];
-  const teamMembers: TeamMember[] = profile?.teamMembers || [];
 
   // Add email field
   const addEmailField = () => {
@@ -101,56 +78,30 @@ export function TeamPage() {
     }
   };
 
-  // Send invites
+  // Handle send invites
   const handleSendInvites = async () => {
-    const validEmails = emails.filter(
-      (email) => email.trim() && email.includes("@")
-    );
-
-    if (validEmails.length === 0) {
-      toast.error("Vui lòng nhập ít nhất 1 email hợp lệ");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await api.post("/organizations/invite-members", { emails: validEmails });
-      toast.success(`Đã gửi lời mời đến ${validEmails.length} người!`);
+    const success = await sendInvites(emails);
+    if (success) {
       setShowInviteModal(false);
       setEmails([""]);
-      // Refresh profile to get updated pending invites
-      await fetchMe(true);
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Gửi lời mời thất bại");
-    } finally {
-      setIsSubmitting(false);
     }
-  };
-
-  // Format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
   };
 
   return (
-    <div className="flex-1 overflow-auto bg-gray-50">
+    <div className="flex-1 overflow-auto bg-[#FAFAF8]">
       <div className="p-8 max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-serif font-bold text-[#1C1917] mb-2">
               Thành viên
             </h1>
-            <p className="text-gray-600">
+            <p className="text-[#57534E]">
               Quản lý thành viên trong tổ chức của bạn
             </p>
           </div>
           <Button
-            className="bg-orange-500 hover:bg-orange-600"
+            className="bg-[#C63321] hover:bg-[#A82A1A]"
             onClick={() => setShowInviteModal(true)}
           >
             <UserPlus className="w-4 h-4 mr-2" />
@@ -160,48 +111,50 @@ export function TeamPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-serif font-bold text-[#1C1917]">
                 {teamMembers.length + 1}
               </p>
-              <p className="text-sm text-gray-500">Thành viên</p>
+              <p className="text-sm text-[#78716C]">Thành viên</p>
             </CardContent>
           </Card>
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-yellow-600">
                 {pendingInvites.filter((i) => i.status === "pending").length}
               </p>
-              <p className="text-sm text-gray-500">Đang chờ</p>
+              <p className="text-sm text-[#78716C]">Đang chờ</p>
             </CardContent>
           </Card>
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-green-600">
                 {pendingInvites.filter((i) => i.status === "accepted").length}
               </p>
-              <p className="text-sm text-gray-500">Đã chấp nhận</p>
+              <p className="text-sm text-[#78716C]">Đã chấp nhận</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Current User (Owner) */}
-        <Card className="border-none shadow-sm mb-6">
+        <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2] mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-orange-500" />
+              <Shield className="w-5 h-5 text-[#C63321]" />
               Quản trị viên
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-4 p-4 bg-orange-50 rounded-lg">
-              <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-lg">
+            <div className="flex items-center gap-4 p-4 bg-[#FFF5F3] rounded-lg">
+              <div className="w-12 h-12 rounded-full bg-[#C63321] flex items-center justify-center text-white font-bold text-lg">
                 {user?.displayName?.charAt(0) || "U"}
               </div>
               <div className="flex-1">
-                <p className="font-medium text-gray-900">{user?.displayName}</p>
-                <p className="text-sm text-gray-500">{user?.email}</p>
+                <p className="font-medium text-[#1C1917]">
+                  {user?.displayName}
+                </p>
+                <p className="text-sm text-[#78716C]">{user?.email}</p>
               </div>
               <Badge className={ROLE_COLORS.owner}>{ROLE_LABELS.owner}</Badge>
             </div>
@@ -210,7 +163,7 @@ export function TeamPage() {
 
         {/* Team Members */}
         {teamMembers.length > 0 && (
-          <Card className="border-none shadow-sm mb-6">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2] mb-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-500" />
@@ -222,17 +175,17 @@ export function TeamPage() {
                 {teamMembers.map((member, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-4 bg-[#FAFAF8] rounded-lg"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
                         {member.user?.displayName?.charAt(0) || "?"}
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-[#1C1917]">
                           {member.user?.displayName || "Unknown"}
                         </p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-[#78716C]">
                           {member.user?.email || ""}
                         </p>
                       </div>
@@ -265,7 +218,7 @@ export function TeamPage() {
 
         {/* Pending Invites */}
         {pendingInvites.length > 0 && (
-          <Card className="border-none shadow-sm mb-6">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2] mb-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="w-5 h-5 text-yellow-500" />
@@ -284,10 +237,10 @@ export function TeamPage() {
                         <Mail className="w-5 h-5 text-yellow-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-[#1C1917]">
                           {invite.email}
                         </p>
-                        <p className="text-sm text-gray-500 flex items-center gap-1">
+                        <p className="text-sm text-[#78716C] flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {invite.invitedAt
                             ? `Gửi lúc ${formatDate(invite.invitedAt)}`
@@ -320,17 +273,17 @@ export function TeamPage() {
 
         {/* Empty State */}
         {teamMembers.length === 0 && pendingInvites.length === 0 && (
-          <Card className="border-none shadow-sm">
+          <Card className="border-2 border-[#E5E3DC] shadow-[0_2px_8px_rgba(28,25,23,0.04)] bg-[#F7F6F2]">
             <CardContent className="text-center py-12">
-              <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium mb-2 text-gray-900">
+              <Users className="w-16 h-16 mx-auto mb-4 text-[#E5E3DC]" />
+              <p className="text-lg font-medium mb-2 text-[#1C1917]">
                 Chưa có thành viên nào
               </p>
-              <p className="text-sm text-gray-500 mb-6">
+              <p className="text-sm text-[#78716C] mb-6">
                 Mời đồng nghiệp để cùng quản lý đơn hàng
               </p>
               <Button
-                className="bg-orange-500 hover:bg-orange-600"
+                className="bg-[#C63321] hover:bg-[#A82A1A]"
                 onClick={() => setShowInviteModal(true)}
               >
                 <UserPlus className="w-4 h-4 mr-2" />
@@ -348,7 +301,7 @@ export function TeamPage() {
             <DialogTitle>Mời thành viên mới</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[#78716C]">
               Nhập email của đồng nghiệp để mời họ tham gia tổ chức
             </p>
             {emails.map((email, index) => (
@@ -383,7 +336,7 @@ export function TeamPage() {
               Hủy
             </Button>
             <Button
-              className="bg-orange-500 hover:bg-orange-600"
+              className="bg-[#C63321] hover:bg-[#A82A1A]"
               onClick={handleSendInvites}
               disabled={isSubmitting}
             >

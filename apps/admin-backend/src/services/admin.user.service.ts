@@ -10,6 +10,8 @@ import { User as CustomerUserModelJS } from "@printz/types";
 // Side-effect imports để đảm bảo models được register
 import "@printz/types/models/customer-profile.model";
 import "@printz/types/models/printer-profile.model";
+import "@printz/types/models/shipper-profile.model";
+import { ShipperProfile } from "@printz/types";
 
 type ICustomerUserModel = Model<
   IUser &
@@ -54,10 +56,18 @@ export const getListUsers = async (
       .limit(limit)
       .skip((page - 1) * limit)
       .sort({ createdAt: -1 })
-      .select("-passwordHash") // (Đảm bảo đúng tên trường password)
+      .select(
+        "_id email displayName avatarUrl phone status createdAt printerProfileId customerProfileId organizationProfileId shipperProfileId"
+      )
       .lean(),
     CustomerModel.countDocuments(query),
   ]);
+
+  // Debug log
+  console.log(
+    "[DEBUG] First user shipperProfileId:",
+    users[0]?.shipperProfileId
+  );
 
   return {
     data: users,
@@ -131,4 +141,60 @@ export const impersonateUser = async (
   );
 
   return { accessToken };
+};
+
+/**
+ * Toggle Shipper Role - Đổi user thành shipper hoặc remove shipper role
+ */
+export const toggleShipperRole = async (userId: string) => {
+  // Cast to any để access các fields từ mongoose schema
+  const user = (await CustomerModel.findById(userId)) as any;
+
+  if (!user) {
+    throw new NotFoundException("Người dùng", userId);
+  }
+
+  // Check if user already has shipper profile
+  if (user.shipperProfileId) {
+    // Remove shipper role
+    await ShipperProfile.findByIdAndDelete(user.shipperProfileId);
+    user.shipperProfileId = null;
+    await user.save();
+
+    return {
+      success: true,
+      message: "Đã xóa vai trò Shipper",
+      isShipper: false,
+    };
+  } else {
+    // Add shipper role
+    // Check if shipper profile already exists for this user (edge case)
+    let shipperProfile = await ShipperProfile.findOne({ userId: user._id });
+
+    if (!shipperProfile) {
+      // Create new shipper profile with minimal data
+      shipperProfile = new ShipperProfile({
+        userId: user._id,
+        phoneNumber: user.phone || "", // Use user's phone if available
+        isActive: true,
+      });
+      await shipperProfile.save();
+    }
+
+    // Link to user
+    user.shipperProfileId = shipperProfile._id;
+    await user.save();
+
+    return {
+      success: true,
+      message: "Đã thêm vai trò Shipper",
+      isShipper: true,
+      user: {
+        _id: user._id,
+        email: user.email,
+        displayName: user.displayName,
+        shipperProfileId: user.shipperProfileId,
+      },
+    };
+  }
 };

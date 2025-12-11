@@ -44,4 +44,15 @@ router.post(
   userController.impersonateUser
 );
 
+/**
+ * [POST] /api/admin/users/:id/toggle-shipper
+ * Đổi user thành shipper hoặc remove shipper role
+ * Quyền: Superadmin, Support
+ */
+router.post(
+  "/:id/toggle-shipper",
+  hasRole(["superadmin", "support"]),
+  userController.toggleShipperRole
+);
+
 export default router;

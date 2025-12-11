@@ -1,7 +1,6 @@
-// src/pages/SwagOperationsDashboard.tsx
-// ✅ Admin Swag Operations Dashboard
+// apps/admin-frontend/src/pages/SwagOperationsDashboard.tsx
+// ✅ SOLID Compliant: Single Responsibility - UI rendering only
 
-import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Package,
@@ -14,10 +13,8 @@ import {
   BarChart3,
   Boxes,
 } from "lucide-react";
-import {
-  swagOpsService,
-  DashboardStats,
-} from "@/services/admin.swag-operations.service";
+import { useSwagOperations } from "@/hooks/useSwagOperations";
+import { StatCard } from "@/components/swag-ops/StatCard";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("vi-VN", {
@@ -28,24 +25,7 @@ const formatCurrency = (amount: number) => {
 
 export default function SwagOperationsDashboard() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchStats = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await swagOpsService.getDashboardStats();
-      setStats(data);
-    } catch (error) {
-      console.error("Error fetching stats:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+  const { stats, isLoading, fetchStats } = useSwagOperations();
 
   const statCards = [
     {
@@ -110,25 +90,7 @@ export default function SwagOperationsDashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {statCards.map((stat, index) => (
-          <div
-            key={index}
-            onClick={stat.onClick}
-            className="bg-white rounded-xl shadow-sm p-6 cursor-pointer hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
-                <h3 className="text-3xl font-bold text-gray-900">
-                  {stat.value}
-                </h3>
-              </div>
-              <div
-                className={`w-12 h-12 rounded-xl ${stat.bgColor} flex items-center justify-center`}
-              >
-                <stat.icon className={stat.color} size={24} />
-              </div>
-            </div>
-          </div>
+          <StatCard key={index} {...stat} />
         ))}
       </div>
 

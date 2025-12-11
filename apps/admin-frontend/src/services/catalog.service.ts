@@ -1,21 +1,7 @@
 // apps/admin-frontend/src/services/catalog.service.ts
 // ✅ Catalog Service - Frontend API calls
 
-import axios from "axios";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
-
-const api = axios.create({
-  baseURL: `${API_URL}/api/admin/catalog`,
-  headers: { "Content-Type": "application/json" },
-});
-
-// Add auth token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("admin_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+import api from "@/lib/axios";
 
 // ============================================
 // TYPES
@@ -156,54 +142,130 @@ export interface ProductTemplate {
 // ============================================
 export const categoryApi = {
   getAll: async (flat = false) => {
-    const { data } = await api.get(`/categories?flat=${flat}`);
+    const { data } = await api.get(`/admin/catalog/categories?flat=${flat}`);
     return data.data as Category[];
   },
 
   create: async (category: Partial<Category>) => {
-    const { data } = await api.post("/categories", category);
+    const { data } = await api.post("/admin/catalog/categories", category);
     return data.data as Category;
   },
 
   update: async (id: string, category: Partial<Category>) => {
-    const { data } = await api.put(`/categories/${id}`, category);
+    const { data } = await api.put(`/admin/catalog/categories/${id}`, category);
     return data.data as Category;
   },
 
   delete: async (id: string) => {
-    await api.delete(`/categories/${id}`);
+    await api.delete(`/admin/catalog/categories/${id}`);
   },
 };
 
 // ============================================
 // SUPPLIER API
 // ============================================
+
+export interface SupplierPerformanceMetrics {
+  supplierId: string;
+  supplierName: string;
+  supplierCode: string;
+  totalOrders: number;
+  completedOrders: number;
+  onTimeDeliveries: number;
+  lateDeliveries: number;
+  onTimeDeliveryRate: number;
+  totalQCChecks: number;
+  passedQCChecks: number;
+  failedQCChecks: number;
+  qualityScore: number;
+  averageLeadTime: number;
+  minLeadTime: number;
+  maxLeadTime: number;
+  averageCost: number;
+  totalSpent: number;
+  lastUpdated: Date;
+}
+
+export interface LeadTimeRecord {
+  productionOrderId: string;
+  productionOrderNumber: string;
+  orderedAt: Date;
+  expectedCompletionDate: Date;
+  actualCompletionDate: Date;
+  leadTimeDays: number;
+  wasOnTime: boolean;
+}
+
+export interface SupplierComparison {
+  supplierId: string;
+  supplierName: string;
+  onTimeRate: number;
+  qualityScore: number;
+  averageLeadTime: number;
+  averageCost: number;
+  totalOrders: number;
+  rating: number;
+}
+
 export const supplierApi = {
   getAll: async (options?: { type?: string; activeOnly?: boolean }) => {
     const params = new URLSearchParams();
     if (options?.type) params.append("type", options.type);
     if (options?.activeOnly) params.append("activeOnly", "true");
-    const { data } = await api.get(`/suppliers?${params}`);
+    const { data } = await api.get(`/admin/catalog/suppliers?${params}`);
     return data.data as Supplier[];
   },
 
   getById: async (id: string) => {
-    const { data } = await api.get(`/suppliers/${id}`);
+    const { data } = await api.get(`/admin/catalog/suppliers/${id}`);
     return data.data as Supplier;
   },
 
   create: async (supplier: Partial<Supplier>) => {
-    const { data } = await api.post("/suppliers", supplier);
+    const { data } = await api.post("/admin/catalog/suppliers", supplier);
     return data.data as Supplier;
   },
 
   update: async (id: string, supplier: Partial<Supplier>) => {
-    const { data } = await api.put(`/suppliers/${id}`, supplier);
+    const { data } = await api.put(`/admin/catalog/suppliers/${id}`, supplier);
     return data.data as Supplier;
   },
 
   delete: async (id: string) => {
-    await api.delete(`/suppliers/${id}`);
+    await api.delete(`/admin/catalog/suppliers/${id}`);
+  },
+
+  // Performance tracking
+  getPerformance: async (id: string) => {
+    const { data } = await api.get(
+      `/admin/catalog/suppliers/${id}/performance`
+    );
+    return data.data as SupplierPerformanceMetrics;
+  },
+
+  getLeadTimeHistory: async (id: string) => {
+    const { data } = await api.get(
+      `/admin/catalog/suppliers/${id}/lead-time-history`
+    );
+    return data.data as LeadTimeRecord[];
+  },
+
+  updateRating: async (id: string, rating: number) => {
+    const { data } = await api.put(`/admin/catalog/suppliers/${id}/rating`, {
+      rating,
+    });
+    return data.data as Supplier;
+  },
+
+  compareSuppliers: async (supplierIds?: string[]) => {
+    const params = new URLSearchParams();
+    if (supplierIds && supplierIds.length > 0) {
+      params.append("ids", supplierIds.join(","));
+    }
+    const { data } = await api.get(
+      `/admin/catalog/suppliers/compare?${params}`
+    );
+    return data.data as SupplierComparison[];
   },
 };
 
@@ -230,7 +292,7 @@ export const productApi = {
     if (options?.page) params.append("page", String(options.page));
     if (options?.limit) params.append("limit", String(options.limit));
 
-    const { data } = await api.get(`/products?${params}`);
+    const { data } = await api.get(`/admin/catalog/products?${params}`);
     return {
       products: data.products as Product[],
       pagination: data.pagination as {
@@ -243,26 +305,26 @@ export const productApi = {
   },
 
   getById: async (id: string) => {
-    const { data } = await api.get(`/products/${id}`);
+    const { data } = await api.get(`/admin/catalog/products/${id}`);
     return data.data as Product;
   },
 
   create: async (product: Partial<Product>) => {
-    const { data } = await api.post("/products", product);
+    const { data } = await api.post("/admin/catalog/products", product);
     return data.data as Product;
   },
 
   update: async (id: string, product: Partial<Product>) => {
-    const { data } = await api.put(`/products/${id}`, product);
+    const { data } = await api.put(`/admin/catalog/products/${id}`, product);
     return data.data as Product;
   },
 
   delete: async (id: string) => {
-    await api.delete(`/products/${id}`);
+    await api.delete(`/admin/catalog/products/${id}`);
   },
 
   duplicate: async (id: string) => {
-    const { data } = await api.post(`/products/${id}/duplicate`);
+    const { data } = await api.post(`/admin/catalog/products/${id}/duplicate`);
     return data.data as Product;
   },
 };
@@ -272,17 +334,22 @@ export const productApi = {
 // ============================================
 export const variantApi = {
   getByProduct: async (productId: string) => {
-    const { data } = await api.get(`/products/${productId}/variants`);
+    const { data } = await api.get(
+      `/admin/catalog/products/${productId}/variants`
+    );
     return data.data as SkuVariant[];
   },
 
   getBySku: async (sku: string) => {
-    const { data } = await api.get(`/variants/sku/${sku}`);
+    const { data } = await api.get(`/admin/catalog/variants/sku/${sku}`);
     return data.data as SkuVariant;
   },
 
   create: async (productId: string, variant: Partial<SkuVariant>) => {
-    const { data } = await api.post(`/products/${productId}/variants`, variant);
+    const { data } = await api.post(
+      `/admin/catalog/products/${productId}/variants`,
+      variant
+    );
     return data.data as SkuVariant;
   },
 
@@ -290,19 +357,22 @@ export const variantApi = {
     productId: string,
     combinations: { name: string; value: string }[][]
   ) => {
-    const { data } = await api.post(`/products/${productId}/variants/bulk`, {
-      combinations,
-    });
+    const { data } = await api.post(
+      `/admin/catalog/products/${productId}/variants/bulk`,
+      {
+        combinations,
+      }
+    );
     return data.data as SkuVariant[];
   },
 
   update: async (id: string, variant: Partial<SkuVariant>) => {
-    const { data } = await api.put(`/variants/${id}`, variant);
+    const { data } = await api.put(`/admin/catalog/variants/${id}`, variant);
     return data.data as SkuVariant;
   },
 
   delete: async (id: string) => {
-    await api.delete(`/variants/${id}`);
+    await api.delete(`/admin/catalog/variants/${id}`);
   },
 
   updateStock: async (
@@ -310,7 +380,7 @@ export const variantApi = {
     quantity: number,
     operation: "add" | "subtract" | "set"
   ) => {
-    const { data } = await api.put(`/variants/${id}/stock`, {
+    const { data } = await api.put(`/admin/catalog/variants/${id}/stock`, {
       quantity,
       operation,
     });
@@ -327,26 +397,71 @@ export const templateApi = {
     if (options?.type) params.append("type", options.type);
     if (options?.isPublic !== undefined)
       params.append("isPublic", String(options.isPublic));
-    const { data } = await api.get(`/templates?${params}`);
+    const { data } = await api.get(`/admin/catalog/templates?${params}`);
     return data.data as ProductTemplate[];
   },
 
   getById: async (id: string) => {
-    const { data } = await api.get(`/templates/${id}`);
+    const { data } = await api.get(`/admin/catalog/templates/${id}`);
     return data.data as ProductTemplate;
   },
 
   create: async (template: Partial<ProductTemplate>) => {
-    const { data } = await api.post("/templates", template);
+    const { data } = await api.post("/admin/catalog/templates", template);
     return data.data as ProductTemplate;
   },
 
   update: async (id: string, template: Partial<ProductTemplate>) => {
-    const { data } = await api.put(`/templates/${id}`, template);
+    const { data } = await api.put(`/admin/catalog/templates/${id}`, template);
     return data.data as ProductTemplate;
   },
 
   delete: async (id: string) => {
-    await api.delete(`/templates/${id}`);
+    await api.delete(`/admin/catalog/templates/${id}`);
   },
 };
+
+// ============================================
+// CATALOG SERVICE (Wrapper for easy use)
+// ============================================
+class CatalogService {
+  // Categories
+  getCategories = categoryApi.getAll;
+  createCategory = categoryApi.create;
+  updateCategory = categoryApi.update;
+  deleteCategory = categoryApi.delete;
+
+  // Suppliers
+  getSuppliers = supplierApi.getAll;
+  getSupplier = supplierApi.getById;
+  createSupplier = supplierApi.create;
+  updateSupplier = supplierApi.update;
+  deleteSupplier = supplierApi.delete;
+
+  // Products
+  getProducts = productApi.getAll;
+  getProduct = productApi.getById;
+  createProduct = productApi.create;
+  updateProduct = productApi.update;
+  deleteProduct = productApi.delete;
+  duplicateProduct = productApi.duplicate;
+
+  // Variants
+  getVariants = variantApi.getByProduct;
+  getVariantBySku = variantApi.getBySku;
+  createVariant = variantApi.create;
+  createVariantsBulk = variantApi.createBulk;
+  updateVariant = variantApi.update;
+  deleteVariant = variantApi.delete;
+  updateVariantStock = variantApi.updateStock;
+
+  // Templates
+  getTemplates = templateApi.getAll;
+  getTemplate = templateApi.getById;
+  createTemplate = templateApi.create;
+  updateTemplate = templateApi.update;
+  deleteTemplate = templateApi.delete;
+}
+
+export const catalogService = new CatalogService();
+export default catalogService;

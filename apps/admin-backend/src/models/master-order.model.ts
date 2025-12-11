@@ -1,4 +1,3 @@
-
 import mongoose, { Schema, Document, Model } from "mongoose";
 import {
   MASTER_ORDER_STATUS,
@@ -56,10 +55,13 @@ export interface IMasterOrderSchema
   masterStatus: string;
   orderCode?: number;
   paidAt?: Date;
+  // Shipper assignment
+  assignedShipperId?: mongoose.Types.ObjectId;
+  shipperAssignedAt?: Date;
+  shipperAssignedBy?: mongoose.Types.ObjectId;
 }
 
 export type MasterOrderDocument = IMasterOrderSchema;
-
 
 // === ĐƠN HÀNG CON (LỒNG GHÉP) ===
 const PrinterOrderSchema = new Schema<IPrinterOrderSchema>({
@@ -172,6 +174,17 @@ const MasterOrderSchema = new Schema<IMasterOrderSchema>(
       enum: Object.values(MASTER_ORDER_STATUS),
       default: MASTER_ORDER_STATUS.PENDING_PAYMENT,
       index: true,
+    },
+    // Shipper assignment for delivery
+    assignedShipperId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+    },
+    shipperAssignedAt: { type: Date },
+    shipperAssignedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
     },
   },
   { timestamps: true }

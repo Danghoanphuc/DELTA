@@ -26,6 +26,20 @@ export const authService = {
     return res.data;
   },
 
+  signUpShipper: async (data: {
+    email: string;
+    password: string;
+    displayName: string;
+    phoneNumber?: string;
+    vehicleType?: string;
+    vehiclePlate?: string;
+  }) => {
+    const res = await api.post("/auth/signup-shipper", data, {
+      withCredentials: true,
+    });
+    return res.data;
+  },
+
   signIn: async (email: string, password: string) => {
     const res = await api.post(
       "/auth/signin",
@@ -47,6 +61,20 @@ export const authService = {
 
   refresh: async () => {
     const res = await api.post("/auth/refresh", {}, { withCredentials: true });
+    return res.data;
+  },
+
+  getOrganizationProfile: async () => {
+    const res = await api.get("/organizations/profile/me", {
+      withCredentials: true,
+    });
+    return res.data;
+  },
+
+  getShipperProfile: async () => {
+    const res = await api.get("/shipper-profile/me", {
+      withCredentials: true,
+    });
     return res.data;
   },
 };

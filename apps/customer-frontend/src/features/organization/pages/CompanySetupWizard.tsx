@@ -130,12 +130,31 @@ export function CompanySetupWizard() {
       // Nếu chưa có organization profile -> tạo mới trước
       if (!user?.organizationProfileId) {
         // Tạo organization với tên mặc định từ displayName
-        await api.post("/organizations/register", {
+        const res = await api.post("/organizations/register", {
           businessName: `${user?.displayName || "My"}'s Company`,
           usageIntent: selectedIntent,
         });
-        // Refresh user data để có organizationProfileId
-        await fetchMe(true);
+
+        // ✅ FIX: Update store directly to avoid triggering useEffect in other components
+        const newProfile = res.data?.data?.profile;
+        if (newProfile && user) {
+          // Update user with organizationProfileId
+          const updatedUser = {
+            ...user,
+            organizationProfileId: newProfile._id,
+          };
+
+          useAuthStore.setState({
+            user: updatedUser,
+            activeOrganizationProfile: newProfile,
+            activeContext: "organization",
+          });
+
+          console.log("[CompanySetupWizard] ✅ Store updated:", {
+            organizationProfileId: updatedUser.organizationProfileId,
+            activeContext: "organization",
+          });
+        }
       } else {
         // Đã có profile -> chỉ update usage intent
         await api.put("/organizations/usage-intent", {
@@ -226,13 +245,38 @@ export function CompanySetupWizard() {
   const handleCompleteOnboarding = async () => {
     setIsLoading(true);
     try {
-      await api.put("/organizations/profile/me", {
+      const res = await api.put("/organizations/profile/me", {
         onboardingCompleted: true,
         onboardingStep: 4,
       });
-      await fetchMe(true);
+
+      // ✅ FIX: Update store directly instead of fetchMe to avoid race condition
+      const updatedProfile = res.data?.data?.profile;
+      if (updatedProfile) {
+        useAuthStore.setState({
+          activeOrganizationProfile: updatedProfile,
+        });
+      }
+
+      console.log(
+        "[CompanySetupWizard] ✅ Onboarding complete, navigating to dashboard"
+      );
+      console.log(
+        "[CompanySetupWizard] Current activeContext:",
+        useAuthStore.getState().activeContext
+      );
+      console.log(
+        "[CompanySetupWizard] User organizationProfileId:",
+        useAuthStore.getState().user?.organizationProfileId
+      );
+
       toast.success("Chào mừng bạn đến với PrintZ! 🎉");
-      navigate("/organization/dashboard");
+
+      // ✅ FIX: Use setTimeout to ensure store persistence completes before navigation
+      setTimeout(() => {
+        console.log("[CompanySetupWizard] ✅ Executing navigation");
+        navigate("/organization/dashboard", { replace: true });
+      }, 300);
     } catch (err: any) {
       toast.error("Có lỗi xảy ra");
     } finally {

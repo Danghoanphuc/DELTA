@@ -16,7 +16,9 @@ export class UserController {
       const userId = req.user._id;
 
       const user = await User.findById(userId)
-        .select("_id username displayName avatarUrl bio email printerProfileId phone createdAt")
+        .select(
+          "_id username displayName avatarUrl bio email printerProfileId organizationProfileId customerProfileId shipperProfileId phone createdAt"
+        )
         .lean();
 
       if (!user) {
@@ -55,8 +57,8 @@ export class UserController {
         $or: [
           { username: { $regex: q, $options: "i" } },
           { displayName: { $regex: q, $options: "i" } },
-          { email: { $regex: q, $options: "i" } } // Bonus: Tìm thêm theo email nếu cần
-        ]
+          { email: { $regex: q, $options: "i" } }, // Bonus: Tìm thêm theo email nếu cần
+        ],
         // isActive: true, // ⚠️ Bật lại dòng này khi chạy Production
       };
 
@@ -76,19 +78,22 @@ export class UserController {
           const connection = await Connection.findOne({
             $or: [
               { requester: currentUserId, recipient: user._id },
-              { requester: user._id, recipient: currentUserId }
-            ]
-          }).select("status _id requester recipient").lean();
+              { requester: user._id, recipient: currentUserId },
+            ],
+          })
+            .select("status _id requester recipient")
+            .lean();
 
           // Xác định trạng thái cụ thể hơn
           let status = "none";
           if (connection) {
             status = connection.status;
             // Nếu đang pending, kiểm tra xem mình là người gửi hay người nhận
-            if (status === 'pending') {
-                const isSender = connection.requester.toString() === currentUserId.toString();
-                // Frontend có thể cần biết isSender để hiện nút "Hủy lời mời" hay "Chấp nhận"
-                // Tuy nhiên theo interface hiện tại trả về string status là đủ
+            if (status === "pending") {
+              const isSender =
+                connection.requester.toString() === currentUserId.toString();
+              // Frontend có thể cần biết isSender để hiện nút "Hủy lời mời" hay "Chấp nhận"
+              // Tuy nhiên theo interface hiện tại trả về string status là đủ
             }
           }
 
@@ -133,11 +138,13 @@ export class UserController {
       if (currentUserId) {
         // Dùng query chuẩn thay vì hàm custom để tránh lỗi
         const connection = await Connection.findOne({
-            $or: [
-              { requester: currentUserId, recipient: userId },
-              { requester: userId, recipient: currentUserId }
-            ]
-        }).select("status _id").lean();
+          $or: [
+            { requester: currentUserId, recipient: userId },
+            { requester: userId, recipient: currentUserId },
+          ],
+        })
+          .select("status _id")
+          .lean();
 
         if (connection) {
           connectionStatus = connection.status;

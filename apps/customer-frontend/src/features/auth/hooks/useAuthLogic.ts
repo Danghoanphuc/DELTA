@@ -18,6 +18,7 @@ import {
   getTempAuthData,
   clearTempAuthData,
 } from "../utils/auth-helpers";
+import { redirectAfterAuth } from "../utils/redirect-helpers";
 
 interface UseAuthLogicOptions {
   mode: AuthMode;
@@ -32,6 +33,7 @@ export function useAuthLogic({ mode }: UseAuthLogicOptions) {
   const [step, setStep] = useState<AuthStep>("email");
   const [showPassword, setShowPassword] = useState(false);
   const [isFormLoading, setIsFormLoading] = useState(false);
+  const [hasJustSignedIn, setHasJustSignedIn] = useState(false);
 
   const form = useForm<AuthFlowValues>({
     resolver: zodResolver(authFlowSchema),
@@ -73,28 +75,16 @@ export function useAuthLogic({ mode }: UseAuthLogicOptions) {
     }
   }, [mode, setValue]);
 
-  // Auto-redirect nếu đã đăng nhập
-  useEffect(() => {
-    const currentPath = window.location.pathname;
-    const authPaths = ["/signin", "/signup"];
-
-    if (user && authPaths.includes(currentPath)) {
-      const from = location.state?.from?.pathname;
-
-      if (from && from !== currentPath && from !== "/") {
-        toast.success("Đã đăng nhập, đang chuyển hướng...");
-        navigate(from, { replace: true });
-      } else {
-        // ✅ FIX: Redirect trực tiếp về /app hoặc /printer/dashboard thay vì /
-        // Tránh race condition với SmartLanding
-        if (user.role === "printer") {
-          navigate("/printer/dashboard", { replace: true });
-        } else {
-          navigate("/app", { replace: true });
-        }
-      }
-    }
-  }, [user, navigate, location.state]);
+  // ✅ DISABLED: Auto-redirect moved to onSubmit only to prevent double redirect
+  // This useEffect was causing race conditions after organization setup completion
+  // All redirect logic is now handled in onSubmit after successful signIn
+  // useEffect(() => {
+  //   const currentPath = window.location.pathname;
+  //   const authPaths = ["/signin", "/signup"];
+  //   if (user && authPaths.includes(currentPath) && !isFormLoading && !hasJustSignedIn) {
+  //     // ... redirect logic ...
+  //   }
+  // }, [user, navigate, location.state, isFormLoading, hasJustSignedIn]);
 
   // Lưu temp data khi user nhập
   useEffect(() => {
@@ -157,45 +147,75 @@ export function useAuthLogic({ mode }: UseAuthLogicOptions) {
       } else {
         // Sign In flow
         const { email, password } = data;
+        setHasJustSignedIn(true);
         await signIn(email, password);
 
-        // Merge guest cart after successful login
-        try {
-          await mergeGuestCart();
-        } catch (err) {
-          console.error("[AuthLogic] Cart merge failed:", err);
-          // Don't block login flow
+        // ✅ FIX: Wait for context to be properly set after fetchMe completes
+        // This ensures activeContext is correctly determined (shipper, organization, printer, etc.)
+        // We wait up to 2 seconds for the context to stabilize
+        let attempts = 0;
+        const maxAttempts = 20; // 20 * 100ms = 2 seconds
+        while (attempts < maxAttempts) {
+          const { isContextLoading, activeContext } = useAuthStore.getState();
+          if (import.meta.env.DEV) {
+            console.log(
+              `[AuthLogic] Waiting for context... attempt ${
+                attempts + 1
+              }/${maxAttempts}, isContextLoading=${isContextLoading}, activeContext=${activeContext}`
+            );
+          }
+          if (!isContextLoading) {
+            if (import.meta.env.DEV) {
+              console.log(
+                `[AuthLogic] Context ready! activeContext=${activeContext}`
+              );
+            }
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          attempts++;
         }
 
-        // ✅ FIX: Redirect trực tiếp về /app hoặc /printer/dashboard
-        // signIn đã await fetchMe() nên user đã được set trong store
-        // Lấy user từ store state hiện tại
-        const currentUser = useAuthStore.getState().user;
-        const from = location.state?.from?.pathname;
-        const currentPath = window.location.pathname;
-        
-        // Nếu có from path hợp lệ và không phải root, dùng nó
-        if (from && from !== "/" && from !== currentPath) {
-          navigate(from, { replace: true });
-        } else if (currentUser) {
-          // Redirect dựa trên role
-          if (currentUser.role === "printer") {
-            navigate("/printer/dashboard", { replace: true });
-          } else {
-            navigate("/app", { replace: true });
+        // Check localStorage cho postAuthRedirect
+        const postAuthRedirect = localStorage.getItem("postAuthRedirect");
+
+        if (postAuthRedirect) {
+          // Xóa khỏi localStorage và redirect
+          localStorage.removeItem("postAuthRedirect");
+          if (import.meta.env.DEV) {
+            console.log(
+              "[AuthLogic] Redirecting to postAuthRedirect:",
+              postAuthRedirect
+            );
           }
+          navigate(postAuthRedirect, { replace: true });
         } else {
-          // Fallback: redirect về /app (SmartLanding sẽ xử lý nếu cần)
-          navigate("/app", { replace: true });
+          // Dùng logic redirect mặc định
+          const from = location.state?.from?.pathname;
+          if (import.meta.env.DEV) {
+            console.log(
+              "[AuthLogic] Calling redirectAfterAuth with from:",
+              from
+            );
+          }
+          redirectAfterAuth(navigate, from);
         }
+
+        // Merge guest cart in background
+        mergeGuestCart().catch((err) => {
+          console.error("[AuthLogic] Cart merge failed:", err);
+        });
       }
     } catch (err: any) {
       console.error("[AuthLogic] Error:", err);
       setIsFormLoading(false);
+      setHasJustSignedIn(false); // ✅ Reset on error
     } finally {
       if (step !== "verifySent") {
         setIsFormLoading(false);
       }
+      // ✅ Reset flag after redirect completes (small delay to ensure navigation happens)
+      setTimeout(() => setHasJustSignedIn(false), 1000);
     }
   };
 
@@ -220,4 +240,3 @@ export function useAuthLogic({ mode }: UseAuthLogicOptions) {
     backButtonAction: getBackButtonAction(),
   };
 }
-

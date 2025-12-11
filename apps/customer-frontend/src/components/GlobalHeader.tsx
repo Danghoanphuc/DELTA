@@ -36,7 +36,7 @@ export function GlobalHeader({
   if (isWorkspaceMode) return null;
 
   const navItems = [
-    { label: "Khám phá", path: "/app" },
+    { label: "Trang chủ", path: "/app" },
     { label: "Cửa hàng", path: "/shop" },
     { label: "Thiết kế", path: "/designs" },
     { label: "Đơn hàng", path: "/orders" },
@@ -63,34 +63,33 @@ export function GlobalHeader({
               <Link
                 key={item.path}
                 to={item.path}
-                className="relative group py-2"
+                className="group py-2 inline-block relative"
               >
                 <span
                   className={cn(
-                    "text-[13px] font-sans font-bold uppercase tracking-[0.1em] transition-colors duration-300",
+                    "text-[13px] font-sans font-bold uppercase tracking-[0.1em] transition-colors duration-300 relative inline-block",
                     isActive
                       ? "text-primary"
                       : "text-stone-500 group-hover:text-stone-900"
                   )}
                 >
                   {item.label}
+                  <span
+                    className={cn(
+                      "absolute -bottom-1 left-0 w-full h-[2px] bg-primary transition-transform duration-300 origin-left",
+                      isActive
+                        ? "scale-x-100"
+                        : "scale-x-0 group-hover:scale-x-50"
+                    )}
+                  />
                 </span>
-
-                <span
-                  className={cn(
-                    "absolute -bottom-1 left-0 w-full h-[2px] bg-primary transition-transform duration-300 origin-left",
-                    isActive
-                      ? "scale-x-100"
-                      : "scale-x-0 group-hover:scale-x-50"
-                  )}
-                />
               </Link>
             );
           })}
         </nav>
 
         {/* 3. RIGHT: ACTIONS */}
-        <div className="flex items-center justify-end gap-6 w-[300px]">
+        <div className="flex items-center justify-end gap-6 w-[300px] relative z-50">
           {onSearchSubmit && (
             <div className="hidden xl:block w-56">
               <SearchAutocomplete
@@ -101,21 +100,6 @@ export function GlobalHeader({
           )}
 
           <div className="flex items-center gap-5">
-            <button
-              className="relative group"
-              onClick={() => navigate("/messages")}
-              title="Tin nhắn"
-            >
-              <MessageCircle
-                size={22}
-                strokeWidth={1.2}
-                className="text-stone-600 group-hover:text-primary transition-colors"
-              />
-              {isAuthenticated && totalUnreadMessages > 0 && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full ring-2 ring-[#F9F8F6]" />
-              )}
-            </button>
-
             <div className="group" title="Thông báo">
               <NotificationInbox />
             </div>

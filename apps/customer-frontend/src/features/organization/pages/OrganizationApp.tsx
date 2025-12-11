@@ -5,6 +5,7 @@ import { useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuthStore } from "@/stores/useAuthStore";
 import OrganizationSidebar from "../components/OrganizationSidebar";
+import OrganizationHeader from "../components/OrganizationHeader";
 import OrganizationDashboard from "./OrganizationDashboard";
 import OrderManagement from "./OrderManagement";
 import SettingsPage from "./SettingsPage";
@@ -20,6 +21,7 @@ import AnalyticsPage from "./AnalyticsPage";
 import ApprovalsPage from "./ApprovalsPage";
 import RedemptionLinksPage from "./RedemptionLinksPage";
 import CompanyStoreManagePage from "./CompanyStoreManagePage";
+import { CustomerDeliveryMapPage } from "@/features/delivery-checkin/pages/CustomerDeliveryMapPage";
 
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -38,22 +40,22 @@ const OnboardingPendingScreen = ({
   onTabChange: (tab: string) => void;
 }) => {
   return (
-    <div className="flex-1 flex items-center justify-center bg-gray-50 p-8 h-full">
-      <Card className="max-w-lg w-full text-center shadow-lg border-t-4 border-orange-500 animate-in fade-in zoom-in duration-300">
+    <div className="flex-1 flex items-center justify-center bg-[#FAFAF8] p-8 h-full">
+      <Card className="max-w-lg w-full text-center shadow-[0_4px_16px_rgba(28,25,23,0.08)] border-2 border-[#E5E3DC] border-t-4 border-t-[#C63321] animate-in fade-in zoom-in duration-300">
         <CardHeader>
-          <ShieldAlert className="w-16 h-16 mx-auto text-yellow-500" />
-          <CardTitle className="text-2xl font-bold mt-4">
+          <ShieldAlert className="w-16 h-16 mx-auto text-[#D4A574]" />
+          <CardTitle className="text-2xl font-serif font-bold mt-4 text-[#1C1917]">
             Hoàn tất thiết lập tài khoản
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <p className="text-gray-600">
+          <p className="text-[#57534E]">
             Vui lòng hoàn tất thông tin doanh nghiệp để bắt đầu sử dụng đầy đủ
             tính năng.
           </p>
           <Button
             size="lg"
-            className="bg-gradient-to-r from-orange-400 to-red-500 hover:from-orange-500 hover:to-red-600 text-white shadow-md"
+            className="bg-[#C63321] hover:bg-[#A82A1A] text-[#F7F6F2] shadow-[0_2px_8px_rgba(198,51,33,0.2)] font-medium transition-all"
             onClick={() => onTabChange("settings")}
           >
             Hoàn tất thiết lập
@@ -73,6 +75,18 @@ export default function OrganizationApp() {
     (s) => s.activeOrganizationProfile
   );
   const isContextLoading = useAuthStore((s) => s.isContextLoading);
+
+  // ✅ Redirect về /organization/dashboard nếu đang ở /organization
+  useEffect(() => {
+    const path = window.location.pathname;
+    console.log("[OrganizationApp] Current path:", path);
+    if (path === "/organization" || path === "/organization/") {
+      console.log(
+        "[OrganizationApp] ⚠️ Redirecting to /organization/dashboard"
+      );
+      window.history.replaceState(null, "", "/organization/dashboard");
+    }
+  }, []);
 
   useEffect(() => {
     const fetchProfileIfNeeded = async () => {
@@ -162,6 +176,8 @@ export default function OrganizationApp() {
         return <RedemptionLinksPage />;
       case "company-store":
         return <CompanyStoreManagePage />;
+      case "delivery-map":
+        return <CustomerDeliveryMapPage />;
       case "settings":
         return <SettingsPage />;
       case "support":
@@ -174,17 +190,21 @@ export default function OrganizationApp() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-stone-50 flex flex-col lg:flex-row">
       {/* Sidebar */}
       <OrganizationSidebar
         activeTab={activeTab}
         onTabChange={handleTabChange}
       />
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 transition-all duration-300 lg:ml-64 pb-20 lg:pb-0">
-        {renderContent()}
-      </main>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 lg:ml-64">
+        {/* Header */}
+        <OrganizationHeader />
+
+        {/* Page Content */}
+        <main className="flex-1 pb-20 lg:pb-0">{renderContent()}</main>
+      </div>
     </div>
   );
 }

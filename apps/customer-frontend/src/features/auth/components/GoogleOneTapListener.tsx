@@ -1,10 +1,10 @@
 // apps/customer-frontend/src/features/auth/components/GoogleOneTapListener.tsx
-import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
-import { useAuthStore } from '@/stores/useAuthStore';
-import axios from '@/shared/lib/axios';
-import { toast } from '@/shared/utils/toast';
-import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
+import { useAuthStore } from "@/stores/useAuthStore";
+import axios from "@/shared/lib/axios";
+import { toast } from "@/shared/utils/toast";
+import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 export const GoogleOneTapListener = () => {
   const { user, setAccessToken, fetchMe } = useAuthStore();
@@ -16,16 +16,16 @@ export const GoogleOneTapListener = () => {
     if (import.meta.env.PROD) {
       const originalError = console.error;
       const originalWarn = console.warn;
-      
+
       // Intercept Google SDK errors để không spam console
       const errorHandler = (...args: any[]) => {
-        const message = args[0]?.toString() || '';
+        const message = args[0]?.toString() || "";
         // Bỏ qua các lỗi từ Google SDK
         if (
-          message.includes('GSI_LOGGER') ||
-          message.includes('The given origin is not allowed') ||
-          message.includes('FedCM') ||
-          message.includes('credential_button_library')
+          message.includes("GSI_LOGGER") ||
+          message.includes("The given origin is not allowed") ||
+          message.includes("FedCM") ||
+          message.includes("credential_button_library")
         ) {
           return; // Suppress error
         }
@@ -33,9 +33,9 @@ export const GoogleOneTapListener = () => {
       };
 
       const warnHandler = (...args: any[]) => {
-        const message = args[0]?.toString() || '';
+        const message = args[0]?.toString() || "";
         // Bỏ qua warnings từ Google SDK
-        if (message.includes('GSI_LOGGER') || message.includes('FedCM')) {
+        if (message.includes("GSI_LOGGER") || message.includes("FedCM")) {
           return;
         }
         originalWarn.apply(console, args);
@@ -51,7 +51,6 @@ export const GoogleOneTapListener = () => {
     }
   }, []);
 
-
   // Chỉ hiển thị One Tap khi user chưa đăng nhập
   if (isAuthenticated) {
     return null;
@@ -60,18 +59,25 @@ export const GoogleOneTapListener = () => {
   // Component này sử dụng GoogleLogin với useOneTap để hiển thị One Tap
   // Ẩn button nhưng vẫn cho phép One Tap popup hiển thị
   return (
-    <div style={{ position: 'absolute', left: '-9999px', opacity: 0, pointerEvents: 'none' }}>
+    <div
+      style={{
+        position: "absolute",
+        left: "-9999px",
+        opacity: 0,
+        pointerEvents: "none",
+      }}
+    >
       <GoogleLogin
         onSuccess={async (credentialResponse: CredentialResponse) => {
           const { credential } = credentialResponse;
-          
+
           if (!credential) return;
 
           try {
             // Gọi API xác thực của Printz
-            const res = await axios.post('/auth/google-verify', { 
-              credential, 
-              role: 'customer' 
+            const res = await axios.post("/auth/google-verify", {
+              credential,
+              role: "customer",
             });
 
             const { accessToken, user: userData } = res.data.data;
@@ -79,16 +85,24 @@ export const GoogleOneTapListener = () => {
             // Lưu thông tin đăng nhập
             setAccessToken(accessToken);
             await fetchMe();
-            
-            toast.success(`Chào mừng trở lại, ${userData?.displayName || 'bạn'}!`);
-            
-            // Điều hướng vào App nếu đang ở trang Landing
-            if (window.location.pathname === '/' || window.location.pathname === '/signin') {
-              navigate('/app'); 
-            }
 
+            toast.success(
+              `Chào mừng trở lại, ${userData?.displayName || "bạn"}!`
+            );
+
+            // ✅ Use centralized redirect helper (only if on landing/signin page)
+            if (
+              window.location.pathname === "/" ||
+              window.location.pathname === "/signin"
+            ) {
+              const { redirectAfterAuth } = await import(
+                "@/features/auth/utils/redirect-helpers"
+              );
+              redirectAfterAuth(navigate);
+            }
           } catch (err: any) {
-            const errorMsg = err.response?.data?.message || 'Đăng nhập thất bại';
+            const errorMsg =
+              err.response?.data?.message || "Đăng nhập thất bại";
             // Chỉ hiển thị lỗi nếu không phải do user đóng popup
             if (err.response?.status !== 401) {
               toast.error(errorMsg);
