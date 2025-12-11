@@ -51,7 +51,7 @@ export class AnalyticsController {
       };
 
       const analytics = await this.analyticsService.getProductAnalytics(
-        organizationId,
+        organizationId.toString(),
         dateRange,
         options
       );
@@ -94,7 +94,7 @@ export class AnalyticsController {
       };
 
       const analytics = await this.analyticsService.getSupplierAnalytics(
-        organizationId,
+        organizationId.toString(),
         dateRange
       );
 
@@ -138,7 +138,7 @@ export class AnalyticsController {
       const groupByPeriod = (groupBy as "day" | "week" | "month") || "month";
 
       const analytics = await this.analyticsService.getOrderAnalytics(
-        organizationId,
+        organizationId.toString(),
         dateRange,
         groupByPeriod
       );
@@ -183,7 +183,7 @@ export class AnalyticsController {
       const reportFormat = (format as "csv" | "excel") || "csv";
 
       const report = await this.analyticsService.exportReport(
-        organizationId,
+        organizationId.toString(),
         reportType as "products" | "suppliers" | "orders",
         dateRange,
         reportFormat

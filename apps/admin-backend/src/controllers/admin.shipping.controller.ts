@@ -29,8 +29,8 @@ export class ShippingController {
           .status(API_CODES.BAD_REQUEST)
           .json(
             ApiResponse.error(
-              "orderId, recipientId, và carrierId là bắt buộc",
-              API_CODES.BAD_REQUEST
+              "VALIDATION_ERROR",
+              "orderId, recipientId, và carrierId là bắt buộc"
             )
           );
       }
@@ -40,8 +40,8 @@ export class ShippingController {
           .status(API_CODES.BAD_REQUEST)
           .json(
             ApiResponse.error(
-              "packageDetails với weight là bắt buộc",
-              API_CODES.BAD_REQUEST
+              "VALIDATION_ERROR",
+              "packageDetails với weight là bắt buộc"
             )
           );
       }
@@ -78,8 +78,8 @@ export class ShippingController {
           .status(API_CODES.BAD_REQUEST)
           .json(
             ApiResponse.error(
-              "orderId và carrierId là bắt buộc",
-              API_CODES.BAD_REQUEST
+              "VALIDATION_ERROR",
+              "orderId và carrierId là bắt buộc"
             )
           );
       }
@@ -134,9 +134,7 @@ export class ShippingController {
       if (!reason) {
         return res
           .status(API_CODES.BAD_REQUEST)
-          .json(
-            ApiResponse.error("Lý do hủy là bắt buộc", API_CODES.BAD_REQUEST)
-          );
+          .json(ApiResponse.error("VALIDATION_ERROR", "Lý do hủy là bắt buộc"));
       }
 
       const result = await shippingService.cancelShipment(
@@ -184,8 +182,8 @@ export class ShippingController {
           .status(API_CODES.BAD_REQUEST)
           .json(
             ApiResponse.error(
-              "carrierId, toDistrict, và weight là bắt buộc",
-              API_CODES.BAD_REQUEST
+              "VALIDATION_ERROR",
+              "carrierId, toDistrict, và weight là bắt buộc"
             )
           );
       }

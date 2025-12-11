@@ -2,22 +2,22 @@ import { MapPin, Navigation } from "lucide-react";
 
 export function LocationMap() {
   return (
-    <section className="py-20 px-6 bg-white">
-      <div className="max-w-[1440px] mx-auto">
-        <div className="mb-10 text-center">
+    <section className="py-16 px-6 bg-white">
+      <div className="max-w-[1200px] mx-auto">
+        <div className="mb-8 text-center">
           <span className="text-emerald-800 font-bold tracking-widest uppercase text-xs mb-3 block">
             Visit Us
           </span>
-          <h2 className="font-serif text-4xl text-stone-900">
+          <h2 className="font-serif text-3xl md:text-4xl text-stone-900">
             Vị trí của chúng tôi
           </h2>
         </div>
 
         {/* MAP CONTAINER */}
-        <div className="relative w-full h-[500px] rounded-3xl overflow-hidden border border-stone-200 shadow-2xl">
+        <div className="relative w-full h-[400px] rounded-2xl overflow-hidden border border-stone-100 shadow-lg">
           {/* 1. LỚP BẢN ĐỒ (IFRAME) */}
-          {/* Mẹo: Dùng grayscale-100 để bản đồ thành đen trắng nhìn cho 'Tây' */}
           <iframe
+            // 👇 Link chuẩn Phúc vừa gửi
             src="https://www.google.com/maps/embed?pb=!1m13!1m11!1m3!1d526.061925288212!2d106.6364624000473!3d11.09032946471015!2m2!1f0!2f0!3m2!1i1024!2i768!4f13.1!5e1!3m2!1svi!2s!4v1765465707774!5m2!1svi!2s"
             width="100%"
             height="100%"
@@ -25,48 +25,33 @@ export function LocationMap() {
             allowFullScreen={true}
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
-            className="w-full h-full grayscale hover:grayscale-0 transition-all duration-700 ease-in-out"
+            // ✨ STYLE PACDORA CỐ ĐỊNH (Đã bỏ hover):
+            // Luôn giữ grayscale và độ sáng cao để map nhìn sạch, sang.
+            className="w-full h-full filter grayscale contrast-[0.9] brightness-[1.05]"
           ></iframe>
 
-          {/* 2. LỚP THẺ NỔI (FLOATING CARD) - Giống mẫu Pacdora */}
-          <div className="absolute top-6 left-6 md:top-10 md:left-10 bg-white p-6 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-stone-100 max-w-xs md:max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center shrink-0">
-                <MapPin
-                  className="w-5 h-5 text-emerald-800"
-                  fill="currentColor"
-                  fillOpacity={0.2}
-                />
-              </div>
+          {/* 2. LỚP THẺ NỔI (FLOATING CARD) */}
+          <div className="absolute top-4 left-4 md:top-6 md:left-6 bg-white/95 backdrop-blur-md p-5 rounded-lg shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-stone-50 max-w-[280px] md:max-w-xs animate-in fade-in slide-in-from-bottom-2 duration-700">
+            <div className="flex items-start gap-3">
+              <MapPin className="w-5 h-5 text-emerald-700 mt-0.5 shrink-0" />
               <div>
-                <h3 className="font-bold text-stone-900 text-sm uppercase tracking-wider mb-1">
-                  PRINTZ SOLUTIONS CO., LTD
+                <h3 className="font-bold text-stone-900 text-xs uppercase tracking-wider mb-1">
+                  PRINTZ SOLUTIONS
                 </h3>
-                <p className="text-stone-500 text-xs leading-relaxed mb-4">
-                  Số 123 Đại lộ Bình Dương, P. Phú Thọ, <br />
-                  TP. Thủ Dầu Một, Bình Dương.
+                {/* 👇 Địa chỉ text chuẩn */}
+                <p className="text-stone-500 text-xs leading-relaxed mb-3 font-medium">
+                  Đường DK6A, Phường Thới Hòa, <br />
+                  TP. Hồ Chí Minh.
                 </p>
 
                 <a
-                  href="https://maps.app.goo.gl/38VqFYcTYYvYXSxP7"
+                  href="https://goo.gl/maps/placeholder" // Phúc có thể thay link Google Maps view tại đây
                   target="_blank"
-                  className="inline-flex items-center gap-2 text-xs font-bold text-white bg-stone-900 hover:bg-emerald-800 py-2 px-4 rounded-full transition-colors"
+                  className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-white bg-stone-900 hover:bg-emerald-800 py-1.5 px-3 rounded-sm transition-colors"
                 >
                   <Navigation className="w-3 h-3" /> Chỉ đường
                 </a>
               </div>
-            </div>
-          </div>
-
-          {/* 3. PIN GIẢ (Nằm giữa màn hình để trang trí nếu muốn) */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-            <div className="relative">
-              <span className="absolute -inset-4 bg-emerald-500/30 rounded-full animate-ping"></span>
-              <div className="w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-xl border-4 border-white">
-                <MapPin className="w-6 h-6" />
-              </div>
-              {/* Cái mũi tên nhỏ chỉ xuống */}
-              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-emerald-600 rotate-45 border-r-4 border-b-4 border-white"></div>
             </div>
           </div>
         </div>

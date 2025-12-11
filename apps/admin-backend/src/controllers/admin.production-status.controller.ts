@@ -29,13 +29,13 @@ export class ProductionStatusController {
       if (!operatorId) {
         return res
           .status(API_CODES.UNAUTHORIZED)
-          .json(ApiResponse.error("Unauthorized", API_CODES.UNAUTHORIZED));
+          .json(ApiResponse.error("UNAUTHORIZED", "Unauthorized"));
       }
 
       const updatedOrder = await this.service.updateStatus(
         orderId,
         { stage, substage, progress, notes },
-        operatorId
+        operatorId.toString()
       );
 
       res
@@ -63,13 +63,13 @@ export class ProductionStatusController {
       if (!operatorId) {
         return res
           .status(API_CODES.UNAUTHORIZED)
-          .json(ApiResponse.error("Unauthorized", API_CODES.UNAUTHORIZED));
+          .json(ApiResponse.error("UNAUTHORIZED", "Unauthorized"));
       }
 
       const scanResult = await this.service.scanBarcode(
         barcode,
         stationId,
-        operatorId
+        operatorId.toString()
       );
 
       res
@@ -113,13 +113,13 @@ export class ProductionStatusController {
       if (!reportedBy) {
         return res
           .status(API_CODES.UNAUTHORIZED)
-          .json(ApiResponse.error("Unauthorized", API_CODES.UNAUTHORIZED));
+          .json(ApiResponse.error("UNAUTHORIZED", "Unauthorized"));
       }
 
       await this.service.reportIssue(orderId, {
         issueType,
         description,
-        reportedBy,
+        reportedBy: reportedBy.toString(),
         severity,
       });
 
