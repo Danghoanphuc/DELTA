@@ -3,8 +3,7 @@
 
 import { Request, Response, NextFunction } from "express";
 import { TemplateService } from "../services/template.service.js";
-import { ApiResponse } from "../../../shared/utils/api-response.js";
-import { API_CODES } from "../../../shared/constants/api-codes.js";
+import { ApiResponse, API_CODES } from "../shared/utils/index.js";
 
 /**
  * Template Controller

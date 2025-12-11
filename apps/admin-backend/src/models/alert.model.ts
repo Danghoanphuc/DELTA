@@ -7,24 +7,24 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export const ALERT_TYPE = {
-  DEADLINE_WARNING: "deadline_warning",
-  DEADLINE_CRITICAL: "deadline_critical",
-  PRODUCTION_ISSUE: "production_issue",
-  ESCALATION: "escalation",
+  DEADLINE_WARNING: "DEADLINE_WARNING",
+  DEADLINE_CRITICAL: "DEADLINE_CRITICAL",
+  PRODUCTION_ISSUE: "PRODUCTION_ISSUE",
+  ESCALATION: "ESCALATION",
 } as const;
 
 export const ALERT_URGENCY = {
-  LOW: "low",
-  MEDIUM: "medium",
-  HIGH: "high",
-  CRITICAL: "critical",
+  LOW: "LOW",
+  MEDIUM: "MEDIUM",
+  HIGH: "HIGH",
+  CRITICAL: "CRITICAL",
 } as const;
 
 export const ALERT_STATUS = {
-  PENDING: "pending",
-  SENT: "sent",
-  ACKNOWLEDGED: "acknowledged",
-  RESOLVED: "resolved",
+  PENDING: "PENDING",
+  SENT: "SENT",
+  ACKNOWLEDGED: "ACKNOWLEDGED",
+  RESOLVED: "RESOLVED",
 } as const;
 
 export interface IAlert extends Document {

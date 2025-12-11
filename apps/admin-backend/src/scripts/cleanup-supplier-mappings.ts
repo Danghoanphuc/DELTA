@@ -9,7 +9,7 @@
 
 import mongoose from "mongoose";
 import { SkuVariant } from "../models/sku-variant.model.js";
-import { Logger } from "../shared/utils/logger.util.js";
+import { Logger } from "../shared/utils/logger.js";
 import * as readline from "readline";
 
 async function promptConfirmation(): Promise<boolean> {

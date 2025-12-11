@@ -16,6 +16,7 @@ export interface IAdmin extends Document {
   displayName: string;
   role: AdminRole;
   isActive: boolean;
+  organizationProfileId?: Types.ObjectId; // Organization profile reference
   createdAt: Date;
   updatedAt: Date;
 
@@ -61,6 +62,11 @@ const adminSchema = new Schema<IAdmin>(
       type: Boolean,
       default: true,
     },
+    organizationProfileId: {
+      type: Schema.Types.ObjectId,
+      ref: "OrganizationProfile",
+      required: false,
+    },
     passwordResetToken: {
       type: String,
       select: false,
@@ -100,7 +106,10 @@ adminSchema.methods.createPasswordResetToken = function (): {
   expiresAt: Date;
 } {
   const rawToken = crypto.randomBytes(32).toString("hex");
-  const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(rawToken)
+    .digest("hex");
 
   const expiresMinutes =
     Number(process.env.ADMIN_PASSWORD_RESET_TOKEN_MINUTES ?? "30") || 30;

@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
-    "build": "echo 'Skipping TypeScript build for admin-backend' && mkdir -p dist && cp -r src/* dist/ 2>/dev/null || xcopy /E /I /Y src dist\\",
+    "build": "tsc --project tsconfig.json --rootDir ./src",
     "build:watch": "tsc --watch",
     "start": "node --import ./dist/infrastructure/instrument.js dist/server.js",
     "dev": "tsx watch src/server.ts",

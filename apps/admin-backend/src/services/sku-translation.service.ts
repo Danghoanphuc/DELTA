@@ -9,7 +9,7 @@ import {
   SupplierVariantMapping,
   ISupplierVariantMapping,
 } from "../models/supplier-variant-mapping.model.js";
-import { Logger } from "../shared/utils/logger.util.js";
+import { Logger } from "../shared/utils/logger.js";
 import { NotFoundException } from "../shared/exceptions/index.js";
 
 export class SkuTranslationService {

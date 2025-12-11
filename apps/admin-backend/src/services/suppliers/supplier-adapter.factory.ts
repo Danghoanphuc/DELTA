@@ -7,7 +7,7 @@
 
 import { BaseSupplierAdapter } from "./base-supplier.adapter.js";
 import { PrintfulAdapter } from "./printful.adapter.js";
-import { Logger } from "../../shared/utils/logger.util.js";
+import { Logger } from "../../shared/utils/logger.js";
 
 export class SupplierAdapterFactory {
   private static adapterCache: Map<string, BaseSupplierAdapter> = new Map();

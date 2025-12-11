@@ -18,7 +18,7 @@ export function LocationMap() {
           {/* 1. LỚP BẢN ĐỒ (IFRAME) */}
           {/* Mẹo: Dùng grayscale-100 để bản đồ thành đen trắng nhìn cho 'Tây' */}
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3916.657969874453!2d106.6637653!3d10.9891823!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3174d115b81d7729%3A0xf0289b52e5d7a6!2zVHAuIFRo4bunIEThuqd1IE3hu5l0LCBCw6xuaCBEdiA8!5e0!3m2!1svi!2s!4v1700000000000!5m2!1svi!2s"
+            src="https://www.google.com/maps/embed?pb=!1m13!1m11!1m3!1d526.061925288212!2d106.6364624000473!3d11.09032946471015!2m2!1f0!2f0!3m2!1i1024!2i768!4f13.1!5e1!3m2!1svi!2s!4v1765465707774!5m2!1svi!2s"
             width="100%"
             height="100%"
             style={{ border: 0 }}
@@ -48,7 +48,7 @@ export function LocationMap() {
                 </p>
 
                 <a
-                  href="https://goo.gl/maps/placeholder"
+                  href="https://maps.app.goo.gl/38VqFYcTYYvYXSxP7"
                   target="_blank"
                   className="inline-flex items-center gap-2 text-xs font-bold text-white bg-stone-900 hover:bg-emerald-800 py-2 px-4 rounded-full transition-colors"
                 >

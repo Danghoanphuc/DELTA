@@ -9,12 +9,12 @@ import mongoose, { Schema, Document } from "mongoose";
 // ============================================
 
 export const PRODUCTION_ORDER_STATUS = {
-  PENDING: "pending",
-  CONFIRMED: "confirmed",
-  IN_PRODUCTION: "in_production",
-  QC_CHECK: "qc_check",
-  COMPLETED: "completed",
-  FAILED: "failed",
+  PENDING: "PENDING",
+  CONFIRMED: "CONFIRMED",
+  IN_PRODUCTION: "IN_PRODUCTION",
+  QC_CHECK: "QC_CHECK",
+  COMPLETED: "COMPLETED",
+  FAILED: "FAILED",
 } as const;
 
 // ============================================
@@ -75,7 +75,7 @@ export interface IProductionOrder extends Document {
   actualCompletionDate?: Date;
 
   // Status Tracking
-  status: keyof typeof PRODUCTION_ORDER_STATUS;
+  status: (typeof PRODUCTION_ORDER_STATUS)[keyof typeof PRODUCTION_ORDER_STATUS];
   statusHistory: {
     status: string;
     timestamp: Date;
@@ -281,7 +281,8 @@ productionOrderSchema.methods.addStatusHistory = function (
     note,
     updatedBy,
   });
-  this.status = status as keyof typeof PRODUCTION_ORDER_STATUS;
+  this.status =
+    status as (typeof PRODUCTION_ORDER_STATUS)[keyof typeof PRODUCTION_ORDER_STATUS];
 };
 
 /**

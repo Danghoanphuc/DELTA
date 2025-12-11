@@ -10,7 +10,7 @@
 import mongoose from "mongoose";
 import { SkuVariant } from "../models/sku-variant.model.js";
 import { SupplierVariantMapping } from "../models/supplier-variant-mapping.model.js";
-import { Logger } from "../shared/utils/logger.util.js";
+import { Logger } from "../shared/utils/logger.js";
 
 async function migrateSupplierMappings() {
   try {

@@ -9,21 +9,21 @@ import mongoose, { Schema, Document } from "mongoose";
 // ============================================
 
 export const TRANSACTION_TYPES = {
-  PURCHASE: "purchase", // Nhập hàng từ supplier
-  SALE: "sale", // Bán hàng
-  ADJUSTMENT: "adjustment", // Điều chỉnh thủ công
-  RETURN: "return", // Trả hàng
-  DAMAGE: "damage", // Hàng hỏng
-  RESERVE: "reserve", // Đặt trước cho đơn hàng
-  RELEASE: "release", // Hủy đặt trước
-  TRANSFER: "transfer", // Chuyển kho
+  PURCHASE: "PURCHASE", // Nhập hàng từ supplier
+  SALE: "SALE", // Bán hàng
+  ADJUSTMENT: "ADJUSTMENT", // Điều chỉnh thủ công
+  RETURN: "RETURN", // Trả hàng
+  DAMAGE: "DAMAGE", // Hàng hỏng
+  RESERVE: "RESERVE", // Đặt trước cho đơn hàng
+  RELEASE: "RELEASE", // Hủy đặt trước
+  TRANSFER: "TRANSFER", // Chuyển kho
 } as const;
 
 export const REFERENCE_TYPES = {
-  SWAG_ORDER: "swag_order",
-  PRODUCTION_ORDER: "production_order",
-  MANUAL_ADJUSTMENT: "manual_adjustment",
-  PURCHASE_ORDER: "purchase_order",
+  SWAG_ORDER: "SWAG_ORDER",
+  PRODUCTION_ORDER: "PRODUCTION_ORDER",
+  MANUAL_ADJUSTMENT: "MANUAL_ADJUSTMENT",
+  PURCHASE_ORDER: "PURCHASE_ORDER",
 } as const;
 
 export interface IInventoryTransaction extends Document {
@@ -33,7 +33,7 @@ export interface IInventoryTransaction extends Document {
   productName: string;
 
   // Transaction Type
-  type: keyof typeof TRANSACTION_TYPES;
+  type: (typeof TRANSACTION_TYPES)[keyof typeof TRANSACTION_TYPES];
 
   // Quantity Changes
   quantityBefore: number;
@@ -41,7 +41,7 @@ export interface IInventoryTransaction extends Document {
   quantityAfter: number;
 
   // Reference to source document
-  referenceType: keyof typeof REFERENCE_TYPES;
+  referenceType: (typeof REFERENCE_TYPES)[keyof typeof REFERENCE_TYPES];
   referenceId: mongoose.Types.ObjectId;
   referenceNumber?: string; // Order number, PO number, etc.
 

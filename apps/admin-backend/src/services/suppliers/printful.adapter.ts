@@ -13,7 +13,7 @@ import {
   SupplierOrder,
   OrderStatus,
 } from "./base-supplier.adapter.js";
-import { Logger } from "../../shared/utils/logger.util.js";
+import { Logger } from "../../shared/utils/logger.js";
 
 export class PrintfulAdapter extends BaseSupplierAdapter {
   constructor(apiKey: string) {

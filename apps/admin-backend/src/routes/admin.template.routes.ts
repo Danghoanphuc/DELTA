@@ -3,7 +3,7 @@
 
 import { Router } from "express";
 import { TemplateController } from "../controllers/admin.template.controller.js";
-import { authenticate } from "../../../shared/middleware/index.js";
+import { authenticate } from "../shared/middleware/index.js";
 
 const router = Router();
 const controller = new TemplateController();

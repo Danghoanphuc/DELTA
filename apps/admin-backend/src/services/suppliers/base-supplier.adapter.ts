@@ -6,7 +6,7 @@
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
-import { Logger } from "../../shared/utils/logger.util.js";
+import { Logger } from "../../shared/utils/logger.js";
 
 // Standard interfaces for supplier data
 export interface SupplierProduct {
