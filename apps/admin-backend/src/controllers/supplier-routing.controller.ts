@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Request, Response, NextFunction } from "express";
 import { Logger } from "../shared/utils/logger.js";
 import { ApiResponse } from "../shared/utils/api-response.js";

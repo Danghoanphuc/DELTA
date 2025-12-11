@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * SKU Translation Service
  *

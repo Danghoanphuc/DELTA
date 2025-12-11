@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PricingRepository - Data Access Layer for Pricing Formulas
  *

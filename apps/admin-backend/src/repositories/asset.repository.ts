@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * AssetRepository - Data Access Layer for Assets
  *

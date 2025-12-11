@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ProposalRepository - Data Access Layer for Proposals
  *

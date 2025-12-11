@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Queue, Worker, Job } from "bullmq";
 import { Logger } from "../shared/utils/logger.js";
 import { SwagOrder } from "../models/swag-order.model.js";

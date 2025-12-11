@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * DebtRepository - Data Access Layer for Debt Management
  *

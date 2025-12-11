@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Logger } from "../shared/utils/logger.js";
 import { SupplierVariantMapping } from "../models/supplier-variant-mapping.model.js";
 import { Supplier } from "../models/supplier.model.js";

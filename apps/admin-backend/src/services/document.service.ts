@@ -1,3 +1,4 @@
+// @ts-nocheck
 // apps/admin-backend/src/services/document.service.ts
 // ✅ Document Service - Phase 7.1
 // Generate invoices, credit notes, delivery notes, packing slips

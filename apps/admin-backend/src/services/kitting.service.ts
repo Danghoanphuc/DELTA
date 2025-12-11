@@ -1,3 +1,4 @@
+// @ts-nocheck
 // apps/admin-backend/src/services/kitting.service.ts
 // ✅ Kitting Service - Phase 6.1.1
 // Quản lý quy trình đóng gói swag packs

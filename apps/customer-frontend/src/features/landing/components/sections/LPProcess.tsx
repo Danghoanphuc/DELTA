@@ -1,18 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { FileSpreadsheet, PackageCheck, Globe2, BarChart3 } from "lucide-react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
-import { cn } from "@/shared/lib/utils"; // Đảm bảo bạn có utility này hoặc dùng template literal
+import { cn } from "@/shared/lib/utils";
 
 // --- DỮ LIỆU DEMO ---
-// TODO: Thay thế videoUrl bằng link video thật của bạn (nên ngắn ~3s mỗi video)
 const STEPS = [
   {
     id: "01",
-    title: "Tải lên danh sách",
-    sub: "Một chạm",
+    title: "Tải lên danh sách",
+    sub: "Một chạm",
     icon: FileSpreadsheet,
-    desc: "Kéo thả tệp Excel danh sách người nhận. Dữ liệu được chuẩn hóa tự động.",
-    videoUrl: "Nhúng vào đây",
+    desc: "Kéo thả tệp Excel danh sách người nhận. Dữ liệu được chuẩn hóa tự động.",
+    videoUrl: null,
+    lottieUrl:
+      "https://lottie.host/embed/551c8169-385c-43df-9594-7b4d02cf1fda/w1xsXDO31P.lottie",
   },
   {
     id: "02",
@@ -22,6 +23,7 @@ const STEPS = [
     desc: "Lệnh in được chuyển thẳng xuống xưởng. Từng món quà được đóng gói (kitting) chỉn chu theo quy chuẩn thương hiệu.",
     videoUrl:
       "https://res.cloudinary.com/demo/video/upload/v1698339053/samples/cld-sample-video.mp4",
+    lottieUrl: null,
   },
   {
     id: "03",
@@ -31,6 +33,7 @@ const STEPS = [
     desc: "Gửi thẳng đến địa chỉ có sẵn HOẶC tạo 'Redeem Link' để nhân viên tự điền thông tin nhận quà. Giải quyết bài toán thiếu data.",
     videoUrl:
       "https://res.cloudinary.com/demo/video/upload/v1698339053/samples/cld-sample-video.mp4",
+    lottieUrl: null,
   },
   {
     id: "04",
@@ -40,6 +43,7 @@ const STEPS = [
     desc: "Theo dõi hành trình đơn hàng và xem hình ảnh nghiệm thu thực tế (Proof of Delivery) ngay trên Dashboard tập trung.",
     videoUrl:
       "https://res.cloudinary.com/demo/video/upload/v1698339053/samples/cld-sample-video.mp4",
+    lottieUrl: null,
   },
 ];
 
@@ -48,15 +52,13 @@ export function LPProcess() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Hàm bắt đầu/reset vòng lặp tự động
   const startAutoPlay = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
       setActiveStep((prev) => (prev + 1) % STEPS.length);
-    }, 3000); // Chuyển bước sau mỗi 3 giây
+    }, 3000);
   };
 
-  // Khởi chạy vòng lặp khi component mount
   useEffect(() => {
     startAutoPlay();
     return () => {
@@ -64,7 +66,6 @@ export function LPProcess() {
     };
   }, []);
 
-  // Đảm bảo video luôn phát lại từ đầu khi chuyển bước
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.currentTime = 0;
@@ -74,16 +75,16 @@ export function LPProcess() {
     }
   }, [activeStep]);
 
-  // Xử lý khi click chọn bước thủ công
   const handleStepClick = (index: number) => {
     setActiveStep(index);
-    startAutoPlay(); // Reset timer
+    startAutoPlay();
   };
+
+  const currentStep = STEPS[activeStep];
 
   return (
     <section className="py-24 bg-[#F9F8F6] text-stone-900 border-t border-stone-200 overflow-hidden">
       <div className="max-w-[1440px] mx-auto px-6 md:px-8">
-        {/* HEADER */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-16 gap-8">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 mb-4">
@@ -107,9 +108,7 @@ export function LPProcess() {
           </div>
         </div>
 
-        {/* CONTENT: SPLIT VIEW (Steps Left - Video Right) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-stretch">
-          {/* LEFT: STEPS LIST */}
           <div className="lg:col-span-5 flex flex-col justify-between gap-4">
             {STEPS.map((step, index) => {
               const Icon = step.icon;
@@ -126,7 +125,6 @@ export function LPProcess() {
                   onClick={() => handleStepClick(index)}
                 >
                   <div className="flex items-start gap-6 relative z-10">
-                    {/* Số thứ tự nền */}
                     <span
                       className={cn(
                         "absolute -top-4 -left-2 font-serif text-6xl font-bold transition-colors select-none z-0",
@@ -135,8 +133,6 @@ export function LPProcess() {
                     >
                       {step.id}
                     </span>
-
-                    {/* Icon & Nội dung */}
                     <div className="relative shrink-0 mt-1">
                       <div
                         className={cn(
@@ -149,7 +145,6 @@ export function LPProcess() {
                         <Icon strokeWidth={1.5} className="w-6 h-6" />
                       </div>
                     </div>
-
                     <div>
                       <p
                         className={cn(
@@ -179,8 +174,6 @@ export function LPProcess() {
                       </p>
                     </div>
                   </div>
-
-                  {/* Progress Bar 3s */}
                   {isActive && (
                     <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-stone-100">
                       <div className="h-full bg-[#C63321] animate-[progress_3s_linear_forward] origin-left"></div>
@@ -191,42 +184,48 @@ export function LPProcess() {
             })}
           </div>
 
-          {/* RIGHT: VIDEO DEMO CONTAINER */}
           <div className="lg:col-span-7 relative h-full min-h-[400px] lg:min-h-0">
             <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-stone-900 relative z-10">
-              {/* Video Player */}
-              {/* Sử dụng key={activeStep} để buộc React tái tạo thẻ video, giúp chuyển đổi mượt và tự động phát lại */}
-              <video
-                ref={videoRef}
-                key={activeStep}
-                src={STEPS[activeStep].videoUrl}
-                className="w-full h-full object-cover"
-                autoPlay
-                muted
-                playsInline
-                loop={false} // Không loop video đơn lẻ, để hệ thống tự chuyển
-              />
+              {/* Hiển thị Lottie hoặc Video */}
+              {currentStep.lottieUrl ? (
+                <div className="w-full h-full flex items-center justify-center bg-white">
+                  <DotLottieReact
+                    src={currentStep.lottieUrl}
+                    loop
+                    autoplay
+                    className="w-full h-full"
+                  />
+                </div>
+              ) : (
+                <video
+                  ref={videoRef}
+                  key={activeStep}
+                  src={currentStep.videoUrl || ""}
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  muted
+                  playsInline
+                  loop={false}
+                />
+              )}
 
-              {/* Video Overlay Info */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-8 pt-20 pointer-events-none">
                 <p className="font-mono text-xs font-bold text-[#C63321] uppercase tracking-widest mb-2 flex items-center gap-2">
                   <span className="inline-block w-2 h-2 rounded-full bg-[#C63321] animate-pulse"></span>
-                  Đang trình diễn: Bước {STEPS[activeStep].id}
+                  Đang trình diễn: Bước {currentStep.id}
                 </p>
                 <h4 className="font-serif text-2xl font-bold text-white">
-                  {STEPS[activeStep].title}
+                  {currentStep.title}
                 </h4>
               </div>
             </div>
 
-            {/* Decorative Background Blurs */}
             <div className="absolute top-1/4 -right-20 w-64 h-64 bg-[#C63321]/20 rounded-full blur-[100px] -z-10 mix-blend-multiply"></div>
             <div className="absolute bottom-1/4 -left-20 w-64 h-64 bg-emerald-500/20 rounded-full blur-[100px] -z-10 mix-blend-multiply"></div>
           </div>
         </div>
       </div>
 
-      {/* Animation Keyframes */}
       <style>{`
         @keyframes progress {
           from { transform: scaleX(0); }

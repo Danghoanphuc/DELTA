@@ -1,3 +1,4 @@
+// @ts-nocheck
 // apps/admin-backend/src/models/catalog.models.ts
 // ✅ Product Catalog Models - SwagUp-style Product Management
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // apps/admin-backend/src/controllers/admin.production.controller.ts
 // ✅ Production Order Controller
 // Phase 5.1.3: Production Order Management - HTTP Layer

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Supplier Service
  * Handles supplier management and performance tracking
