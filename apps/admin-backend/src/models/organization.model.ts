@@ -11,7 +11,9 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IOrganizationProfile extends Document {
   _id: mongoose.Types.ObjectId;
   name?: string;
+  displayName?: string; // Alias for name
   businessName?: string;
+  taxCode?: string; // Tax identification number
   email?: string;
   phone?: string;
   address?: {
@@ -40,7 +42,9 @@ export interface IOrganizationProfile extends Document {
 const organizationProfileSchema = new Schema<IOrganizationProfile>(
   {
     name: { type: String },
+    displayName: { type: String },
     businessName: { type: String },
+    taxCode: { type: String },
     email: { type: String },
     phone: { type: String },
     address: {

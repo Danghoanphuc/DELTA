@@ -1,11 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  FileSpreadsheet,
-  PackageCheck,
-  Globe2,
-  BarChart3,
-  Link as LinkIcon,
-} from "lucide-react";
+import { FileSpreadsheet, PackageCheck, Globe2, BarChart3 } from "lucide-react";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { cn } from "@/shared/lib/utils"; // Đảm bảo bạn có utility này hoặc dùng template literal
 
 // --- DỮ LIỆU DEMO ---
@@ -13,12 +8,11 @@ import { cn } from "@/shared/lib/utils"; // Đảm bảo bạn có utility này 
 const STEPS = [
   {
     id: "01",
-    title: "Upload & Đồng bộ Data",
-    sub: "1 CLICK IMPORT",
+    title: "Tải lên danh sách",
+    sub: "Một chạm",
     icon: FileSpreadsheet,
-    desc: "Kéo thả file Excel danh sách người nhận hoặc kết nối trực tiếp với hệ thống HRIS của bạn. Dữ liệu được chuẩn hóa tự động.",
-    videoUrl:
-      "https://res.cloudinary.com/demo/video/upload/v1698339053/samples/cld-sample-video.mp4",
+    desc: "Kéo thả tệp Excel danh sách người nhận. Dữ liệu được chuẩn hóa tự động.",
+    videoUrl: "Nhúng vào đây",
   },
   {
     id: "02",

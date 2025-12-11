@@ -21,10 +21,8 @@ import cron from "node-cron";
  */
 
 export class SupplierSyncService {
-  private adapterFactory: SupplierAdapterFactory;
-
   constructor() {
-    this.adapterFactory = new SupplierAdapterFactory();
+    // SupplierAdapterFactory uses static methods, no need to instantiate
   }
 
   /**
@@ -47,7 +45,7 @@ export class SupplierSyncService {
         throw new Error(`Supplier not found: ${supplierId}`);
       }
 
-      const adapter = this.adapterFactory.create(supplier.type);
+      const adapter = SupplierAdapterFactory.create(supplier.type);
       const mappings = await SupplierVariantMapping.find({
         supplierId: supplierId,
         syncStatus: "active",
@@ -115,7 +113,7 @@ export class SupplierSyncService {
         throw new Error(`Supplier not found: ${supplierId}`);
       }
 
-      const adapter = this.adapterFactory.create(supplier.type);
+      const adapter = SupplierAdapterFactory.create(supplier.type);
       const mappings = await SupplierVariantMapping.find({
         supplierId: supplierId,
         syncStatus: "active",
@@ -188,7 +186,7 @@ export class SupplierSyncService {
         throw new Error(`Supplier not found: ${supplierId}`);
       }
 
-      const adapter = this.adapterFactory.create(supplier.type);
+      const adapter = SupplierAdapterFactory.create(supplier.type);
       const catalog = await adapter.getProductCatalog();
 
       Logger.debug(

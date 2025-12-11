@@ -239,7 +239,7 @@ export class SupplierRoutingService {
 
     for (const mapping of mappings) {
       const supplierData = mapping.supplierId as any;
-      const adapter = this.supplierAdapterFactory.create(supplierData.type);
+      const adapter = SupplierAdapterFactory.create(supplierData.type);
 
       try {
         const status = await adapter.checkInventory(mapping.supplierSku);

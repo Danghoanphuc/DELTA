@@ -22,6 +22,9 @@ export const PRODUCTION_ORDER_STATUS = {
 // ============================================
 
 export interface IProductionOrder extends Document {
+  // Production Order Number
+  productionOrderNumber: string;
+
   // Link to Swag Order
   swagOrderId: mongoose.Types.ObjectId;
   swagOrderNumber: string;
@@ -114,6 +117,14 @@ export interface IProductionOrder extends Document {
 
 const productionOrderSchema = new Schema<IProductionOrder>(
   {
+    // Production Order Number
+    productionOrderNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+
     // Link to Swag Order
     swagOrderId: {
       type: Schema.Types.ObjectId,
@@ -317,6 +328,32 @@ productionOrderSchema.methods.calculateCostVariance = function () {
 // ============================================
 // STATIC METHODS
 // ============================================
+
+/**
+ * Generate production order number
+ */
+productionOrderSchema.statics.generateProductionOrderNumber =
+  async function (): Promise<string> {
+    const year = new Date().getFullYear();
+    const prefix = `PO-${year}-`;
+
+    // Find last production order number for this year
+    const lastOrder = await this.findOne({
+      productionOrderNumber: new RegExp(`^${prefix}`),
+    })
+      .sort({ productionOrderNumber: -1 })
+      .lean();
+
+    if (!lastOrder) {
+      return `${prefix}00001`;
+    }
+
+    // Extract number and increment
+    const lastNumber = parseInt(lastOrder.productionOrderNumber.split("-")[2]);
+    const nextNumber = (lastNumber + 1).toString().padStart(5, "0");
+
+    return `${prefix}${nextNumber}`;
+  };
 
 /**
  * Find production orders by supplier

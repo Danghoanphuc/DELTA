@@ -71,6 +71,29 @@ export interface ISwagOrder extends Document {
     grossMargin: number;
     marginPercentage: number;
   };
+  // Pricing fields (for backward compatibility)
+  pricing?: {
+    kittingFee?: number;
+    discount?: number;
+  };
+  // Shipping fields
+  shippingCost?: number;
+  shippingAddress?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    country?: string;
+  };
+  expectedDeliveryDate?: Date;
+  // Payment fields
+  paymentStatus?: string;
+  paymentMethod?: string;
+  paidAt?: Date;
+  // Processing fields
+  processedAt?: Date;
+  // SwagPack reference (populated)
+  swagPack?: mongoose.Types.ObjectId;
   documents?: {
     invoiceId?: mongoose.Types.ObjectId;
     invoiceNumber?: string;

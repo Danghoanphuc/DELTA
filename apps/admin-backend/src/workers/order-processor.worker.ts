@@ -167,7 +167,7 @@ async function processOrderJob(job: Job<ProcessOrderJobData>) {
 
       // 6. Send order to supplier via adapter
       try {
-        const adapter = adapterFactory.create(route.supplierName);
+        const adapter = SupplierAdapterFactory.create(route.supplierName);
 
         const supplierOrder = await adapter.createOrder({
           items: route.items.map((item) => ({

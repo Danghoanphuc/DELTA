@@ -1,0 +1,330 @@
+
+> admin-backend@1.0.0 build D:\LAP-TRINH\DELTA\apps\admin-backend
+> tsc --project tsconfig.json --rootDir ./src
+
+src/controllers/admin.print-method.controller.ts(187,29): error TS2554: Expected 2-3 arguments, but got 1.
+src/controllers/admin.print-method.controller.ts(223,29): error TS2554: Expected 2-3 arguments, but got 1.
+src/controllers/admin.production-status.controller.ts(122,9): error TS2322: Type 'string' is not assignable to type 'ObjectId'.
+src/controllers/admin.production.controller.ts(199,29): error TS2554: Expected 2-3 arguments, but got 1.
+src/controllers/admin.production.controller.ts(236,29): error TS2554: Expected 2-3 arguments, but got 1.
+src/controllers/admin.template.controller.ts(31,9): error TS2345: Argument of type 'ObjectId' is not assignable to parameter of type 'string'.
+src/controllers/admin.template.controller.ts(60,9): error TS2345: Argument of type 'ObjectId' is not assignable to parameter of type 'string'.
+src/controllers/admin.template.controller.ts(86,9): error TS2345: Argument of type 'ObjectId' is not assignable to parameter of type 'string'.
+src/controllers/admin.template.controller.ts(106,9): error TS2345: Argument of type 'ObjectId' is not assignable to parameter of type 'string'.
+src/controllers/admin.template.controller.ts(156,9): error TS2345: Argument of type 'ObjectId' is not assignable to parameter of type 'string'.
+src/controllers/admin.template.controller.ts(186,9): error TS2345: Argument of type 'ObjectId' is not assignable to parameter of type 'string'.
+src/controllers/admin.template.controller.ts(210,49): error TS2345: Argument of type 'ObjectId' is not assignable to parameter of type 'string'.
+src/controllers/supplier-routing.controller.ts(49,25): error TS2554: Expected 2-3 arguments, but got 1.
+src/models/catalog.models.ts(963,3): error TS2322: Type 'unknown[]' is not assignable to type 'ObjectId[]'.
+  Type '{}' is missing the following properties from type 'ObjectId': _bsontype, id, toHexString, toJSON, and 4 more.
+src/models/invoice.models.ts(166,5): error TS2322: Type '{ type: StringConstructor; enum: ("paid" | "unpaid" | "refunded" | "partially_paid")[]; default: "unpaid"; index: true; }' is not assignable to type 'SchemaDefinitionProperty<"UNPAID" | "PAID" | "REFUNDED" | "PARTIALLY_PAID", IInvoice, Document<unknown, {}, FlatRecord<IInvoice>, {}, ResolveSchemaOptions<DefaultSchemaOptions>> & FlatRecord<...> & Required<...> & { ...; }>'.
+  Type '{ type: StringConstructor; enum: ("paid" | "unpaid" | "refunded" | "partially_paid")[]; default: "unpaid"; index: true; }' is missing the following properties from type 'typeof SchemaType': prototype, cast, checkRequired, set, and 2 more.
+src/models/invoice.models.ts(202,5): error TS2322: Type '{ type: StringConstructor; enum: ("draft" | "paid" | "cancelled" | "sent" | "overdue")[]; default: "draft"; index: true; }' is not assignable to type 'SchemaDefinitionProperty<"CANCELLED" | "PAID" | "DRAFT" | "SENT" | "OVERDUE", IInvoice, Document<unknown, {}, FlatRecord<IInvoice>, {}, ResolveSchemaOptions<DefaultSchemaOptions>> & FlatRecord<...> & Required<...> & { ...; }>'.
+  Type '{ type: StringConstructor; enum: ("draft" | "paid" | "cancelled" | "sent" | "overdue")[]; default: "draft"; index: true; }' is missing the following properties from type 'typeof SchemaType': prototype, cast, checkRequired, set, and 2 more.
+src/repositories/alert.repository.ts(23,5): error TS2322: Type 'FlattenMaps<IAlert> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IAlert'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/alert.repository.ts(49,5): error TS2322: Type '(FlattenMaps<IAlert> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IAlert[]'.
+  Type 'FlattenMaps<IAlert> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IAlert'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/alert.repository.ts(87,14): error TS2322: Type '(FlattenMaps<IAlert> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IAlert[]'.
+  Type 'FlattenMaps<IAlert> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IAlert'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/alert.repository.ts(94,5): error TS2322: Type '(FlattenMaps<IAlert> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IAlert[]'.
+  Type 'FlattenMaps<IAlert> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IAlert'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/asset.repository.ts(39,7): error TS2322: Type 'FlattenMaps<IAsset> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IAsset'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/asset.repository.ts(54,7): error TS2322: Type 'FlattenMaps<IAsset> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IAsset'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/asset.repository.ts(69,7): error TS2322: Type '(FlattenMaps<IAsset> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IAsset[]'.
+  Type 'FlattenMaps<IAsset> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IAsset'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/asset.repository.ts(116,7): error TS2322: Type 'FlattenMaps<IAsset> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IAsset'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/asset.repository.ts(159,7): error TS2322: Type '(FlattenMaps<IAsset> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IAsset[]'.
+  Type 'FlattenMaps<IAsset> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IAsset'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/asset.repository.ts(179,7): error TS2322: Type 'FlattenMaps<IAsset> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IAsset'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/asset.repository.ts(213,7): error TS2322: Type 'FlattenMaps<IAsset> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IAsset'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/asset.repository.ts(226,7): error TS2322: Type '(FlattenMaps<IAsset> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IAsset[]'.
+  Type 'FlattenMaps<IAsset> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IAsset'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/asset.repository.ts(357,9): error TS2322: Type '(FlattenMaps<IAsset> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IAsset[]'.
+  Type 'FlattenMaps<IAsset> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IAsset'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/debt.repository.ts(104,7): error TS2322: Type 'FlattenMaps<ICustomerCredit> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'ICustomerCredit'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/debt.repository.ts(231,20): error TS2339: Property 'updateCreditLimit' does not exist on type 'Document<unknown, {}, ICustomerCredit, {}, {}> & ICustomerCredit & Required<{ _id: ObjectId; }> & { __v: number; }'.
+src/repositories/debt.repository.ts(286,20): error TS2339: Property 'addDebt' does not exist on type 'Document<unknown, {}, ICustomerCredit, {}, {}> & ICustomerCredit & Required<{ _id: ObjectId; }> & { __v: number; }'.
+src/repositories/debt.repository.ts(320,20): error TS2339: Property 'recordPayment' does not exist on type 'Document<unknown, {}, ICustomerCredit, {}, {}> & ICustomerCredit & Required<{ _id: ObjectId; }> & { __v: number; }'.
+src/repositories/debt.repository.ts(411,31): error TS2339: Property 'getCustomerHistory' does not exist on type 'Model<IDebtLedger, {}, {}, {}, Document<unknown, {}, IDebtLedger, {}, {}> & IDebtLedger & Required<{ _id: ObjectId; }> & { ...; }, any>'.
+src/repositories/debt.repository.ts(430,31): error TS2339: Property 'getOverdueTransactions' does not exist on type 'Model<IDebtLedger, {}, {}, {}, Document<unknown, {}, IDebtLedger, {}, {}> & IDebtLedger & Required<{ _id: ObjectId; }> & { ...; }, any>'.
+src/repositories/debt.repository.ts(445,31): error TS2339: Property 'calculateCustomerDebt' does not exist on type 'Model<IDebtLedger, {}, {}, {}, Document<unknown, {}, IDebtLedger, {}, {}> & IDebtLedger & Required<{ _id: ObjectId; }> & { ...; }, any>'.
+src/repositories/inventory.repository.ts(49,5): error TS2322: Type 'FlattenMaps<IInventoryTransaction> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }' is not assignable to type 'IInventoryTransaction'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/inventory.repository.ts(94,14): error TS2322: Type '(FlattenMaps<IInventoryTransaction> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; })[]' is not assignable to type 'IInventoryTransaction[]'.
+  Type 'FlattenMaps<IInventoryTransaction> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }' is not assignable to type 'IInventoryTransaction'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/inventory.repository.ts(104,5): error TS2322: Type '(FlattenMaps<IInventoryTransaction> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; })[]' is not assignable to type 'IInventoryTransaction[]'.
+  Type 'FlattenMaps<IInventoryTransaction> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }' is not assignable to type 'IInventoryTransaction'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/inventory.repository.ts(150,14): error TS2322: Type '(FlattenMaps<IInventoryTransaction> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; })[]' is not assignable to type 'IInventoryTransaction[]'.
+  Type 'FlattenMaps<IInventoryTransaction> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }' is not assignable to type 'IInventoryTransaction'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/inventory.repository.ts(170,17): error TS2339: Property 'inventory' does not exist on type 'FlattenMaps<ISkuVariant> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(174,25): error TS2339: Property 'inventory' does not exist on type 'FlattenMaps<ISkuVariant> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(175,27): error TS2339: Property 'inventory' does not exist on type 'FlattenMaps<ISkuVariant> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(176,28): error TS2339: Property 'inventory' does not exist on type 'FlattenMaps<ISkuVariant> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(177,28): error TS2339: Property 'inventory' does not exist on type 'FlattenMaps<ISkuVariant> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(178,31): error TS2339: Property 'inventory' does not exist on type 'FlattenMaps<ISkuVariant> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(179,34): error TS2339: Property 'inventory' does not exist on type 'FlattenMaps<ISkuVariant> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(214,18): error TS2339: Property 'inventory' does not exist on type 'Document<unknown, {}, ISkuVariant, {}, {}> & ISkuVariant & Required<{ _id: unknown; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(215,15): error TS2339: Property 'inventory' does not exist on type 'Document<unknown, {}, ISkuVariant, {}, {}> & ISkuVariant & Required<{ _id: unknown; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(227,15): error TS2339: Property 'inventory' does not exist on type 'Document<unknown, {}, ISkuVariant, {}, {}> & ISkuVariant & Required<{ _id: unknown; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(230,15): error TS2339: Property 'inventory' does not exist on type 'Document<unknown, {}, ISkuVariant, {}, {}> & ISkuVariant & Required<{ _id: unknown; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(233,15): error TS2339: Property 'inventory' does not exist on type 'Document<unknown, {}, ISkuVariant, {}, {}> & ISkuVariant & Required<{ _id: unknown; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(237,13): error TS2339: Property 'inventory' does not exist on type 'Document<unknown, {}, ISkuVariant, {}, {}> & ISkuVariant & Required<{ _id: unknown; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(239,15): error TS2339: Property 'inventory' does not exist on type 'Document<unknown, {}, ISkuVariant, {}, {}> & ISkuVariant & Required<{ _id: unknown; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(239,42): error TS2339: Property 'inventory' does not exist on type 'Document<unknown, {}, ISkuVariant, {}, {}> & ISkuVariant & Required<{ _id: unknown; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(243,37): error TS2339: Property 'inventory' does not exist on type 'Document<unknown, {}, ISkuVariant, {}, {}> & ISkuVariant & Required<{ _id: unknown; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(244,40): error TS2339: Property 'inventory' does not exist on type 'Document<unknown, {}, ISkuVariant, {}, {}> & ISkuVariant & Required<{ _id: unknown; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(249,79): error TS2339: Property 'inventory' does not exist on type 'Document<unknown, {}, ISkuVariant, {}, {}> & ISkuVariant & Required<{ _id: unknown; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(249,117): error TS2339: Property 'inventory' does not exist on type 'Document<unknown, {}, ISkuVariant, {}, {}> & ISkuVariant & Required<{ _id: unknown; }> & { __v: number; }'.
+src/repositories/inventory.repository.ts(249,158): error TS2339: Property 'inventory' does not exist on type 'Document<unknown, {}, ISkuVariant, {}, {}> & ISkuVariant & Required<{ _id: unknown; }> & { __v: number; }'.
+src/repositories/job-ticket.repository.ts(26,5): error TS2322: Type 'FlattenMaps<IJobTicket> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IJobTicket'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/job-ticket.repository.ts(36,5): error TS2322: Type '(FlattenMaps<IJobTicket> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IJobTicket[]'.
+  Type 'FlattenMaps<IJobTicket> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IJobTicket'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/job-ticket.repository.ts(46,5): error TS2322: Type 'FlattenMaps<IJobTicket> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IJobTicket'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/job-ticket.repository.ts(56,5): error TS2322: Type 'FlattenMaps<IJobTicket> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IJobTicket'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/job-ticket.repository.ts(69,5): error TS2322: Type 'FlattenMaps<IJobTicket> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IJobTicket'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/job-ticket.repository.ts(91,18): error TS2551: Property 'addProductionLog' does not exist on type 'Document<unknown, {}, IJobTicket, {}, {}> & IJobTicket & Required<{ _id: ObjectId; }> & { __v: number; }'. Did you mean 'productionLogs'?
+src/repositories/job-ticket.repository.ts(109,18): error TS2339: Property 'logError' does not exist on type 'Document<unknown, {}, IJobTicket, {}, {}> & IJobTicket & Required<{ _id: ObjectId; }> & { __v: number; }'.
+src/repositories/job-ticket.repository.ts(117,5): error TS2322: Type 'FlattenMaps<IJobTicket> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IJobTicket'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/job-ticket.repository.ts(131,5): error TS2322: Type '(FlattenMaps<IJobTicket> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IJobTicket[]'.
+  Type 'FlattenMaps<IJobTicket> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IJobTicket'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/pricing.repository.ts(40,7): error TS2322: Type 'FlattenMaps<IPricingFormula> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IPricingFormula'.
+  Types of property 'paperMultipliers' are incompatible.
+    Type 'Record<string, number>' is missing the following properties from type 'Map<string, number>': clear, delete, forEach, get, and 8 more.
+src/repositories/pricing.repository.ts(54,7): error TS2322: Type 'FlattenMaps<IPricingFormula> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IPricingFormula'.
+  Types of property 'paperMultipliers' are incompatible.
+    Type 'Record<string, number>' is missing the following properties from type 'Map<string, number>': clear, delete, forEach, get, and 8 more.
+src/repositories/pricing.repository.ts(66,7): error TS2322: Type '(FlattenMaps<IPricingFormula> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IPricingFormula[]'.
+  Type 'FlattenMaps<IPricingFormula> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IPricingFormula'.
+    Types of property 'paperMultipliers' are incompatible.
+      Type 'Record<string, number>' is missing the following properties from type 'Map<string, number>': clear, delete, forEach, get, and 8 more.
+src/repositories/pricing.repository.ts(106,7): error TS2322: Type 'FlattenMaps<IPricingFormula> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IPricingFormula'.
+  Types of property 'paperMultipliers' are incompatible.
+    Type 'Record<string, number>' is missing the following properties from type 'Map<string, number>': clear, delete, forEach, get, and 8 more.
+src/repositories/pricing.repository.ts(147,7): error TS2322: Type '(FlattenMaps<IPricingFormula> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IPricingFormula[]'.
+  Type 'FlattenMaps<IPricingFormula> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IPricingFormula'.
+    Types of property 'paperMultipliers' are incompatible.
+      Type 'Record<string, number>' is missing the following properties from type 'Map<string, number>': clear, delete, forEach, get, and 8 more.
+src/repositories/pricing.repository.ts(163,7): error TS2322: Type '(FlattenMaps<IPricingFormula> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IPricingFormula[]'.
+  Type 'FlattenMaps<IPricingFormula> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IPricingFormula'.
+    Types of property 'paperMultipliers' are incompatible.
+      Type 'Record<string, number>' is missing the following properties from type 'Map<string, number>': clear, delete, forEach, get, and 8 more.
+src/repositories/pricing.repository.ts(181,7): error TS2322: Type 'FlattenMaps<IPricingFormula> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IPricingFormula'.
+  Types of property 'paperMultipliers' are incompatible.
+    Type 'Record<string, number>' is missing the following properties from type 'Map<string, number>': clear, delete, forEach, get, and 8 more.
+src/repositories/pricing.repository.ts(217,9): error TS2322: Type '(FlattenMaps<IPricingFormula> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IPricingFormula[]'.
+  Type 'FlattenMaps<IPricingFormula> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IPricingFormula'.
+    Types of property 'paperMultipliers' are incompatible.
+      Type 'Record<string, number>' is missing the following properties from type 'Map<string, number>': clear, delete, forEach, get, and 8 more.
+src/repositories/production-order.repository.ts(29,5): error TS2322: Type 'FlattenMaps<IProductionOrder> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }' is not assignable to type 'IProductionOrder'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/production-order.repository.ts(39,5): error TS2322: Type '(FlattenMaps<IProductionOrder> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; })[]' is not assignable to type 'IProductionOrder[]'.
+  Type 'FlattenMaps<IProductionOrder> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }' is not assignable to type 'IProductionOrder'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/production-order.repository.ts(88,14): error TS2322: Type '(FlattenMaps<IProductionOrder> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; })[]' is not assignable to type 'IProductionOrder[]'.
+  Type 'FlattenMaps<IProductionOrder> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }' is not assignable to type 'IProductionOrder'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/production-order.repository.ts(118,14): error TS2322: Type '(FlattenMaps<IProductionOrder> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; })[]' is not assignable to type 'IProductionOrder[]'.
+  Type 'FlattenMaps<IProductionOrder> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }' is not assignable to type 'IProductionOrder'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/production-order.repository.ts(125,5): error TS2322: Type '(FlattenMaps<IProductionOrder> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; })[]' is not assignable to type 'IProductionOrder[]'.
+  Type 'FlattenMaps<IProductionOrder> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }' is not assignable to type 'IProductionOrder'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/production-order.repository.ts(152,21): error TS2551: Property 'addStatusHistory' does not exist on type 'Document<unknown, {}, IProductionOrder, {}, {}> & IProductionOrder & Required<{ _id: unknown; }> & { __v: number; }'. Did you mean 'statusHistory'?
+src/repositories/production-order.repository.ts(172,21): error TS2551: Property 'addQCCheck' does not exist on type 'Document<unknown, {}, IProductionOrder, {}, {}> & IProductionOrder & Required<{ _id: unknown; }> & { __v: number; }'. Did you mean 'qcChecks'?
+src/repositories/production-order.repository.ts(195,21): error TS2339: Property 'calculateCostVariance' does not exist on type 'Document<unknown, {}, IProductionOrder, {}, {}> & IProductionOrder & Required<{ _id: unknown; }> & { __v: number; }'.
+src/repositories/production-status.repository.ts(11,8): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+src/repositories/production-status.repository.ts(136,5): error TS2322: Type 'FlattenMaps<IProductionOrder> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IProductionOrder'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/production-status.repository.ts(145,5): error TS2322: Type '(FlattenMaps<IProductionOrder> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IProductionOrder[]'.
+  Type 'FlattenMaps<IProductionOrder> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IProductionOrder'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/production-status.repository.ts(154,5): error TS2322: Type '(FlattenMaps<IProductionOrder> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IProductionOrder[]'.
+  Type 'FlattenMaps<IProductionOrder> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IProductionOrder'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/proposal.repository.ts(40,7): error TS2322: Type 'FlattenMaps<IProposal> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IProposal'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/proposal.repository.ts(55,7): error TS2322: Type 'FlattenMaps<IProposal> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IProposal'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/proposal.repository.ts(70,7): error TS2322: Type '(FlattenMaps<IProposal> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IProposal[]'.
+  Type 'FlattenMaps<IProposal> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IProposal'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/proposal.repository.ts(120,7): error TS2322: Type 'FlattenMaps<IProposal> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IProposal'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/proposal.repository.ts(163,7): error TS2322: Type '(FlattenMaps<IProposal> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IProposal[]'.
+  Type 'FlattenMaps<IProposal> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IProposal'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/proposal.repository.ts(196,7): error TS2322: Type 'FlattenMaps<IProposal> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IProposal'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/proposal.repository.ts(213,7): error TS2322: Type 'FlattenMaps<IProposal> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IProposal'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/proposal.repository.ts(250,9): error TS2322: Type '(FlattenMaps<IProposal> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IProposal[]'.
+  Type 'FlattenMaps<IProposal> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IProposal'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/reorder.repository.ts(19,5): error TS2322: Type 'FlattenMaps<IProposal> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IProposal'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/reorder.repository.ts(26,5): error TS2322: Type 'FlattenMaps<IProposal> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IProposal'.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/repositories/reorder.repository.ts(33,5): error TS2322: Type '(FlattenMaps<IAsset> & Required<{ _id: ObjectId; }> & { __v: number; })[]' is not assignable to type 'IAsset[]'.
+  Type 'FlattenMaps<IAsset> & Required<{ _id: ObjectId; }> & { __v: number; }' is not assignable to type 'IAsset'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/scripts/cleanup-supplier-mappings.ts(96,47): error TS2339: Property 'stats' does not exist on type 'Collection<Document>'.
+src/services/admin.analytics.service.ts(318,44): error TS2339: Property 'findAllWithOrganization' does not exist on type 'InventoryRepository'.
+src/services/alert.service.ts(81,11): error TS2322: Type '"DEADLINE_CRITICAL"' is not assignable to type '"DEADLINE_WARNING"'.
+src/services/alert.service.ts(82,11): error TS2322: Type '"CRITICAL"' is not assignable to type '"MEDIUM"'.
+src/services/alert.service.ts(168,7): error TS2322: Type 'string' is not assignable to type '"DEADLINE_WARNING" | "DEADLINE_CRITICAL" | "PRODUCTION_ISSUE" | "ESCALATION"'.
+src/services/alert.service.ts(169,7): error TS2322: Type 'string' is not assignable to type 'ObjectId'.
+src/services/alert.service.ts(171,7): error TS2322: Type 'string' is not assignable to type 'ObjectId'.
+src/services/alert.service.ts(173,7): error TS2322: Type 'string' is not assignable to type '"CRITICAL" | "LOW" | "MEDIUM" | "HIGH"'.
+src/services/alert.service.ts(254,7): error TS2322: Type 'string' is not assignable to type 'ObjectId'.
+src/services/alert.service.ts(430,10): error TS2339: Property 'countDocuments' does not exist on type 'Function'.
+src/services/alert.service.ts(436,10): error TS2339: Property 'countDocuments' does not exist on type 'Function'.
+src/services/analytics.service.ts(17,26): error TS2307: Cannot find module '../models/supplier.model.js' or its corresponding type declarations.
+src/services/catalog.variant-generation.service.ts(190,7): error TS2740: Type 'FlattenMaps<unknown>' is missing the following properties from type 'ObjectId': _bsontype, id, toHexString, toJSON, and 4 more.
+src/services/catalog.variant-generation.service.ts(353,9): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'ObjectId'.
+  Type '{}' is missing the following properties from type 'ObjectId': _bsontype, id, toHexString, toJSON, and 4 more.
+src/services/debt.service.ts(390,68): error TS2345: Argument of type '{ limit?: number; skip?: number; startDate?: Date; endDate?: Date; transactionType?: string; }' is not assignable to parameter of type '{ limit?: number; skip?: number; startDate?: Date; endDate?: Date; transactionType?: DebtTransactionType; }'.
+  Types of property 'transactionType' are incompatible.
+    Type 'string' is not assignable to type 'DebtTransactionType'.
+src/services/debt.service.ts(396,14): error TS2352: Conversion of type 'IDebtLedger[]' to type 'DebtTransaction[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'IDebtLedger' is not comparable to type 'DebtTransaction'.
+    Types of property '_id' are incompatible.
+      Type 'ObjectId' is not comparable to type 'string'.
+src/services/document.service.ts(86,53): error TS2345: Argument of type 'ObjectId' is not assignable to parameter of type 'string'.
+src/services/document.service.ts(90,43): error TS2339: Property 'generateInvoiceNumber' does not exist on type 'Model<IInvoice, {}, {}, {}, Document<unknown, {}, IInvoice, {}, {}> & IInvoice & Required<{ _id: unknown; }> & { __v: number; }, any>'.
+src/services/document.service.ts(99,34): error TS2339: Property 'unitPrice' does not exist on type 'FlattenMaps<{ variantId: ObjectId; product: ObjectId; name: string; quantity: number; price: number; cost: number; customization?: { printMethod?: string; setupFee?: number; unitCost?: number; printAreas?: { ...; }[]; }; }>'.
+src/services/document.service.ts(105,34): error TS2339: Property 'productName' does not exist on type 'FlattenMaps<{ variantId: ObjectId; product: ObjectId; name: string; quantity: number; price: number; cost: number; customization?: { printMethod?: string; setupFee?: number; unitCost?: number; printAreas?: { ...; }[]; }; }>'.
+src/services/document.service.ts(225,40): error TS2339: Property 'getRemainingBalance' does not exist on type 'Document<unknown, {}, IInvoice, {}, {}> & IInvoice & Required<{ _id: unknown; }> & { __v: number; }'.
+src/services/document.service.ts(238,15): error TS2551: Property 'addCreditNote' does not exist on type 'Document<unknown, {}, IInvoice, {}, {}> & IInvoice & Required<{ _id: unknown; }> & { __v: number; }'. Did you mean 'creditNotes'?
+src/services/document.service.ts(444,26): error TS2339: Property 'findByOrganization' does not exist on type 'Model<IInvoice, {}, {}, {}, Document<unknown, {}, IInvoice, {}, {}> & IInvoice & Required<{ _id: unknown; }> & { __v: number; }, any>'.
+src/services/document.service.ts(461,13): error TS2339: Property 'markAsPaid' does not exist on type 'Document<unknown, {}, IInvoice, {}, {}> & IInvoice & Required<{ _id: unknown; }> & { __v: number; }'.
+src/services/job-ticket.service.ts(102,38): error TS2339: Property 'generateTicketId' does not exist on type 'Model<IJobTicket, {}, {}, {}, Document<unknown, {}, IJobTicket, {}, {}> & IJobTicket & Required<{ _id: ObjectId; }> & { ...; }, any>'.
+src/services/kitting.service.ts(6,26): error TS2307: Cannot find module '../models/swag-pack.model.js' or its corresponding type declarations.
+src/services/kitting.service.ts(182,58): error TS2339: Property 'images' does not exist on type 'FlattenMaps<ISkuVariant> & Required<{ _id: ObjectId; }> & { __v: number; }'.
+src/services/margin-calculation.service.ts(159,13): error TS2322: Type 'ObjectId' is not assignable to type 'string'.
+src/services/margin-calculation.service.ts(228,11): error TS2322: Type 'ObjectId' is not assignable to type 'string'.
+src/services/margin-calculation.service.ts(229,48): error TS2339: Property 'businessName' does not exist on type 'ObjectId'.
+src/services/reorder.service.ts(144,5): error TS2322: Type '{ productType: string; size: { width: number; height: number; unit: string; }; paperType: string; quantity: number; finishingOptions: string[]; printSides: "double" | "single"; colors: number; }[]' is not assignable to type 'ProductSpecification[]'.
+  Type '{ productType: string; size: { width: number; height: number; unit: string; }; paperType: string; quantity: number; finishingOptions: string[]; printSides: "double" | "single"; colors: number; }' is not assignable to type 'ProductSpecification'.
+    The types of 'size.unit' are incompatible between these types.
+      Type 'string' is not assignable to type '"cm" | "mm" | "inch"'.
+src/services/reorder.service.ts(233,9): error TS2741: Property 'setupFee' is missing in type 'CostBreakdown' but required in type '{ baseCost: number; paperCost: number; printingCost: number; finishingCost: number; setupFee: number; }'.
+src/services/shipping.service.ts(86,7): error TS2353: Object literal may only specify known properties, and 'fromName' does not exist in type 'ShipmentRequest'.
+src/services/sku-translation.service.ts(125,14): error TS2352: Conversion of type '(FlattenMaps<ISupplierVariantMapping> & Required<{ _id: ObjectId; }> & { __v: number; })[]' to type 'ISupplierVariantMapping[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'FlattenMaps<ISupplierVariantMapping> & Required<{ _id: ObjectId; }> & { __v: number; }' is not comparable to type 'ISupplierVariantMapping'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/services/sku-translation.service.ts(208,12): error TS2352: Conversion of type 'FlattenMaps<ISupplierVariantMapping> & Required<{ _id: ObjectId; }> & { __v: number; }' to type 'ISupplierVariantMapping' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  The types of 'collection.conn.db.client' are incompatible between these types.
+    Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/services/supplier-routing.service.ts(69,14): error TS2749: 'SupplierVariantMapping' refers to a value, but is being used as a type here. Did you mean 'typeof SupplierVariantMapping'?
+src/services/supplier-sync.service.ts(3,26): error TS2307: Cannot find module '../models/supplier.model.js' or its corresponding type declarations.
+src/services/supplier-sync.service.ts(133,49): error TS2339: Property 'sku' does not exist on type 'SupplierProduct'.
+src/services/supplier-sync.service.ts(137,36): error TS2339: Property 'cost' does not exist on type 'SupplierProduct'.
+src/services/supplier-sync.service.ts(141,37): error TS2339: Property 'cost' does not exist on type 'SupplierProduct'.
+src/services/supplier-sync.service.ts(143,90): error TS2339: Property 'cost' does not exist on type 'SupplierProduct'.
+src/services/supplier-sync.service.ts(202,32): error TS2339: Property 'sku' does not exist on type 'SupplierProduct'.
+src/services/supplier-sync.service.ts(207,35): error TS2339: Property 'cost' does not exist on type 'SupplierProduct'.
+src/services/supplier-sync.service.ts(208,42): error TS2339: Property 'available' does not exist on type 'SupplierProduct'.
+src/services/supplier-sync.service.ts(209,44): error TS2339: Property 'stockQuantity' does not exist on type 'SupplierProduct'.
+src/services/supplier-sync.service.ts(216,75): error TS2339: Property 'sku' does not exist on type 'SupplierProduct'.
+src/services/supplier.service.ts(108,38): error TS2339: Property 'toObject' does not exist on type '{ totalOrders: number; completedOrders: number; onTimeDeliveries: number; lateDeliveries: number; onTimeDeliveryRate: number; totalQCChecks: number; passedQCChecks: number; failedQCChecks: number; ... 6 more ...; lastUpdated: Date; }'.
+src/services/template.service.ts(82,15): error TS2339: Property 'organization' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property 'organization' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+src/services/template.service.ts(90,15): error TS2339: Property 'packSnapshot' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property 'packSnapshot' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+src/services/template.service.ts(90,37): error TS2339: Property 'packSnapshot' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property 'packSnapshot' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+src/services/template.service.ts(91,32): error TS2339: Property 'packSnapshot' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property 'packSnapshot' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+src/services/template.service.ts(130,29): error TS2339: Property 'packSnapshot' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[] | (FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })'.
+  Property 'packSnapshot' does not exist on type '(FlattenMaps<any> & Required<{ _id: unknown; }> & { __v: number; })[]'.
+src/services/template.service.ts(240,11): error TS2322: Type '{ productId: FlattenMaps<unknown>; productName: string; productSku: string; basePrice: number; categoryId: ObjectId; categoryPath: string; thumbnailUrl: string; reason: string; priceDifference: number; isInStock: boolean; }[]' is not assignable to type 'SubstituteProductInfo[]'.
+  Type '{ productId: mongoose.FlattenMaps<unknown>; productName: string; productSku: string; basePrice: number; categoryId: mongoose.Types.ObjectId; categoryPath: string; thumbnailUrl: string; reason: string; priceDifference: number; isInStock: boolean; }' is not assignable to type 'SubstituteProductInfo'.
+    Types of property 'productId' are incompatible.
+      Type 'FlattenMaps<unknown>' is missing the following properties from type 'ObjectId': _bsontype, id, toHexString, toJSON, and 4 more.
+src/services/template.service.ts(323,5): error TS2322: Type '{ productId: FlattenMaps<unknown>; productName: string; productSku: string; reason: string; }[]' is not assignable to type '{ productId: ObjectId; productName: string; productSku: string; reason?: string; }[]'.
+  Type '{ productId: mongoose.FlattenMaps<unknown>; productName: string; productSku: string; reason: string; }' is not assignable to type '{ productId: ObjectId; productName: string; productSku: string; reason?: string; }'.
+    Types of property 'productId' are incompatible.
+      Type 'FlattenMaps<unknown>' is missing the following properties from type 'ObjectId': _bsontype, id, toHexString, toJSON, and 4 more.
+src/services/template.service.ts(396,5): error TS2322: Type '(FlattenMaps<IProductTemplate> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; })[]' is not assignable to type 'IProductTemplate[]'.
+  Type 'FlattenMaps<IProductTemplate> & Required<{ _id: FlattenMaps<unknown>; }> & { __v: number; }' is not assignable to type 'IProductTemplate'.
+    The types of 'collection.conn.db.client' are incompatible between these types.
+      Type 'FlattenMaps<MongoClient>' is missing the following properties from type 'MongoClient': driverInfoList, _close
+src/workers/order-processor.worker.ts(103,17): error TS2339: Property 'sku' does not exist on type '{ variantId: ObjectId; product: ObjectId; name: string; quantity: number; price: number; cost: number; customization?: { printMethod?: string; setupFee?: number; unitCost?: number; printAreas?: { ...; }[]; }; }'.
+src/workers/order-processor.worker.ts(128,26): error TS2339: Property 'sendUnroutableItemsAlert' does not exist on type 'AlertService'.
+src/workers/order-processor.worker.ts(173,11): error TS2322: Type '{ sku: string; quantity: number; }[]' is not assignable to type '{ supplierSku: string; quantity: number; customization?: { printMethod?: string; printAreas?: { area: string; artworkUrl: string; }[]; personalization?: { text: string; font?: string; color?: string; }; }; }[]'.
+  Property 'supplierSku' is missing in type '{ sku: string; quantity: number; }' but required in type '{ supplierSku: string; quantity: number; customization?: { printMethod?: string; printAreas?: { area: string; artworkUrl: string; }[]; personalization?: { text: string; font?: string; color?: string; }; }; }'.
+src/workers/order-processor.worker.ts(177,11): error TS2739: Type '{ street?: string; city?: string; state?: string; zipCode?: string; country?: string; }' is missing the following properties from type '{ name: string; address1: string; address2?: string; city: string; state?: string; zip: string; country: string; phone?: string; }': name, address1, zip
+src/workers/order-processor.worker.ts(181,25): error TS2551: Property 'supplierOrderId' does not exist on type 'Document<unknown, {}, IProductionOrder, {}, {}> & IProductionOrder & Required<{ _id: ObjectId; }> & { __v: number; }'. Did you mean 'supplierId'?
+src/workers/order-processor.worker.ts(200,5): error TS2322: Type '{ productionOrders: ObjectId[]; status: string; startedAt?: Date; completedAt?: Date; kittingStatus?: string; kittingStartedAt?: Date; kittingCompletedAt?: Date; ... 6 more ...; qcNotes?: string; } | {}' is not assignable to type '{ productionOrders: ObjectId[]; status: string; startedAt?: Date; completedAt?: Date; kittingStatus?: string; kittingStartedAt?: Date; kittingCompletedAt?: Date; ... 6 more ...; qcNotes?: string; }'.
+  Type '{}' is missing the following properties from type '{ productionOrders: ObjectId[]; status: string; startedAt?: Date; completedAt?: Date; kittingStatus?: string; kittingStartedAt?: Date; kittingCompletedAt?: Date; ... 6 more ...; qcNotes?: string; }': productionOrders, status
+src/workers/order-processor.worker.ts(244,16): error TS2339: Property 'sendOrderProcessingFailedAlert' does not exist on type 'AlertService'.
+ ELIFECYCLE  Command failed with exit code 2.
