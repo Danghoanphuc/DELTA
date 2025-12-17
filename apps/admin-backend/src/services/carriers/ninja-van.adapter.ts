@@ -1,7 +1,7 @@
 // src/services/carriers/ninja-van.adapter.ts
 // ✅ Ninja Van Adapter
 
-import { BaseCarrierAdapter } from "./base-carrier.adapter";
+import { BaseCarrierAdapter } from "./base-carrier.adapter.js";
 import {
   ShipmentRequest,
   ShipmentResponse,

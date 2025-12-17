@@ -14,11 +14,11 @@ import {
   organizationRepository,
 } from "../repositories/organization.repository.js";
 
-import { DashboardService } from "./swag-ops/dashboard.service";
-import { OrderService } from "./swag-ops/order.service";
-import { ShipmentService } from "./swag-ops/shipment.service";
-import { InventoryService } from "./swag-ops/inventory.service";
-import { FulfillmentService } from "./swag-ops/fulfillment.service";
+import { DashboardService } from "./swag-ops/dashboard.service.js";
+import { OrderService } from "./swag-ops/order.service.js";
+import { ShipmentService } from "./swag-ops/shipment.service.js";
+import { InventoryService } from "./swag-ops/inventory.service.js";
+import { FulfillmentService } from "./swag-ops/fulfillment.service.js";
 
 import {
   OrderFilters,

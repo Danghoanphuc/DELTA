@@ -1,7 +1,7 @@
 // src/services/carriers/ghtk.adapter.ts
 // ✅ GHTK (Giao Hàng Tiết Kiệm) Adapter
 
-import { BaseCarrierAdapter } from "./base-carrier.adapter";
+import { BaseCarrierAdapter } from "./base-carrier.adapter.js";
 import {
   ShipmentRequest,
   ShipmentResponse,

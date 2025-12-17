@@ -1,7 +1,7 @@
 // src/services/carriers/jt-express.adapter.ts
 // ✅ J&T Express Adapter
 
-import { BaseCarrierAdapter } from "./base-carrier.adapter";
+import { BaseCarrierAdapter } from "./base-carrier.adapter.js";
 import {
   ShipmentRequest,
   ShipmentResponse,

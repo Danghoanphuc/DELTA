@@ -3,7 +3,7 @@
 // Tuân thủ SOLID: OCP, DIP, SRP
 
 import { Logger } from "../shared/utils/logger.js";
-import { CarrierFactory } from "./carriers/carrier.factory";
+import { CarrierFactory } from "./carriers/carrier.factory.js";
 import {
   ShipmentRequest,
   ShipmentResponse,

@@ -1,7 +1,7 @@
 // src/services/carriers/viettel-post.adapter.ts
 // ✅ Viettel Post Adapter
 
-import { BaseCarrierAdapter } from "./base-carrier.adapter";
+import { BaseCarrierAdapter } from "./base-carrier.adapter.js";
 import {
   ShipmentRequest,
   ShipmentResponse,

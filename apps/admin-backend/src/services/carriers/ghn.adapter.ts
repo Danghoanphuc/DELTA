@@ -1,7 +1,7 @@
 // src/services/carriers/ghn.adapter.ts
 // ✅ GHN (Giao Hàng Nhanh) Adapter
 
-import { BaseCarrierAdapter } from "./base-carrier.adapter";
+import { BaseCarrierAdapter } from "./base-carrier.adapter.js";
 import {
   ShipmentRequest,
   ShipmentResponse,
