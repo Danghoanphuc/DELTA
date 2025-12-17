@@ -9,7 +9,7 @@
 import {
   ProductionOrder,
   IProductionOrder,
-} from "../models/production-order.model.ts";
+} from "../models/production-order.model.js";
 import mongoose from "mongoose";
 
 export interface StatusUpdateData {
