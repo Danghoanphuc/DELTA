@@ -25,7 +25,6 @@ import { SocialChatSync } from "@/features/social/components/SocialChatSync";
 // ✅ CORE UI
 import PageLoader from "@/components/PageLoader";
 import NotFoundPage from "./pages/NotFoundPage";
-import CookieConsent from "@/shared/components/CookieConsent";
 
 // --- Public Pages ---
 import SmartLanding from "@/features/landing/SmartLanding";
@@ -429,7 +428,6 @@ function AppContent() {
 
           <ProductQuickViewModal />
           <OrderQuickViewModal />
-          <CookieConsent />
         </SocketProvider>
       </GlobalModalProvider>
     </>

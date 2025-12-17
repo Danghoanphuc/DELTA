@@ -2,8 +2,8 @@
 // Public routes for artisan/supplier profiles
 
 import { Router } from "express";
-import { Supplier } from "../../../../admin-backend/src/models/catalog.models.js";
-import { SupplierPost } from "../../../../admin-backend/src/models/supplier-post.model.js";
+import { Supplier } from "../../models/supplier.model.js";
+import { SupplierPost } from "../../models/supplier-post.model.js";
 // @ts-ignore - JS module
 import { CatalogProduct } from "../catalog/catalog-product.model.js";
 

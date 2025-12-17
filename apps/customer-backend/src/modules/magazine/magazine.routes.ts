@@ -2,7 +2,7 @@
 // Public routes for magazine posts
 
 import { Router } from "express";
-import { SupplierPost } from "../../../../admin-backend/src/models/supplier-post.model.js";
+import { SupplierPost } from "../../models/supplier-post.model.js";
 // Import CatalogProduct from customer-backend's own model (not admin-backend)
 import "../catalog/catalog-product.model.js";
 
