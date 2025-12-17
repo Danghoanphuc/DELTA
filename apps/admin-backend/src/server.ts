@@ -12,6 +12,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import mongoose from "mongoose";
+import cookieParser from "cookie-parser";
 import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
 
@@ -29,7 +30,7 @@ import "./models/delivery-thread.model.js";
 
 // --- Import routes ---
 import healthRoutes from "./routes/health.routes.js";
-import adminAuthRoutes from "./routes/admin.routes.js";
+import adminAuthRoutes from "./routes/admin-auth.routes.js"; // ✅ STANDARDIZED: New auth routes
 import { errorHandler } from "./middleware/error.handler.middleware.js";
 import { generalRateLimiter } from "./middleware/rate-limit.middleware.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
@@ -138,6 +139,12 @@ app.use(
 
 app.use(express.json({ limit: "10mb" })); // ✅ Add limit to prevent payload attacks
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// ✅ STANDARDIZATION: Add cookie parser for refresh token support
+app.use(cookieParser());
+
+// TODO: Import shared Session model when @delta/auth is properly configured
+// import "../../../packages/auth/models/session.model.js";
 // Skip logging for health checks to reduce noise
 app.use(
   morgan(config.env === "production" ? "combined" : "dev", {
@@ -168,7 +175,7 @@ const MONGO_URI = config.db.connectionString;
 app.use("/", healthRoutes);
 
 // --- API Routes ---
-app.use("/api/admin/auth", adminAuthRoutes);
+app.use("/api/admin/auth", adminAuthRoutes); // ✅ STANDARDIZED: Using new auth routes
 app.use("/api/admin/dashboard", dashboardRoutes);
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/printers", adminPrinterRoutes);

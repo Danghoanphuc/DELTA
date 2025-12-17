@@ -5,13 +5,13 @@
 
 import { Logger } from "../shared/utils/logger.js";
 import { carrierService } from "./carrier-integration.service";
-import { SwagOrderRepository } from "../repositories/swag-order.repository";
+import { SwagOrderRepository } from "../repositories/swag-order.repository.js";
 import {
   ValidationException,
   NotFoundException,
   ConflictException,
 } from "../shared/exceptions/index.js";
-import { ShipmentRequest } from "../interfaces/carrier.interface";
+import { ShipmentRequest } from "../interfaces/carrier.interface.js";
 
 /**
  * Shipping Service

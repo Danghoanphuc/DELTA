@@ -25,7 +25,7 @@ import {
   ShipmentUpdate,
   InventoryFilters,
   InventoryUpdateRequest,
-} from "../interfaces/swag-operations.interface";
+} from "../interfaces/swag-operations.interface.js";
 
 /**
  * SwagOperationsFacade - Facade Pattern

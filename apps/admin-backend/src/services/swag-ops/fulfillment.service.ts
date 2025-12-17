@@ -1,12 +1,12 @@
 // src/services/swag-ops/fulfillment.service.ts
 // ✅ Fulfillment Service - Single Responsibility: Fulfillment Queue Management
 
-import { SwagOrderRepository } from "../../repositories/swag-order.repository";
+import { SwagOrderRepository } from "../../repositories/swag-order.repository.js";
 import {
   FulfillmentQueue,
   ORDER_STATUS,
   SHIPMENT_STATUS,
-} from "../../interfaces/swag-operations.interface";
+} from "../../interfaces/swag-operations.interface.js";
 
 export class FulfillmentService {
   constructor(private readonly orderRepo: SwagOrderRepository) {}

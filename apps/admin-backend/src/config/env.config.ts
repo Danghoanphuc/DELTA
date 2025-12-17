@@ -8,7 +8,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 if (process.env.NODE_ENV !== "production") {
-  console.log("🔧 [Admin Backend] Đang chạy ở môi trường DEV, tải file .env...");
+  console.log(
+    "🔧 [Admin Backend] Đang chạy ở môi trường DEV, tải file .env..."
+  );
   dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 } else {
   console.log(
@@ -54,9 +56,11 @@ const normalizeAdminCorsOrigins = (): string[] => {
 
   // Add default dev origins only in development
   if (process.env.NODE_ENV !== "production") {
-    ["http://localhost:3000", "http://localhost:5173", "http://localhost:5174"].forEach(
-      (url) => origins.add(url)
-    );
+    [
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "http://localhost:5174",
+    ].forEach((url) => origins.add(url));
   }
 
   return Array.from(origins);
@@ -75,7 +79,11 @@ export const config = {
   // Auth
   auth: {
     jwtSecret: process.env.ADMIN_JWT_SECRET!,
-    jwtExpiresIn: process.env.ADMIN_JWT_EXPIRES_IN || "8h",
+    refreshTokenSecret:
+      process.env.ADMIN_REFRESH_TOKEN_SECRET ||
+      process.env.ADMIN_JWT_SECRET! + "_refresh", // ✅ STANDARDIZED: Separate refresh token secret
+    jwtExpiresIn: process.env.ADMIN_JWT_EXPIRES_IN || "15m", // ✅ ADMIN SECURITY: Shorter TTL
+    accessTokenSecret: process.env.ADMIN_JWT_SECRET!, // ✅ STANDARDIZED: Alias for consistency
   },
 
   // CORS
@@ -103,4 +111,3 @@ if (config.env === "development") {
   console.log(`   - Port: ${config.port}`);
   console.log(`   - CORS Origins: ${config.cors.origins.join(", ")}`);
 }
-

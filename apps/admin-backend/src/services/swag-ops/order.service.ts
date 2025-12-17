@@ -3,11 +3,11 @@
 
 import mongoose from "mongoose";
 import { Logger } from "../../shared/utils/logger.js";
-import { SwagOrderRepository } from "../../repositories/swag-order.repository";
+import { SwagOrderRepository } from "../../repositories/swag-order.repository.js";
 import {
   OrderFilters,
   ORDER_STATUS,
-} from "../../interfaces/swag-operations.interface";
+} from "../../interfaces/swag-operations.interface.js";
 
 export class OrderService {
   constructor(private readonly orderRepo: SwagOrderRepository) {}

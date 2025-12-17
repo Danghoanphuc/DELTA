@@ -2,8 +2,8 @@
 // ✅ Shipping Routes - API endpoints cho shipping operations
 
 import { Router } from "express";
-import { shippingController } from "../controllers/admin.shipping.controller";
-import { authenticate } from "../middleware/admin.auth.middleware";
+import { shippingController } from "../controllers/admin.shipping.controller.js";
+import { authenticate } from "../middleware/admin.auth.middleware.js";
 
 const router = Router();
 

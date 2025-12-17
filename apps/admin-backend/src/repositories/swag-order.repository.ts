@@ -6,8 +6,8 @@ import { Logger } from "../shared/utils/logger.js";
 import {
   IOrderRepository,
   PaginatedResult,
-} from "../interfaces/repository.interface";
-import { SwagOrder, ISwagOrder } from "../models/swag-order.model";
+} from "../interfaces/repository.interface.js";
+import { SwagOrder, ISwagOrder } from "../models/swag-order.model.js";
 
 export class SwagOrderRepository implements IOrderRepository<ISwagOrder> {
   private getModel() {

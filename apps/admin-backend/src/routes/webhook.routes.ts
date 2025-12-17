@@ -2,7 +2,7 @@
 // ✅ Webhook Routes - Public endpoints cho carrier webhooks
 
 import { Router } from "express";
-import { shippingController } from "../controllers/admin.shipping.controller";
+import { shippingController } from "../controllers/admin.shipping.controller.js";
 
 const router = Router();
 

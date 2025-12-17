@@ -25,6 +25,7 @@ export interface IAdmin extends Document {
   passwordResetToken?: string | null;
   passwordResetExpires?: Date | null;
   lastPasswordChangedAt?: Date | null;
+  lastLoginAt?: Date;
 
   // Methods
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -77,6 +78,9 @@ const adminSchema = new Schema<IAdmin>(
       select: false,
     },
     lastPasswordChangedAt: {
+      type: Date,
+    },
+    lastLoginAt: {
       type: Date,
     },
   },

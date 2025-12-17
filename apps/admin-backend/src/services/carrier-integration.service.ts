@@ -10,7 +10,7 @@ import {
   TrackingResponse,
   CarrierInfo,
   FeeCalculation,
-} from "../interfaces/carrier.interface";
+} from "../interfaces/carrier.interface.js";
 
 /**
  * CarrierIntegrationService - Facade cho carrier operations

@@ -3,7 +3,7 @@
 // HTTP handlers cho kitting operations
 
 import { Request, Response, NextFunction } from "express";
-import { KittingService } from "../services/kitting.service";
+import { KittingService } from "../services/kitting.service.js";
 import { Logger } from "../shared/utils/logger.js";
 import { API_CODES } from "../shared/constants";
 

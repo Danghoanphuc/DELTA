@@ -3,12 +3,12 @@
 
 import mongoose from "mongoose";
 import { Logger } from "../../shared/utils/logger.js";
-import { InventoryRepository } from "../../repositories/inventory.repository";
+import { InventoryRepository } from "../../repositories/inventory.repository.js";
 import {
   InventoryFilters,
   InventoryOverview,
   InventoryUpdateRequest,
-} from "../../interfaces/swag-operations.interface";
+} from "../../interfaces/swag-operations.interface.js";
 
 export class InventoryService {
   constructor(private readonly inventoryRepo: InventoryRepository) {}

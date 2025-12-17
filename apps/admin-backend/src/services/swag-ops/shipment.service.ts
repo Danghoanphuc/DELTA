@@ -2,14 +2,14 @@
 // ✅ Shipment Service - Single Responsibility: Shipment Management
 
 import { Logger } from "../../shared/utils/logger.js";
-import { SwagOrderRepository } from "../../repositories/swag-order.repository";
+import { SwagOrderRepository } from "../../repositories/swag-order.repository.js";
 import { CarrierFactory } from "../carriers/carrier.factory";
 import {
   ShipmentUpdate,
   ORDER_STATUS,
   SHIPMENT_STATUS,
-} from "../../interfaces/swag-operations.interface";
-import { CarrierInfo } from "../../interfaces/carrier.interface";
+} from "../../interfaces/swag-operations.interface.js";
+import { CarrierInfo } from "../../interfaces/carrier.interface.js";
 
 export class ShipmentService {
   constructor(private readonly orderRepo: SwagOrderRepository) {}

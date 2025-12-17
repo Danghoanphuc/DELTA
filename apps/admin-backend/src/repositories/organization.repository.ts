@@ -3,7 +3,7 @@
 
 import mongoose, { FilterQuery } from "mongoose";
 import { Logger } from "../shared/utils/logger.js";
-import { IRepository } from "../interfaces/repository.interface";
+import { IRepository } from "../interfaces/repository.interface.js";
 
 export class OrganizationRepository implements IRepository<any> {
   private getModel() {

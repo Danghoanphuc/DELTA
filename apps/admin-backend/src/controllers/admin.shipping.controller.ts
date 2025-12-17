@@ -3,7 +3,7 @@
 // Tuân thủ SOLID: SRP (chỉ handle HTTP)
 
 import { Request, Response, NextFunction } from "express";
-import { shippingService } from "../services/shipping.service";
+import { shippingService } from "../services/shipping.service.js";
 import { Logger } from "../shared/utils/logger.js";
 import { API_CODES, ApiResponse } from "../shared/utils/api-response";
 

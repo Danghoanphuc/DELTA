@@ -2,12 +2,12 @@
 // ✅ Dashboard Service - Single Responsibility: Dashboard Stats
 
 import { Logger } from "../../shared/utils/logger.js";
-import { SwagOrderRepository } from "../../repositories/swag-order.repository";
-import { OrganizationRepository } from "../../repositories/organization.repository";
+import { SwagOrderRepository } from "../../repositories/swag-order.repository.js";
+import { OrganizationRepository } from "../../repositories/organization.repository.js";
 import {
   DashboardStats,
   ORDER_STATUS,
-} from "../../interfaces/swag-operations.interface";
+} from "../../interfaces/swag-operations.interface.js";
 
 export class DashboardService {
   constructor(

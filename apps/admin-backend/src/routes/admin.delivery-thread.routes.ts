@@ -4,8 +4,8 @@
  */
 
 import { Router } from "express";
-import { AdminDeliveryThreadController } from "../controllers/admin.delivery-thread.controller";
-import { isAuthenticatedAdmin } from "../middleware/admin.auth.middleware";
+import { AdminDeliveryThreadController } from "../controllers/admin.delivery-thread.controller.js";
+import { isAuthenticatedAdmin } from "../middleware/admin.auth.middleware.js";
 
 const router = Router();
 const controller = new AdminDeliveryThreadController();

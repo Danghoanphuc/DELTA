@@ -3,7 +3,7 @@
 // HTTP handlers cho document operations
 
 import { Request, Response, NextFunction } from "express";
-import { DocumentService } from "../services/document.service";
+import { DocumentService } from "../services/document.service.js";
 import { Logger } from "../shared/utils/logger.js";
 import { API_CODES } from "../shared/constants";
 
