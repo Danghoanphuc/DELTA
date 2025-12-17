@@ -1,22 +1,18 @@
 // apps/admin-frontend/src/components/suppliers/SupplierOverviewDashboard.tsx
-// Dashboard tổng quan cho supplier với metrics SEO, social, analytics
+// Simplified dashboard tổng quan cho supplier - tập trung vào metrics quan trọng
 
 import { useState, useEffect } from "react";
 import {
   Eye,
-  Share2,
-  Heart,
-  MessageCircle,
-  TrendingUp,
-  Globe,
-  Search,
-  Users,
-  Calendar,
-  ExternalLink,
-  RefreshCw,
-  BarChart3,
+  ShoppingCart,
+  DollarSign,
   Star,
-  Award,
+  FileText,
+  Package,
+  TrendingUp,
+  Users,
+  RefreshCw,
+  ExternalLink,
 } from "lucide-react";
 import { Supplier } from "@/services/catalog.service";
 
@@ -25,40 +21,19 @@ interface SupplierOverviewDashboardProps {
 }
 
 interface AnalyticsData {
-  // SEO Metrics
-  seo: {
-    searchRanking: number;
-    organicTraffic: number;
-    backlinks: number;
-    keywordRanking: number;
-  };
+  // Core Metrics - Chỉ số quan trọng nhất
+  totalViews: number;
+  totalOrders: number;
+  revenue: number;
+  customerSatisfaction: number;
 
-  // Social Metrics
-  social: {
-    totalShares: number;
-    facebookShares: number;
-    linkedinShares: number;
-    instagramFollowers: number;
-    engagement: number;
-  };
+  // Content Stats
+  totalPosts: number;
+  totalProducts: number;
 
-  // Content Performance
-  content: {
-    totalViews: number;
-    uniqueVisitors: number;
-    avgTimeOnPage: number;
-    bounceRate: number;
-    totalPosts: number;
-    totalProducts: number;
-  };
-
-  // Business Metrics
-  business: {
-    totalOrders: number;
-    revenue: number;
-    customerSatisfaction: number;
-    repeatCustomers: number;
-  };
+  // Performance
+  avgOrderValue: number;
+  repeatCustomerRate: number;
 }
 
 export function SupplierOverviewDashboard({
@@ -78,35 +53,42 @@ export function SupplierOverviewDashboard({
       // TODO: Replace with real API call
       // const data = await supplierApi.getAnalytics(supplier._id);
 
-      // Mock data for now
+      // Simplified realistic mock data
+      const baseMultiplier = supplier.isPreferred ? 1.5 : 1;
+      const ratingMultiplier = (supplier.rating || 3) / 5;
+      const typeMultiplier =
+        supplier.type === "artisan"
+          ? 1.2
+          : supplier.type === "manufacturer"
+          ? 1.8
+          : 1;
+
+      const multiplier = baseMultiplier * ratingMultiplier * typeMultiplier;
+
+      // Generate consistent data based on supplier ID
+      const seed = supplier._id
+        .slice(-4)
+        .split("")
+        .reduce((a, b) => a + b.charCodeAt(0), 0);
+      const seededRandom = (min: number, max: number) => {
+        const x = Math.sin(seed) * 10000;
+        return Math.floor((x - Math.floor(x)) * (max - min + 1)) + min;
+      };
+
+      const totalOrders = Math.floor((25 + seededRandom(10, 30)) * multiplier);
+      const revenue = Math.floor(
+        (300000 + seededRandom(100000, 500000)) * multiplier
+      );
+
       const mockData: AnalyticsData = {
-        seo: {
-          searchRanking: Math.floor(Math.random() * 10) + 1,
-          organicTraffic: Math.floor(Math.random() * 5000) + 1000,
-          backlinks: Math.floor(Math.random() * 50) + 10,
-          keywordRanking: Math.floor(Math.random() * 20) + 5,
-        },
-        social: {
-          totalShares: Math.floor(Math.random() * 500) + 100,
-          facebookShares: Math.floor(Math.random() * 200) + 50,
-          linkedinShares: Math.floor(Math.random() * 100) + 20,
-          instagramFollowers: Math.floor(Math.random() * 2000) + 500,
-          engagement: Math.floor(Math.random() * 10) + 2,
-        },
-        content: {
-          totalViews: Math.floor(Math.random() * 10000) + 2000,
-          uniqueVisitors: Math.floor(Math.random() * 3000) + 800,
-          avgTimeOnPage: Math.floor(Math.random() * 300) + 120,
-          bounceRate: Math.floor(Math.random() * 30) + 20,
-          totalPosts: Math.floor(Math.random() * 20) + 5,
-          totalProducts: Math.floor(Math.random() * 50) + 10,
-        },
-        business: {
-          totalOrders: Math.floor(Math.random() * 100) + 20,
-          revenue: Math.floor(Math.random() * 1000000) + 200000,
-          customerSatisfaction: Math.floor(Math.random() * 20) + 80,
-          repeatCustomers: Math.floor(Math.random() * 30) + 40,
-        },
+        totalViews: Math.floor((3000 + seededRandom(1000, 3000)) * multiplier),
+        totalOrders,
+        revenue,
+        customerSatisfaction: Math.min(100, 75 + (supplier.rating || 3) * 5),
+        totalPosts: Math.floor((8 + seededRandom(2, 8)) * multiplier),
+        totalProducts: Math.floor((15 + seededRandom(5, 15)) * multiplier),
+        avgOrderValue: Math.floor(revenue / Math.max(1, totalOrders)),
+        repeatCustomerRate: Math.floor(45 + (supplier.rating || 3) * 8),
       };
 
       setAnalytics(mockData);
@@ -131,12 +113,6 @@ export function SupplierOverviewDashboard({
     }).format(amount);
   };
 
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -148,7 +124,7 @@ export function SupplierOverviewDashboard({
   if (!analytics) {
     return (
       <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-        <BarChart3 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+        <TrendingUp className="w-16 h-16 mx-auto mb-4 text-gray-300" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">
           Không thể tải dữ liệu analytics
         </h3>
@@ -194,287 +170,166 @@ export function SupplierOverviewDashboard({
         </div>
       </div>
 
-      {/* Key Performance Indicators */}
+      {/* Key Metrics - 4 chỉ số chính */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Total Views */}
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-blue-500 rounded-lg">
+            <div className="p-3 bg-blue-500 rounded-lg">
               <Eye className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xs text-blue-600 font-medium">
-              +12% tuần này
+            <span className="text-xs text-blue-600 font-medium bg-blue-200 px-2 py-1 rounded-full">
+              Tháng này
             </span>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-1">
-            {formatNumber(analytics.content.totalViews)}
+          <h3 className="text-3xl font-bold text-gray-900 mb-1">
+            {formatNumber(analytics.totalViews)}
           </h3>
-          <p className="text-sm text-gray-600">Lượt xem tổng</p>
+          <p className="text-sm text-gray-600">Lượt xem profile</p>
         </div>
 
-        {/* Social Shares */}
+        {/* Total Orders */}
         <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-green-500 rounded-lg">
-              <Share2 className="w-6 h-6 text-white" />
+            <div className="p-3 bg-green-500 rounded-lg">
+              <ShoppingCart className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xs text-green-600 font-medium">
-              +8% tuần này
+            <span className="text-xs text-green-600 font-medium bg-green-200 px-2 py-1 rounded-full">
+              Tổng cộng
             </span>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-1">
-            {formatNumber(analytics.social.totalShares)}
+          <h3 className="text-3xl font-bold text-gray-900 mb-1">
+            {analytics.totalOrders}
           </h3>
-          <p className="text-sm text-gray-600">Lượt chia sẻ</p>
+          <p className="text-sm text-gray-600">Đơn hàng</p>
         </div>
 
-        {/* SEO Ranking */}
+        {/* Revenue */}
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-purple-500 rounded-lg">
-              <Search className="w-6 h-6 text-white" />
+            <div className="p-3 bg-purple-500 rounded-lg">
+              <DollarSign className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xs text-purple-600 font-medium">
-              #{analytics.seo.searchRanking}
+            <span className="text-xs text-purple-600 font-medium bg-purple-200 px-2 py-1 rounded-full">
+              Doanh thu
             </span>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-1">
-            {formatNumber(analytics.seo.organicTraffic)}
+          <h3 className="text-3xl font-bold text-gray-900 mb-1">
+            {formatNumber(analytics.revenue)}
           </h3>
-          <p className="text-sm text-gray-600">Organic Traffic</p>
+          <p className="text-sm text-gray-600">VND</p>
         </div>
 
         {/* Customer Satisfaction */}
         <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-orange-500 rounded-lg">
+            <div className="p-3 bg-orange-500 rounded-lg">
               <Star className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xs text-orange-600 font-medium">
-              Xuất sắc
+            <span className="text-xs text-orange-600 font-medium bg-orange-200 px-2 py-1 rounded-full">
+              Đánh giá
             </span>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-1">
-            {analytics.business.customerSatisfaction}%
+          <h3 className="text-3xl font-bold text-gray-900 mb-1">
+            {analytics.customerSatisfaction}%
           </h3>
-          <p className="text-sm text-gray-600">Hài lòng khách hàng</p>
+          <p className="text-sm text-gray-600">Hài lòng</p>
         </div>
       </div>
 
-      {/* Detailed Analytics Grid */}
+      {/* Secondary Metrics - 2 hàng thông tin bổ sung */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* SEO Performance */}
+        {/* Content Stats */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Search className="w-5 h-5 text-blue-600" />
+            <div className="p-2 bg-gray-100 rounded-lg">
+              <FileText className="w-5 h-5 text-gray-600" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              SEO Performance
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900">Nội dung</h3>
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Search Ranking</span>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold">
-                  #{analytics.seo.searchRanking}
-                </span>
-                <TrendingUp className="w-4 h-4 text-green-500" />
+              <div className="flex items-center gap-3">
+                <FileText className="w-4 h-4 text-gray-400" />
+                <span className="text-gray-600">Bài viết</span>
               </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Organic Traffic</span>
-              <span className="text-lg font-semibold">
-                {formatNumber(analytics.seo.organicTraffic)}
+              <span className="text-xl font-semibold text-gray-900">
+                {analytics.totalPosts}
               </span>
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Backlinks</span>
-              <span className="text-lg font-semibold">
-                {analytics.seo.backlinks}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Keywords Ranking</span>
-              <span className="text-lg font-semibold">
-                {analytics.seo.keywordRanking}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Social Media Performance */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Users className="w-5 h-5 text-green-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Social Media
-            </h3>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Instagram Followers</span>
-              <span className="text-lg font-semibold">
-                {formatNumber(analytics.social.instagramFollowers)}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Facebook Shares</span>
-              <span className="text-lg font-semibold">
-                {analytics.social.facebookShares}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">LinkedIn Shares</span>
-              <span className="text-lg font-semibold">
-                {analytics.social.linkedinShares}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Engagement Rate</span>
-              <span className="text-lg font-semibold">
-                {analytics.social.engagement}%
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Content Performance */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Globe className="w-5 h-5 text-purple-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Content Performance
-            </h3>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Unique Visitors</span>
-              <span className="text-lg font-semibold">
-                {formatNumber(analytics.content.uniqueVisitors)}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Avg. Time on Page</span>
-              <span className="text-lg font-semibold">
-                {formatTime(analytics.content.avgTimeOnPage)}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Bounce Rate</span>
-              <span className="text-lg font-semibold">
-                {analytics.content.bounceRate}%
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Total Posts</span>
-              <span className="text-lg font-semibold">
-                {analytics.content.totalPosts}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Business Metrics */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <Award className="w-5 h-5 text-orange-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Business Metrics
-            </h3>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Total Orders</span>
-              <span className="text-lg font-semibold">
-                {analytics.business.totalOrders}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Revenue</span>
-              <span className="text-lg font-semibold">
-                {formatCurrency(analytics.business.revenue)}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Repeat Customers</span>
-              <span className="text-lg font-semibold">
-                {analytics.business.repeatCustomers}%
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Rating</span>
-              <div className="flex items-center gap-1">
-                <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                <span className="text-lg font-semibold">
-                  {supplier.rating || 0}
-                </span>
+              <div className="flex items-center gap-3">
+                <Package className="w-4 h-4 text-gray-400" />
+                <span className="text-gray-600">Sản phẩm</span>
               </div>
+              <span className="text-xl font-semibold text-gray-900">
+                {analytics.totalProducts}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Performance Stats */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-gray-100 rounded-lg">
+              <TrendingUp className="w-5 h-5 text-gray-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Hiệu suất</h3>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <DollarSign className="w-4 h-4 text-gray-400" />
+                <span className="text-gray-600">Giá trị đơn TB</span>
+              </div>
+              <span className="text-xl font-semibold text-gray-900">
+                {formatCurrency(analytics.avgOrderValue)}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Users className="w-4 h-4 text-gray-400" />
+                <span className="text-gray-600">Khách hàng quay lại</span>
+              </div>
+              <span className="text-xl font-semibold text-gray-900">
+                {analytics.repeatCustomerRate}%
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Quick Actions
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="flex items-center gap-2 p-3 text-left hover:bg-gray-50 rounded-lg border border-gray-200">
-            <MessageCircle className="w-5 h-5 text-blue-500" />
-            <div>
-              <p className="font-medium text-gray-900">Tạo bài viết</p>
-              <p className="text-xs text-gray-500">Đăng content mới</p>
-            </div>
-          </button>
-
-          <button className="flex items-center gap-2 p-3 text-left hover:bg-gray-50 rounded-lg border border-gray-200">
-            <BarChart3 className="w-5 h-5 text-green-500" />
-            <div>
-              <p className="font-medium text-gray-900">Xem báo cáo</p>
-              <p className="text-xs text-gray-500">Chi tiết analytics</p>
-            </div>
-          </button>
-
-          <button className="flex items-center gap-2 p-3 text-left hover:bg-gray-50 rounded-lg border border-gray-200">
-            <Share2 className="w-5 h-5 text-purple-500" />
-            <div>
-              <p className="font-medium text-gray-900">Chia sẻ profile</p>
-              <p className="text-xs text-gray-500">Social media</p>
-            </div>
-          </button>
-
-          <button className="flex items-center gap-2 p-3 text-left hover:bg-gray-50 rounded-lg border border-gray-200">
-            <Calendar className="w-5 h-5 text-orange-500" />
-            <div>
-              <p className="font-medium text-gray-900">Lên lịch post</p>
-              <p className="text-xs text-gray-500">Content calendar</p>
-            </div>
-          </button>
+      {/* Quick Summary */}
+      <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-orange-500 rounded-lg">
+            <TrendingUp className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Tóm tắt hiệu suất
+            </h3>
+            <p className="text-gray-700 leading-relaxed">
+              <strong>{supplier.name}</strong> đã có{" "}
+              <strong>{analytics.totalOrders} đơn hàng</strong> với doanh thu{" "}
+              <strong>{formatCurrency(analytics.revenue)}</strong>. Tỷ lệ hài
+              lòng khách hàng đạt{" "}
+              <strong>{analytics.customerSatisfaction}%</strong> và có{" "}
+              <strong>{analytics.repeatCustomerRate}%</strong> khách hàng quay
+              lại.
+              {supplier.isPreferred && (
+                <span className="inline-flex items-center gap-1 ml-2 px-2 py-1 bg-orange-200 text-orange-800 rounded-full text-xs font-medium">
+                  <Star className="w-3 h-3" />
+                  Đối tác ưu tiên
+                </span>
+              )}
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -597,6 +597,11 @@ async function startServer() {
     apiRouter.use("/rush", rushRoutes);
     // ✅ LOCATION: Geocoding routes (public)
     apiRouter.use("/location", locationRoutes);
+    // ✅ TEST: Deployment verification endpoint
+    const testDeploymentRoutes = (
+      await import("./routes/test-deployment.routes.js")
+    ).default;
+    apiRouter.use("/test-deployment", testDeploymentRoutes);
     // ✅ MAGAZINE: Public magazine posts (public)
     apiRouter.use("/magazine", magazineRoutes);
     // ✅ ARTISAN: Public artisan/supplier profiles (public)
