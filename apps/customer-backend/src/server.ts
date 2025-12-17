@@ -206,7 +206,7 @@ async function startServer() {
       connectionRoutes,
       printerRoutes,
       locationRoutes;
-    let productRoutes, assetRoutes, mediaAssetRoutes, designRoutes;
+    let productRoutes, assetRoutes, mediaAssetRoutes;
     let cartRoutes, orderRoutes, studioRoutes, pdfRenderRoutes;
     let chatRoutes,
       uploadRoutes,
@@ -225,6 +225,7 @@ async function startServer() {
     let deliveryCheckinRoutes;
     let threadRoutes, messageRoutes, templateRoutes;
     let contactRequestRoutes;
+    let magazineRoutes;
 
     try {
       // Import all routes silently (no individual logs)
@@ -246,8 +247,6 @@ async function startServer() {
       mediaAssetRoutes = (
         await import("./modules/media-assets/media-asset.routes.js")
       ).default;
-      designRoutes = (await import("./modules/designs/design.routes.js"))
-        .default;
       cartRoutes = (await import("./modules/cart/cart.routes.js")).default;
       orderRoutes = (await import("./modules/orders/order.routes.js")).default;
       studioRoutes = (await import("./modules/printer-studio/studio.routes.js"))
@@ -278,6 +277,10 @@ async function startServer() {
         await import("./modules/printer-studio/printer-dashboard.routes.js")
       ).default;
       locationRoutes = (await import("./modules/location/location.routes.js"))
+        .default;
+      magazineRoutes = (await import("./modules/magazine/magazine.routes.js"))
+        .default;
+      var artisanRoutes = (await import("./modules/artisan/artisan.routes.js"))
         .default;
       organizationRoutes = (
         await import("./modules/organizations/organization.routes.js")
@@ -517,13 +520,19 @@ async function startServer() {
     apiRouter.use("/auth", authRoutes, oauthRoutes, shipperAuthRoutes);
     // ✅ CONTACT REQUESTS: Mount FIRST to ensure public access (no auth middleware)
     apiRouter.use("/contact-requests", contactRequestRoutes);
+    // ✅ BLOG: Mount FIRST to ensure public access (no auth middleware)
+    const blogRoutes = (await import("./modules/blog/blog.routes.js")).default;
+    apiRouter.use("/blog", blogRoutes);
+    // ✅ SITEMAP: Public sitemap for SEO
+    const sitemapRoutes = (await import("./modules/blog/sitemap.routes.js"))
+      .default;
+    app.use("/", sitemapRoutes); // Mount directly on app, not apiRouter
     apiRouter.use("/users", protect, userRoutes);
     apiRouter.use("/connections", protect, connectionRoutes); // ✅ SOCIAL: Connection routes
     apiRouter.use("/printers", printerRoutes);
     apiRouter.use("/products", productRoutes);
     apiRouter.use("/assets", protect, assetRoutes);
     apiRouter.use("/media-assets", protect, mediaAssetRoutes);
-    apiRouter.use("/designs", protect, designRoutes);
     apiRouter.use("/cart", protect, cartRoutes);
     apiRouter.use("/orders", protect, orderRoutes);
     apiRouter.use("/studio", protect, isPrinter, studioRoutes);
@@ -589,6 +598,10 @@ async function startServer() {
     apiRouter.use("/rush", rushRoutes);
     // ✅ LOCATION: Geocoding routes (public)
     apiRouter.use("/location", locationRoutes);
+    // ✅ MAGAZINE: Public magazine posts (public)
+    apiRouter.use("/magazine", magazineRoutes);
+    // ✅ ARTISAN: Public artisan/supplier profiles (public)
+    apiRouter.use("/artisans", artisanRoutes);
     // ✅ ORGANIZATION: B2B Organization routes
     apiRouter.use("/organizations", organizationRoutes);
     // ✅ ORGANIZATION MEMBERS: Team membership management

@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.app.json && vite build",
+    "postbuild": "node scripts/generate-sitemap.js",
     "preview": "vite preview",
     "test": "jest --passWithNoTests",
     "test:run": "jest --passWithNoTests --runInBand",
+    "generate-sitemap": "node scripts/generate-sitemap.js",
     "clear-cache": "rimraf node_modules/.vite dist && echo Cache cleared! Please restart dev server."
   },
   "dependencies": {

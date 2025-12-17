@@ -33,20 +33,9 @@ if (typeof window !== "undefined") {
     return originalFetch.apply(this, args);
   };
 
-  // ✅ Also suppress console errors from Mapbox
-  const originalError = console.error;
-  console.error = function (...args) {
-    const message = args[0]?.toString() || "";
-    // Suppress Mapbox telemetry errors
-    if (
-      message.includes("mapbox.com") ||
-      message.includes("events.mapbox") ||
-      message.includes("map-sessions")
-    ) {
-      return;
-    }
-    return originalError.apply(this, args);
-  };
+  // Note: We don't override console.error because it can cause issues
+  // with React DevTools and complex error objects. The fetch blocking above
+  // is sufficient to prevent Mapbox telemetry CORS errors.
 }
 
 export const GOONG_CONFIG = {

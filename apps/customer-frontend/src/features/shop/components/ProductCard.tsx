@@ -27,10 +27,11 @@ export function ProductCard({ product, onOpenQuickShop }: ProductCardProps) {
   const primaryImage =
     product.images?.find((img) => img.isPrimary)?.url ||
     product.images?.[0]?.url;
-  const lowestPrice = product.pricing.reduce(
-    (min, p) => Math.min(min, p.pricePerUnit),
-    Infinity
-  );
+  const lowestPrice =
+    product.pricing?.reduce(
+      (min, p) => Math.min(min, p.pricePerUnit),
+      Infinity
+    ) || 0;
   const formatPrice = (price: number) => {
     if (!Number.isFinite(price) || price === 0) {
       return "Liên hệ";
@@ -59,7 +60,11 @@ export function ProductCard({ product, onOpenQuickShop }: ProductCardProps) {
         message="Đăng nhập để lưu sản phẩm yêu thích"
       />
 
-      <Card className="group relative overflow-hidden rounded-lg shadow-sm hover:shadow-xl transition-all duration-300 break-inside-avoid mb-3 hover-lift micro-bounce" role="article" aria-label={`Sản phẩm ${product.name}`}>
+      <Card
+        className="group relative overflow-hidden rounded-lg shadow-sm hover:shadow-xl transition-all duration-300 break-inside-avoid mb-3 hover-lift micro-bounce"
+        role="article"
+        aria-label={`Sản phẩm ${product.name}`}
+      >
         {/* (Ảnh sản phẩm, Badges, Nút Yêu thích giữ nguyên) */}
         <Link to={`/products/${product._id}`} className="block overflow-hidden">
           <ImageWithFallback

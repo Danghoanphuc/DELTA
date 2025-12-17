@@ -1,41 +1,5 @@
 import { useState } from "react";
 import { Header, Footer } from "./components";
-import {
-  ChevronDown,
-  ChevronUp,
-  Phone,
-  Mail,
-  MessageCircle,
-  Clock,
-  Shield,
-  FileText,
-  CreditCard,
-} from "lucide-react";
-
-const SummaryBox = ({ children }: { children: React.ReactNode }) => (
-  <div className="my-6 p-6 bg-gradient-to-br from-emerald-50 to-stone-50 border-2 border-emerald-200/50 rounded-3xl shadow-lg">
-    <div className="flex items-start gap-3">
-      <div className="flex-shrink-0 mt-1">
-        <svg
-          className="w-5 h-5 text-emerald-600"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-      </div>
-      <p className="text-stone-700 font-medium leading-relaxed italic">
-        {children}
-      </p>
-    </div>
-  </div>
-);
 
 interface FAQItemProps {
   question: string;
@@ -45,23 +9,21 @@ interface FAQItemProps {
 }
 
 const FAQItem = ({ question, answer, isOpen, onToggle }: FAQItemProps) => (
-  <div className="border-2 border-stone-200/50 rounded-3xl overflow-hidden bg-white shadow-lg hover:shadow-xl transition-all duration-300">
+  <div className="border-2 border-stone-900 overflow-hidden bg-white hover:bg-stone-50 transition-colors">
     <button
       onClick={onToggle}
-      className="w-full px-6 py-5 text-left flex items-center justify-between hover:bg-stone-50 transition-colors"
+      className="w-full px-6 py-5 text-left flex items-center justify-between"
     >
-      <h3 className="font-serif text-lg text-stone-900 italic pr-4">
+      <h3 className="font-bold text-lg text-stone-900 pr-4 uppercase tracking-wide">
         {question}
       </h3>
-      {isOpen ? (
-        <ChevronUp className="w-5 h-5 text-stone-500 flex-shrink-0" />
-      ) : (
-        <ChevronDown className="w-5 h-5 text-stone-500 flex-shrink-0" />
-      )}
+      <span className="text-stone-900 flex-shrink-0 font-bold text-xl">
+        {isOpen ? "−" : "+"}
+      </span>
     </button>
     {isOpen && (
-      <div className="px-6 pb-6">
-        <div className="prose prose-stone max-w-none font-light">{answer}</div>
+      <div className="px-6 pb-6 border-t-2 border-stone-900">
+        <div className="prose prose-stone max-w-none pt-4">{answer}</div>
       </div>
     )}
   </div>
@@ -78,79 +40,180 @@ export default function FAQPage() {
 
   const faqSections = [
     {
-      title: "Về Đặt hàng & Báo giá",
-      icon: FileText,
-      color: "emerald",
+      title: "Về Sản phẩm & Chất liệu",
       items: [
         {
-          question: "Tôi muốn nhận báo giá thì mất bao lâu?",
+          question:
+            "Tại sao màu men của cái chén này không giống hệt cái trong ảnh?",
           answer: (
             <div>
-              <p className="mb-4">Tại Printz, tốc độ là ưu tiên hàng đầu.</p>
-              <ul className="space-y-2 mb-4">
-                <li>
-                  <strong>Với sản phẩm tiêu chuẩn</strong> (Namecard, Tờ rơi, Ly
-                  sứ...): Bạn nhận báo giá trong vòng{" "}
-                  <span className="text-emerald-600 font-semibold">
-                    15 - 30 phút
-                  </span>{" "}
-                  (Giờ hành chính).
-                </li>
-                <li>
-                  <strong>Với đơn hàng quà tặng phức tạp/thiết kế riêng</strong>
-                  : Báo giá chi tiết được gửi trong vòng{" "}
-                  <span className="text-emerald-600 font-semibold">24 giờ</span>
-                  .
-                </li>
+              <p className="mb-4 text-stone-800 leading-relaxed">
+                Thưa quý khách, đó là sự kỳ diệu của{" "}
+                <strong>Gốm men Hỏa biến</strong>. Ở nhiệt độ{" "}
+                <strong>1.300 độ C</strong>, ngọn lửa "vẽ" lên men một cách ngẫu
+                nhiên.
+              </p>
+              <p className="text-stone-700 leading-relaxed">
+                Không ai, kể cả nghệ nhân giỏi nhất, có thể tạo ra 2 chiếc chén
+                giống hệt nhau. Quý khách đang sở hữu một{" "}
+                <strong>tác phẩm độc nhất vô nhị</strong>.
+              </p>
+            </div>
+          ),
+        },
+        {
+          question: "Trầm hương bên bạn là tự nhiên hay nhân tạo?",
+          answer: (
+            <div>
+              <p className="mb-4 text-stone-800 leading-relaxed">
+                Printz cam kết chỉ sử dụng <strong>Trầm Kiến tự nhiên</strong>{" "}
+                hoặc <strong>Trầm Vi sinh</strong> (cấy tạo trên cây Dó Bầu
+                thật), tuyệt đối không dùng Trầm tẩm hóa chất ép dầu.
+              </p>
+              <p className="text-stone-700 leading-relaxed">
+                Mùi hương khi đốt lên sẽ dịu nhẹ, ngọt sâu, không gây khét hay
+                đau đầu.
+              </p>
+            </div>
+          ),
+        },
+        {
+          question: "Sản phẩm có được bảo hành không?",
+          answer: (
+            <div>
+              <p className="mb-4 text-stone-800 leading-relaxed">
+                Chúng tôi cam kết <strong>Bảo hành trọn đời</strong> về chất
+                lượng nguyên liệu:
+              </p>
+              <ul className="space-y-2 text-stone-700">
+                <li>• Gỗ không mối mọt, không cong vênh</li>
+                <li>• Men gốm không phai màu, không bong tróc</li>
+                <li>• Sơn mài không bị bạc màu theo thời gian</li>
               </ul>
             </div>
           ),
         },
+      ],
+    },
+    {
+      title: "Về Đặt hàng & Sản xuất",
+      items: [
         {
-          question: "Printz có nhận in số lượng ít (1-2 cái) không?",
+          question:
+            "Tôi muốn đặt số lượng ít (5-10 bộ) để tặng Sếp có được không?",
           answer: (
             <div>
-              <p className="mb-4">
-                Printz là đơn vị chuyên cung cấp giải pháp cho Doanh nghiệp
-                (B2B), tuy nhiên chúng tôi vẫn hỗ trợ in số lượng ít cho một số
-                dòng sản phẩm (như in Ly, Áo thun, Namecard...) để làm mẫu hoặc
-                phục vụ nhu cầu cá nhân.
+              <p className="mb-4 text-stone-800 leading-relaxed">
+                <strong>Hoàn toàn được.</strong> Chúng tôi có các Bộ sưu tập có
+                sẵn (Ready-to-ship) dành cho nhu cầu tặng lẻ cao cấp.
               </p>
-              <div className="bg-amber-50 p-4 rounded-3xl border-2 border-amber-200/50 shadow-lg">
-                <p className="text-amber-800 font-medium">
-                  <strong>Lưu ý:</strong> Đơn hàng số lượng ít sẽ có đơn giá cao
-                  hơn so với in công nghiệp số lượng lớn.
+              <div className="bg-stone-50 p-4 border-2 border-stone-900">
+                <p className="text-stone-900 font-bold mb-2 uppercase tracking-wide">
+                  Lưu ý:
+                </p>
+                <p className="text-stone-700">
+                  Dịch vụ "Thiết kế bao bì riêng" chỉ áp dụng cho đơn hàng từ{" "}
+                  <strong>50 bộ trở lên</strong>.
                 </p>
               </div>
             </div>
           ),
         },
         {
-          question:
-            "Tôi có được xem mẫu thực tế trước khi đặt hàng loạt không?",
+          question: "Thời gian sản xuất mất bao lâu?",
           answer: (
             <div>
-              <p className="mb-4">Chắc chắn rồi!</p>
-              <div className="space-y-4">
-                <div className="bg-blue-50 p-4 rounded-3xl border-2 border-blue-200/50 shadow-lg">
-                  <h4 className="font-semibold text-blue-800 mb-2">
-                    ✅ Duyệt mẫu Online (Miễn phí)
-                  </h4>
-                  <p className="text-blue-700">
-                    Printz gửi file Mockup 2D/3D để bạn hình dung.
+              <div className="space-y-3">
+                <div className="bg-stone-50 p-4 border-2 border-stone-900">
+                  <p className="text-stone-800">
+                    <strong>Set quà tiêu chuẩn:</strong>{" "}
+                    <span className="font-bold">3-5 ngày</span>
                   </p>
                 </div>
-                <div className="bg-purple-50 p-4 rounded-3xl border-2 border-purple-200/50 shadow-lg">
-                  <h4 className="font-semibold text-purple-800 mb-2">
-                    ✅ In mẫu thử (Proofing)
-                  </h4>
-                  <p className="text-purple-700">
-                    Với đơn hàng lớn (&gt;5 triệu), chúng tôi khuyến khích in
-                    mẫu thật để duyệt màu sắc và chất liệu. Phí in mẫu sẽ được{" "}
-                    <strong>hoàn lại 100%</strong> khi bạn chốt đơn hàng sản
-                    xuất.
+                <div className="bg-white p-4 border-2 border-stone-900">
+                  <p className="text-stone-800">
+                    <strong>Đơn hàng "Bespoke"</strong> (Chế tác riêng, vẽ vàng,
+                    khắc tên): <span className="font-bold">10-15 ngày</span>
                   </p>
                 </div>
+              </div>
+              <p className="mt-4 text-stone-700 leading-relaxed">
+                Xin quý khách lưu ý đặt sớm để nghệ nhân có thời gian trau
+                chuốt.
+              </p>
+            </div>
+          ),
+        },
+        {
+          question: "Có nhận đặt hàng theo thiết kế riêng không?",
+          answer: (
+            <div>
+              <p className="mb-4 text-stone-800 leading-relaxed">
+                <strong>Có.</strong> Đây chính là thế mạnh của chúng tôi. Mỗi
+                doanh nghiệp có một câu chuyện riêng, và chúng tôi giúp quý
+                khách kể câu chuyện đó qua món quà.
+              </p>
+              <p className="text-stone-700 leading-relaxed">
+                Vui lòng liên hệ Nhà Giám tuyển để được tư vấn chi tiết về quy
+                trình "May đo" (Bespoke).
+              </p>
+            </div>
+          ),
+        },
+      ],
+    },
+    {
+      title: "Về Vận chuyển & Hậu mãi",
+      items: [
+        {
+          question: "Gửi đi tỉnh xa có sợ vỡ không?",
+          answer: (
+            <div>
+              <p className="mb-4 text-stone-800 leading-relaxed">
+                Chúng tôi sử dụng quy cách đóng gói{" "}
+                <strong>"3 lớp bảo vệ"</strong>:
+              </p>
+              <ul className="space-y-2 text-stone-700 mb-4">
+                <li>• Giấy rơm chèn chặt</li>
+                <li>• Hộp cứng định hình</li>
+                <li>• Thùng carton 5 lớp chống sốc</li>
+              </ul>
+              <p className="text-stone-800 leading-relaxed">
+                Tỷ lệ vỡ khi vận chuyển của chúng tôi hiện tại là dưới{" "}
+                <strong>0.5%</strong>. Nếu vỡ, chúng tôi đền bù ngay lập tức.
+              </p>
+            </div>
+          ),
+        },
+        {
+          question: "Có xuất hóa đơn đỏ không?",
+          answer: (
+            <div>
+              <p className="text-stone-800 leading-relaxed">
+                <strong>Có.</strong> 100% đơn hàng đều được xuất{" "}
+                <strong>hóa đơn VAT điện tử</strong> hợp lệ, đầy đủ chứng từ
+                nguồn gốc xuất xứ.
+              </p>
+            </div>
+          ),
+        },
+        {
+          question: "Nếu sản phẩm bị lỗi thì xử lý thế nào?",
+          answer: (
+            <div>
+              <p className="mb-4 text-stone-800 leading-relaxed">
+                Chúng tôi cam kết chính sách <strong>Đổi 1-1 trong 24h</strong>{" "}
+                nếu sản phẩm bị lỗi kỹ thuật từ phía sản xuất.
+              </p>
+              <div className="bg-stone-50 p-4 border-2 border-stone-900">
+                <p className="text-stone-900 font-bold mb-2 uppercase tracking-wide">
+                  Quy trình:
+                </p>
+                <ol className="space-y-2 text-stone-700">
+                  <li>1. Quay video lúc mở hàng</li>
+                  <li>2. Gửi video và ảnh lỗi qua Zalo/Email</li>
+                  <li>3. Chúng tôi xác nhận và gửi hàng thay thế ngay</li>
+                </ol>
               </div>
             </div>
           ),
@@ -158,44 +221,23 @@ export default function FAQPage() {
       ],
     },
     {
-      title: "Về Thanh toán & Hóa đơn",
-      icon: CreditCard,
-      color: "blue",
+      title: "Về Thanh toán & Chính sách",
       items: [
         {
-          question: "Printz có xuất hóa đơn VAT (Hóa đơn đỏ) không?",
+          question: "Quy định thanh toán như thế nào?",
           answer: (
             <div>
-              <p className="mb-4">
-                <strong>Có.</strong> Là doanh nghiệp tuân thủ pháp luật,{" "}
-                <span className="text-blue-600 font-semibold">
-                  100% đơn hàng
-                </span>{" "}
-                tại Printz đều có thể xuất hóa đơn GTGT điện tử (e-Invoice) hợp
-                lệ để doanh nghiệp của bạn khấu trừ thuế.
-              </p>
-            </div>
-          ),
-        },
-        {
-          question: "Quy định đặt cọc và thanh toán như thế nào?",
-          answer: (
-            <div>
-              <p className="mb-4">
-                Vì đặc thù ngành in là "Sản xuất theo yêu cầu" (hàng in ra không
-                thể bán lại cho người khác), Printz áp dụng quy định:
-              </p>
               <div className="space-y-3">
-                <div className="bg-green-50 p-4 rounded-3xl border-2 border-green-200/50 shadow-lg">
-                  <p className="text-green-800">
+                <div className="bg-stone-50 p-4 border-2 border-stone-900">
+                  <p className="text-stone-800">
                     <strong>Đơn dưới 5 triệu:</strong> Thanh toán 100% trước khi
-                    sản xuất.
+                    sản xuất
                   </p>
                 </div>
-                <div className="bg-blue-50 p-4 rounded-3xl border-2 border-blue-200/50 shadow-lg">
-                  <p className="text-blue-800">
-                    <strong>Đơn trên 5 triệu:</strong> Đặt cọc 50% khi chốt đơn,
-                    thanh toán 50% còn lại ngay sau khi nhận hàng và nghiệm thu.
+                <div className="bg-white p-4 border-2 border-stone-900">
+                  <p className="text-stone-800">
+                    <strong>Đơn trên 5 triệu:</strong> Đặt cọc 70% khi chốt đơn,
+                    thanh toán 30% còn lại khi nhận hàng
                   </p>
                 </div>
               </div>
@@ -203,160 +245,33 @@ export default function FAQPage() {
           ),
         },
         {
-          question: "Công ty tôi muốn công nợ (trả sau) được không?",
+          question: "Có chính sách công nợ (trả sau) không?",
           answer: (
             <div>
-              <p className="mb-4">
+              <p className="text-stone-800 leading-relaxed">
                 Chính sách công nợ 30 ngày chỉ áp dụng cho{" "}
                 <strong>Khách hàng Doanh nghiệp thân thiết</strong>, có ký Hợp
                 đồng Nguyên tắc và đã trải qua quá trình thẩm định tín dụng của
-                bộ phận Tài chính Printz.
-              </p>
-            </div>
-          ),
-        },
-      ],
-    },
-    {
-      title: "Về File thiết kế & Kỹ thuật",
-      icon: FileText,
-      color: "purple",
-      items: [
-        {
-          question:
-            "Tôi chưa có file thiết kế, Printz có hỗ trợ thiết kế không?",
-          answer: (
-            <div>
-              <p className="mb-4">
-                <strong>Có.</strong>
-              </p>
-              <div className="space-y-3">
-                <div className="bg-green-50 p-4 rounded-3xl border-2 border-green-200/50 shadow-lg">
-                  <h4 className="font-semibold text-green-800 mb-2">
-                    ✅ Miễn phí
-                  </h4>
-                  <p className="text-green-700">
-                    Nếu bạn chỉ cần chỉnh sửa cơ bản (thêm logo, sửa chữ) trên
-                    file có sẵn.
-                  </p>
-                </div>
-                <div className="bg-orange-50 p-4 rounded-3xl border-2 border-orange-200/50 shadow-lg">
-                  <h4 className="font-semibold text-orange-800 mb-2">
-                    💰 Tính phí
-                  </h4>
-                  <p className="text-orange-700">
-                    Nếu bạn cần thiết kế sáng tạo mới hoàn toàn (Logo, Branding,
-                    Key Visual). Chi phí sẽ được báo trước trong Hợp đồng.
-                  </p>
-                </div>
-              </div>
-            </div>
-          ),
-        },
-        {
-          question:
-            "Tại sao màu in ra nhìn không giống trên màn hình điện thoại của tôi?",
-          answer: (
-            <div>
-              <p className="mb-4">
-                Đây là vấn đề kỹ thuật vật lý. Màn hình điện thoại hiển thị hệ
-                màu <strong>RGB</strong> (phát sáng, rực rỡ), còn máy in dùng
-                mực <strong>CMYK</strong> (hấp thụ ánh sáng, trầm hơn).
-              </p>
-              <div className="bg-amber-50 p-4 rounded-3xl border-2 border-amber-200/50 shadow-lg">
-                <p className="text-amber-800">
-                  Theo tiêu chuẩn ngành in, độ lệch màu cho phép là{" "}
-                  <strong>10-15%</strong>. Để đảm bảo màu sắc chuẩn nhất, vui
-                  lòng cung cấp mã màu Pantone nếu có.
-                </p>
-              </div>
-            </div>
-          ),
-        },
-        {
-          question: "Nếu tôi gửi file sai chính tả thì sao?",
-          answer: (
-            <div>
-              <p className="mb-4">
-                Printz có quy trình <strong>"Duyệt Maquette"</strong> (Mẫu in).
-                Chúng tôi chỉ tiến hành in khi bạn đã xác nhận{" "}
-                <strong>"OK IN"</strong> qua Zalo/Email.
-              </p>
-              <div className="bg-red-50 p-4 rounded-3xl border-2 border-red-200/50 shadow-lg">
-                <p className="text-red-800 font-medium">
-                  <strong>Lưu ý:</strong> Printz không chịu trách nhiệm với các
-                  lỗi nội dung/chính tả sau khi bạn đã xác nhận duyệt file. Hãy
-                  kiểm tra thật kỹ nhé!
-                </p>
-              </div>
-            </div>
-          ),
-        },
-      ],
-    },
-    {
-      title: "Về Giao hàng & Bảo hành",
-      icon: Shield,
-      color: "green",
-      items: [
-        {
-          question: "Nếu hàng giao tới bị vỡ hoặc hỏng hóc thì xử lý thế nào?",
-          answer: (
-            <div>
-              <p className="mb-4">
-                Printz cam kết chính sách <strong>Bảo hành 1-1</strong>.
-              </p>
-              <p className="mb-4">
-                Nếu hàng bị vỡ do vận chuyển hoặc lỗi in ấn từ phía chúng tôi,
-                bạn chỉ cần quay video lúc mở hàng và gửi lại trong vòng{" "}
-                <strong>3 ngày</strong>. Printz sẽ{" "}
-                <span className="text-green-600 font-semibold">
-                  IN LẠI CẤP TỐC
-                </span>{" "}
-                và giao bù miễn phí, bạn không tốn thêm bất kỳ chi phí nào.
+                bộ phận Tài chính.
               </p>
             </div>
           ),
         },
         {
-          question: "Thời gian giao hàng mất bao lâu?",
+          question: "Có chính sách ưu đãi cho đơn hàng lớn không?",
           answer: (
             <div>
-              <p className="mb-4">Tùy thuộc vào sản phẩm:</p>
-              <div className="space-y-3">
-                <div className="bg-green-50 p-4 rounded-3xl border-2 border-green-200/50 shadow-lg">
-                  <p className="text-green-800">
-                    <strong>In nhanh KTS</strong> (Namecard, Tờ rơi):{" "}
-                    <span className="font-semibold">1-2 ngày</span>
-                  </p>
-                </div>
-                <div className="bg-blue-50 p-4 rounded-3xl border-2 border-blue-200/50 shadow-lg">
-                  <p className="text-blue-800">
-                    <strong>Quà tặng gia công</strong> (Sổ tay, Hộp cứng):{" "}
-                    <span className="font-semibold">5-7 ngày</span>
-                  </p>
-                </div>
-                <div className="bg-red-50 p-4 rounded-3xl border-2 border-red-200/50 shadow-lg">
-                  <p className="text-red-800">
-                    <strong>Đơn hàng gấp (Hỏa tốc):</strong> Vui lòng liên hệ
-                    Hotline 0865 726 848 để được ưu tiên xử lý trong{" "}
-                    <span className="font-semibold">24h</span>.
-                  </p>
-                </div>
-              </div>
-            </div>
-          ),
-        },
-        {
-          question:
-            "Tôi ở tỉnh xa (ngoài Bình Dương/TP.HCM) có đặt hàng được không?",
-          answer: (
-            <div>
-              <p className="mb-4">
-                <strong>Được.</strong> Printz hợp tác với Viettel Post, GHTK và
-                các chành xe uy tín để giao hàng toàn quốc. Hàng hóa được đóng
-                gói 3 lớp chống sốc an toàn.
+              <p className="mb-4 text-stone-800 leading-relaxed">
+                <strong>Có.</strong> Chúng tôi có chính sách giá ưu đãi theo
+                khối lượng:
               </p>
+              <ul className="space-y-2 text-stone-700">
+                <li>• Đơn hàng từ 100 bộ: Giảm 5%</li>
+                <li>• Đơn hàng từ 300 bộ: Giảm 10%</li>
+                <li>
+                  • Đơn hàng từ 500 bộ: Giảm 15% + Tư vấn thiết kế miễn phí
+                </li>
+              </ul>
             </div>
           ),
         },
@@ -368,34 +283,29 @@ export default function FAQPage() {
     <div className="min-h-screen bg-[#F9F8F6]">
       <Header />
 
-      <section className="pt-40 pb-20 px-4">
+      <section className="pt-40 pb-20 px-4 border-b-4 border-stone-900">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="font-serif text-5xl md:text-6xl text-stone-900 mb-6 italic">
-            Câu hỏi thường gặp.
+          <h1 className="font-serif text-5xl md:text-6xl text-stone-900 mb-6 font-bold leading-tight">
+            GIẢI ĐÁP TỪ
+            <br />
+            NHÀ GIÁM TUYỂN
           </h1>
-          <p className="text-stone-600 text-lg mb-4">
-            Giải đáp nhanh các thắc mắc về Dịch vụ & Quy trình tại Printz
-            Solutions
+          <p className="text-stone-600 text-lg uppercase tracking-wider mb-4">
+            Curator's FAQ
           </p>
-          <p className="text-stone-400 text-sm">
-            Cập nhật lần cuối: 20/12/2025
+          <p className="text-stone-700 max-w-2xl mx-auto leading-relaxed">
+            Những câu hỏi thường gặp về sản phẩm, quy trình và chính sách tại
+            Printz
           </p>
         </div>
       </section>
 
       <section className="max-w-4xl mx-auto px-4 pb-24">
-        <div className="space-y-12">
+        <div className="space-y-12 mt-16">
           {faqSections.map((section, sectionIndex) => (
             <div key={sectionIndex} className="space-y-6">
-              <div className="flex items-center gap-3 mb-8">
-                <div
-                  className={`w-12 h-12 rounded-3xl bg-${section.color}-100 border-2 border-${section.color}-200/50 flex items-center justify-center shadow-lg`}
-                >
-                  <section.icon
-                    className={`w-6 h-6 text-${section.color}-600`}
-                  />
-                </div>
-                <h2 className="font-serif text-3xl text-stone-900 italic">
+              <div className="mb-8 border-b-2 border-stone-900 pb-4">
+                <h2 className="font-serif text-3xl text-stone-900 font-bold uppercase tracking-wider">
                   {sectionIndex + 1}. {section.title}
                 </h2>
               </div>
@@ -419,56 +329,55 @@ export default function FAQPage() {
         </div>
 
         {/* Contact Section */}
-        <div className="mt-16 bg-gradient-to-br from-emerald-50 to-stone-50 p-8 rounded-3xl border-2 border-emerald-200/50 shadow-lg">
+        <div className="mt-16 bg-stone-50 p-8 border-4 border-stone-900">
           <div className="text-center mb-6">
-            <h3 className="font-serif text-2xl text-stone-900 italic mb-4">
+            <h3 className="font-serif text-2xl text-stone-900 mb-4 font-bold uppercase tracking-wider">
               Vẫn chưa tìm thấy câu trả lời?
             </h3>
-            <p className="text-stone-600">
+            <p className="text-stone-700 leading-relaxed">
               Đừng ngần ngại, hãy liên hệ trực tiếp với chúng tôi. Đội ngũ
               Printz luôn sẵn sàng lắng nghe!
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-3xl border-2 border-stone-200/50 shadow-lg text-center hover:shadow-xl transition-all duration-300">
-              <Phone className="w-8 h-8 text-emerald-600 mx-auto mb-3" />
-              <h4 className="font-semibold text-stone-900 mb-2">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-white p-6 border-2 border-stone-900 text-center hover:bg-stone-50 transition-colors">
+              <div className="text-4xl mb-3">📞</div>
+              <h4 className="font-bold text-stone-900 mb-2 uppercase tracking-wide">
                 Hotline/Zalo
               </h4>
               <a
                 href="tel:0865726848"
-                className="text-emerald-600 font-medium hover:text-emerald-800 transition-colors"
+                className="text-stone-900 font-bold hover:text-stone-700 transition-colors"
               >
                 0865 726 848
               </a>
             </div>
 
-            <div className="bg-white p-6 rounded-3xl border-2 border-stone-200/50 shadow-lg text-center hover:shadow-xl transition-all duration-300">
-              <Mail className="w-8 h-8 text-blue-600 mx-auto mb-3" />
-              <h4 className="font-semibold text-stone-900 mb-2">Email</h4>
+            <div className="bg-white p-6 border-2 border-stone-900 text-center hover:bg-stone-50 transition-colors">
+              <div className="text-4xl mb-3">✉️</div>
+              <h4 className="font-bold text-stone-900 mb-2 uppercase tracking-wide">
+                Email
+              </h4>
               <a
-                href="mailto:b2b@printz.vn"
-                className="text-blue-600 font-medium hover:text-blue-800 transition-colors"
+                href="mailto:curator@printz.vn"
+                className="text-stone-900 font-bold hover:text-stone-700 transition-colors"
               >
-                b2b@printz.vn
+                hello@printz.vn
               </a>
-            </div>
-
-            <div className="bg-white p-6 rounded-3xl border-2 border-stone-200/50 shadow-lg text-center hover:shadow-xl transition-all duration-300">
-              <MessageCircle className="w-8 h-8 text-purple-600 mx-auto mb-3" />
-              <h4 className="font-semibold text-stone-900 mb-2">Live Chat</h4>
-              <p className="text-purple-600 font-medium">
-                Bấm nút Chat góc phải màn hình
-              </p>
             </div>
           </div>
         </div>
 
-        <SummaryBox>
-          Nếu bạn cần hỗ trợ khẩn cấp ngoài giờ hành chính, vui lòng gửi tin
-          nhắn Zalo hoặc Email. Chúng tôi sẽ phản hồi trong vòng 2-4 giờ.
-        </SummaryBox>
+        <div className="mt-8 bg-white p-6 border-2 border-stone-900">
+          <p className="text-stone-900 font-bold leading-relaxed uppercase tracking-wide mb-2">
+            ✓ Lưu ý:
+          </p>
+          <p className="text-stone-700 leading-relaxed">
+            Nếu bạn cần hỗ trợ khẩn cấp ngoài giờ hành chính, vui lòng gửi tin
+            nhắn Zalo hoặc Email. Chúng tôi sẽ phản hồi trong vòng 30 phút.
+          </p>
+        </div>
       </section>
 
       <Footer />

@@ -85,6 +85,94 @@ const CatalogProductSchema = new mongoose.Schema(
     // Tags
     tags: [{ type: String, trim: true }],
 
+    // === STORYTELLING FIELDS (B2B Luxury) ===
+
+    // Hero Section
+    tagline: { type: String, trim: true },
+    heroMedia: {
+      type: { type: String, enum: ["image", "video"] },
+      url: String,
+      thumbnail: String,
+    },
+
+    // Introduction & Specs
+    craftingTime: {
+      value: Number,
+      unit: { type: String, enum: ["hours", "days"] },
+    },
+    technique: { type: String, trim: true },
+    productionLimit: {
+      value: Number,
+      text: String,
+    },
+    certification: { type: String, trim: true },
+
+    // Storytelling Content
+    story: {
+      materials: {
+        title: String,
+        content: String,
+        image: String,
+      },
+      process: {
+        title: String,
+        content: String,
+        image: String,
+      },
+    },
+
+    // Feng Shui & Application
+    fengShui: {
+      suitableElements: [
+        {
+          type: String,
+          enum: ["Thổ", "Kim", "Thủy", "Mộc", "Hỏa"],
+        },
+      ],
+      placement: String,
+      meaning: String,
+      message: String,
+      lifestyleImage: String,
+    },
+
+    // Customization & Packaging
+    customization: {
+      allowLogoCustomization: { type: Boolean, default: false },
+      logoMethods: [String],
+      packagingImages: [String],
+      packagingDescription: String,
+    },
+
+    // Artisan Information
+    artisan: {
+      name: String,
+      title: String,
+      photo: String,
+      bio: String,
+    },
+
+    // Social Proof
+    clientLogos: [String],
+
+    // Documents & Downloads
+    documents: {
+      portfolio: {
+        url: String,
+        publicId: String,
+        filename: String,
+      },
+      catalogue: {
+        url: String,
+        publicId: String,
+        filename: String,
+      },
+      certificate: {
+        url: String,
+        publicId: String,
+        filename: String,
+      },
+    },
+
     // Supplier (if POD)
     supplierId: {
       type: mongoose.Schema.Types.ObjectId,

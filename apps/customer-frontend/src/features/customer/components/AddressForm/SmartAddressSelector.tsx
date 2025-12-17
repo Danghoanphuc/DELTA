@@ -140,7 +140,7 @@ export const SmartAddressSelector = ({
             {/* (Giữ nguyên phần Empty State Animation từ lần trước) */}
             <div className="flex flex-col items-center gap-4">
               <div className="relative">
-                <div className="absolute inset-0 rounded-full bg-blue-200 opacity-20 animate-ping duration-[2s]" />
+                <div className="absolute inset-0 rounded-full bg-blue-200 opacity-20 animate-ping" />
                 <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm border border-gray-100 group-hover:scale-110 transition-transform duration-300">
                   <Plus className="h-8 w-8 text-blue-600" />
                 </div>

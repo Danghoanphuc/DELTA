@@ -1,13 +1,9 @@
-// apps/customer-frontend/src/features/chat/components/MobileHomeHeader.tsx
-
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Input } from "@/shared/components/ui/input";
-import { Search, Bell, ShoppingCart, MessageCircle, X } from "lucide-react";
-import { useUnreadCount } from "@/features/notifications/hooks/useNotifications";
+import { Search, ShoppingBag, MessageSquare, X } from "lucide-react"; // Đổi icon
 import { useSocialChatStore } from "@/features/social/hooks/useSocialChatStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-// ✅ IMPORT HOOK TRÍ TUỆ
 import { useInputIntelligence } from "@/features/chat/hooks/useInputIntelligence";
 import { cn } from "@/shared/lib/utils";
 
@@ -20,17 +16,12 @@ export const MobileHomeHeader = ({ onSearch }: MobileHomeHeaderProps) => {
   const [isFocused, setIsFocused] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  // ✅ Hook thông minh
   const { analyzeInput, suggestions, suggestionType } = useInputIntelligence();
-
-  const isAuthenticated = useAuthStore((state) => !!state.accessToken);
-  const { unreadCount } = useUnreadCount(isAuthenticated);
   const totalUnreadMessages = useSocialChatStore((state) => state.totalUnread);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setSearchTerm(val);
-    // Kích hoạt phân tích AI
     analyzeInput(val, val.length);
   };
 
@@ -43,109 +34,95 @@ export const MobileHomeHeader = ({ onSearch }: MobileHomeHeaderProps) => {
     }
   };
 
-  // Click outside để đóng suggestion
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        searchContainerRef.current &&
-        !searchContainerRef.current.contains(event.target as Node)
-      ) {
-        setIsFocused(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   return (
-    <div className="mx-3 mt-2 rounded-[24px] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-gray-100/50 pt-4 pb-4 px-4 relative overflow-visible z-50">
-      <div className="relative z-20 space-y-4">
+    // Container: Giống một tấm thẻ bài nổi nhẹ trên nền
+    <div className="mx-4 mt-4 rounded-sm bg-white/95 backdrop-blur-md shadow-sm border border-stone-200 pt-3 pb-3 px-3 relative z-50">
+      <div className="relative z-20">
         <form onSubmit={handleSubmit} className="relative">
           <div className="flex items-center gap-3">
-            {/* Thanh tìm kiếm */}
+            {/* Thanh tìm kiếm: Border bottom style (cổ điển) */}
             <div
               className={cn(
-                "flex flex-1 items-center gap-2 rounded-2xl border bg-gray-50 px-3 py-2.5 transition-all duration-300",
+                "flex flex-1 items-center gap-2 px-2 py-2 transition-all duration-300 border-b",
                 isFocused
-                  ? "bg-white border-blue-500 shadow-[0_0_0_4px_rgba(59,130,246,0.1)]"
-                  : "border-gray-100 shadow-inner"
+                  ? "border-amber-800 bg-stone-50"
+                  : "border-stone-200 bg-transparent"
               )}
             >
               <Search
                 size={18}
                 className={cn(
                   "transition-colors",
-                  isFocused ? "text-blue-600" : "text-gray-400"
+                  isFocused ? "text-amber-800" : "text-stone-400"
                 )}
+                strokeWidth={1.5}
               />
               <Input
                 value={searchTerm}
                 onChange={handleInputChange}
                 onFocus={() => setIsFocused(true)}
-                placeholder="Tìm sản phẩm, đơn hàng..."
-                className="border-none shadow-none p-0 focus-visible:ring-0 text-sm bg-transparent placeholder:text-gray-400 text-gray-800 font-medium h-auto"
+                // Placeholder lịch sự
+                placeholder="Tìm kiếm tác phẩm..."
+                className="border-none shadow-none p-0 focus-visible:ring-0 text-sm bg-transparent placeholder:text-stone-400 text-stone-900 font-serif placeholder:italic h-auto rounded-none"
               />
               {searchTerm && (
                 <button
                   type="button"
                   onClick={() => setSearchTerm("")}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-stone-400 hover:text-stone-600"
                 >
                   <X size={16} />
                 </button>
               )}
             </div>
 
-            {/* Icons Group */}
-            <div className="flex items-center gap-2">
+            {/* Icons Group: Minimal & Tinh tế */}
+            <div className="flex items-center gap-1">
               <Link
                 to="/messages"
-                className="relative h-10 w-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                className="relative h-10 w-10 flex items-center justify-center text-stone-600 hover:text-amber-800 transition-colors"
               >
-                <MessageCircle size={20} strokeWidth={2} />
+                <MessageSquare size={22} strokeWidth={1.2} />
                 {totalUnreadMessages > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 flex items-center justify-center rounded-full bg-blue-600 text-white text-[9px] font-bold ring-2 ring-white">
-                    {totalUnreadMessages > 99 ? "99+" : totalUnreadMessages}
-                  </span>
+                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-600 ring-2 ring-white"></span>
                 )}
               </Link>
 
               <Link
                 to="/cart"
-                className="relative h-10 w-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                className="relative h-10 w-10 flex items-center justify-center text-stone-600 hover:text-amber-800 transition-colors"
               >
-                <ShoppingCart size={20} strokeWidth={2} />
-                {/* Giả lập cart count nếu có prop */}
-                <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full border-2 border-white"></span>
+                <ShoppingBag size={22} strokeWidth={1.2} />
+                {/* Dot indicator thay vì số */}
+                <span className="absolute top-2 right-2 h-1.5 w-1.5 bg-amber-600 rounded-full"></span>
               </Link>
             </div>
           </div>
 
-          {/* ✅ DROPDOWN GỢI Ý THÔNG MINH */}
+          {/* DROPDOWN GỢI Ý: Style giấy */}
           {isFocused && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 z-50">
-              <div className="px-3 py-2 bg-gray-50/50 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+            <div className="absolute top-full left-0 right-0 mt-3 bg-[#F9F8F6] rounded-sm shadow-xl border border-stone-200 overflow-hidden animate-in fade-in slide-in-from-top-2 z-50">
+              <div className="px-3 py-2 bg-stone-100 border-b border-stone-200 text-[10px] font-bold text-stone-500 uppercase tracking-widest">
                 {suggestionType === "order"
-                  ? "Đơn hàng của bạn"
-                  : "Sản phẩm gợi ý"}
+                  ? "Hồ sơ của bạn"
+                  : "Gợi ý Giám tuyển"}
               </div>
               {suggestions.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => {
-                    onSearch(item.name); // Hoặc navigate tới detail
+                    onSearch(item.name);
                     setSearchTerm(item.name);
                     setIsFocused(false);
                   }}
-                  className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-center justify-between group transition-colors"
+                  className="w-full text-left px-4 py-3 hover:bg-white flex items-center justify-between group transition-colors border-b border-stone-100 last:border-0"
                 >
-                  <span className="text-sm font-medium text-gray-700 group-hover:text-blue-700">
+                  <span className="text-sm font-medium text-stone-700 group-hover:text-amber-900 font-serif">
                     {item.name}
                   </span>
-                  {/* Nếu là order thì hiện status */}
                   {(item as any).status && (
-                    <span className="text-[10px] px-2 py-0.5 bg-gray-100 rounded-full text-gray-500">
+                    <span className="text-[9px] px-2 py-0.5 bg-stone-200 rounded-sm text-stone-600 uppercase tracking-wider">
                       {(item as any).status}
                     </span>
                   )}

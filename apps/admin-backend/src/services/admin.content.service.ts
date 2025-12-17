@@ -16,11 +16,12 @@ import { sendAssetFlagNotification } from "./email.service.js";
 
 // --- ✅ IMPORT SHARED MODELS TỪ @printz/types ---
 import { Product as ProductModelJS } from "@printz/types";
-import { DesignTemplate as DesignTemplateModelJS } from "@printz/types";
+// ❌ REMOVED: Design features
+// import { DesignTemplate as DesignTemplateModelJS } from "@printz/types";
 import { PrinterProfile as PrinterProfileModelJS } from "@printz/types";
 import { User as UserModelJS } from "@printz/types";
 
-type AssetType = "product" | "template";
+type AssetType = "product"; // | "template" - REMOVED
 
 interface ProductDocument extends Document {
   _id: Types.ObjectId;
@@ -34,13 +35,14 @@ interface ProductDocument extends Document {
   createdAt: Date;
 }
 
-interface DesignTemplateDocument extends Document {
-  _id: Types.ObjectId;
-  name: string;
-  printerId: Types.ObjectId;
-  isPublic: boolean;
-  createdAt: Date;
-}
+// ❌ REMOVED: Design features
+// interface DesignTemplateDocument extends Document {
+//   _id: Types.ObjectId;
+//   name: string;
+//   printerId: Types.ObjectId;
+//   isPublic: boolean;
+//   createdAt: Date;
+// }
 
 interface PrinterProfileDocument extends Document {
   _id: Types.ObjectId;
@@ -56,8 +58,9 @@ interface UserDocument extends Document {
 }
 
 const ProductModel = ProductModelJS as unknown as Model<ProductDocument>;
-const DesignTemplateModel =
-  DesignTemplateModelJS as unknown as Model<DesignTemplateDocument>;
+// ❌ REMOVED: Design features
+// const DesignTemplateModel =
+//   DesignTemplateModelJS as unknown as Model<DesignTemplateDocument>;
 const PrinterProfileModel =
   PrinterProfileModelJS as unknown as Model<PrinterProfileDocument>;
 const UserModel = UserModelJS as unknown as Model<UserDocument>;
@@ -67,10 +70,13 @@ const PENDING_LIMIT = 50;
 const INFRACTION_POINTS = 10;
 
 const normalizeAssetType = (type: string | undefined): AssetType => {
-  if (type === "product" || type === "template") {
+  if (type === "product") {
     return type;
   }
-  throw new ValidationException("Loại asset không hợp lệ.");
+  // ❌ REMOVED: template type
+  throw new ValidationException(
+    "Loại asset không hợp lệ. Chỉ hỗ trợ 'product'."
+  );
 };
 
 const ensureValidObjectId = (id?: string): Types.ObjectId => {
@@ -80,32 +86,21 @@ const ensureValidObjectId = (id?: string): Types.ObjectId => {
   return new Types.ObjectId(id);
 };
 
-const getModelByType = (type: AssetType) =>
-  type === "product" ? ProductModel : DesignTemplateModel;
+const getModelByType = (type: AssetType) => ProductModel; // Only product now
 
 export const getPendingAssets = async (typeInput: string | undefined) => {
   const type = normalizeAssetType(typeInput);
   const since = new Date(Date.now() - RECENT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-  if (type === "product") {
-    const filter: FilterQuery<ProductDocument> = {
-      createdAt: { $gte: since },
-      healthStatus: { $ne: "Suspended" },
-    };
-    return ProductModel.find(filter)
-      .sort({ createdAt: -1 })
-      .limit(PENDING_LIMIT)
-      .lean();
-  } else {
-    const filter: FilterQuery<DesignTemplateDocument> = {
-      createdAt: { $gte: since },
-      isPublic: true,
-    };
-    return DesignTemplateModel.find(filter)
-      .sort({ createdAt: -1 })
-      .limit(PENDING_LIMIT)
-      .lean();
-  }
+  // Only product type is supported now
+  const filter: FilterQuery<ProductDocument> = {
+    createdAt: { $gte: since },
+    healthStatus: { $ne: "Suspended" },
+  };
+  return ProductModel.find(filter)
+    .sort({ createdAt: -1 })
+    .limit(PENDING_LIMIT)
+    .lean();
 };
 
 interface FlagAssetParams {
@@ -246,40 +241,8 @@ export const flagAsset = async ({
     return product.toObject();
   }
 
-  const template = await DesignTemplateModel.findById(objectId);
-  if (!template) {
-    throw new NotFoundException("Design Template", id);
-  }
-
-  template.isPublic = false;
-  template.set("moderationStatus", "Flagged", { strict: false });
-  await template.save();
-
-  const ownerInfo = await getTemplateOwnerContact(template.printerId);
-
-  if (ownerInfo.email) {
-    await sendAssetFlagNotification(
-      ownerInfo.email,
-      template.name,
-      assetType,
-      reason
-    );
-  }
-
-  await createInfractionIfPossible(ownerInfo.printerProfileId, admin, reason);
-
-  void recordAdminAuditLog({
-    action: "ASSET_FLAGGED",
-    actor: admin,
-    targetType: "DesignTemplate",
-    targetId: template._id.toString(),
-    metadata: {
-      reason,
-      printerProfileId: ownerInfo.printerProfileId,
-    },
-    ipAddress: context?.ipAddress ?? undefined,
-    userAgent: context?.userAgent ?? undefined,
-  });
-
-  return template.toObject();
+  // ❌ REMOVED: Design template flagging (design features disabled)
+  throw new ValidationException(
+    "Chỉ hỗ trợ flag product, không hỗ trợ template"
+  );
 };

@@ -1,348 +1,331 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/shared/components/ui/button";
+import { useState } from "react";
 import {
-  Package,
-  Gift,
-  Warehouse,
-  Paintbrush,
-  ArrowRight,
-  CheckCircle2,
-  Sparkles,
-  ArrowUp,
+  Search,
+  ShieldCheck,
+  Check,
+  AlertOctagon,
+  Fingerprint,
+  Stamp,
+  Scroll,
 } from "lucide-react";
-import { cn } from "@/shared/lib/utils";
-
-// Services Data
-const SERVICES = [
-  {
-    id: "kitting",
-    icon: Package,
-    title: "Đóng gói trải nghiệm",
-    tagline: "Kitting & Fulfillment",
-    description:
-      "Combo quà tặng khách hàng/ nhân viên mới (Sổ, bút, bình, áo...).",
-    longDesc:
-      "Upload file Excel danh sách → Printz đóng gói từng bộ quà → Ship đến tận tay từng người.",
-    benefits: [
-      "Đóng gói chuyên nghiệp",
-      "Cá nhân hóa từng người (in tên riêng)",
-      "Trải nghiệm unboxing ấn tượng",
-      "Giao hàng đúng hẹn",
-    ],
-    useCases: [
-      "Bộ quà chào mừng nhân viên mới",
-      "Quà tặng sự kiện, hội nghị",
-      "Quà tri ân khách hàng VIP",
-      "Bộ quà Tết cho nhân viên",
-    ],
-    image:
-      "https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?w=800&q=80",
-    href: "/solutions/kitting",
-    color: "emerald",
-  },
-  {
-    id: "corporate-gifting",
-    icon: Gift,
-    title: "Quà tặng Doanh nghiệp",
-    tagline: "Corporate Gifting Program",
-    description:
-      "Giải pháp quà tặng trọn gói cho mọi dịp: Tết, sinh nhật, tri ân.",
-    longDesc:
-      "Một nền tảng cho mọi dịp tặng quà. Catalog có sẵn hoặc tùy chỉnh. Giải pháp trọn gói từ A-Z.",
-    benefits: [
-      "Tăng sự gắn kết nhân viên",
-      "Xây dựng thương hiệu",
-      "Tiết kiệm thời gian",
-      "Quản lý tập trung",
-    ],
-    useCases: [
-      "Tết Nguyên Đán: Bao lì xì, Lịch tết",
-      "Sinh nhật công ty: Áo kỷ niệm, Sổ tay",
-      "Tri ân khách hàng: Hộp quà VIP",
-      "Chào mừng nhân viên: Welcome Kit",
-    ],
-    image:
-      "https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=800&q=80",
-    href: "/solutions/corporate-gifting",
-    color: "rose",
-  },
-  {
-    id: "warehousing",
-    icon: Warehouse,
-    title: "Lưu kho & Phân phối",
-    tagline: "Warehousing & Distribution",
-    description: "In số lượng lớn giá rẻ → Gửi Printz giữ hộ → Cần là giao.",
-    longDesc:
-      "In số lượng lớn để được giá tốt → Printz giữ hộ miễn phí tại nhà máy → Ship theo nhu cầu, không lo tồn kho.",
-    benefits: [
-      "Giảm 40% chi phí lưu kho",
-      "Ship trong 24h",
-      "Bảo quản chuẩn ISO",
-      "Theo dõi tồn kho realtime",
-    ],
-    useCases: [
-      "Công ty có nhiều chi nhánh",
-      "Doanh nghiệp in số lượng lớn",
-      "Startup không có kho riêng",
-      "Giao hàng linh hoạt theo nhu cầu",
-    ],
-    image:
-      "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&q=80",
-    href: "/solutions/warehousing",
-    color: "blue",
-  },
-  {
-    id: "design",
-    icon: Paintbrush,
-    title: "Thiết kế & Dựng mẫu",
-    tagline: "Design & Prototyping",
-    description: "Team thiết kế chuyên nghiệp hỗ trợ làm file in chuẩn.",
-    longDesc:
-      "Đội ngũ designer chuyên nghiệp giúp bạn thiết kế file in chuẩn, dựng mẫu 3D, và tư vấn vật liệu phù hợp.",
-    benefits: [
-      "File in chuẩn kỹ thuật",
-      "Dựng mẫu 3D trước khi in",
-      "Tư vấn vật liệu phù hợp",
-      "Revision không giới hạn",
-    ],
-    useCases: [
-      "Thiết kế bao bì sản phẩm",
-      "Thiết kế catalogue, brochure",
-      "Thiết kế standee, backdrop",
-      "Thiết kế quà tặng độc đáo",
-    ],
-    image:
-      "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800&q=80",
-    href: "/contact",
-    color: "purple",
-  },
-];
-
-const STATS = [
-  { value: "500+", label: "Doanh nghiệp tin dùng" },
-  { value: "50K+", label: "Bộ quà đã giao" },
-  { value: "98%", label: "Khách hàng hài lòng" },
-  { value: "24h", label: "Thời gian xử lý" },
-];
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
 
 export function ServicesPage() {
-  const navigate = useNavigate();
-  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [serialNumber, setSerialNumber] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [result, setResult] = useState<any>(null);
 
-  useEffect(() => {
-    const handleScroll = () => setShowScrollTop(window.scrollY > 400);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  const handleSearch = async () => {
+    if (!serialNumber.trim()) return;
+
+    setIsSearching(true);
+    setResult(null); // Reset kết quả cũ
+
+    // Mô phỏng API call
+    setTimeout(() => {
+      // Mock data logic
+      const code = serialNumber.toUpperCase().trim();
+      if (code.includes("88") || code.includes("68")) {
+        setResult({
+          found: true,
+          code: code,
+          productName: "Độc Bình Gốm Chu Đậu Vẽ Vàng",
+          collection: "Tinh Hoa Đại Việt 2025",
+          edition: "Bản Giới Hạn (Limited Edition)",
+          position: code.split("/")[0]?.replace("#", "") || "08",
+          total: "88",
+          issueDate: "15 tháng 01, 2025",
+          material: "Gốm men tro trấu, Vàng 24K",
+          craftsman: "Nghệ nhân ưu tú Phạm Thế Anh",
+          certificateId: "ANC-2025-GCD-008",
+          status: "verified",
+        });
+      } else {
+        setResult({
+          found: false,
+          code: code,
+        });
+      }
+      setIsSearching(false);
+    }, 1500);
+  };
 
   return (
-    <div className="min-h-screen bg-white will-change-scroll">
-      {/* HERO */}
-      <section className="pt-32 pb-20 px-6 text-center bg-gradient-to-b from-stone-50 to-white border-b border-stone-200">
-        <div className="max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-full mb-6">
-            <Sparkles className="w-4 h-4 text-emerald-800" />
-            <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
-              Dịch vụ & Giải pháp
+    <div className="min-h-screen bg-[#F9F8F6] text-stone-900 font-sans pb-32">
+      {/* TEXTURE NỀN TOÀN TRANG */}
+      <div className="fixed inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-multiply"></div>
+
+      {/* --- HERO SECTION --- */}
+      <section className="relative pt-24 pb-20 px-6 text-center border-b border-stone-200">
+        <div className="max-w-3xl mx-auto relative z-10">
+          <div className="inline-flex items-center gap-2 mb-6 border border-amber-800/30 px-4 py-1.5 rounded-full bg-amber-50">
+            <ShieldCheck className="w-4 h-4 text-amber-800" />
+            <span className="font-mono text-[10px] font-bold tracking-[0.2em] text-amber-900 uppercase">
+              Trang xác thực
             </span>
           </div>
 
-          <h1 className="font-serif text-5xl md:text-7xl text-stone-900 mb-6 italic leading-tight">
-            Giải pháp trọn gói
-            <br />
-            <span className="text-emerald-800">cho doanh nghiệp.</span>
+          <h1 className="font-serif text-5xl md:text-6xl text-stone-900 mb-6 font-bold leading-tight">
+            Tra Cứu <br />
+            <span className="text-amber-800 italic">Hồ Sơ Tác Phẩm</span>
           </h1>
-
-          <p className="text-xl text-stone-600 mb-10 max-w-2xl mx-auto font-light leading-relaxed">
-            Từ đóng gói quà tặng, lưu kho phân phối, đến thiết kế chuyên nghiệp.
-            Printz đồng hành cùng bạn từ A đến Z.
+          <p className="text-stone-600 text-lg font-light leading-relaxed max-w-xl mx-auto">
+            Mỗi vật phẩm từ Printz đều mang một <strong>Mã Định Danh</strong>{" "}
+            duy nhất. Nhập mã số trên chứng thư để xác minh nguồn gốc và giá trị
+            độc bản.
           </p>
+        </div>
+      </section>
 
+      {/* --- SEARCH BOX --- */}
+      <section className="max-w-xl mx-auto px-6 -mt-8 relative z-20">
+        <div className="bg-white p-2 rounded-sm shadow-xl shadow-stone-200/50 border border-stone-100 flex items-center gap-2">
+          <div className="pl-4 text-stone-400">
+            <Search className="w-5 h-5" />
+          </div>
+          <Input
+            type="text"
+            placeholder="Nhập mã (VD: #68/88 hoặc ANC-2025...)"
+            value={serialNumber}
+            onChange={(e) => setSerialNumber(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            className="flex-1 border-none shadow-none h-14 text-lg placeholder:text-stone-300 placeholder:font-serif placeholder:italic focus-visible:ring-0 bg-transparent text-stone-900 font-medium"
+          />
           <Button
-            onClick={() => navigate("/contact")}
-            className="bg-stone-900 hover:bg-emerald-900 text-white rounded-none px-10 py-6 font-bold uppercase text-sm"
+            onClick={handleSearch}
+            disabled={isSearching || !serialNumber.trim()}
+            className="h-14 px-8 bg-stone-900 hover:bg-amber-900 text-white rounded-sm font-bold uppercase tracking-widest text-xs transition-all"
           >
-            Liên hệ tư vấn miễn phí
+            {isSearching ? (
+              <span className="animate-pulse">Đang tra cứu...</span>
+            ) : (
+              "Thẩm định"
+            )}
           </Button>
         </div>
+
+        <p className="text-center mt-4 text-xs text-stone-400 font-mono">
+          *Mã định danh nằm ở mặt sau Chứng thư hoặc đáy sản phẩm.
+        </p>
       </section>
 
-      {/* STATS */}
-      <section className="py-16 bg-white border-b border-stone-200">
-        <div className="max-w-[1440px] mx-auto px-6 md:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {STATS.map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="font-serif text-5xl text-emerald-800 mb-2 italic">
-                  {stat.value}
+      {/* --- RESULT AREA --- */}
+      <section className="max-w-4xl mx-auto px-6 mt-16">
+        {result && (
+          <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+            {result.found ? (
+              // === TRƯỜNG HỢP: TÌM THẤY (Hiển thị như Chứng thư số) ===
+              <div className="relative bg-[#FFFDF5] p-8 md:p-16 border-[12px] border-double border-stone-200 shadow-2xl mx-auto max-w-3xl">
+                {/* Decorative Corners */}
+                <div className="absolute top-4 left-4 w-16 h-16 border-t-2 border-l-2 border-amber-800/20"></div>
+                <div className="absolute top-4 right-4 w-16 h-16 border-t-2 border-r-2 border-amber-800/20"></div>
+                <div className="absolute bottom-4 left-4 w-16 h-16 border-b-2 border-l-2 border-amber-800/20"></div>
+                <div className="absolute bottom-4 right-4 w-16 h-16 border-b-2 border-r-2 border-amber-800/20"></div>
+
+                {/* Watermark Chìm */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+                  <img src="/logo-symbol.svg" alt="" className="w-96 h-96" />
                 </div>
-                <div className="text-sm text-stone-600 uppercase tracking-wider">
-                  {stat.label}
+
+                <div className="relative z-10 text-center space-y-8">
+                  {/* Badge */}
+                  <div className="inline-flex items-center gap-2 px-4 py-1 border border-emerald-200 bg-emerald-50 rounded-full text-emerald-800 text-[10px] font-bold uppercase tracking-[0.2em]">
+                    <Check className="w-3 h-3" /> Verified Authentic
+                  </div>
+
+                  {/* Header Chứng thư */}
+                  <div>
+                    <h2 className="font-serif text-3xl md:text-4xl font-bold text-stone-900 mb-2">
+                      CHỨNG NHẬN ĐỘC BẢN
+                    </h2>
+                    <p className="font-serif italic text-stone-500 text-lg">
+                      Certificate of Authenticity
+                    </p>
+                  </div>
+
+                  <div className="w-24 h-[1px] bg-stone-300 mx-auto"></div>
+
+                  {/* Nội dung chi tiết */}
+                  <div className="grid md:grid-cols-2 gap-8 text-left max-w-xl mx-auto">
+                    <div>
+                      <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">
+                        Tác phẩm
+                      </p>
+                      <p className="font-serif text-xl font-bold text-stone-900">
+                        {result.productName}
+                      </p>
+                      <p className="text-sm text-stone-500 mt-1 italic">
+                        Thuộc BST: {result.collection}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">
+                        Số Thứ Tự (Edition)
+                      </p>
+                      <p className="font-mono text-2xl text-amber-800 font-bold">
+                        #{result.position}{" "}
+                        <span className="text-base text-stone-400 font-light">
+                          / {result.total}
+                        </span>
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">
+                        Nghệ nhân
+                      </p>
+                      <p className="font-serif text-lg text-stone-900">
+                        {result.craftsman}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">
+                        Chất liệu
+                      </p>
+                      <p className="font-serif text-lg text-stone-900">
+                        {result.material}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Footer Chứng thư */}
+                  <div className="pt-8 mt-8 border-t border-stone-200 flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div className="text-center md:text-left">
+                      <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">
+                        Mã Chứng Thư
+                      </p>
+                      <p className="font-mono text-sm text-stone-900 tracking-wider">
+                        {result.certificateId}
+                      </p>
+                    </div>
+
+                    {/* Con dấu đỏ giả lập */}
+                    <div className="relative">
+                      <div className="w-24 h-24 border-4 border-red-800/80 rounded-full flex items-center justify-center opacity-80 rotate-[-15deg] mix-blend-multiply mask-ink">
+                        <div className="w-20 h-20 border border-red-800/50 rounded-full flex items-center justify-center text-center p-2">
+                          <span className="text-[10px] font-bold text-red-900 uppercase leading-tight">
+                            An Nam
+                            <br />
+                            Curator
+                            <br />
+                            Verified
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-center md:text-right">
+                      <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">
+                        Ngày phát hành
+                      </p>
+                      <p className="font-serif text-sm text-stone-900">
+                        {result.issueDate}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* SERVICES GRID */}
-      <section className="py-24 bg-stone-50">
-        <div className="max-w-[1440px] mx-auto px-6 md:px-8">
-          <div className="text-center mb-16">
-            <h2 className="font-serif text-4xl text-stone-900 italic mb-4">
-              Dịch vụ của chúng tôi
-            </h2>
-            <p className="text-stone-600 text-lg">
-              Giải pháp toàn diện cho mọi nhu cầu in ấn và quà tặng
-            </p>
-          </div>
-
-          <div className="space-y-8">
-            {SERVICES.map((service, idx) => {
-              const Icon = service.icon;
-              const isEven = idx % 2 === 0;
-
-              return (
-                <div
-                  key={service.id}
-                  className={cn(
-                    "group bg-white border-2 border-stone-200 hover:border-emerald-800 transition-all overflow-hidden",
-                    "grid md:grid-cols-2 gap-0"
-                  )}
-                >
-                  {/* Image */}
-                  <div
-                    className={cn(
-                      "relative h-80 md:h-auto overflow-hidden",
-                      !isEven && "md:order-2"
-                    )}
-                  >
-                    <img
-                      src={service.image}
-                      alt={service.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-stone-900/50 to-transparent" />
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-10 md:p-12 flex flex-col justify-center">
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="w-14 h-14 rounded-full bg-stone-100 group-hover:bg-emerald-900 flex items-center justify-center transition-colors">
-                        <Icon
-                          className="w-7 h-7 text-stone-600 group-hover:text-white transition-colors"
-                          strokeWidth={1.5}
-                        />
-                      </div>
-                      <div>
-                        <div className="text-xs text-stone-500 uppercase tracking-wider mb-1">
-                          {service.tagline}
-                        </div>
-                        <h3 className="font-serif text-3xl text-stone-900 italic">
-                          {service.title}
-                        </h3>
-                      </div>
-                    </div>
-
-                    <p className="text-stone-600 text-lg mb-6 leading-relaxed">
-                      {service.longDesc}
+            ) : (
+              // === TRƯỜNG HỢP: KHÔNG TÌM THẤY ===
+              <div className="max-w-xl mx-auto bg-white p-8 border-l-4 border-red-700 shadow-lg">
+                <div className="flex items-start gap-4">
+                  <AlertOctagon
+                    className="w-10 h-10 text-red-700 flex-shrink-0"
+                    strokeWidth={1.5}
+                  />
+                  <div>
+                    <h3 className="font-serif text-xl font-bold text-stone-900 mb-2">
+                      Không tìm thấy dữ liệu
+                    </h3>
+                    <p className="text-stone-600 mb-4 leading-relaxed">
+                      Mã định danh{" "}
+                      <strong className="text-stone-900 font-mono bg-stone-100 px-1">
+                        {result.code}
+                      </strong>{" "}
+                      không tồn tại trong hệ thống lưu trữ của chúng tôi.
                     </p>
-
-                    {/* Benefits */}
-                    <div className="mb-8">
-                      <h4 className="font-bold text-stone-900 mb-3 uppercase text-xs tracking-wider">
-                        Lợi ích
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {service.benefits.map((benefit) => (
-                          <div
-                            key={benefit}
-                            className="flex items-start gap-2 text-sm text-stone-600"
-                          >
-                            <CheckCircle2
-                              className="w-4 h-4 text-emerald-800 mt-0.5 shrink-0"
-                              strokeWidth={2}
-                            />
-                            <span>{benefit}</span>
-                          </div>
-                        ))}
-                      </div>
+                    <div className="bg-stone-50 p-4 text-sm text-stone-500 border border-stone-200">
+                      <p className="font-bold text-stone-900 mb-1">
+                        Khuyến nghị:
+                      </p>
+                      <ul className="list-disc pl-4 space-y-1">
+                        <li>Kiểm tra lại các ký tự (số 0 và chữ O).</li>
+                        <li>
+                          Sản phẩm có thể chưa được kích hoạt bảo hành điện tử.
+                        </li>
+                        <li>
+                          Liên hệ bộ phận Giám tuyển để được hỗ trợ trực tiếp.
+                        </li>
+                      </ul>
                     </div>
-
-                    {/* Use Cases */}
-                    <div className="mb-8">
-                      <h4 className="font-bold text-stone-900 mb-3 uppercase text-xs tracking-wider">
-                        Phù hợp cho
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {service.useCases.slice(0, 3).map((useCase) => (
-                          <span
-                            key={useCase}
-                            className="px-3 py-1 bg-stone-100 text-stone-700 text-xs"
-                          >
-                            {useCase}
-                          </span>
-                        ))}
-                      </div>
+                    <div className="mt-6 flex gap-4">
+                      <Button
+                        variant="outline"
+                        className="border-stone-300 text-stone-600 hover:text-stone-900"
+                      >
+                        Thử lại
+                      </Button>
+                      <a
+                        href="tel:0865726848"
+                        className="inline-flex items-center justify-center px-4 py-2 bg-stone-900 text-white rounded-sm text-sm font-bold uppercase tracking-wider hover:bg-amber-900 transition-colors"
+                      >
+                        Liên hệ hỗ trợ
+                      </a>
                     </div>
-
-                    <Button
-                      onClick={() => navigate(service.href)}
-                      className="bg-stone-900 hover:bg-emerald-900 text-white rounded-none px-6 py-5 font-bold uppercase text-xs w-fit group-hover:translate-x-1 transition-transform"
-                    >
-                      Tìm hiểu thêm
-                      <ArrowRight className="ml-2 w-4 h-4" />
-                    </Button>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            )}
           </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-24 bg-stone-900 text-white">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="font-serif text-4xl md:text-5xl italic mb-6">
-            Sẵn sàng bắt đầu?
-          </h2>
-          <p className="text-xl text-stone-300 mb-10 leading-relaxed">
-            Đội ngũ chuyên gia của chúng tôi sẵn sàng tư vấn giải pháp phù hợp
-            nhất cho doanh nghiệp của bạn.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              onClick={() => navigate("/contact")}
-              className="bg-white hover:bg-stone-100 text-stone-900 rounded-none px-8 py-6 font-bold uppercase text-sm"
-            >
-              Liên hệ ngay
-            </Button>
-            <Button
-              onClick={() => navigate("/shop")}
-              variant="outline"
-              className="border-2 border-white text-white hover:bg-white hover:text-stone-900 rounded-none px-8 py-6 font-bold uppercase text-sm"
-            >
-              Xem sản phẩm
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Scroll To Top */}
-      <Button
-        size="icon"
-        className={cn(
-          "fixed bottom-6 right-6 rounded-full shadow-lg bg-stone-900 text-white hover:bg-emerald-900 transition-all duration-300 z-40",
-          showScrollTop
-            ? "translate-y-0 opacity-100"
-            : "translate-y-10 opacity-0 pointer-events-none"
         )}
-        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-      >
-        <ArrowUp size={20} />
-      </Button>
+      </section>
+
+      {/* --- INFO GRID --- */}
+      <section className="max-w-6xl mx-auto px-6 mt-24">
+        <div className="grid md:grid-cols-3 gap-8">
+          {[
+            {
+              icon: Fingerprint,
+              title: "Dấu Ấn Độc Bản",
+              desc: "Mỗi tác phẩm là duy nhất với các biến số tự nhiên của chất liệu (vân gỗ, men gốm) không thể sao chép.",
+            },
+            {
+              icon: Stamp,
+              title: "Số Lượng Giới Hạn",
+              desc: "Các bộ sưu tập Limited Edition được đánh số thứ tự và cam kết không tái sản xuất để bảo toàn giá trị.",
+            },
+            {
+              icon: Scroll,
+              title: "Hồ Sơ Vĩnh Viễn",
+              desc: "Thông tin tác phẩm được lưu trữ vĩnh viễn trên hệ thống, giúp xác minh nguồn gốc khi chuyển nhượng.",
+            },
+          ].map((item, idx) => (
+            <div
+              key={idx}
+              className="group p-8 bg-white border border-stone-200 hover:border-amber-800/50 transition-colors duration-500 relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 duration-700">
+                <item.icon size={80} className="text-amber-900" />
+              </div>
+              <div className="relative z-10">
+                <item.icon
+                  className="w-10 h-10 text-amber-800 mb-4"
+                  strokeWidth={1.5}
+                />
+                <h3 className="font-serif text-xl font-bold text-stone-900 mb-3 group-hover:text-amber-900 transition-colors">
+                  {item.title}
+                </h3>
+                <p className="text-stone-500 font-light leading-relaxed text-sm">
+                  {item.desc}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

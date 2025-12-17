@@ -3,7 +3,14 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Package, Plus, RefreshCw } from "lucide-react";
+import {
+  Package,
+  Plus,
+  RefreshCw,
+  FolderTree,
+  Boxes,
+  FileText,
+} from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import { ProductCard } from "@/components/products/ProductCard";
 import { ProductFilters } from "@/components/products/ProductFilters";
@@ -86,19 +93,45 @@ export default function ProductCatalogPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Product Catalog</h1>
-          <p className="text-gray-600">Quản lý sản phẩm và SKU</p>
+      {/* Header with Navigation */}
+      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Quản lý SP/DV</h1>
+            <p className="text-gray-600">Quản lý sản phẩm, dịch vụ và SKU</p>
+          </div>
+          <button
+            onClick={() => navigate("/catalog/products/new")}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+          >
+            <Plus className="w-4 h-4" />
+            Thêm sản phẩm
+          </button>
         </div>
-        <button
-          onClick={() => navigate("/catalog/products/new")}
-          className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
-        >
-          <Plus className="w-4 h-4" />
-          Thêm sản phẩm
-        </button>
+        {/* Sub Navigation */}
+        <div className="flex gap-3 pt-3 border-t">
+          <button
+            onClick={() => navigate("/catalog/categories")}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+          >
+            <FolderTree className="w-4 h-4" />
+            Danh mục
+          </button>
+          <button
+            onClick={() => navigate("/inventory")}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+          >
+            <Boxes className="w-4 h-4" />
+            Tồn kho
+          </button>
+          <button
+            onClick={() => navigate("/documents/invoices")}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+          >
+            <FileText className="w-4 h-4" />
+            Chứng từ
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -114,7 +147,7 @@ export default function ProductCatalogPage() {
         categories={categories}
       />
 
-      {/* Products Grid */}
+      {/* Products Grid/List */}
       {products.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm p-12 text-center">
           <Package className="w-16 h-16 mx-auto mb-4 text-gray-300" />
@@ -132,7 +165,13 @@ export default function ProductCatalogPage() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div
+          className={
+            viewMode === "grid"
+              ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+              : "flex flex-col gap-4"
+          }
+        >
           {products.map((product) => (
             <ProductCard
               key={product._id}
@@ -142,6 +181,7 @@ export default function ProductCatalogPage() {
               onDelete={handleDelete}
               formatCurrency={formatCurrency}
               getStatusBadge={getStatusBadge}
+              viewMode={viewMode}
             />
           ))}
         </div>

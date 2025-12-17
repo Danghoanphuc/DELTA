@@ -42,11 +42,12 @@ export const useProductDetail = () => {
       setLoading(true);
       try {
         const res = await api.get(`/products/${productId}`);
-        if (!res.data?.data) { // Kiểm tra xem res.data.data có tồn tại không
+        if (!res.data?.data) {
+          // Kiểm tra xem res.data.data có tồn tại không
           throw new Error("Product data not found");
         }
         const fetchedProduct = res.data.data as ProductWithPrinter; // Gán trực tiếp res.data.data
-        
+
         setProduct(fetchedProduct);
         // ✅ Bắt đầu từ minQuantity để đảm bảo valid, nhưng nếu minQuantity quá lớn thì dùng 1
         const minQty = fetchedProduct.pricing?.[0]?.minQuantity || 1;
@@ -82,11 +83,11 @@ export const useProductDetail = () => {
 
   // (Memos giữ nguyên)
   const currentPricePerUnit = useMemo(
-    () => product?.pricing[selectedPriceIndex]?.pricePerUnit ?? 0,
+    () => product?.pricing?.[selectedPriceIndex]?.pricePerUnit ?? 0,
     [product, selectedPriceIndex]
   );
   const minQuantity = useMemo(
-    () => product?.pricing[0]?.minQuantity || 1,
+    () => product?.pricing?.[0]?.minQuantity || 1,
     [product]
   );
   const inCart = useMemo(

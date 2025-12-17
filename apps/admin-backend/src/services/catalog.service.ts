@@ -148,8 +148,42 @@ export class SupplierService {
   }
 
   async createSupplier(data: Partial<ISupplier>) {
+    // Auto-generate code if not provided
+    if (!data.code) {
+      data.code = await this.generateSupplierCode(data.type || "manufacturer");
+    }
     const supplier = new Supplier(data);
     return supplier.save();
+  }
+
+  private async generateSupplierCode(type: string): Promise<string> {
+    // Generate prefix based on type
+    const prefixes: Record<string, string> = {
+      manufacturer: "MFR",
+      distributor: "DST",
+      printer: "PRT",
+      dropshipper: "DRP",
+      artisan: "ART",
+    };
+    const prefix = prefixes[type] || "SUP";
+
+    // Find the highest existing code with this prefix
+    const lastSupplier = await Supplier.findOne({
+      code: new RegExp(`^${prefix}`),
+    })
+      .sort({ code: -1 })
+      .lean();
+
+    let nextNumber = 1;
+    if (lastSupplier?.code) {
+      const match = lastSupplier.code.match(/\d+$/);
+      if (match) {
+        nextNumber = parseInt(match[0]) + 1;
+      }
+    }
+
+    // Format: PREFIX-XXXX (e.g., ART-0001)
+    return `${prefix}-${nextNumber.toString().padStart(4, "0")}`;
   }
 
   async updateSupplier(id: string, data: Partial<ISupplier>) {

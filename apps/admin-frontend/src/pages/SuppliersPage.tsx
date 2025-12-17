@@ -2,7 +2,8 @@
 // ✅ SOLID Compliant: Single Responsibility - UI rendering only
 
 import { useState } from "react";
-import { Building2, Plus, RefreshCw, TrendingUp } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Building2, Plus, RefreshCw, BarChart3 } from "lucide-react";
 import { Supplier } from "@/services/catalog.service";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { SupplierModal } from "@/components/suppliers/SupplierModal";
@@ -13,9 +14,11 @@ const SUPPLIER_TYPES = [
   { value: "distributor", label: "Nhà phân phối" },
   { value: "printer", label: "Nhà in" },
   { value: "dropshipper", label: "Dropshipper" },
+  { value: "artisan", label: "Nghệ nhân" },
 ];
 
 export default function SuppliersPage() {
+  const navigate = useNavigate();
   const [typeFilter, setTypeFilter] = useState("all");
   const [showModal, setShowModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
@@ -69,29 +72,29 @@ export default function SuppliersPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Nhà cung cấp</h1>
-          <p className="text-gray-600">Quản lý suppliers và vendors</p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() =>
-              (window.location.href = "/catalog/suppliers-performance")
-            }
-            className="flex items-center gap-2 px-4 py-2 border border-orange-500 text-orange-500 rounded-lg hover:bg-orange-50"
-          >
-            <TrendingUp className="w-4 h-4" />
-            So sánh hiệu suất
-          </button>
-          <button
-            onClick={handleOpenCreate}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
-          >
-            <Plus className="w-4 h-4" />
-            Thêm nhà cung cấp
-          </button>
+      {/* Header with Analytics Link */}
+      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Đối tác</h1>
+            <p className="text-gray-600">Quản lý đối tác và nhà cung cấp</p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => navigate("/analytics/suppliers")}
+              className="flex items-center gap-2 px-4 py-2 border border-purple-500 text-purple-500 rounded-lg hover:bg-purple-50"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Phân tích đối tác
+            </button>
+            <button
+              onClick={handleOpenCreate}
+              className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+            >
+              <Plus className="w-4 h-4" />
+              Thêm đối tác
+            </button>
+          </div>
         </div>
       </div>
 
@@ -116,13 +119,13 @@ export default function SuppliersPage() {
         <div className="bg-white rounded-xl shadow-sm p-12 text-center">
           <Building2 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            Chưa có nhà cung cấp
+            Chưa có đối tác
           </h3>
           <button
             onClick={handleOpenCreate}
             className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
           >
-            Thêm nhà cung cấp đầu tiên
+            Thêm đối tác đầu tiên
           </button>
         </div>
       ) : (

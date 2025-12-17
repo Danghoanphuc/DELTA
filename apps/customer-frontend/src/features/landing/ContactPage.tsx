@@ -10,10 +10,11 @@ import {
   ShieldCheck,
   FileText,
   Send,
+  User,
 } from "lucide-react";
 import { Header } from "./components/LandingHeader";
 import { Footer } from "./components/LandingFooter";
-import { LocationMap } from "./components/LocationMap"; // Import component bản đồ Phúc vừa tạo
+import { LocationMap } from "./components/LocationMap";
 import { Link } from "react-router-dom";
 import { useContactForm } from "./hooks/useContactForm";
 
@@ -33,17 +34,13 @@ export default function ContactPage() {
   });
 
   const validatePhone = (phone: string) => {
-    // Remove all non-digit characters
     const cleanPhone = phone.replace(/\D/g, "");
-
     if (cleanPhone.length < 10) {
       return "Số điện thoại phải có ít nhất 10 chữ số";
     }
-
     if (cleanPhone.length > 11) {
       return "Số điện thoại không được quá 11 chữ số";
     }
-
     return "";
   };
 
@@ -55,19 +52,16 @@ export default function ContactPage() {
       message: "",
     };
 
-    // Validate name
     if (!formData.name.trim()) {
       newErrors.name = "Vui lòng nhập họ và tên";
     }
 
-    // Validate phone
     if (!formData.phone.trim()) {
       newErrors.phone = "Vui lòng nhập số điện thoại";
     } else {
       newErrors.phone = validatePhone(formData.phone);
     }
 
-    // Validate email (optional but if provided, must be valid)
     if (
       formData.email.trim() &&
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
@@ -75,7 +69,6 @@ export default function ContactPage() {
       newErrors.email = "Email không hợp lệ";
     }
 
-    // Validate message
     if (!formData.message.trim()) {
       newErrors.message = "Vui lòng nhập nội dung cần hỗ trợ";
     }
@@ -104,7 +97,6 @@ export default function ContactPage() {
     });
 
     if (success) {
-      // Reset form
       setFormData({
         name: "",
         phone: "",
@@ -125,7 +117,6 @@ export default function ContactPage() {
   ) => {
     const { name, value } = e.target;
 
-    // For phone field, only allow numbers and common phone formatting characters
     if (name === "phone") {
       const cleanValue = value.replace(/[^\d\s\-\+\(\)]/g, "");
       setFormData((prev) => ({
@@ -139,7 +130,6 @@ export default function ContactPage() {
       }));
     }
 
-    // Clear error when user starts typing
     if (errors[name as keyof typeof errors]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
@@ -149,115 +139,144 @@ export default function ContactPage() {
     <div className="min-h-screen bg-[#F9F8F6]">
       <Header />
 
-      {/* 1. HERO SECTION */}
+      {/* HERO SECTION */}
       <section className="pt-32 pb-12 px-6 border-b border-stone-200">
         <div className="max-w-[1440px] mx-auto">
           <span className="text-emerald-800 font-bold tracking-widest uppercase text-xs mb-3 block">
-            Liên hệ Printz
+            Kết nối với Nhà Giám Tuyển
           </span>
-          <h1 className="font-serif text-4xl md:text-6xl text-stone-900 leading-tight mb-4">
-            Kết nối với chúng tôi
+          <h1 className="font-serif text-4xl md:text-6xl text-stone-900 leading-tight mb-4 italic">
+            Khởi Đầu Một Mối Giao Hảo
           </h1>
-          <p className="text-base text-stone-600 font-light max-w-xl">
-            Đội ngũ Printz sẵn sàng tư vấn giải pháp in ấn & quà tặng B2B tối ưu
-            nhất cho bạn trong vòng <strong>15 phút</strong>.
+          <p className="text-base text-stone-600 font-light max-w-2xl leading-relaxed">
+            Hãy để chúng tôi lắng nghe câu chuyện của bạn và cùng nhau kiến tạo
+            những tác phẩm quà tặng xứng tầm.
           </p>
         </div>
       </section>
 
-      {/* 2. MAIN CONTENT: INFO & FORM */}
+      {/* MAIN CONTENT */}
       <div className="max-w-[1440px] mx-auto grid lg:grid-cols-2 min-h-[600px]">
         {/* LEFT: INFO */}
         <div className="bg-stone-900 text-stone-200 p-8 md:p-16 flex flex-col justify-between">
           <div className="space-y-10">
-            {/* Address - Đã cập nhật về Bình Dương để khớp với Map */}
+            {/* Address */}
             <div className="flex items-start gap-4">
               <MapPin className="w-5 h-5 text-emerald-500 mt-1 shrink-0" />
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-stone-500 mb-2">
-                  Văn phòng & Xưởng
+                  Văn phòng Printz
                 </p>
-                <p className="text-lg font-serif text-white">
-                  Số 123 Đại lộ Bình Dương, P. Phú Thọ,
+                <p className="text-lg font-serif text-white mb-2">
+                  Đường DK6A, Phường Thới Hòa,
                   <br />
-                  TP. Thủ Dầu Một, Bình Dương.
+                  TP. Hồ Chí Minh.
+                </p>
+                <p className="text-sm text-stone-400 italic">
+                  Mời bạn ghé thăm để thưởng trà và trực tiếp cảm nhận chất
+                  liệu.
                 </p>
               </div>
             </div>
 
-            {/* Contact */}
+            {/* Phone */}
             <div className="flex items-start gap-4">
               <Phone className="w-5 h-5 text-emerald-500 mt-1 shrink-0" />
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-stone-500 mb-2">
-                  Hotline B2B (24/7)
+                  Hotline Tư vấn (24/7)
                 </p>
                 <a
                   href="tel:0865726848"
-                  className="text-2xl font-serif text-white hover:text-emerald-400"
+                  className="text-2xl font-serif text-white hover:text-emerald-400 transition-colors"
                 >
                   0865 726 848
                 </a>
+                <p className="text-sm text-stone-400 mt-1">
+                  Dành riêng cho Khách hàng Doanh nghiệp
+                </p>
               </div>
             </div>
 
+            {/* Email */}
             <div className="flex items-start gap-4">
               <Mail className="w-5 h-5 text-emerald-500 mt-1 shrink-0" />
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-stone-500 mb-2">
-                  Email
+                  Email Hợp tác
                 </p>
                 <a
-                  href="mailto:b2b@printz.vn"
-                  className="text-2xl font-serif text-white hover:text-emerald-400"
+                  href="mailto:curator@annamcurator.vn"
+                  className="text-2xl font-serif text-white hover:text-emerald-400 transition-colors"
                 >
-                  b2b@printz.vn
+                  curator@annamcurator.vn
                 </a>
               </div>
             </div>
           </div>
 
-          {/* SLA Compact */}
-          <div className="mt-12 pt-8 border-t border-stone-800 grid grid-cols-2 gap-4">
-            <div>
-              <div className="flex items-center gap-2 text-emerald-400 mb-1">
-                <Clock className="w-4 h-4" />{" "}
-                <span className="font-bold text-xs uppercase">
-                  Phản hồi 5 phút
-                </span>
+          {/* Service Pledge */}
+          <div className="mt-12 pt-8 border-t border-stone-800">
+            <h4 className="text-sm font-bold uppercase tracking-widest text-emerald-400 mb-4">
+              Cam kết Dịch vụ
+            </h4>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <Clock className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    Phản hồi Tận tâm
+                  </p>
+                  <p className="text-xs text-stone-400">
+                    Phản hồi trong vòng 30 phút trong giờ hành chính
+                  </p>
+                </div>
               </div>
-              <p className="text-stone-500 text-xs">Trong giờ hành chính</p>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 text-emerald-400 mb-1">
-                <ShieldCheck className="w-4 h-4" />{" "}
-                <span className="font-bold text-xs uppercase">
-                  Bảo hành 1-1
-                </span>
+
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    Bảo mật Tuyệt đối
+                  </p>
+                  <p className="text-xs text-stone-400">
+                    Chúng tôi tôn trọng sự riêng tư về thông tin người nhận quà
+                    và chiến lược ngoại giao
+                  </p>
+                </div>
               </div>
-              <p className="text-stone-500 text-xs">Cam kết chất lượng</p>
+
+              <div className="flex items-start gap-3">
+                <User className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-white">Tư vấn 1:1</p>
+                  <p className="text-xs text-stone-400">
+                    Mỗi doanh nghiệp sẽ có một chuyên viên chăm sóc riêng biệt
+                    (Personal Concierge)
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* RIGHT: COMPACT FORM */}
+        {/* RIGHT: FORM */}
         <div className="bg-white p-8 md:p-16 flex flex-col justify-center">
           <form
             onSubmit={handleSubmit}
             className="space-y-5 max-w-md mx-auto w-full"
           >
-            <h3 className="font-serif text-2xl text-stone-900 mb-6">
-              Gửi yêu cầu báo giá
+            <h3 className="font-serif text-2xl text-stone-900 mb-6 italic">
+              Chia sẻ câu chuyện của bạn
             </h3>
 
-            {/* Nhập liệu gọn gàng */}
             <div className="space-y-4">
               <div className="relative">
                 <Input
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  placeholder="Họ và tên của bạn *"
+                  placeholder="Tên của quý khách *"
                   required
                   disabled={isSubmitting}
                   className={`border-0 border-b px-0 py-3 text-base focus-visible:ring-0 bg-transparent rounded-none placeholder:text-stone-400 ${
@@ -279,7 +298,7 @@ export default function ContactPage() {
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    placeholder="Số điện thoại *"
+                    placeholder="Số điện thoại liên hệ *"
                     required
                     disabled={isSubmitting}
                     className={`border-0 border-b px-0 py-3 text-base focus-visible:ring-0 bg-transparent rounded-none placeholder:text-stone-400 ${
@@ -300,7 +319,7 @@ export default function ContactPage() {
                     value={formData.email}
                     onChange={handleChange}
                     type="email"
-                    placeholder="Email (Nếu có)"
+                    placeholder="Email công việc"
                     disabled={isSubmitting}
                     className={`border-0 border-b px-0 py-3 text-base focus-visible:ring-0 bg-transparent rounded-none placeholder:text-stone-400 ${
                       errors.email
@@ -321,10 +340,10 @@ export default function ContactPage() {
                   name="message"
                   value={formData.message}
                   onChange={handleChange}
-                  placeholder="Nội dung cần hỗ trợ (Ví dụ: In 100 bộ Giftset Tết...)"
+                  placeholder="Quý khách đang tìm kiếm giải pháp quà tặng cho dịp nào? (VD: Quà Tết, Tặng đối tác nước ngoài, Kỷ niệm thành lập...)"
                   required
                   disabled={isSubmitting}
-                  className={`border-0 border-b px-0 py-3 text-base min-h-[100px] resize-none focus-visible:ring-0 bg-transparent rounded-none placeholder:text-stone-400 ${
+                  className={`border-0 border-b px-0 py-3 text-base min-h-[120px] resize-none focus-visible:ring-0 bg-transparent rounded-none placeholder:text-stone-400 ${
                     errors.message
                       ? "border-red-500 focus-visible:border-red-600"
                       : "border-stone-200 focus-visible:border-emerald-800"
@@ -338,46 +357,115 @@ export default function ContactPage() {
               </div>
             </div>
 
-            {/* Submit & Policy */}
             <div className="pt-4">
               <Button
                 type="submit"
                 disabled={isSubmitting}
                 className="w-full bg-stone-900 hover:bg-emerald-900 text-white rounded-sm h-12 text-sm font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? "Đang gửi..." : "Gửi ngay"}{" "}
+                {isSubmitting ? "Đang gửi..." : "Gửi yêu cầu"}{" "}
                 <Send className="w-3 h-3" />
               </Button>
               <p className="text-[10px] text-stone-400 mt-3 text-center">
-                Thông tin được bảo mật theo{" "}
+                Thông tin được bảo mật tuyệt đối theo{" "}
                 <Link to="/policy" className="underline hover:text-stone-900">
-                  CSBM
+                  Chính sách Bảo mật
                 </Link>{" "}
-                của Printz.
+                của chúng tôi.
               </p>
             </div>
 
-            {/* Quick Links Compact - Tích hợp đầy đủ theo yêu cầu */}
             <div className="pt-8 mt-4 border-t border-stone-100 grid grid-cols-2 gap-2">
               <Link
-                to="/policy/shipping"
+                to="/policy/limited"
                 className="text-xs text-stone-500 hover:text-emerald-800 flex items-center gap-1.5 transition-colors"
               >
-                <FileText className="w-3 h-3" /> Chính sách Giao vận
+                <FileText className="w-3 h-3" /> Chính sách Độc bản & Giới hạn
               </Link>
               <Link
-                to="/policy/warranty"
+                to="/policy/bespoke"
                 className="text-xs text-stone-500 hover:text-emerald-800 flex items-center gap-1.5 transition-colors"
               >
-                <FileText className="w-3 h-3" /> Bảo hành & Đổi trả
+                <FileText className="w-3 h-3" /> Quy trình Chế tác & Đặt hàng
               </Link>
             </div>
           </form>
         </div>
       </div>
 
-      {/* 3. LOCATION MAP - Nhúng vào đây */}
       <LocationMap />
+
+      {/* CEO CONTACT BOX */}
+      <section className="py-16 px-6 bg-[#F9F8F6]">
+        <div className="max-w-4xl mx-auto">
+          <div className="relative bg-white rounded-sm shadow-sm border border-stone-200 overflow-hidden">
+            {/* Decorative elements */}
+            <div className="absolute top-4 left-4 text-amber-400 text-2xl">
+              ✦
+            </div>
+            <div className="absolute bottom-4 left-8 text-emerald-400 text-lg">
+              ✦
+            </div>
+            <div className="absolute top-6 right-6 text-3xl">👀</div>
+
+            <div className="flex flex-col md:flex-row items-center gap-8 p-8 md:p-12">
+              {/* CEO Photo */}
+              <div className="shrink-0">
+                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-stone-100 shadow-md">
+                  <img
+                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300&auto=format&fit=crop"
+                    alt="Raymond - Giám đốc điều hành"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 text-center md:text-left">
+                <p className="text-xl md:text-2xl text-stone-600 mb-2 font-light">
+                  Tất nhiên, bạn cũng có thể liên hệ với chúng tôi
+                </p>
+                <p className="text-xl md:text-2xl text-stone-900 font-serif italic mb-4">
+                  → Giám đốc điều hành nếu bạn muốn.
+                </p>
+
+                <div className="mb-4">
+                  <p className="font-bold text-stone-900">Đặng Hoàn Phúc</p>
+                  <p className="text-sm text-emerald-700 uppercase tracking-widest text-xs">
+                    Giám đốc điều hành
+                  </p>
+                </div>
+
+                {/* Contact buttons */}
+                <div className="flex items-center justify-center md:justify-start gap-3">
+                  <a
+                    href="mailto:phucdh@printz.vn"
+                    className="w-10 h-10 rounded-sm bg-stone-900 hover:bg-emerald-900 flex items-center justify-center transition-colors"
+                    title="Email"
+                  >
+                    <Mail className="w-5 h-5 text-white" />
+                  </a>
+                  <a
+                    href="https://zalo.me/0865726848"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 rounded-sm bg-stone-900 hover:bg-emerald-900 flex items-center justify-center transition-colors"
+                    title="Zalo"
+                  >
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="currentColor"
+                      viewBox="0 0 48 48"
+                    >
+                      <path d="M24 4C12.954 4 4 12.954 4 24s8.954 20 20 20 20-8.954 20-20S35.046 4 24 4zm7.747 28.773c-.465.93-1.86 1.707-2.79 1.86-.93.155-1.86.465-6.2-1.395-5.27-2.325-8.525-7.905-8.835-8.215-.31-.465-2.325-3.255-2.325-6.2 0-2.945 1.395-4.34 1.86-4.96.465-.62 1.085-.775 1.395-.775.31 0 .62 0 .93.155.31.155.775.155 1.085.93.31.775 1.24 3.1 1.395 3.255.155.31.31.62.155.93-.155.31-.31.62-.465.93-.31.31-.62.62-.93.93-.31.31-.62.62-.31 1.085.31.465 1.395 2.325 3.1 3.72 2.17 1.86 3.875 2.48 4.495 2.79.62.31.93.155 1.24-.155.31-.31 1.24-1.395 1.55-1.86.31-.465.775-.465 1.24-.31.465.155 2.945 1.395 3.41 1.705.465.31.93.465 1.085.775.155.31.155 1.55-.31 2.79z" />
+                    </svg>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <Footer />
     </div>

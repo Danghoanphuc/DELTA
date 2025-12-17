@@ -3,7 +3,8 @@
 
 // ✅ SỬA LỖI 1: Import instance (chữ 'p' thường)
 import { productRepository } from "../products/product.repository.js";
-import { DesignRepository } from "../designs/design.repository.js";
+// ❌ REMOVED: Design features
+// import { DesignRepository } from "../designs/design.repository.js";
 import { ValidationException } from "../../shared/exceptions/index.js";
 import { Logger } from "../../shared/utils/index.js";
 
@@ -11,7 +12,8 @@ export class StudioService {
   constructor() {
     // ✅ SỬA LỖI 2: Dùng instance đã import
     this.productRepo = productRepository;
-    this.designRepo = new DesignRepository();
+    // ❌ REMOVED: Design features
+    // this.designRepo = new DesignRepository();
   }
 
   async publish(printerId, body, files) {
@@ -63,36 +65,14 @@ export class StudioService {
     });
     Logger.success(`[StudioService] Đã tạo Product (Phôi): ${newProduct._id}`);
 
-    // 4. Tạo "Đầu ra 2: DesignTemplate (Mẫu)"
-    const newTemplate = await this.designRepo.createTemplate({
-      ...templateData, // (name, editorData, isPublic)
-      printerId: printerId,
-      baseProductId: newProduct._id, // <-- Liên kết 2 bản ghi
-
-      // Gói Dữ liệu Thiết kế (3 phần)
-      // 1. Nguồn (đã có trong templateData.editorData)
-
-      // 2. Sản xuất (Thành phẩm)
-      productionFile: {
-        url: productionFileUrl,
-        type: "SVG", // Giả định là SVG
-        bleed_mm: productData.specifications?.bleed || 0,
-      },
-
-      // 3. Trưng bày (Cái bóng)
-      preview: {
-        thumbnailUrl: previewThumbnailUrl,
-        embed3DUrl: embed3DUrl,
-      },
-    });
-    Logger.success(
-      `[StudioService] Đã tạo DesignTemplate (Mẫu): ${newTemplate._id}`
-    );
+    // ❌ REMOVED: Design template creation (design features disabled)
+    // 4. Tạo "Đầu ra 2: DesignTemplate (Mẫu)" - DISABLED
+    // const newTemplate = await this.designRepo.createTemplate({...});
 
     // 5. Trả về kết quả
     return {
       product: newProduct,
-      template: newTemplate,
+      // template: newTemplate, // REMOVED
     };
   }
 }

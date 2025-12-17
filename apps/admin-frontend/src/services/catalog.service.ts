@@ -22,11 +22,28 @@ export interface Category {
   children?: Category[];
 }
 
+export interface SupplierProfile {
+  avatar?: string;
+  coverImage?: string;
+  bio?: string;
+  story?: string;
+  quote?: string;
+  curatorNote?: string;
+  yearsOfExperience?: number;
+  achievements?: string[];
+  socialLinks?: {
+    facebook?: string;
+    instagram?: string;
+    youtube?: string;
+    website?: string;
+  };
+}
+
 export interface Supplier {
   _id: string;
   name: string;
   code: string;
-  type: "manufacturer" | "distributor" | "printer" | "dropshipper";
+  type: "manufacturer" | "distributor" | "printer" | "dropshipper" | "artisan";
   contactInfo: {
     email: string;
     phone?: string;
@@ -40,6 +57,7 @@ export interface Supplier {
   rating: number;
   isActive: boolean;
   isPreferred: boolean;
+  profile?: SupplierProfile;
 }
 
 export interface Product {
@@ -237,21 +255,17 @@ export const supplierApi = {
 
   // Performance tracking
   getPerformance: async (id: string) => {
-    const { data } = await api.get(
-      `/admin/catalog/suppliers/${id}/performance`
-    );
+    const { data } = await api.get(`/admin/suppliers/${id}/performance`);
     return data.data as SupplierPerformanceMetrics;
   },
 
   getLeadTimeHistory: async (id: string) => {
-    const { data } = await api.get(
-      `/admin/catalog/suppliers/${id}/lead-time-history`
-    );
+    const { data } = await api.get(`/admin/suppliers/${id}/lead-time-history`);
     return data.data as LeadTimeRecord[];
   },
 
   updateRating: async (id: string, rating: number) => {
-    const { data } = await api.put(`/admin/catalog/suppliers/${id}/rating`, {
+    const { data } = await api.put(`/admin/suppliers/${id}/rating`, {
       rating,
     });
     return data.data as Supplier;
@@ -262,10 +276,145 @@ export const supplierApi = {
     if (supplierIds && supplierIds.length > 0) {
       params.append("ids", supplierIds.join(","));
     }
-    const { data } = await api.get(
-      `/admin/catalog/suppliers/compare?${params}`
-    );
+    const { data } = await api.get(`/admin/suppliers/compare?${params}`);
     return data.data as SupplierComparison[];
+  },
+
+  // Supplier posts
+  createPost: async (
+    supplierId: string,
+    postData: {
+      // Content - EITHER content (legacy HTML) OR blocks (Artisan Block)
+      title?: string;
+      excerpt?: string;
+      category?: string;
+      subcategory?: string;
+      readTime?: number;
+      featured?: boolean;
+      content?: string; // Legacy HTML content (optional now)
+      blocks?: Array<{
+        // NEW: Artisan Block array
+        id: string;
+        type: string;
+        order: number;
+        content?: Record<string, any>;
+        data?: Record<string, any>;
+        settings?: Record<string, any>;
+      }>;
+      editorMode?: "richtext" | "artisan"; // Track editor type
+      media?: Array<{
+        type: "image" | "video";
+        url: string;
+        thumbnail?: string;
+      }>;
+      visibility?: "public" | "private" | "draft";
+      tags?: string[];
+      // SEO
+      slug?: string;
+      metaTitle?: string;
+      metaDescription?: string;
+      ogImage?: string;
+      schemaType?: "Article" | "FAQ" | "ProductReview";
+      // Sales
+      relatedProducts?: string[];
+      relatedPosts?: string[];
+      highlightQuote?: string;
+      // Author
+      authorProfile?: {
+        name: string;
+        title: string;
+        avatar?: string;
+        bio?: string;
+      };
+    }
+  ) => {
+    const { data } = await api.post(
+      `/admin/suppliers/${supplierId}/posts`,
+      postData
+    );
+    return data.data;
+  },
+
+  getPostsBySupplier: async (supplierId: string, visibility?: string) => {
+    const params = new URLSearchParams();
+    if (visibility) params.append("visibility", visibility);
+    const { data } = await api.get(
+      `/admin/suppliers/${supplierId}/posts?${params}`
+    );
+    return data.data;
+  },
+
+  // Get all posts across all suppliers (for related posts picker)
+  getAllPosts: async (options?: {
+    visibility?: string;
+    category?: string;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (options?.visibility) params.append("visibility", options.visibility);
+    if (options?.category) params.append("category", options.category);
+    if (options?.limit) params.append("limit", String(options.limit));
+    const { data } = await api.get(`/admin/supplier-posts?${params}`);
+    return {
+      posts: data.data?.posts || data.posts || [],
+      pagination: data.data?.pagination || data.pagination,
+    };
+  },
+
+  updatePost: async (
+    postId: string,
+    postData: {
+      // Content - EITHER content (legacy HTML) OR blocks (Artisan Block)
+      title?: string;
+      excerpt?: string;
+      category?: string;
+      subcategory?: string;
+      readTime?: number;
+      featured?: boolean;
+      content?: string; // Legacy HTML content
+      blocks?: Array<{
+        // NEW: Artisan Block array
+        id: string;
+        type: string;
+        order: number;
+        content?: Record<string, any>;
+        data?: Record<string, any>;
+        settings?: Record<string, any>;
+      }>;
+      editorMode?: "richtext" | "artisan";
+      media?: Array<{
+        type: "image" | "video";
+        url: string;
+        thumbnail?: string;
+      }>;
+      visibility?: "public" | "private" | "draft";
+      tags?: string[];
+      // SEO
+      slug?: string;
+      metaTitle?: string;
+      metaDescription?: string;
+      ogImage?: string;
+      schemaType?: "Article" | "FAQ" | "ProductReview";
+      // Sales
+      relatedProducts?: string[];
+      relatedPosts?: string[];
+      highlightQuote?: string;
+      // Author
+      authorProfile?: {
+        name: string;
+        title: string;
+        avatar?: string;
+        bio?: string;
+      };
+    }
+  ) => {
+    const { data } = await api.put(`/admin/supplier-posts/${postId}`, postData);
+    return data.data;
+  },
+
+  deletePost: async (postId: string) => {
+    const { data } = await api.delete(`/admin/supplier-posts/${postId}`);
+    return data;
   },
 };
 

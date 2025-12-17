@@ -1,54 +1,54 @@
 import { useState, useEffect, useRef } from "react";
-import { FileSpreadsheet, PackageCheck, Globe2, BarChart3 } from "lucide-react";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { MessageSquare, Gem, Hammer, Gift } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
-// --- DỮ LIỆU DEMO ---
+// --- DỮ LIỆU HERITAGE JOURNEY ---
 const STEPS = [
   {
     id: "01",
-    title: "Tải lên danh sách",
-    sub: "Một chạm",
-    icon: FileSpreadsheet,
-    desc: "Kéo thả tệp Excel danh sách người nhận. Dữ liệu được chuẩn hóa tự động.",
-    videoUrl: null,
+    title: "Tham Vấn Giám Tuyển",
+    sub: "Thấu hiểu vị thế",
+    icon: MessageSquare,
+    desc: "Chúng tôi lắng nghe câu chuyện ngoại giao của bạn để tìm ra 'ngôn ngữ' quà tặng phù hợp nhất.",
+    videoUrl: null, // Có thể chèn video cảnh uống trà bàn chuyện
     lottieUrl:
       "https://lottie.host/embed/551c8169-385c-43df-9594-7b4d02cf1fda/w1xsXDO31P.lottie",
   },
   {
     id: "02",
-    title: "Sản xuất & Kitting Tự động",
-    sub: "KHÔNG CẦN GIÁM SÁT",
-    icon: PackageCheck,
-    desc: "Lệnh in được chuyển thẳng xuống xưởng. Từng món quà được đóng gói (kitting) chỉn chu theo quy chuẩn thương hiệu.",
-    videoUrl:
-      "https://res.cloudinary.com/demo/video/upload/v1698339053/samples/cld-sample-video.mp4",
-    lottieUrl: null,
+    title: "Lựa Chọn Độc Bản",
+    sub: "Chạm vào nguyên bản",
+    icon: Gem,
+    desc: "Trực tiếp cảm nhận chất liệu (gốm, gỗ, trầm) và duyệt thiết kế cá nhân hóa tinh tế.",
+    videoUrl: null,
+    lottieUrl:
+      "https://lottie.host/embed/a82557c6-8cfb-4f02-9354-6e997161da86/4eAkcsUeDw.lottie",
   },
   {
     id: "03",
-    title: "Phân phối Linh hoạt",
-    sub: "SHIP HOẶC REDEEM LINK",
-    icon: Globe2,
-    desc: "Gửi thẳng đến địa chỉ có sẵn HOẶC tạo 'Redeem Link' để nhân viên tự điền thông tin nhận quà. Giải quyết bài toán thiếu data.",
-    videoUrl:
-      "https://res.cloudinary.com/demo/video/upload/v1698339053/samples/cld-sample-video.mp4",
-    lottieUrl: null,
+    title: "Chế Tác Thủ Công",
+    sub: "Nghệ nhân thổi hồn",
+    icon: Hammer,
+    desc: "Tác phẩm được chế tác tại làng nghề, trải qua quy trình kiểm định 'Kép' nghiêm ngặt.",
+    videoUrl: null,
+    lottieUrl:
+      "https://lottie.host/embed/104fde0e-3ba0-41df-8387-1e3b17a67eca/wMNNzYxYRg.lottie",
   },
   {
     id: "04",
-    title: "Tracking & Báo cáo Real-time",
-    sub: "MINH BẠCH TUYỆT ĐỐI",
-    icon: BarChart3,
-    desc: "Theo dõi hành trình đơn hàng và xem hình ảnh nghiệm thu thực tế (Proof of Delivery) ngay trên Dashboard tập trung.",
-    videoUrl:
-      "https://res.cloudinary.com/demo/video/upload/v1698339053/samples/cld-sample-video.mp4",
-    lottieUrl: null,
+    title: "Nghi Thức Trao Gửi",
+    sub: "Giao hảo trọn vẹn",
+    icon: Gift,
+    desc: "Đóng gói trang trọng với khăn lụa, hộp cứng và thư tay. Giao đến tận bàn làm việc của đối tác.",
+    videoUrl: null,
+    lottieUrl:
+      "https://lottie.host/embed/723ad963-c59f-4eef-aa68-b2c6f6997bbb/IwHjmBuFOB.lottie",
   },
 ];
 
 export function LPProcess() {
   const [activeStep, setActiveStep] = useState(0);
+  // ... (Giữ nguyên logic autoplay) ...
   const videoRef = useRef<HTMLVideoElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -56,7 +56,7 @@ export function LPProcess() {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
       setActiveStep((prev) => (prev + 1) % STEPS.length);
-    }, 3000);
+    }, 4000); // Chậm lại chút cho sang
   };
 
   useEffect(() => {
@@ -65,15 +65,6 @@ export function LPProcess() {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, []);
-
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = 0;
-      videoRef.current
-        .play()
-        .catch((e) => console.warn("Video autoplay blocked:", e));
-    }
-  }, [activeStep]);
 
   const handleStepClick = (index: number) => {
     setActiveStep(index);
@@ -88,22 +79,20 @@ export function LPProcess() {
         <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-16 gap-8">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 mb-4">
-              <span className="w-6 h-[2px] bg-[#C63321]"></span>
-              <span className="font-mono text-xs font-bold tracking-[0.2em] text-[#C63321] uppercase">
-                Quy trình Zero-Touch
+              <span className="w-6 h-[2px] bg-amber-800"></span>
+              <span className="font-mono text-xs font-bold tracking-[0.2em] text-amber-800 uppercase">
+                The Bespoke Journey
               </span>
             </div>
             <h2 className="font-serif text-4xl md:text-5xl text-stone-900 leading-tight">
-              Tự động hóa <br />
-              <span className="italic text-stone-500">
-                hành trình quà tặng.
-              </span>
+              Hành trình <br />
+              <span className="italic text-stone-500">Chế tác Độc bản.</span>
             </h2>
           </div>
           <div className="text-right max-w-md">
-            <p className="text-lg text-stone-600 font-light">
-              Từ file Excel đến tay người nhận chỉ với vài cú click. Bạn ra
-              lệnh, Printz thi hành.
+            <p className="text-lg text-stone-600 font-light italic">
+              "Không vội vã, không đại trà. Chúng tôi dành thời gian để tạo ra
+              tác phẩm xứng tầm với vị thế của bạn."
             </p>
           </div>
         </div>
@@ -117,18 +106,18 @@ export function LPProcess() {
                 <div
                   key={index}
                   className={cn(
-                    "group relative p-6 rounded-2xl transition-all duration-500 cursor-pointer border-2 overflow-hidden",
+                    "group relative p-6 rounded-sm transition-all duration-700 cursor-pointer border-l-4 overflow-hidden",
                     isActive
-                      ? "bg-white border-[#C63321]/50 shadow-lg scale-[1.02] z-10"
-                      : "bg-transparent border-transparent hover:bg-stone-100/50 hover:border-stone-200"
+                      ? "bg-white border-amber-800 shadow-xl z-10"
+                      : "bg-transparent border-stone-200 hover:bg-stone-100 hover:border-stone-400"
                   )}
                   onClick={() => handleStepClick(index)}
                 >
                   <div className="flex items-start gap-6 relative z-10">
                     <span
                       className={cn(
-                        "absolute -top-4 -left-2 font-serif text-6xl font-bold transition-colors select-none z-0",
-                        isActive ? "text-[#C63321]/5" : "text-stone-200/30"
+                        "absolute -top-2 -right-2 font-serif text-6xl font-bold transition-colors select-none z-0 opacity-10",
+                        isActive ? "text-amber-800" : "text-stone-400"
                       )}
                     >
                       {step.id}
@@ -136,20 +125,20 @@ export function LPProcess() {
                     <div className="relative shrink-0 mt-1">
                       <div
                         className={cn(
-                          "w-12 h-12 flex items-center justify-center rounded-xl transition-all duration-500",
+                          "w-12 h-12 flex items-center justify-center rounded-full transition-all duration-500 border",
                           isActive
-                            ? "bg-[#C63321] text-white shadow-md rotate-3 scale-110"
-                            : "bg-stone-100 text-stone-400 group-hover:text-[#C63321] group-hover:bg-white"
+                            ? "bg-amber-800 text-white border-amber-800"
+                            : "bg-transparent text-stone-400 border-stone-300 group-hover:border-amber-800 group-hover:text-amber-800"
                         )}
                       >
-                        <Icon strokeWidth={1.5} className="w-6 h-6" />
+                        <Icon strokeWidth={1.5} className="w-5 h-5" />
                       </div>
                     </div>
                     <div>
                       <p
                         className={cn(
                           "font-mono text-[10px] font-bold tracking-widest uppercase mb-1 transition-colors",
-                          isActive ? "text-[#C63321]" : "text-stone-400"
+                          isActive ? "text-amber-800" : "text-stone-400"
                         )}
                       >
                         {step.sub}
@@ -157,9 +146,7 @@ export function LPProcess() {
                       <h3
                         className={cn(
                           "font-serif text-xl font-bold mb-2 transition-colors",
-                          isActive
-                            ? "text-stone-900"
-                            : "text-stone-600 group-hover:text-stone-900"
+                          isActive ? "text-stone-900" : "text-stone-600"
                         )}
                       >
                         {step.title}
@@ -174,64 +161,35 @@ export function LPProcess() {
                       </p>
                     </div>
                   </div>
-                  {isActive && (
-                    <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-stone-100">
-                      <div className="h-full bg-[#C63321] animate-[progress_3s_linear_forward] origin-left"></div>
-                    </div>
-                  )}
                 </div>
               );
             })}
           </div>
 
+          {/* Visual Area */}
           <div className="lg:col-span-7 relative h-full min-h-[400px] lg:min-h-0">
-            <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-stone-900 relative z-10">
-              {/* Hiển thị Lottie hoặc Video */}
-              {currentStep.lottieUrl ? (
-                <div className="w-full h-full flex items-center justify-center bg-white">
-                  <DotLottieReact
-                    src={currentStep.lottieUrl}
-                    loop
-                    autoplay
-                    className="w-full h-full"
-                  />
-                </div>
-              ) : (
-                <video
-                  ref={videoRef}
-                  key={activeStep}
-                  src={currentStep.videoUrl || ""}
-                  className="w-full h-full object-cover"
-                  autoPlay
-                  muted
-                  playsInline
-                  loop={false}
-                />
-              )}
-
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-8 pt-20 pointer-events-none">
-                <p className="font-mono text-xs font-bold text-[#C63321] uppercase tracking-widest mb-2 flex items-center gap-2">
-                  <span className="inline-block w-2 h-2 rounded-full bg-[#C63321] animate-pulse"></span>
-                  Đang trình diễn: Bước {currentStep.id}
-                </p>
-                <h4 className="font-serif text-2xl font-bold text-white">
+            <div className="w-full h-full rounded-sm overflow-hidden shadow-2xl border-8 border-white bg-[#F9F8F6] relative z-10">
+              <iframe
+                src={currentStep.lottieUrl}
+                className="w-full h-full border-0 bg-transparent grayscale-[50%] sepia-[20%]" // Hiệu ứng màu vintage
+                title={`Animation - ${currentStep.title}`}
+              />
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-stone-900/90 to-transparent p-8 pt-24 pointer-events-none">
+                <h4 className="font-serif text-3xl font-bold text-[#F9F8F6] mb-2">
                   {currentStep.title}
                 </h4>
+                <p className="text-stone-300 font-light text-sm tracking-wide">
+                  An Nam Curator Process • Step {currentStep.id}
+                </p>
               </div>
             </div>
 
-            <div className="absolute top-1/4 -right-20 w-64 h-64 bg-[#C63321]/20 rounded-full blur-[100px] -z-10 mix-blend-multiply"></div>
-            <div className="absolute bottom-1/4 -left-20 w-64 h-64 bg-emerald-500/20 rounded-full blur-[100px] -z-10 mix-blend-multiply"></div>
+            {/* Decor Blob */}
+            <div className="absolute -top-10 -right-10 w-64 h-64 bg-amber-800/10 rounded-full blur-[80px] -z-10 mix-blend-multiply"></div>
+            <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-stone-800/10 rounded-full blur-[80px] -z-10 mix-blend-multiply"></div>
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes progress {
-          from { transform: scaleX(0); }
-          to { transform: scaleX(1); }
-        }
-      `}</style>
     </section>
   );
 }

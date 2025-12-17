@@ -36,7 +36,6 @@ export const AppLayout = () => {
   const showSearch =
     location.pathname === "/app" ||
     location.pathname === "/shop" ||
-    location.pathname === "/designs" ||
     location.pathname === "/orders";
 
   // 3. Logic Auth

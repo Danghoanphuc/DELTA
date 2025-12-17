@@ -8,9 +8,7 @@ export { PaymentForm } from "./PaymentForm";
 export { ShippingCalculator } from "./ShippingCalculator";
 
 // ===== DESIGNS =====
-export { DesignCard } from "./DesignCard";
-export { DesignEmptyState } from "./DesignEmptyState";
+// TODO: Add design components when needed
 
 // ===== SETTINGS (Subfolder) =====
 export * from "./settings";
-

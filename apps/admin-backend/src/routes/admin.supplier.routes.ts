@@ -7,9 +7,13 @@
 
 import { Router } from "express";
 import { AdminSupplierController } from "../controllers/admin.supplier.controller.js";
+import { authenticate } from "../shared/middleware/index.js";
 
 const router = Router();
 const controller = new AdminSupplierController();
+
+// Apply authentication to all routes
+router.use(authenticate);
 
 // ============================================
 // SUPPLIER PERFORMANCE ROUTES
@@ -71,5 +75,23 @@ router.get("/:id/lead-time-history", controller.getLeadTimeHistory);
  * @body    rating - Rating (0-5)
  */
 router.put("/:id/rating", controller.updateSupplierRating);
+
+// ============================================
+// SUPPLIER POSTS ROUTES
+// ============================================
+
+/**
+ * @route   POST /api/admin/suppliers/:supplierId/posts
+ * @desc    Create a new post for supplier
+ * @access  Admin
+ */
+router.post("/:supplierId/posts", controller.createPost);
+
+/**
+ * @route   GET /api/admin/suppliers/:supplierId/posts
+ * @desc    Get posts by supplier
+ * @access  Admin
+ */
+router.get("/:supplierId/posts", controller.getPostsBySupplier);
 
 export default router;

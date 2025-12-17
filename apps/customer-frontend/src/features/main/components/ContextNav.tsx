@@ -1,77 +1,78 @@
 // apps/customer-frontend/src/features/chat/components/ContextNav.tsx
 
 import {
-  Wand2,
-  Building2,
-  Timer,
+  Gem, // Thay Wand2 (Studio) -> Gem (Chế tác)
+  Clock, // Thay Timer
+  Users, // Thay Wallet (B2B)
   CalendarDays,
   ChevronRight,
   LayoutGrid,
-  Wallet,
-  FileText,
+  Scroll, // Thay FileText (Catalog)
 } from "lucide-react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { cn } from "@/shared/lib/utils";
 
-// Cấu hình Menu Điều hướng - QUIET LUXURY EDITION (Tiếng Việt)
+// Cấu hình Menu - AN NAM CURATOR EDITION
 const items = [
   {
-    id: "studio",
-    label: "AI Studio",
-    sublabel: "Tự thiết kế Free",
-    icon: Wand2,
-    href: "/design-editor",
-    // Style: Giấy mỹ thuật trắng + Viền đá xám
-    bg: "bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-400",
+    id: "bespoke",
+    label: "Chế Tác Riêng",
+    sublabel: "Khắc tên & Logo",
+    icon: Gem,
+    href: "/bespoke",
+    // Style: Giấy Dó + Viền Amber
+    bg: "bg-[#F9F8F6] hover:bg-white border border-stone-200 hover:border-amber-400",
+    iconColor: "text-amber-800",
+    badge: "BESPOKE",
+    badgeColor: "bg-amber-50 text-amber-900 border-amber-100 font-serif italic",
+  },
+  {
+    id: "ready",
+    label: "Sẵn Có & Giao Ngay",
+    sublabel: "Ship hỏa tốc 4H",
+    icon: Clock,
+    href: "/ready-to-ship",
+    bg: "bg-[#F9F8F6] hover:bg-white border border-stone-200 hover:border-stone-400",
     iconColor: "text-stone-600",
-    badge: "BETA",
+    badge: "EXPRESS",
     badgeColor: "bg-stone-100 text-stone-600 border-stone-200",
   },
+  // 🔥 HERO ITEM: TƯ VẤN NGOẠI GIAO
   {
-    id: "fast",
-    label: "In Gấp 2H",
-    sublabel: "Giao ngay trong ngày",
-    icon: Timer,
-    href: "/rush",
-    bg: "bg-white hover:bg-stone-50 border border-stone-200 hover:border-orange-300",
-    iconColor: "text-orange-700", // Cam đất (Burnt Orange) sang hơn cam tươi
-    badge: "EXPRESS",
-    badgeColor: "bg-orange-50 text-orange-700 border-orange-100 font-medium",
-  },
-  // 🔥 HERO ITEM: GIÁ SỈ & CÔNG NỢ (Không bôi đen, chỉ nhấn viền sang)
-  {
-    id: "b2b",
-    label: "Doanh Nghiệp", // Tiếng Việt thực dụng
-    sublabel: "Chiết khấu - Ưu đãi",
-    icon: Wallet,
-    href: "/business/contract",
-    // Style: Trắng sạch + Highlight nhẹ Blue Navy (Sang trọng)
-    bg: "bg-white hover:bg-blue-50/30 border border-stone-200 hover:border-blue-800 shadow-sm",
-    iconColor: "text-blue-900", // Xanh Navy đậm quyền lực
-    badge: "VIP",
-    badgeColor: "bg-blue-50 text-blue-900 border-blue-100 font-bold",
+    id: "diplomacy",
+    label: "Gói Ngoại Giao",
+    sublabel: "Dành cho DN & VIP",
+    icon: Users,
+    href: "/business/consulting",
+    // Style: Nền tối sang trọng
+    bg: "bg-stone-900 hover:bg-stone-800 border border-stone-900 shadow-md group",
+    iconColor: "text-amber-400", // Vàng kim trên nền đen
+    textColor: "text-white group-hover:text-amber-50",
+    subTextColor: "text-stone-400 group-hover:text-stone-300",
+    badge: "CORPORATE",
+    badgeColor: "bg-amber-900/30 text-amber-400 border-amber-800/50",
   },
   {
-    id: "event",
-    label: "Sự Kiện ",
-    sublabel: "Lễ, Tết, Year End",
+    id: "tet",
+    label: "Quà Tết 2026",
+    sublabel: "BST Ất Tỵ",
     icon: CalendarDays,
-    href: "/inspiration",
-    bg: "bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-400",
-    iconColor: "text-stone-600",
-    badge: "COMBO",
-    badgeColor: "",
+    href: "/collection/tet-2026",
+    bg: "bg-[#F9F8F6] hover:bg-red-50 border border-stone-200 hover:border-red-200",
+    iconColor: "text-red-800", // Đỏ trầm lễ hội
+    badge: "NEW",
+    badgeColor: "bg-red-50 text-red-700 border-red-100",
   },
   {
-    id: "quote", // Đổi ID từ fast -> quote (hoặc giữ fast nếu muốn logic cũ)
-    label: "Báo Giá", // Đổi tên để đánh trúng nỗi đau chờ đợi
-    sublabel: "Tải PDF có mộc đỏ", // Benefit cực mạnh
-    icon: FileText, // Icon giấy tờ
-    href: "/quote", // Vẫn trỏ về luồng đặt nhanh
-    bg: "bg-white hover:bg-stone-50 border border-stone-200 hover:border-orange-300",
-    iconColor: "text-orange-700",
-    badge: "AUTO",
-    badgeColor: "bg-orange-50 text-orange-700 border-orange-100 font-medium",
+    id: "catalog",
+    label: "Catalog Điện Tử",
+    sublabel: "Tải PDF chi tiết",
+    icon: Scroll,
+    href: "/catalog",
+    bg: "bg-[#F9F8F6] hover:bg-white border border-stone-200 hover:border-amber-400",
+    iconColor: "text-stone-600",
+    badge: "PDF",
+    badgeColor: "bg-stone-100 text-stone-600 border-stone-200",
   },
 ];
 
@@ -86,7 +87,7 @@ export const ContextNav = ({
   compact = false,
   layout = "vertical",
 }: ContextNavProps) => {
-  // === RENDER CHO MOBILE (Lưới tối giản - Sang trọng) ===
+  // === RENDER CHO MOBILE ===
   if (layout === "mobile-grid") {
     return (
       <div className={cn("grid grid-cols-4 gap-3", className)}>
@@ -95,15 +96,16 @@ export const ContextNav = ({
             key={item.id}
             href={item.href}
             className={cn(
-              "flex flex-col items-center gap-2 p-2.5 rounded-sm border transition-all active:scale-95 relative bg-white",
-              // Mobile style: Border mỏng, màu sắc tinh tế
-              item.id === "b2b" ? "border-blue-900/30" : "border-stone-100"
+              "flex flex-col items-center gap-2 p-2.5 rounded-sm border transition-all active:scale-95 relative",
+              item.id === "diplomacy"
+                ? "bg-stone-900 border-stone-900 shadow-md"
+                : "bg-white border-stone-100"
             )}
           >
-            {/* Badge nhỏ cho B2B */}
-            {item.id === "b2b" && (
-              <span className="absolute top-0 right-0 bg-blue-900 text-white text-[8px] font-serif italic px-1.5 py-0.5">
-                -30%
+            {/* Badge nhỏ */}
+            {item.id === "diplomacy" && (
+              <span className="absolute -top-1.5 right-0 bg-amber-700 text-white text-[7px] font-bold uppercase px-1.5 py-0.5 rounded-full border border-stone-900">
+                VIP
               </span>
             )}
 
@@ -117,8 +119,8 @@ export const ContextNav = ({
             </div>
             <span
               className={cn(
-                "text-[9px] uppercase tracking-widest font-medium text-center leading-tight text-stone-600",
-                item.id === "b2b" && "text-blue-900 font-bold"
+                "text-[9px] uppercase tracking-wider font-medium text-center leading-tight",
+                item.id === "diplomacy" ? "text-amber-50" : "text-stone-600"
               )}
             >
               {item.label}
@@ -129,7 +131,7 @@ export const ContextNav = ({
     );
   }
 
-  // === RENDER CHO DESKTOP (Vertical List - Editorial Style) ===
+  // === RENDER CHO DESKTOP ===
   return (
     <Card
       className={cn(
@@ -141,27 +143,25 @@ export const ContextNav = ({
         <div className="flex items-center gap-2 mb-6 px-2">
           <LayoutGrid size={12} className="text-stone-400" />
           <h3 className="font-mono text-[10px] font-bold text-stone-400 uppercase tracking-[0.2em]">
-            Menu
+            Dịch vụ
           </h3>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           {items.map((item) => (
             <a
               key={item.id}
               href={item.href}
               className={cn(
-                "group relative flex items-center gap-5 rounded-sm px-5 py-5 transition-all duration-500 ease-out",
-                // Hover effect: Dịch chuyển nhẹ sang phải (Slide)
+                "group relative flex items-center gap-5 rounded-sm px-5 py-4 transition-all duration-500 ease-out",
                 "hover:pl-7",
                 item.bg,
                 compact && "px-4 py-3"
               )}
             >
-              {/* Icon - Stroke siêu mỏng (1.2) = Luxury */}
               <div
                 className={cn(
-                  "flex items-center justify-center transition-transform duration-500 group-hover:scale-105",
+                  "flex items-center justify-center transition-transform duration-500 group-hover:scale-110",
                   item.iconColor
                 )}
               >
@@ -170,15 +170,20 @@ export const ContextNav = ({
 
               <div className="flex-1 min-w-0 flex flex-col justify-center">
                 <div className="flex items-center gap-3">
-                  {/* Font Serif cho tiêu đề -> Cảm giác tạp chí */}
-                  <span className="text-lg font-serif font-medium text-stone-900 tracking-tight group-hover:text-black transition-colors">
+                  <span
+                    className={cn(
+                      "text-lg font-serif font-bold tracking-tight transition-colors",
+                      // @ts-ignore
+                      item.textColor || "text-stone-900 group-hover:text-black"
+                    )}
+                  >
                     {item.label}
                   </span>
 
                   {item.badge && (
                     <span
                       className={cn(
-                        "text-[9px] px-1.5 py-0.5 border uppercase tracking-widest leading-none",
+                        "text-[8px] px-1.5 py-0.5 border uppercase tracking-widest leading-none rounded-sm",
                         item.badgeColor
                       )}
                     >
@@ -186,14 +191,25 @@ export const ContextNav = ({
                     </span>
                   )}
                 </div>
-                {/* Font Mono cho phụ đề -> Cảm giác kỹ thuật/chính xác */}
-                <div className="text-xs font-mono text-stone-400 mt-1 uppercase tracking-wider group-hover:text-stone-600 transition-colors">
+                <div
+                  className={cn(
+                    "text-xs font-mono mt-1 uppercase tracking-wider transition-colors font-light",
+                    // @ts-ignore
+                    item.subTextColor ||
+                      "text-stone-500 group-hover:text-stone-700"
+                  )}
+                >
                   {item.sublabel}
                 </div>
               </div>
 
-              {/* Arrow Mảnh */}
-              <div className="opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-500 text-stone-800">
+              <div
+                className={cn(
+                  "opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-500",
+                  // @ts-ignore
+                  item.id === "diplomacy" ? "text-amber-400" : "text-stone-800"
+                )}
+              >
                 <ChevronRight size={16} strokeWidth={1.5} />
               </div>
             </a>

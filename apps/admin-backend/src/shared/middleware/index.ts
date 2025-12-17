@@ -10,3 +10,4 @@ export {
   sensitiveRateLimiter,
   generalRateLimiter,
 } from "../../middleware/rate-limit.middleware.js";
+export { processImage, resizeOnly } from "./image-processor.middleware.js";

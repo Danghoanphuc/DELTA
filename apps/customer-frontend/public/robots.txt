@@ -1,0 +1,52 @@
+# robots.txt for Printz.vn
+# https://www.robotstxt.org/robotstxt.html
+
+# Allow all bots to crawl public content
+User-agent: *
+Allow: /
+
+# Disallow private/authenticated routes
+Disallow: /checkout
+Disallow: /checkout/*
+Disallow: /account
+Disallow: /account/*
+Disallow: /settings
+Disallow: /settings/*
+Disallow: /my-orders
+Disallow: /my-orders/*
+Disallow: /organization
+Disallow: /organization/*
+Disallow: /shipper
+Disallow: /shipper/*
+Disallow: /cart
+Disallow: /messages
+Disallow: /friends
+Disallow: /notifications
+Disallow: /chat
+Disallow: /chat/*
+
+# Disallow auth pages
+Disallow: /signin
+Disallow: /signup
+Disallow: /verify-email
+Disallow: /reset-password
+Disallow: /forgot-password
+Disallow: /check-email
+Disallow: /auth/*
+
+# Disallow API routes (if any)
+Disallow: /api/*
+
+# Disallow admin routes (if accidentally exposed)
+Disallow: /admin
+Disallow: /admin/*
+
+# Disallow internal/utility pages
+Disallow: /gift/*
+Disallow: /redeem/*
+
+# Crawl delay (optional - be nice to servers)
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://printz.vn/sitemap.xml

@@ -13,7 +13,6 @@ const PageLoader = ({
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    // Logic tắt splash sau 2.5s thay vì chạy dòng lệnh
     if (mode === "splash" && !hasShownSplash) {
       const timeout = setTimeout(() => {
         setHasShownSplash(true);
@@ -28,18 +27,21 @@ const PageLoader = ({
   if (!visible && !isLoading) return null;
 
   return (
-    // STYLE: Full screen Cream, Logo chính giữa, Fade out effect
+    // STYLE: Giấy dó Cream, Logo Serif, Animation mượt
     <div className="fixed inset-0 z-[9999] bg-[#F9F8F6] flex items-center justify-center transition-opacity duration-700 animate-out fade-out">
-      <div className="text-center">
+      {/* Texture nền */}
+      <div className="absolute inset-0 opacity-30 pointer-events-none mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]"></div>
+
+      <div className="text-center relative z-10">
         {/* LOGO ANIMATION */}
-        <h1 className="font-serif text-5xl md:text-6xl text-stone-900 italic tracking-tight mb-4 animate-in zoom-in duration-1000">
-          Printz.
+        <h1 className="font-serif text-5xl md:text-6xl text-stone-900 font-bold tracking-tight mb-4 animate-in zoom-in duration-1000">
+          Printz<span className="text-amber-800">.</span>
         </h1>
 
-        <div className="flex flex-col items-center gap-2">
-          <div className="h-px w-16 bg-stone-900/20" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.4em] text-stone-400">
-            System Loading
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-[2px] w-12 bg-amber-800/50 rounded-full" />
+          <span className="font-mono text-[10px] uppercase tracking-[0.4em] text-stone-500 animate-pulse">
+            Printz
           </span>
         </div>
       </div>

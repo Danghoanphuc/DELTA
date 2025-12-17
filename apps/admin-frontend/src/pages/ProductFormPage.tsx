@@ -1,13 +1,11 @@
 // apps/admin-frontend/src/pages/ProductFormPage.tsx
-// ✅ Product Form Page - Create/Edit Product
+// ✅ Product Form Page - Create/Edit Product (Storytelling Version)
 
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import {
-  ProductForm,
-  ProductFormData,
-} from "../components/products/ProductForm";
+import { StorytellingProductForm } from "../components/products/StorytellingProductForm";
+import { StorytellingProductFormData } from "../types/storytelling-product";
 import { catalogService } from "../services/catalog.service";
 import { useToast } from "../hooks/use-toast";
 
@@ -19,7 +17,8 @@ export default function ProductFormPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
-  const [initialData, setInitialData] = useState<Partial<ProductFormData>>();
+  const [initialData, setInitialData] =
+    useState<Partial<StorytellingProductFormData>>();
 
   // Fetch product data if editing
   useEffect(() => {
@@ -32,21 +31,61 @@ export default function ProductFormPage() {
     setIsFetching(true);
     try {
       const product = await catalogService.getProduct(productId);
+      const productData = product as any;
+
       setInitialData({
+        // Basic Info
         name: product.name,
-        description: product.description,
-        category:
+        categoryId:
           typeof product.categoryId === "string"
             ? product.categoryId
             : product.categoryId._id,
-        basePrice: product.basePrice,
-        baseCost: product.baseCost,
-        moq: 1, // Default MOQ
-        status: product.status === "discontinued" ? "inactive" : product.status,
-        printMethods: (product as any).printMethods || [],
-        pricingTiers: product.pricingTiers || [],
-        images: product.images?.map((img) => img.url) || [],
+        sku: product.sku || "",
+        slug: product.slug || "",
+        description: product.description || "",
         tags: product.tags || [],
+
+        // Hero Section
+        tagline: productData.tagline || "",
+        heroMedia: productData.heroMedia,
+
+        // Introduction
+        craftingTime: productData.craftingTime,
+        technique: productData.technique,
+        productionLimit: productData.productionLimit,
+        certification: productData.certification,
+
+        // Storytelling
+        story: productData.story,
+
+        // Gallery
+        images:
+          product.images?.map((img: any) => ({
+            url: img.url,
+            isPrimary: img.isPrimary || false,
+            alt: img.alt,
+          })) || [],
+
+        // Feng Shui
+        fengShui: productData.fengShui,
+
+        // Customization
+        customization: productData.customization,
+
+        // Artisan
+        artisan: productData.artisan,
+
+        // Client Logos
+        clientLogos: productData.clientLogos || [],
+
+        // Pricing
+        basePrice: product.basePrice,
+        salePrice: productData.salePrice,
+        stock: product.stockQuantity || 0,
+        lowStockThreshold: productData.lowStockThreshold || 10,
+        isActive: product.status === "active",
+        isPublished: product.isPublished || false,
+        isFeatured: product.isFeatured || false,
       });
     } catch (error: any) {
       toast({
@@ -61,28 +100,53 @@ export default function ProductFormPage() {
     }
   };
 
-  const handleSubmit = async (data: ProductFormData) => {
+  const handleSubmit = async (data: StorytellingProductFormData) => {
     setIsLoading(true);
     try {
-      // Transform data to match Product interface
+      // Transform data to match CatalogProduct model
       const productData: any = {
         name: data.name,
+        categoryId: data.categoryId,
+        sku: data.sku,
+        slug: data.slug,
         description: data.description,
-        categoryId: data.category,
-        basePrice: data.basePrice,
-        baseCost: data.baseCost,
-        status: data.status,
-        pricingTiers: data.pricingTiers,
-        printMethods: data.printMethods,
         tags: data.tags,
-        images: data.images.map((url, index) => ({
-          url,
-          isPrimary: index === 0,
-          sortOrder: index,
+
+        // Storytelling fields
+        tagline: data.tagline,
+        heroMedia: data.heroMedia,
+        craftingTime: data.craftingTime,
+        technique: data.technique,
+        productionLimit: data.productionLimit,
+        certification: data.certification,
+        story: data.story,
+        fengShui: data.fengShui,
+        customization: data.customization,
+        artisan: data.artisan,
+        clientLogos: data.clientLogos,
+
+        // Pricing
+        basePrice: data.basePrice,
+        salePrice: data.salePrice,
+        stockQuantity: data.stock,
+        lowStockThreshold: data.lowStockThreshold,
+        isPublished: data.isPublished,
+        isFeatured: data.isFeatured,
+        status: data.isPublished ? "active" : "draft",
+
+        // Images
+        images: data.images.map((img, idx) => ({
+          url: img.url,
+          alt: img.alt,
+          isPrimary: img.isPrimary,
+          sortOrder: idx,
         })),
       };
 
-      console.log("[ProductFormPage] Submitting product data:", productData);
+      console.log(
+        "[ProductFormPage] Submitting storytelling product:",
+        productData
+      );
 
       if (isEdit && id) {
         await catalogService.updateProduct(id, productData);
@@ -143,7 +207,7 @@ export default function ProductFormPage() {
 
       {/* Form */}
       {!isFetching && (
-        <ProductForm
+        <StorytellingProductForm
           initialData={initialData}
           onSubmit={handleSubmit}
           onCancel={handleCancel}

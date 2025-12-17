@@ -50,7 +50,7 @@ ProductCategorySchema.index({ parentId: 1, sortOrder: 1 });
 export interface ISupplier extends Document {
   name: string;
   code: string;
-  type: "manufacturer" | "distributor" | "printer" | "dropshipper";
+  type: "manufacturer" | "distributor" | "printer" | "dropshipper" | "artisan";
   contactInfo: {
     email: string;
     phone?: string;
@@ -70,6 +70,24 @@ export interface ISupplier extends Document {
   isActive: boolean;
   isPreferred: boolean;
   notes?: string;
+
+  // ✅ PUBLIC PROFILE FIELDS
+  profile: {
+    avatar?: string; // URL to avatar image
+    coverImage?: string; // URL to cover/banner image
+    bio?: string; // Short biography (max 500 chars)
+    story?: string; // Full story/legend (rich text, max 5000 chars)
+    quote?: string; // Famous quote from artisan
+    curatorNote?: string; // Curator's perspective/endorsement
+    yearsOfExperience?: number;
+    achievements?: string[]; // Awards, certifications
+    socialLinks?: {
+      facebook?: string;
+      instagram?: string;
+      youtube?: string;
+      website?: string;
+    };
+  };
 
   // ✅ PHASE 8.1.1: Performance Metrics
   performanceMetrics: {
@@ -131,7 +149,13 @@ const SupplierSchema = new Schema<ISupplier>(
     code: { type: String, required: true, unique: true, uppercase: true },
     type: {
       type: String,
-      enum: ["manufacturer", "distributor", "printer", "dropshipper"],
+      enum: [
+        "manufacturer",
+        "distributor",
+        "printer",
+        "dropshipper",
+        "artisan",
+      ],
       required: true,
     },
     contactInfo: {
@@ -153,6 +177,24 @@ const SupplierSchema = new Schema<ISupplier>(
     isActive: { type: Boolean, default: true },
     isPreferred: { type: Boolean, default: false },
     notes: { type: String },
+
+    // ✅ PUBLIC PROFILE FIELDS
+    profile: {
+      avatar: { type: String },
+      coverImage: { type: String },
+      bio: { type: String, maxlength: 500 },
+      story: { type: String, maxlength: 5000 },
+      quote: { type: String, maxlength: 300 },
+      curatorNote: { type: String, maxlength: 1000 },
+      yearsOfExperience: { type: Number, min: 0 },
+      achievements: [{ type: String }],
+      socialLinks: {
+        facebook: { type: String },
+        instagram: { type: String },
+        youtube: { type: String },
+        website: { type: String },
+      },
+    },
 
     // ✅ PHASE 8.1.1: Performance Metrics
     performanceMetrics: {

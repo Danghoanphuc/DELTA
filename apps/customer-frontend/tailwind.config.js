@@ -23,6 +23,7 @@ export default {
         sans: ["Manrope", "sans-serif"], // Body text: Hiện đại, số đẹp
         mono: ["JetBrains Mono", "monospace"], // Kỹ thuật
       },
+
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

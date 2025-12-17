@@ -36,16 +36,27 @@ import ShippingPolicyPage from "@/features/landing/ShippingPolicyPage";
 import ContactPage from "@/features/landing/ContactPage";
 import ProcessPage from "@/features/landing/ProcessPage";
 import TrendsPage from "@/features/landing/TrendsPage";
-import TemplateLibraryPage from "@/features/landing/TemplateLibraryPage";
-import BusinessPage from "@/features/landing/BusinessPage";
+import { TemplateLibraryPage } from "@/features/templates";
 import AboutPage from "@/features/landing/AboutPage";
 import CareersPage from "@/features/landing/CareersPage";
 import DesignGuidelinesPage from "@/features/landing/DesignGuidelinesPage";
 import FAQPage from "@/features/landing/FAQPage";
-import BlogPage from "@/features/landing/BlogPage";
-import WarehousingPage from "@/features/solutions/WarehousingPage";
-import KittingPage from "@/features/solutions/KittingPage";
+import EditorialPolicyPage from "@/features/landing/EditorialPolicyPage";
+import {
+  MagazineHomePage,
+  MagazinePostDetailPage,
+  TrietLySongPage,
+  GocGiamTuyenPage,
+  CauChuyenDiSanPage,
+  KimPage,
+  MocPage,
+  ThuyPage,
+  HoaPage,
+  ThoPage,
+} from "@/features/magazine";
+import { ArtisanProfilePage, ArtisansListPage } from "@/features/artisan";
 import CorporateGiftingPage from "@/features/solutions/CorporateGiftingPage";
+import BespokePage from "@/features/solutions/BespokePage";
 import QuickQuotePage from "@/features/quote/pages/QuickQuotePage";
 import CompanySetupWizard from "@/features/organization/pages/CompanySetupWizard";
 
@@ -118,18 +129,11 @@ const OrderDetailPage = lazyWorkaround(
 // const PrinterOrderDetailPage = lazyWorkaround(
 //   () => import("@/features/printer/pages/PrinterOrderDetailPage")
 // );
-const CustomerDesignsPage = lazyWorkaround(
-  () => import("@/features/customer/pages/CustomerDesignsPage")
-);
-const DesignsPage = lazy(() => import("@/features/designs/pages/DesignsPage"));
 const ServicesPage = lazy(
   () => import("@/features/services/pages/ServicesPage")
 );
 const CustomerSettingsPage = lazyWorkaround(
   () => import("@/features/customer/pages/CustomerSettingsPage")
-);
-const DesignEditorPage = lazyWorkaround(
-  () => import("@/features/editor/DesignEditorPage")
 );
 const InspirationPage = lazy(
   () => import("@/features/customer/pages/InspirationPage")
@@ -267,21 +271,58 @@ function AppContent() {
                 element={<DesignGuidelinesPage />}
               />
               <Route path="/faq" element={<FAQPage />} />
-              <Route path="/blog" element={<BlogPage />} />
+              <Route
+                path="/editorial-policy"
+                element={<EditorialPolicyPage />}
+              />
+
+              {/* Magazine Routes */}
+              <Route path="/tap-chi" element={<MagazineHomePage />} />
+
+              {/* Category Pages - MUST come before dynamic :slug route */}
+              <Route
+                path="/tap-chi/triet-ly-song"
+                element={<TrietLySongPage />}
+              />
+              <Route
+                path="/tap-chi/goc-giam-tuyen"
+                element={<GocGiamTuyenPage />}
+              />
+              <Route
+                path="/tap-chi/cau-chuyen-di-san"
+                element={<CauChuyenDiSanPage />}
+              />
+
+              {/* Ngu Hanh Routes */}
+              <Route path="/tap-chi/ngu-hanh/kim" element={<KimPage />} />
+              <Route path="/tap-chi/ngu-hanh/moc" element={<MocPage />} />
+              <Route path="/tap-chi/ngu-hanh/thuy" element={<ThuyPage />} />
+              <Route path="/tap-chi/ngu-hanh/hoa" element={<HoaPage />} />
+              <Route path="/tap-chi/ngu-hanh/tho" element={<ThoPage />} />
+
+              {/* Legacy routes - backward compatibility */}
+              <Route
+                path="/tap-chi/bai-viet/:slug"
+                element={<MagazinePostDetailPage />}
+              />
+              <Route path="/blog/:id" element={<MagazinePostDetailPage />} />
+
+              {/* Magazine Post Detail - Shortened URL for better SEO 
+                  MUST be LAST to avoid conflicting with category routes above */}
+              <Route
+                path="/tap-chi/:slug"
+                element={<MagazinePostDetailPage />}
+              />
+
               <Route path="/trends" element={<TrendsPage />} />
               <Route path="/templates" element={<TemplateLibraryPage />} />
-              <Route path="/business" element={<BusinessPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/careers" element={<CareersPage />} />
-              <Route
-                path="/solutions/warehousing"
-                element={<WarehousingPage />}
-              />
-              <Route path="/solutions/kitting" element={<KittingPage />} />
               <Route
                 path="/solutions/corporate-gifting"
                 element={<CorporateGiftingPage />}
               />
+              <Route path="/bespoke" element={<BespokePage />} />
               <Route path="/quote" element={<QuickQuotePage />} />
 
               {/* Self-Service Portal (Public - No Auth) */}
@@ -295,6 +336,10 @@ function AppContent() {
 
               {/* Company Store (Public - Optional Auth) */}
               <Route path="/store/:slug" element={<CompanyStorePage />} />
+
+              {/* Artisan/Supplier Profiles (Public) */}
+              <Route path="/artisans" element={<ArtisansListPage />} />
+              <Route path="/artisans/:code" element={<ArtisanProfilePage />} />
 
               {/* 2. MAIN APP LAYOUT */}
               <Route element={<AppLayout />}>
@@ -312,7 +357,6 @@ function AppContent() {
 
                 {/* Shop */}
                 <Route path="/shop" element={<ShopPortalPage />} />
-                <Route path="/designs" element={<DesignsPage />} />
                 <Route path="/orders" element={<ServicesPage />} />
                 <Route path="/rush" element={<RushPage />} />
                 <Route path="/app" element={<ChatAppPage />} />
@@ -341,8 +385,6 @@ function AppContent() {
                     path="/my-orders/:orderId"
                     element={<OrderDetailPage />}
                   />
-                  <Route path="/my-designs" element={<CustomerDesignsPage />} />
-                  <Route path="/design-editor" element={<DesignEditorPage />} />
 
                   {/* Social & Settings */}
                   <Route path="/settings" element={<CustomerSettingsPage />} />

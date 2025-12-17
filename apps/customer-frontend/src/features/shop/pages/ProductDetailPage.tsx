@@ -1,349 +1,228 @@
-// src/features/shop/pages/ProductDetailPage.tsx
+// ProductDetailPage.tsx - REFACTORED theo SOLID principles
+// Single Responsibility: Chỉ orchestrate các sections, không chứa UI logic
 
-import React, { useMemo, lazy, Suspense, useState, useEffect } from "react";
-import { Button } from "@/shared/components/ui/button";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import { toast } from "@/shared/utils/toast";
-import { Breadcrumb } from "@/shared/components/ui/breadcrumb";
-import { useProductDetail } from "../hooks/useProductDetail";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCartStore } from "@/stores/useCartStore";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { useProductDetail } from "../hooks/useProductDetail";
+import { Loader2, ArrowLeft } from "lucide-react";
+import { Button } from "@/shared/components/ui/button";
 
-// (Imports components con)
-import { ProductInfo } from "../components/ProductInfo";
-import { ProductCustomization } from "../components/ProductCustomization";
-import { ProductPurchase } from "../components/ProductPurchase";
-import { ProductImageGallery } from "../components/ProductImageGallery";
-import { ProductDetailFooter } from "../components/ProductDetailFooter";
-import { ProductPurchaseSheet } from "../components/details/ProductPurchaseSheet";
-import { DesignMethodModal } from "../components/DesignMethodModal";
-// ✅ SỬA LỖI TS2307: Sửa lại đường dẫn import cho SectionSkeleton
-import { SectionSkeleton } from "../components/details/SectionSkeleton";
-import { ProductDetailSkeleton } from "@/shared/components/ui/skeleton";
+// Import section components
+import { HeroSection } from "../components/product-detail/HeroSection";
+import { IntroSection } from "../components/product-detail/IntroSection";
+import {
+  StorytellingMaterialSection,
+  StorytellingProcessSection,
+} from "../components/product-detail/StorytellingSection";
+import { GallerySection } from "../components/product-detail/GallerySection";
+import { ApplicationSection } from "../components/product-detail/ApplicationSection";
+import { CustomizationSection } from "../components/product-detail/CustomizationSection";
+import { ArtisanSection } from "../components/product-detail/ArtisanSection";
+import { ContactSection } from "../components/product-detail/ContactSection";
+import { SectionNavigation } from "../components/product-detail/SectionNavigation";
 
-// (Các import động)
-// ... (giữ nguyên) ...
-const ProductSpecsSection = lazy(
-  () => import("../components/details/ProductSpecsSection")
-);
-const PrinterProfileSection = lazy(
-  () => import("../components/details/PrinterProfileSection")
-);
-
-// (Component LoadingScreen, ErrorScreen giữ nguyên)
-const LoadingScreen = () => <ProductDetailSkeleton />;
-
-const ErrorScreen = ({ message }: { message: string }) => (
-  <div className="flex h-[calc(100vh-4rem)] flex-col items-center justify-center gap-4 p-4 text-center">
-    <h2 className="text-xl font-semibold text-red-600">
-      Không thể tải sản phẩm
-    </h2>
-    <p className="text-muted-foreground">{message}</p>
-    <Button onClick={() => window.location.reload()}>
-      <ArrowLeft className="mr-2 h-4 w-4" />
-      Thử lại
-    </Button>
-  </div>
-);
-
-// === Component chính ===
-const ProductDetailPage = () => {
-  // (Toàn bộ logic component... giữ nguyên như bản vá lỗi trước của tôi)
+export default function ProductDetailPage() {
   const navigate = useNavigate();
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [sheetMode, setSheetMode] = useState<"cart" | "buy">("buy");
-  const [isDesignModalOpen, setIsDesignModalOpen] = useState(false);
-  const productDetailResult = useProductDetail();
-  const product = productDetailResult.product;
-  const isLoading = productDetailResult.loading;
-  const error = null; // Hook doesn't return error
+  const { product, loading } = useProductDetail();
 
-  // ✅ SỬA: Tách riêng các selector để tránh tạo object mới mỗi lần render
-  const isAddingToCart = useCartStore((state) => state.isLoading);
-  const addToCart = useCartStore((state) => state.addToCart);
-  const isInCart = useCartStore((state) => state.isInCart);
-  const cart = useCartStore((state) => state.cart); // ✅ Thêm cart để track changes
-  
-  const { user } = useAuthStore();
-  const isAuthenticated = !!user;
+  const [isMuted, setIsMuted] = useState(true);
+  const [showScrollHint, setShowScrollHint] = useState(true);
+  const [activeSection, setActiveSection] = useState(0);
+  const sectionsRef = useRef<HTMLElement[]>([]);
 
-  const [selectedQuantity, setSelectedQuantity] = useState(1);
+  const sectionNames = [
+    "Trang chủ",
+    "Giới thiệu",
+    "Nguyên liệu",
+    "Quy trình",
+    "Chi tiết",
+    "Ứng dụng",
+    "Cá nhân hóa",
+    "Nghệ nhân",
+    "Liên hệ",
+  ];
 
-  const { minQuantity, pricePerUnit, formatPrice } = useMemo(() => {
-    const minQty = product?.pricing?.[0]?.minQuantity || 1;
-    const formatPriceFn = (price: number) =>
-      new Intl.NumberFormat("vi-VN", {
-        style: "currency",
-        currency: "VND",
-      }).format(price);
-
-    let price = 0;
-    if (product?.pricing && product.pricing.length > 0) {
-      const matchingTier = product.pricing
-        .slice()
-        .reverse()
-        .find((tier) => selectedQuantity >= tier.minQuantity);
-      if (matchingTier) {
-        price = matchingTier.pricePerUnit;
-      } else {
-        price = product.pricing[0].pricePerUnit;
-      }
-    }
-    return {
-      minQuantity: minQty,
-      pricePerUnit: price,
-      formatPrice: formatPriceFn,
-    };
-  }, [product, selectedQuantity]);
-
+  // Hide scroll hint after user scrolls
   useEffect(() => {
-    if (product) {
-      // ✅ Bắt đầu từ minQuantity để đảm bảo valid, nhưng nếu minQuantity quá lớn thì dùng 1
-      const minQty = product.pricing?.[0]?.minQuantity || 1;
-      const defaultQty = minQty <= 10 ? minQty : 1; // Nếu minQty > 10, cho phép user bắt đầu từ 1
-      setSelectedQuantity(defaultQty);
-    }
+    const handleScroll = () => {
+      if (window.scrollY > 100) {
+        setShowScrollHint(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Collect sections
+  useEffect(() => {
+    const sections = document.querySelectorAll<HTMLElement>("[data-section]");
+    sectionsRef.current = Array.from(sections);
   }, [product]);
 
-  const inCart = useMemo(() => {
-    if (!product) return false;
-    return isInCart(product._id, isAuthenticated);
-  }, [product, isInCart, isAuthenticated, cart]); // ✅ Thêm cart để re-compute khi cart thay đổi
-
-  const isCustomizable =
-    product?.customization?.allowFileUpload ||
-    product?.customization?.hasDesignService;
-
-  const handleOpenSheet = (mode: "cart" | "buy") => {
-    setSheetMode(mode);
-    setIsSheetOpen(true);
-  };
-
-  const handleStartEditing = () => {
-    if (!product) {
-      toast.error("Không tìm thấy thông tin sản phẩm");
-      return;
-    }
-
-    // ✅ VALIDATION: Kiểm tra điều kiện để vào Editor
-    // 1. Kiểm tra product có hỗ trợ design service
-    if (!product.customization?.hasDesignService) {
-      toast.error(
-        "Sản phẩm này không hỗ trợ chỉnh sửa 3D. Vui lòng chọn sản phẩm khác."
-      );
-      return;
-    }
-
-    // 2. Kiểm tra có 3D model URL
-    if (!product.assets?.modelUrl) {
-      toast.error(
-        "Sản phẩm này chưa có mô hình 3D. Vui lòng liên hệ nhà in để được hỗ trợ."
-      );
-      return;
-    }
-
-    // 3. Kiểm tra có surfaces để thiết kế
-    if (!product.assets?.surfaces || product.assets.surfaces.length === 0) {
-      toast.error(
-        "Sản phẩm này chưa có bề mặt có thể thiết kế. Vui lòng liên hệ nhà in."
-      );
-      return;
-    }
-
-    // Tất cả điều kiện đều OK → Mở modal chọn phương thức thiết kế
-    setIsDesignModalOpen(true);
-  };
-
-  // Handler khi người dùng chọn upload thiết kế
-  const handleUploadDesign = (file: File) => {
-    console.log("Upload clicked, file:", file);
-    // TODO: Implement file upload logic with useMyDesigns hook
-    toast.info(`Đã chọn file: ${file.name}. Tính năng đang được phát triển.`);
-    // Future: Navigate to editor with uploaded file
-    // navigate(`/design-editor?productId=${product._id}`, { state: { uploadedFile: file } });
-  };
-
-  // Handler khi người dùng chọn duyệt mẫu
-  const handleBrowseTemplates = () => {
-    if (!product) return;
-    navigate(`/inspiration?category=${product.category}`);
-  };
-
-  // Handler khi người dùng chọn tự thiết kế
-  const handleDesignFromScratch = () => {
-    if (!product) return;
-    navigate(`/design-editor?productId=${product._id}`);
-  };
-
-  const handleAddToCart = async () => {
-    if (!product) return;
-    try {
-      // Calculate selected price index based on quantity
-      let selectedPriceIndex = 0;
-      if (product.pricing && product.pricing.length > 0) {
-        for (let i = product.pricing.length - 1; i >= 0; i--) {
-          if (selectedQuantity >= product.pricing[i].minQuantity) {
-            selectedPriceIndex = i;
-            break;
+  // Intersection Observer for section tracking
+  useEffect(() => {
+    const sections = document.querySelectorAll("[data-section]");
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("animate-fade-in-up");
+            const sectionIndex = parseInt(
+              entry.target.getAttribute("data-section") || "0"
+            );
+            setActiveSection(sectionIndex);
           }
-        }
+        });
+      },
+      {
+        threshold: 0.5,
+        rootMargin: "-20% 0px -20% 0px",
       }
-      
-      await addToCart({
-        productId: product._id,
-        quantity: selectedQuantity,
-        selectedPriceIndex: selectedPriceIndex,
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, [product]);
+
+  // Fullpage Scroll - One wheel = One section
+  useEffect(() => {
+    let isScrollingLocal = false;
+    let scrollTimeout: NodeJS.Timeout;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (isScrollingLocal) {
+        e.preventDefault();
+        return;
+      }
+
+      e.preventDefault();
+      const direction = e.deltaY > 0 ? 1 : -1;
+
+      const scrollPosition = window.scrollY + window.innerHeight / 2;
+      let currentIndex = 0;
+
+      sectionsRef.current.forEach((section, index) => {
+        const sectionTop = section.offsetTop;
+        if (scrollPosition >= sectionTop) {
+          currentIndex = index;
+        }
       });
-      toast.success("Đã thêm vào giỏ hàng!");
-      setIsSheetOpen(false);
-    } catch (err: any) {
-      toast.error(err.message || "Thêm vào giỏ hàng thất bại");
+
+      const nextIndex = Math.max(
+        0,
+        Math.min(sectionsRef.current.length - 1, currentIndex + direction)
+      );
+
+      if (nextIndex !== currentIndex) {
+        isScrollingLocal = true;
+
+        const targetSection = sectionsRef.current[nextIndex];
+        if (targetSection) {
+          targetSection.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }
+
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+          isScrollingLocal = false;
+        }, 600);
+      }
+    };
+
+    window.addEventListener("wheel", handleWheel, { passive: false });
+
+    return () => {
+      window.removeEventListener("wheel", handleWheel);
+      clearTimeout(scrollTimeout);
+    };
+  }, []);
+
+  const handleVideoToggle = () => {
+    setIsMuted(!isMuted);
+  };
+
+  const handleContactClick = () => {
+    document
+      .getElementById("contact-form")
+      ?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleSectionClick = (idx: number) => {
+    const section = sectionsRef.current[idx];
+    if (section) {
+      section.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+      setActiveSection(idx);
     }
   };
 
-  const handleBuyNow = async () => {
-    if (!product) return;
-    try {
-      // Calculate selected price index based on quantity
-      let selectedPriceIndex = 0;
-      if (product.pricing && product.pricing.length > 0) {
-        for (let i = product.pricing.length - 1; i >= 0; i--) {
-          if (selectedQuantity >= product.pricing[i].minQuantity) {
-            selectedPriceIndex = i;
-            break;
-          }
-        }
-      }
-      
-      await addToCart({
-        productId: product._id,
-        quantity: selectedQuantity,
-        selectedPriceIndex: selectedPriceIndex,
-      });
-      navigate("/checkout");
-    } catch (err: any) {
-      toast.error(err.message || "Không thể mua ngay");
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-stone-900">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+      </div>
+    );
+  }
 
-  if (isLoading) return <LoadingScreen />;
-  if (!product) return <ErrorScreen message="Không tìm thấy sản phẩm." />;
-
-  const ShopPanel = isCustomizable ? (
-    <ProductCustomization
-      onStartEditing={handleStartEditing}
-      onPurchase={() => handleOpenSheet("buy")}
-      onAddToCart={handleAddToCart}
-      isAddingToCart={isAddingToCart}
-      inCart={inCart}
-      minQuantity={minQuantity}
-      selectedQuantity={selectedQuantity}
-      onQuantityChange={setSelectedQuantity}
-      pricePerUnit={pricePerUnit}
-      formatPrice={formatPrice}
-    />
-  ) : (
-    <ProductPurchase
-      isAddingToCart={isAddingToCart}
-      inCart={inCart}
-      minQuantity={minQuantity}
-      selectedQuantity={selectedQuantity}
-      onQuantityChange={setSelectedQuantity}
-      onAddToCart={handleAddToCart}
-      onBuyNow={handleBuyNow}
-      pricePerUnit={pricePerUnit}
-      formatPrice={formatPrice}
-    />
-  );
+  if (!product) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4 bg-stone-900 text-white">
+        <h2 className="font-serif text-2xl">Không tìm thấy tác phẩm</h2>
+        <Button onClick={() => navigate("/shop")} variant="outline">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Quay lại Bộ sưu tập
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto max-w-7xl p-4 md:p-6 lg:p-8 relative">
-      <div className="mb-4 flex items-center justify-between">
-        <Button
-          variant="ghost"
-          className="lg:hidden"
-          onClick={() => navigate(-1)}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Quay lại
-        </Button>
-        <Breadcrumb
-          items={[
-            { label: "Trang chủ", href: "/app" },
-            { label: "Cửa hàng", href: "/shop" },
-            { label: product.name },
-          ]}
-          className="hidden lg:flex"
-        />
-      </div>
-
-      <div className="pb-24">
-        {/* Layout mới: Image Gallery + Product Info + Purchase Panel (giống Taobao) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Cột 1: Image Gallery (5/12) */}
-          <div className="lg:col-span-5">
-            <ProductImageGallery images={product.images} name={product.name} />
-          </div>
-
-          {/* Cột 2: Product Info + Purchase Panel (7/12) */}
-          <div className="lg:col-span-7 space-y-6">
-            {/* Product Info */}
-            <ProductInfo
-              product={product}
-              currentPricePerUnit={pricePerUnit}
-              formatPrice={formatPrice}
-            />
-
-            {/* Purchase Panel */}
-            <div className="sticky top-4">{ShopPanel}</div>
-          </div>
-        </div>
-
-        <div className="mt-12 lg:mt-20">
-          <Suspense fallback={<SectionSkeleton height="250px" />}>
-            <ProductSpecsSection product={product} />
-          </Suspense>
-          {product.printerInfo && (
-            <Suspense fallback={<SectionSkeleton height="400px" />}>
-              <PrinterProfileSection printerInfo={product.printerInfo} />
-            </Suspense>
-          )}
-        </div>
-      </div>
-
-      <ProductDetailFooter
-        isCustomizable={isCustomizable ?? false}
-        onOpenSheet={handleOpenSheet}
-        onStartEditing={handleStartEditing}
+    <div className="relative bg-stone-50 text-stone-900">
+      {/* Section Navigation Header */}
+      <SectionNavigation
+        activeSection={activeSection}
+        sectionNames={sectionNames}
+        sectionsRef={sectionsRef}
+        onSectionClick={handleSectionClick}
+        onContactClick={handleContactClick}
       />
 
-      <ProductPurchaseSheet
-        isOpen={isSheetOpen}
-        onClose={() => setIsSheetOpen(false)}
-        mode={sheetMode}
+      {/* Hero Section */}
+      <HeroSection
         product={product}
-        onAddToCart={handleAddToCart}
-        onBuyNow={handleBuyNow}
-        isAddingToCart={isAddingToCart}
-        inCart={inCart}
-        minQuantity={minQuantity}
-        selectedQuantity={selectedQuantity}
-        onQuantityChange={setSelectedQuantity}
-        formatPrice={formatPrice}
-        currentPricePerUnit={pricePerUnit}
+        showScrollHint={showScrollHint}
+        isMuted={isMuted}
+        onVideoToggle={handleVideoToggle}
+        onContactClick={handleContactClick}
       />
 
-      {/* Design Method Selection Modal */}
-      <DesignMethodModal
-        isOpen={isDesignModalOpen}
-        onClose={() => setIsDesignModalOpen(false)}
-        onUploadDesign={handleUploadDesign}
-        onBrowseTemplates={handleBrowseTemplates}
-        onDesignFromScratch={handleDesignFromScratch}
-      />
+      {/* Introduction Section */}
+      <IntroSection product={product} />
+
+      {/* Storytelling - Nguyên liệu */}
+      <StorytellingMaterialSection product={product} />
+
+      {/* Storytelling - Quy trình */}
+      <StorytellingProcessSection product={product} />
+
+      {/* Gallery Section - Chi tiết */}
+      <GallerySection product={product} />
+
+      {/* Application Section - Ứng dụng */}
+      <ApplicationSection product={product} />
+
+      {/* Customization Section - Cá nhân hóa */}
+      <CustomizationSection product={product} />
+
+      {/* Artisan Section - Nghệ nhân */}
+      <ArtisanSection product={product} />
+
+      {/* Contact Section - Liên hệ */}
+      <ContactSection />
     </div>
   );
-};
-
-export default ProductDetailPage;
+}

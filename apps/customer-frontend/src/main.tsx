@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import { Helmet } from "react-helmet-async";
 import "./styles/globals.css";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./lib/mapConfig"; // ✅ Import map config to disable Mapbox telemetry
@@ -10,6 +11,9 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
 import { HelmetProvider } from "react-helmet-async";
+
+// ✅ SEO: Google Site Verification
+const GOOGLE_SITE_VERIFICATION = import.meta.env.VITE_GOOGLE_SITE_VERIFICATION;
 
 // Sentry Init (Giữ nguyên)
 Sentry.init({
@@ -55,6 +59,17 @@ if (!GOOGLE_CLIENT_ID && import.meta.env.DEV) {
 
 createRoot(document.getElementById("root")!).render(
   <HelmetProvider>
+    {/* ✅ Global SEO Meta Tags */}
+    <Helmet>
+      {/* Google Search Console Verification */}
+      {GOOGLE_SITE_VERIFICATION && (
+        <meta
+          name="google-site-verification"
+          content={GOOGLE_SITE_VERIFICATION}
+        />
+      )}
+    </Helmet>
+
     <QueryClientProvider client={queryClient}>
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
         <App />

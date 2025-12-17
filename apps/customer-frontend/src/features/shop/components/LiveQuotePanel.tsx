@@ -8,7 +8,12 @@ import { Input } from "@/shared/components/ui/input";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Separator } from "@/shared/components/ui/separator";
 import { ShoppingCart, Loader2, Info } from "lucide-react";
-import { DecalItem } from "@/features/editor/types/decal.types";
+// TODO: Add decal types when editor feature is implemented
+interface DecalItem {
+  id: string;
+  type: string;
+  // Add other properties as needed
+}
 import { PrinterProduct } from "@/types/product";
 
 // Export interface này để EditingPanel có thể import

@@ -1,17 +1,12 @@
 // apps/admin-frontend/src/components/AdminLayout.tsx
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAdminAuthStore } from "@/store/useAdminAuthStore";
 import { signOut } from "@/services/adminAuthService";
-import { swagOpsService } from "@/services/admin.swag-operations.service";
 import { NotificationBell } from "./NotificationBell";
 import {
   LayoutDashboard,
-  Package,
-  Truck,
-  Boxes,
   Users,
-  Building,
   LogOut,
   Menu,
   X,
@@ -20,13 +15,9 @@ import {
   Settings,
   HelpCircle,
   ShoppingBag,
-  FolderTree,
   Factory,
-  PackageCheck,
-  FileText,
-  TrendingUp,
-  ClipboardList,
 } from "lucide-react";
+import printzLogo from "@/assets/img/printz-logo.png";
 
 interface NavItem {
   label: string;
@@ -47,104 +38,24 @@ export default function AdminLayout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [fulfillmentCount, setFulfillmentCount] = useState(0);
   const { admin } = useAdminAuthStore((state) => ({ admin: state.admin }));
-
-  // Fetch badge counts
-  const fetchCounts = useCallback(async () => {
-    try {
-      const stats = await swagOpsService.getDashboardStats();
-      setPendingCount(stats.pendingOrders || 0);
-      setFulfillmentCount(stats.processingOrders || 0);
-    } catch (error) {
-      console.error("Error fetching counts:", error);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCounts();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchCounts, 30000);
-    return () => clearInterval(interval);
-  }, [fetchCounts]);
 
   const navItems: NavItemOrDivider[] = [
     {
-      label: "Dashboard",
+      label: "Tổng quan",
       path: "/",
       icon: LayoutDashboard,
     },
-    { type: "divider", label: "ĐƠN HÀNG & GIAO HÀNG" },
+    { type: "divider", label: "QUẢN LÝ" },
     {
-      label: "Quản lý giao hàng",
-      path: "/delivery",
-      icon: Truck,
-      badge: pendingCount,
-    },
-    {
-      label: "Fulfillment",
-      path: "/swag-ops/fulfillment",
-      icon: Package,
-      badge: fulfillmentCount,
-    },
-    { type: "divider", label: "SẢN PHẨM & KHO" },
-    {
-      label: "Sản phẩm",
+      label: "Quản lý SP/DV",
       path: "/catalog/products",
       icon: ShoppingBag,
     },
     {
-      label: "Danh mục",
-      path: "/catalog/categories",
-      icon: FolderTree,
-    },
-    {
-      label: "Tồn kho",
-      path: "/inventory",
-      icon: Boxes,
-    },
-    {
-      label: "Nhà cung cấp",
+      label: "Đối tác",
       path: "/catalog/suppliers",
       icon: Factory,
-    },
-    { type: "divider", label: "SẢN XUẤT" },
-    {
-      label: "Đơn sản xuất",
-      path: "/production",
-      icon: Factory,
-    },
-    {
-      label: "Kitting",
-      path: "/kitting",
-      icon: PackageCheck,
-    },
-    {
-      label: "Chứng từ",
-      path: "/documents/invoices",
-      icon: FileText,
-    },
-    { type: "divider", label: "BÁO CÁO & PHÂN TÍCH" },
-    {
-      label: "Tổng quan",
-      path: "/analytics",
-      icon: TrendingUp,
-    },
-    {
-      label: "Phân tích sản phẩm",
-      path: "/analytics/products",
-      icon: ShoppingBag,
-    },
-    {
-      label: "Phân tích NCC",
-      path: "/analytics/suppliers",
-      icon: Factory,
-    },
-    {
-      label: "Xu hướng đơn hàng",
-      path: "/analytics/orders",
-      icon: ClipboardList,
     },
     { type: "divider", label: "QUẢN TRỊ HỆ THỐNG" },
     {
@@ -152,67 +63,41 @@ export default function AdminLayout() {
       path: "/users",
       icon: Users,
     },
-    {
-      label: "Duyệt Nhà in",
-      path: "/printer-vetting",
-      icon: Building,
-    },
   ];
 
   // Generate breadcrumb from path
   const getBreadcrumb = () => {
     const pathMap: Record<string, string> = {
-      "/": "Dashboard",
-      // Delivery Management
-      "/delivery": "Quản lý giao hàng",
-      // Swag Operations
-      "/swag-ops/fulfillment": "Fulfillment",
-      "/swag-ops/inventory": "Tồn kho",
-      "/swag-ops/analytics": "Analytics",
+      "/": "Tổng quan",
       // Product Catalog
-      "/catalog/products": "Sản phẩm",
+      "/catalog/products": "Quản lý SP/DV",
       "/catalog/categories": "Danh mục",
-      "/catalog/suppliers": "Nhà cung cấp",
-      "/catalog/suppliers-performance": "Hiệu suất NCC",
+      "/catalog/suppliers": "Đối tác",
       // Inventory Management
       "/inventory": "Tồn kho",
       "/inventory/transactions": "Lịch sử giao dịch",
-      // Production Orders
-      "/production": "Sản xuất",
-      // Kitting
-      "/kitting": "Kitting",
       // Documents
       "/documents/invoices": "Hóa đơn",
       // Analytics
-      "/analytics": "Analytics",
+      "/analytics": "Báo cáo tổng quan",
       "/analytics/products": "Phân tích sản phẩm",
-      "/analytics/suppliers": "Phân tích NCC",
+      "/analytics/suppliers": "Phân tích đối tác",
       "/analytics/orders": "Xu hướng đơn hàng",
       // Admin
       "/users": "Quản lý Users",
-      "/printer-vetting": "Duyệt Nhà in",
     };
 
     const path = location.pathname;
 
     // Handle dynamic routes
-    if (path.startsWith("/swag-ops/orders/") && path !== "/swag-ops/orders") {
-      return ["Đơn hàng", "Chi tiết đơn"];
-    }
     if (path.startsWith("/catalog/products/") && path !== "/catalog/products") {
-      return ["Sản phẩm", "Chi tiết"];
+      return ["Quản lý SP/DV", "Chi tiết"];
     }
     if (
       path.startsWith("/catalog/suppliers/") &&
       path !== "/catalog/suppliers"
     ) {
-      return ["Nhà cung cấp", "Chi tiết"];
-    }
-    if (path.startsWith("/production/") && path !== "/production") {
-      return ["Sản xuất", "Chi tiết đơn"];
-    }
-    if (path.startsWith("/kitting/") && path !== "/kitting") {
-      return ["Kitting", "Chi tiết"];
+      return ["Đối tác", "Chi tiết"];
     }
     if (
       path.startsWith("/documents/invoices/") &&
@@ -221,7 +106,7 @@ export default function AdminLayout() {
       return ["Hóa đơn", "Chi tiết"];
     }
 
-    return [pathMap[path] || "Dashboard"];
+    return [pathMap[path] || "Tổng quan"];
   };
 
   const handleLogout = () => {
@@ -250,10 +135,11 @@ export default function AdminLayout() {
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 flex-shrink-0">
           <NavLink to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">P</span>
-            </div>
-            <span className="font-bold text-gray-900">Printz Admin</span>
+            <img
+              src={printzLogo}
+              alt="Printz Logo"
+              className="h-8 w-auto object-contain"
+            />
           </NavLink>
           <button
             onClick={() => setSidebarOpen(false)}

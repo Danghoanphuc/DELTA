@@ -51,6 +51,9 @@ import adminKittingRoutes from "./routes/admin.kitting.routes.js";
 import adminDocumentRoutes from "./routes/admin.document.routes.js";
 import adminAlertRoutes from "./routes/admin.alert.routes.js";
 import adminSupplierRoutes from "./routes/admin.supplier.routes.js";
+import supplierPostRoutes from "./routes/supplier-post.routes.js";
+import publicMagazineRoutes from "./routes/public-magazine.routes.js";
+import publicArtisanRoutes from "./routes/public-artisan.routes.js";
 import adminShippingRoutes from "./routes/admin.shipping.routes.js";
 import adminAnalyticsRoutes from "./routes/admin.analytics.routes.js";
 import adminCostTrackingRoutes from "./routes/admin.cost-tracking.routes.js";
@@ -64,6 +67,7 @@ import webhookRoutes from "./routes/webhook.routes.js";
 import adminDeliveryCheckinRoutes from "./routes/admin.delivery-checkin.routes.js";
 import adminDeliveryThreadRoutes from "./routes/admin.delivery-thread.routes.js";
 import adminOrderThreadRoutes from "./routes/admin.order-thread.routes.js";
+import uploadRoutes from "./modules/upload/upload.routes.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -182,6 +186,9 @@ app.use("/api/admin/production-orders", adminProductionRoutes);
 app.use("/api/admin/kitting", adminKittingRoutes);
 app.use("/api/admin/documents", adminDocumentRoutes);
 app.use("/api/admin/suppliers", adminSupplierRoutes);
+app.use("/api/admin/supplier-posts", supplierPostRoutes);
+app.use("/api/magazine", publicMagazineRoutes); // Public endpoint - no auth
+app.use("/api/artisans", publicArtisanRoutes); // Public endpoint - no auth
 app.use("/api/admin/shipments", adminShippingRoutes);
 app.use("/api/admin/analytics", adminAnalyticsRoutes);
 app.use("/api/admin/costs", adminCostTrackingRoutes);
@@ -196,6 +203,7 @@ app.use("/api/webhooks", webhookRoutes);
 app.use("/api/admin/delivery-checkins", adminDeliveryCheckinRoutes);
 app.use("/api/admin/delivery-threads", adminDeliveryThreadRoutes);
 app.use("/api/admin/order-threads", adminOrderThreadRoutes);
+app.use("/api/admin/upload", uploadRoutes);
 
 // --- 404 Handler ---
 app.use((req: Request, res: Response) => {

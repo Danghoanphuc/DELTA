@@ -4,14 +4,11 @@
 import { useNavigate } from "react-router-dom";
 import {
   Package,
-  Truck,
-  Clock,
-  AlertTriangle,
   Building2,
   DollarSign,
   RefreshCw,
   BarChart3,
-  Boxes,
+  FileText,
 } from "lucide-react";
 import { useSwagOperations } from "@/hooks/useSwagOperations";
 import { StatCard } from "@/components/swag-ops/StatCard";
@@ -29,36 +26,18 @@ export default function SwagOperationsDashboard() {
 
   const statCards = [
     {
-      title: "Chờ xử lý",
-      value: stats?.pendingOrders || 0,
-      icon: Clock,
-      color: "text-yellow-600",
-      bgColor: "bg-yellow-100",
-      onClick: () => navigate("/swag-ops/orders?status=paid"),
-    },
-    {
-      title: "Đang xử lý",
-      value: stats?.processingOrders || 0,
+      title: "Tổng đơn hàng",
+      value: stats?.totalOrders || 0,
       icon: Package,
       color: "text-blue-600",
       bgColor: "bg-blue-100",
-      onClick: () => navigate("/swag-ops/orders?status=processing"),
     },
     {
-      title: "Đã gửi hôm nay",
-      value: stats?.shippedToday || 0,
-      icon: Truck,
+      title: "Tổ chức",
+      value: stats?.totalOrganizations || 0,
+      icon: Building2,
       color: "text-green-600",
       bgColor: "bg-green-100",
-      onClick: () => navigate("/swag-ops/orders?status=shipped"),
-    },
-    {
-      title: "Cần chú ý",
-      value: stats?.attentionNeeded || 0,
-      icon: AlertTriangle,
-      color: "text-red-600",
-      bgColor: "bg-red-100",
-      onClick: () => navigate("/swag-ops/orders?status=failed"),
     },
   ];
 
@@ -75,8 +54,8 @@ export default function SwagOperationsDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Swag Operations</h1>
-          <p className="text-gray-600">Quản lý đơn hàng và fulfillment</p>
+          <h1 className="text-2xl font-bold text-gray-900">Quản lý chung</h1>
+          <p className="text-gray-600">Tổng quan hệ thống</p>
         </div>
         <button
           onClick={fetchStats}
@@ -88,26 +67,10 @@ export default function SwagOperationsDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {statCards.map((stat, index) => (
           <StatCard key={index} {...stat} />
         ))}
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-orange-100">
-              <Package className="w-5 h-5 text-orange-600" />
-            </div>
-            <h3 className="font-semibold text-gray-900">Tổng đơn hàng</h3>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">
-            {stats?.totalOrders || 0}
-          </p>
-        </div>
-
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 rounded-lg bg-green-100">
@@ -119,57 +82,45 @@ export default function SwagOperationsDashboard() {
             {formatCurrency(stats?.totalRevenue || 0)}
           </p>
         </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-blue-100">
-              <Building2 className="w-5 h-5 text-blue-600" />
-            </div>
-            <h3 className="font-semibold text-gray-900">Tổ chức</h3>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">
-            {stats?.totalOrganizations || 0}
-          </p>
-        </div>
       </div>
 
       {/* Quick Actions */}
       <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
         <h3 className="font-semibold text-gray-900 mb-4">Hành động nhanh</h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <button
-            onClick={() => navigate("/swag-ops/fulfillment")}
+            onClick={() => navigate("/catalog/products")}
             className="p-4 border rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-all text-left"
           >
             <Package className="w-8 h-8 mb-2 text-orange-500" />
-            <h4 className="font-medium text-gray-900">Fulfillment Queue</h4>
-            <p className="text-sm text-gray-500">Xử lý đơn hàng</p>
+            <h4 className="font-medium text-gray-900">Quản lý SP/DV</h4>
+            <p className="text-sm text-gray-500">Sản phẩm & dịch vụ</p>
           </button>
 
           <button
-            onClick={() => navigate("/swag-ops/orders")}
+            onClick={() => navigate("/catalog/suppliers")}
             className="p-4 border rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-all text-left"
           >
-            <Truck className="w-8 h-8 mb-2 text-blue-500" />
-            <h4 className="font-medium text-gray-900">Tất cả đơn hàng</h4>
-            <p className="text-sm text-gray-500">Xem và quản lý</p>
+            <Building2 className="w-8 h-8 mb-2 text-blue-500" />
+            <h4 className="font-medium text-gray-900">Đối tác</h4>
+            <p className="text-sm text-gray-500">Quản lý đối tác</p>
           </button>
 
           <button
-            onClick={() => navigate("/swag-ops/inventory")}
+            onClick={() => navigate("/documents/invoices")}
             className="p-4 border rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-all text-left"
           >
-            <Boxes className="w-8 h-8 mb-2 text-green-500" />
-            <h4 className="font-medium text-gray-900">Tồn kho</h4>
-            <p className="text-sm text-gray-500">Quản lý inventory</p>
+            <FileText className="w-8 h-8 mb-2 text-green-500" />
+            <h4 className="font-medium text-gray-900">Chứng từ</h4>
+            <p className="text-sm text-gray-500">Hóa đơn & chứng từ</p>
           </button>
 
           <button
-            onClick={() => navigate("/swag-ops/analytics")}
+            onClick={() => navigate("/analytics")}
             className="p-4 border rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-all text-left"
           >
             <BarChart3 className="w-8 h-8 mb-2 text-purple-500" />
-            <h4 className="font-medium text-gray-900">Analytics</h4>
+            <h4 className="font-medium text-gray-900">Báo cáo</h4>
             <p className="text-sm text-gray-500">Báo cáo & thống kê</p>
           </button>
         </div>

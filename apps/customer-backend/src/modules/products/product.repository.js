@@ -7,11 +7,15 @@ class ProductRepository {
    */
   async find(filter, options = {}) {
     const { page = 1, limit = 10, sort = { createdAt: -1 } } = options;
-    return Product.find(filter)
+    console.log("[ProductRepository.find] Filter:", JSON.stringify(filter));
+    console.log("[ProductRepository.find] Options:", { page, limit, sort });
+    const results = await Product.find(filter)
       .sort(sort)
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
+    console.log("[ProductRepository.find] Results:", results.length);
+    return results;
   }
 
   /**

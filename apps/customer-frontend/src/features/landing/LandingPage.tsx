@@ -1,76 +1,53 @@
 import { Header, Footer } from "./components";
 import {
-  LPHero,
   LPSocialProof,
   LPPlatformFeatures,
-  LPProcess,
   LPCta,
   LPMap,
-  LPB2BSolutions,
+  MagazineHero,
 } from "./components/sections";
+import { CuratorManifesto } from "./components/sections/CuratorManifesto";
+import { EditorsPick } from "./components/sections/EditorsPick";
 import { useTranslation } from "react-i18next";
 import { LanguageSEO } from "@/components/seo/LanguageSEO";
 import { StructuredData } from "@/components/seo/StructuredData";
 
-function ValueProposition() {
-  return (
-    <section className="py-20 bg-stone-50 text-center px-4 border-b border-stone-200">
-      <p className="text-2xl md:text-4xl font-serif italic text-stone-500 max-w-5xl mx-auto leading-relaxed">
-        "Thương hiệu không được xây dựng bằng giá cả,{" "}
-        <br className="hidden md:block" />
-        mà bằng những{" "}
-        <strong className="text-stone-900 not-italic border-b-2 border-emerald-500">
-          thông điệp nhất quán
-        </strong>
-        <br className="hidden md:block" />
-        và{" "}
-        <strong className="text-stone-900 not-italic border-b-2 border-emerald-500">
-          niềm tin
-        </strong>{" "}
-        gieo vào{" "}
-        <strong className="text-stone-900 not-italic border-b-2 border-emerald-500">
-          tâm trí
-        </strong>{" "}
-        đối tác."
-      </p>
-    </section>
-  );
-}
 export default function LandingPage() {
   const { t } = useTranslation();
 
   return (
-    <div className="min-h-screen bg-white font-sans text-stone-900 selection:bg-emerald-200 selection:text-emerald-900">
+    <div className="min-h-screen bg-white font-sans text-stone-900 selection:bg-amber-200 selection:text-amber-900">
       <LanguageSEO
-        title={t("seo.title")}
-        description={t("seo.description")}
+        title="Printz Curator | Quà Tặng Ngoại Giao & Di Sản"
+        description="Nhà giám tuyển quà tặng B2B cao cấp. Nơi kết tinh di sản Việt thành vị thế doanh nghiệp."
         keywords={t("seo.keywords")}
-        image="https://printz.vn/og-image.jpg"
+        image="https://printz.vn/og-magazine-cover.jpg"
       />
       <StructuredData />
-      <Header />
+
+      {/* MENU HEADER */}
+      <Header transparent={true} />
 
       <main>
-        <LPHero />
+        {/* 1. MAGAZINE COVER (Thay LPHero cũ) */}
+        <MagazineHero />
 
-        {/* Social Proof - Đặt ngay sau Hero để lấy Trust */}
+        {/* 2. TRUST NETWORK (Giữ nguyên - Rất quan trọng với B2B) */}
         <LPSocialProof />
 
-        {/* Value Proposition Statement */}
-        <ValueProposition />
+        {/* 3. EDITOR'S PICK (Mới - Dẫn vào bài viết 5 Khúc) */}
+        <EditorsPick />
 
-        {/* CORE SOLUTIONS (Thay cho Featured Categories cũ) */}
-        <LPB2BSolutions />
+        {/* 4. CURATOR MANIFESTO - Giải thích sự khác biệt */}
+        <CuratorManifesto />
 
-        {/* PLATFORM FEATURES */}
+        {/* 5. THE COLLECTIONS - Placeholder for future B2B Solutions section */}
+
+        {/* 5. CORE VALUES (Giữ nguyên) */}
         <LPPlatformFeatures />
 
-        {/* HOW IT WORKS */}
-        <LPProcess />
-
-        {/* MAP - Vietnam Coverage */}
+        {/* 6. MAP & CTA (Giữ nguyên) */}
         <LPMap />
-
         <LPCta />
       </main>
 

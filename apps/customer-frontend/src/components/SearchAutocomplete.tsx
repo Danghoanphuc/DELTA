@@ -1,10 +1,8 @@
 // src/components/SearchAutocomplete.tsx
 import { useState, useEffect, useRef } from "react";
-import { Search, Loader2, ArrowRight } from "lucide-react";
-import { Input } from "@/shared/components/ui/input";
+import { Search, Loader2, ArrowRight, Clock, Flame } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
-// ... (Interfaces giữ nguyên) ...
 interface SearchSuggestion {
   id: string;
   text: string;
@@ -18,16 +16,27 @@ interface SearchAutocompleteProps {
 
 export function SearchAutocomplete({
   onSearchSubmit,
-  placeholder = "Search collection...",
+  placeholder = "Tìm kiếm...",
   className,
 }: SearchAutocompleteProps) {
-  // ... (State logic giữ nguyên) ...
   const [searchTerm, setSearchTerm] = useState("");
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-  // ... (Effect logic giữ nguyên) ...
+
+  // Demo Suggestions (Nên thay bằng API call thật)
+  useEffect(() => {
+    if (searchTerm.length > 1) {
+      setSuggestions([
+        { id: "1", text: "Bộ ấm trà Tử Sa", type: "product" },
+        { id: "2", text: "Trầm hương thượng hạng", type: "trending" },
+        { id: "3", text: "Quà tặng sếp nam", type: "recent" },
+      ]);
+    } else {
+      setSuggestions([]);
+    }
+  }, [searchTerm]);
 
   return (
     <div
@@ -42,17 +51,17 @@ export function SearchAutocomplete({
         }}
         className="relative z-[100]"
       >
-        {/* INPUT STYLE: Transparent, Border Bottom Only, Font Serif Placeholder */}
-        <div className="relative flex items-center border-b border-stone-300 group-focus-within:border-stone-900 transition-colors duration-500 pb-1 bg-[#F9F8F6] z-[100]">
+        {/* INPUT: Border bottom only (Minimalist) */}
+        <div className="relative flex items-center border-b border-stone-300 group-focus-within:border-amber-800 transition-colors duration-500 pb-1 bg-transparent z-[100]">
           <Search
             size={16}
-            className="text-stone-400 group-focus-within:text-stone-900 transition-colors mr-3"
+            className="text-stone-400 group-focus-within:text-amber-800 transition-colors mr-3"
             strokeWidth={1.5}
           />
 
           <input
             type="text"
-            className="flex-1 bg-[#F9F8F6] border-none outline-none text-stone-900 placeholder:text-stone-400 placeholder:font-serif placeholder:italic text-sm h-9"
+            className="flex-1 bg-transparent border-none outline-none text-stone-900 placeholder:text-stone-400 placeholder:font-serif placeholder:italic text-sm h-9"
             placeholder={placeholder}
             value={searchTerm}
             onChange={(e) => {
@@ -68,7 +77,7 @@ export function SearchAutocomplete({
             searchTerm && (
               <button
                 type="submit"
-                className="text-stone-400 hover:text-stone-900"
+                className="text-stone-400 hover:text-amber-800 transition-colors"
               >
                 <ArrowRight size={14} />
               </button>
@@ -77,27 +86,51 @@ export function SearchAutocomplete({
         </div>
       </form>
 
-      {/* DROPDOWN STYLE: Nền giấy, Shadow nhẹ, Typography tinh tế */}
+      {/* DROPDOWN: Giấy Dó Texture */}
       {isOpen && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-[#F9F8F6] border border-stone-100 shadow-xl shadow-stone-200/50 p-4 z-[9999] animate-in fade-in slide-in-from-top-2 rounded-lg">
-          {/* Sections... */}
-          {/* Render logic giữ nguyên nhưng đổi class style */}
-          {suggestions.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => {
-                setSearchTerm(s.text);
-                onSearchSubmit(s.text);
-                setIsOpen(false);
-              }}
-              className="w-full text-left py-2 px-2 hover:bg-stone-100 text-stone-600 hover:text-stone-900 transition-colors text-sm font-sans flex items-center justify-between group/item"
-            >
-              <span>{s.text}</span>
-              <span className="opacity-0 group-hover/item:opacity-100 text-[10px] uppercase tracking-wider text-stone-400">
-                Jump to
-              </span>
-            </button>
-          ))}
+        <div className="absolute top-full left-0 right-0 mt-3 bg-[#F9F8F6] border border-stone-200 shadow-2xl p-0 z-[9999] animate-in fade-in slide-in-from-top-2 rounded-sm overflow-hidden">
+          <div className="bg-stone-100/50 px-4 py-2 border-b border-stone-100 flex justify-between items-center">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400">
+              Gợi ý
+            </span>
+            <span className="text-[9px] font-serif italic text-stone-400">
+              An Nam Curator
+            </span>
+          </div>
+
+          <div className="py-2">
+            {suggestions.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => {
+                  setSearchTerm(s.text);
+                  onSearchSubmit(s.text);
+                  setIsOpen(false);
+                }}
+                className="w-full text-left py-2.5 px-4 hover:bg-stone-100 text-stone-600 hover:text-stone-900 transition-colors text-sm font-sans flex items-center gap-3 group/item border-l-2 border-transparent hover:border-amber-800"
+              >
+                {/* Icon loại gợi ý */}
+                {s.type === "trending" && (
+                  <Flame size={12} className="text-amber-600" />
+                )}
+                {s.type === "recent" && (
+                  <Clock size={12} className="text-stone-400" />
+                )}
+                {s.type === "product" && (
+                  <Search size={12} className="text-stone-400" />
+                )}
+
+                <span className="flex-1 font-serif group-hover/item:font-bold transition-all">
+                  {s.text}
+                </span>
+
+                <ArrowRight
+                  size={12}
+                  className="opacity-0 -translate-x-2 group-hover/item:opacity-100 group-hover/item:translate-x-0 transition-all text-amber-800"
+                />
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

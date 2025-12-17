@@ -10,6 +10,7 @@ const SUPPLIER_TYPES = [
   { value: "distributor", label: "Nhà phân phối" },
   { value: "printer", label: "Nhà in" },
   { value: "dropshipper", label: "Dropshipper" },
+  { value: "artisan", label: "Nghệ nhân" },
 ];
 
 interface SupplierModalProps {
@@ -48,8 +49,16 @@ export function SupplierModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSubmit(formData);
+    // Remove code field if creating new supplier (will be auto-generated)
+    const submitData = { ...formData };
+    if (!editingSupplier) {
+      const { code, ...dataWithoutCode } = submitData;
+      await onSubmit(dataWithoutCode);
+    } else {
+      await onSubmit(submitData);
+    }
     onClose();
+    return;
   };
 
   const addCapability = () => {
@@ -107,7 +116,7 @@ export function SupplierModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mã *
+                Mã {editingSupplier ? "*" : "(Tự động sinh)"}
               </label>
               <input
                 type="text"
@@ -118,8 +127,10 @@ export function SupplierModal({
                     code: e.target.value.toUpperCase(),
                   })
                 }
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                required
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                disabled={!editingSupplier}
+                placeholder={editingSupplier ? "" : "Sẽ tự động sinh"}
+                required={!!editingSupplier}
               />
             </div>
           </div>

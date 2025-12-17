@@ -12,7 +12,7 @@ import { AuthLayout } from "../components/AuthLayout";
  * ProtectedGuard - Bảo vệ các routes cần authentication
  *
  * ✅ KHÔNG dùng cho: /, /shop, /products/:id, /inspiration, /app
- * ✅ CHỈ dùng cho: /checkout, /orders, /printer/*, /settings, /designs
+ * ✅ CHỈ dùng cho: /checkout, /orders, /printer/*, /settings
  */
 export default function ProtectedGuard() {
   const { accessToken, user, loading, refresh, fetchMe } = useAuthStore();
@@ -41,7 +41,9 @@ export default function ProtectedGuard() {
       } catch (err: any) {
         console.error("[ProtectedGuard] Init error:", err);
         if (isMounted) {
-          setError(err.response?.data?.message || "Không thể xác thực người dùng");
+          setError(
+            err.response?.data?.message || "Không thể xác thực người dùng"
+          );
         }
       } finally {
         if (isMounted) {
@@ -69,9 +71,7 @@ export default function ProtectedGuard() {
             <h2 className="text-lg font-semibold text-gray-900">
               Đang tải trang...
             </h2>
-            <p className="text-sm text-gray-600">
-              Vui lòng đợi trong giây lát
-            </p>
+            <p className="text-sm text-gray-600">Vui lòng đợi trong giây lát</p>
           </div>
         </Card>
       </AuthLayout>
@@ -96,7 +96,12 @@ export default function ProtectedGuard() {
             </p>
             <div className="flex gap-3 mt-4 w-full">
               <button
-                onClick={() => navigate("/signin", { state: { from: location }, replace: true })}
+                onClick={() =>
+                  navigate("/signin", {
+                    state: { from: location },
+                    replace: true,
+                  })
+                }
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Đăng nhập
@@ -122,4 +127,3 @@ export default function ProtectedGuard() {
   // Đã đăng nhập -> Render children
   return <Outlet />;
 }
-

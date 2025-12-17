@@ -479,11 +479,7 @@ class ProductService {
     // Filter for Product collection (printer products)
     const productFilter = {
       isDraft: false, // ✅ FIX: Exclude drafts
-      $or: [
-        { isActive: true },
-        { isActive: { $exists: false } },
-        { isActive: null },
-      ],
+      isActive: true, // ✅ SIMPLIFIED: Only show active products
     };
 
     // Filter for CatalogProduct collection (admin products)
@@ -518,15 +514,16 @@ class ProductService {
       sortOption = { createdAt: -1 };
     }
 
-    // Query both collections
-    const [printerProducts, catalogProducts] = await Promise.all([
-      productRepository.find(productFilter, {
-        page: 1,
-        limit: 100, // Get more to merge
-        sort: sortOption,
-      }),
-      CatalogProduct.find(catalogFilter).sort(sortOption).limit(100).lean(),
-    ]);
+    // Query both collections directly (repository pattern had issues with Atlas connection)
+    const printerProducts = await Product.find(productFilter)
+      .sort(sortOption)
+      .limit(100)
+      .lean();
+
+    const catalogProducts = await CatalogProduct.find(catalogFilter)
+      .sort(sortOption)
+      .limit(100)
+      .lean();
 
     // Merge and mark source
     const allProducts = [
@@ -595,7 +592,8 @@ class ProductService {
       "../catalog/catalog-product.model.js"
     );
 
-    let product = await productRepository.findById(productId);
+    // ✅ FIX: Use .lean() to return plain object instead of Mongoose document
+    let product = await Product.findById(productId).lean();
     let source = "printer";
     let printer = null;
 
@@ -656,8 +654,8 @@ class ProductService {
     // Increment views
     await Product.updateOne({ _id: product._id }, { $inc: { views: 1 } });
 
-    // Get updated product
-    const updatedProduct = await productRepository.findById(productId);
+    // Get updated product as plain object
+    const updatedProduct = await Product.findById(productId).lean();
 
     return {
       ...updatedProduct,

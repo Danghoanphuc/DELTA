@@ -24,14 +24,8 @@ export function InspirationPinCard({ pin }: InspirationPinCardProps) {
   const handleUseTemplate = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // TODO: Triển khai logic
-    // 1. Lưu base64 image lên cloud (nếu cần)
-    // 2. Chuyển hướng đến DesignEditorPage
-    // 3. Truyền 'imageUrl' và 'prompt' qua state của react-router
-    // 4. Editor sẽ tải ảnh này làm decal
-    toast.info("Tính năng đang phát triển", {
-      description: `Sử dụng mẫu AI (ID: ${pin.id}) sẽ sớm được triển khai`,
-    });
+    // ❌ REMOVED: Design editor feature
+    toast.info("Tính năng thiết kế đã bị tắt");
   };
 
   return (

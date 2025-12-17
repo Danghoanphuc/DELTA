@@ -7,14 +7,17 @@
 
 import { Request, Response, NextFunction } from "express";
 import { SupplierService } from "../services/supplier.service.js";
+import { SupplierPostService } from "../services/supplier-post.service.js";
 import { API_CODES, ApiResponse } from "../shared/utils/api-response.js";
 import { Logger } from "../shared/utils/logger.js";
 
 export class AdminSupplierController {
   private supplierService: SupplierService;
+  private supplierPostService: SupplierPostService;
 
   constructor() {
     this.supplierService = new SupplierService();
+    this.supplierPostService = new SupplierPostService();
   }
 
   /**
@@ -209,6 +212,65 @@ export class AdminSupplierController {
         .json(
           ApiResponse.success(null, "Đã refresh metrics cho tất cả suppliers")
         );
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // ============================================
+  // SUPPLIER POSTS METHODS
+  // ============================================
+
+  /**
+   * Create post for supplier
+   * @route POST /api/admin/suppliers/:supplierId/posts
+   */
+  createPost = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { supplierId } = req.params;
+      const user = (req as any).user;
+
+      // Temporary: Use a default admin ID if user is not authenticated
+      // TODO: Fix authentication middleware properly
+      const userId = user?._id || "000000000000000000000000";
+
+      const post = await this.supplierPostService.createPost(
+        supplierId,
+        userId,
+        req.body
+      );
+
+      res
+        .status(API_CODES.CREATED)
+        .json(ApiResponse.success({ post }, "Đã đăng bài thành công!"));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get posts by supplier
+   * @route GET /api/admin/suppliers/:supplierId/posts
+   */
+  getPostsBySupplier = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { supplierId } = req.params;
+      const { visibility, page, limit } = req.query;
+
+      const result = await this.supplierPostService.getPostsBySupplier(
+        supplierId,
+        {
+          visibility: visibility as string,
+          page: page ? parseInt(page as string) : undefined,
+          limit: limit ? parseInt(limit as string) : undefined,
+        }
+      );
+
+      res.status(API_CODES.SUCCESS).json(ApiResponse.success(result));
     } catch (error) {
       next(error);
     }

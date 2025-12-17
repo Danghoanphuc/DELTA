@@ -16,7 +16,7 @@ const studioUploadFields = [
 
 /**
  * @route   POST /api/printer-studio/publish
- * @desc    Tạo đồng thời Product (Phôi) và DesignTemplate (Mẫu)
+ * @desc    Tạo Product (Phôi) - Design template creation disabled
  * @access  Private (Printer only)
  */
 router.post(

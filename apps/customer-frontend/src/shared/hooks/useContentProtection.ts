@@ -5,7 +5,6 @@ import { useLocation } from "react-router-dom";
  * Hook bảo vệ nội dung - CHỈ áp dụng cho các trang cần thiết
  *
  * ✅ BẢO VỆ:
- * - /design-editor - Thiết kế độc quyền
  * - /printer/studio - Công cụ chuyên nghiệp
  * - /templates - Preview template
  *
@@ -20,7 +19,7 @@ export function useContentProtection() {
 
   useEffect(() => {
     // Danh sách các route CẦN bảo vệ
-    const protectedRoutes = ["/design-editor", "/printer/studio", "/templates"];
+    const protectedRoutes = ["/printer/studio", "/templates"];
 
     // Kiểm tra xem route hiện tại có cần bảo vệ không
     const shouldProtect = protectedRoutes.some((route) =>

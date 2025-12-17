@@ -1,332 +1,219 @@
 import { Header, Footer } from "@/features/landing/components";
-import { LPSocialProof } from "@/features/landing/components/sections/LPSocialProof";
 import { Button } from "@/shared/components/ui/button";
+import { Link } from "react-router-dom";
 import {
-  Check,
-  Gift,
-  MousePointerClick,
-  UserCheck,
-  Truck,
-  Sparkles,
-  Send,
+  MessageSquareHeart,
+  Globe,
+  Feather,
+  Coffee,
+  ArrowRight,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
-export default function CorporateGiftingPage() {
-  const navigate = useNavigate();
-
-  // FLOW "REDEEM LINK" ĐƯỢC VIỆT HÓA
-  const steps = [
-    {
-      icon: Gift,
-      number: "01",
-      title: "Bạn chọn 'Combo'",
-      desc: "Thay vì đoán mò, bạn tạo một danh sách quà (Ví dụ: Áo + Sổ + Bình nước).",
-    },
-    {
-      icon: Send,
-      number: "02",
-      title: "Gửi 'Đường Dẫn Thần Kỳ'",
-      desc: "Gửi 1 đường link cho toàn công ty. Không cần hỏi địa chỉ, không cần thu thập size áo từng người.",
-    },
-    {
-      icon: UserCheck,
-      number: "03",
-      title: "Người nhận tự điền",
-      desc: "Nhân viên click link -> Tự chọn màu/size -> Tự điền địa chỉ nhận. Printz lo phần còn lại.",
-    },
-  ];
-
-  // LỢI ÍCH TẬP TRUNG VÀO NỖI ĐAU "EXCEL" CỦA HR
-  const benefits = [
-    {
-      icon: MousePointerClick,
-      title: "Tạm biệt file Excel",
-      desc: "Không còn cảnh copy-paste 500 dòng địa chỉ và số điện thoại thủ công dễ sai sót.",
-    },
-    {
-      icon: Sparkles,
-      title: "Vừa vặn tuyệt đối",
-      desc: "Người nhận tự chọn size áo và màu sắc họ thích. Không còn cảnh tặng áo size L cho người size S.",
-    },
-    {
-      icon: Truck,
-      title: "Bảo mật riêng tư",
-      desc: "Nhân viên không cần công khai địa chỉ nhà riêng cho HR. Họ tự nhập trực tiếp vào hệ thống bảo mật.",
-    },
-  ];
-
-  const occasions = [
-    {
-      title: "Tết & Lễ Hội",
-      items: [
-        "Hộp quà Tết sum vầy",
-        "Lịch để bàn độc quyền",
-        "Bao lì xì in nhũ vàng",
-      ],
-    },
-    {
-      title: "Onboarding (Nhân viên mới)",
-      items: [
-        "Welcome Kit (Sổ, Bút, Áo)",
-        "Cốc sứ in tên riêng",
-        "Thẻ nhân viên cao cấp",
-      ],
-    },
-    {
-      title: "Tri ân Khách hàng/Đối tác",
-      items: [
-        "Set quà VIP Doanh nhân",
-        "Bút ký kim loại khắc tên",
-        "Sạc dự phòng in logo",
-      ],
-    },
-    {
-      title: "Sự kiện & Hội nghị",
-      items: [
-        "Túi vải Canvas (Tote bag)",
-        "Dây đeo thẻ sự kiện",
-        "Quà lưu niệm gọn nhẹ",
-      ],
-    },
-  ];
-
+export default function ConsultingPage() {
   return (
-    <div className="min-h-screen bg-white font-sans text-stone-900">
+    <div className="min-h-screen bg-[#F9F8F6]">
       <Header />
 
-      {/* HERO - EMOTIONAL HOOK */}
-      <section className="pt-40 pb-20 px-6 text-center bg-gradient-to-b from-blue-50 to-white border-b border-stone-200">
-        <div className="max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-blue-50 border border-blue-200 rounded-full">
-            <Gift className="w-4 h-4 text-blue-800" />
-            <span className="text-sm font-bold text-blue-800 uppercase tracking-wider">
-              Quà tặng Doanh nghiệp 4.0
-            </span>
-          </div>
-
-          <h1 className="font-serif text-5xl md:text-7xl text-stone-900 mb-8 leading-tight">
-            Tặng quà 1.000 người <br />
-            <span className="italic text-blue-800">
-              chỉ bằng một đường Link
-            </span>
+      {/* HERO SECTION: Nhẹ nhàng, không hô hào */}
+      <section className="pt-40 pb-20 px-4 border-b border-stone-200">
+        <div className="max-w-3xl mx-auto text-center">
+          <span className="font-mono text-xs text-stone-500 uppercase tracking-[0.2em] mb-4 block">
+            Cultural Diplomacy
+          </span>
+          <h1 className="font-serif text-4xl md:text-5xl text-stone-900 mb-6 leading-relaxed italic">
+            "Của cho không bằng Cách cho"
           </h1>
-
-          <p className="text-xl text-stone-600 mb-12 max-w-2xl mx-auto leading-relaxed">
-            Quên đi cảnh thu thập địa chỉ thủ công hay nỗi lo tặng nhầm size áo.
-            Trao quyền chọn lựa cho người nhận. Tối ưu thời gian cho người tặng.
+          <p className="text-stone-600 text-lg font-light leading-relaxed max-w-2xl mx-auto">
+            Chúng tôi không dám nhận mình là bậc thầy ngoại giao. <br />
+            Chúng tôi chỉ xin làm người kể chuyện, giúp bạn chọn ra một vật phẩm
+            đủ <strong>Tinh</strong> và đủ <strong>Tình</strong> để gửi gắm tâm
+            ý đến đối tác phương xa.
           </p>
+        </div>
+      </section>
 
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Button
-              onClick={() => navigate("/contact")}
-              className="bg-stone-900 hover:bg-blue-800 text-white rounded-full px-10 py-7 text-lg font-bold shadow-xl hover:shadow-2xl transition-all"
-            >
-              Tạo chiến dịch quà tặng
-            </Button>
-            <Button
-              onClick={() => navigate("/signup")}
-              variant="outline"
-              className="border-2 border-stone-200 text-stone-900 hover:border-stone-900 hover:bg-stone-50 rounded-full px-10 py-7 text-lg font-bold shadow-sm hover:shadow-md transition-all"
-            >
-              Xem mẫu quà
-            </Button>
+      {/* PHILOSOPHY: Triết lý khiêm nhường */}
+      <section className="py-20 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6">
+              <h2 className="font-serif text-3xl text-stone-900 mb-4">
+                Lắng nghe trước, <br />
+                Gợi ý sau.
+              </h2>
+              <p className="text-stone-700 leading-relaxed font-light">
+                Trước khi nói về gốm, về lụa hay sơn mài, chúng tôi muốn được
+                nghe bạn kể về người nhận quà.
+              </p>
+              <p className="text-stone-700 leading-relaxed font-light">
+                Họ đến từ đâu? Họ trân trọng sự tĩnh tại hay thích sự sôi nổi?
+                Mối quan hệ giữa hai bên đang ở giai đoạn "Gõ cửa" hay đã là
+                "Thâm giao"?
+              </p>
+              <div className="bg-stone-100 p-6 rounded-sm border-l-2 border-stone-400">
+                <p className="text-stone-600 text-sm italic">
+                  "Một món quà đúng ý nghĩa hơn ngàn lời nói hoa mỹ. Nó cho thấy
+                  bạn đã dành thời gian để thấu hiểu văn hóa của họ."
+                </p>
+              </div>
+            </div>
+            <div className="relative h-full min-h-[300px] bg-stone-200 rounded-sm overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1544253032-4d76f4ae1a23?q=80&w=800&auto=format&fit=crop"
+                alt="Tea conversation"
+                className="absolute inset-0 w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity duration-700"
+              />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* THE "MAGIC" FLOW - REDEEM LINK EXPLAINED */}
-      <section className="py-24 bg-white">
-        <div className="max-w-[1440px] mx-auto px-6 md:px-8">
+      {/* CULTURAL CONTEXT: Thể hiện sự am hiểu một cách nhẹ nhàng */}
+      <section className="py-20 bg-white border-y border-stone-100">
+        <div className="max-w-5xl mx-auto px-4">
           <div className="text-center mb-16">
-            <span className="font-mono text-xs font-bold tracking-[0.2em] text-blue-800 uppercase mb-4 block">
-              Cách hoạt động
-            </span>
-            <h2 className="font-serif text-4xl md:text-6xl text-stone-900 mb-6 italic">
-              Trao quyền chọn quà <br /> cho người nhận
+            <Globe className="w-10 h-10 text-stone-400 mx-auto mb-4" />
+            <h2 className="font-serif text-3xl text-stone-900 mb-4">
+              Mỗi vùng đất, một ngôn ngữ quà tặng
             </h2>
-            <p className="text-lg text-stone-600 max-w-2xl mx-auto">
-              Công nghệ "Cổng Quà Tặng" độc quyền của Printz giúp bạn gửi quà
-              đến hàng nghìn người mà không cần biết địa chỉ của họ trước.
+            <p className="text-stone-500 font-light">
+              Sự tinh tế nằm ở việc hiểu rõ những cấm kỵ và sở thích văn hóa.
             </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-12 relative">
-            {/* Line nối các bước trên Desktop */}
-            <div className="hidden md:block absolute top-16 left-[16%] right-[16%] h-0.5 bg-blue-100 -z-10" />
-
-            {steps.map((step, i) => {
-              const Icon = step.icon;
-              return (
-                <div key={i} className="relative bg-white pt-4">
-                  <div className="text-center group hover:-translate-y-2 transition-transform duration-300">
-                    <div className="w-24 h-24 mx-auto bg-blue-50 border-2 border-blue-100 group-hover:border-blue-800 group-hover:bg-blue-800 rounded-full flex items-center justify-center mb-6 transition-all shadow-sm">
-                      <Icon
-                        className="w-10 h-10 text-blue-800 group-hover:text-white transition-colors"
-                        strokeWidth={1.5}
-                      />
-                    </div>
-
-                    <span className="font-serif text-6xl font-bold text-stone-100 absolute top-0 right-[20%] -z-10 select-none">
-                      {step.number}
-                    </span>
-
-                    <h3 className="font-bold text-2xl text-stone-900 mb-3 px-4">
-                      {step.title}
-                    </h3>
-                    <p className="text-stone-600 leading-relaxed px-4">
-                      {step.desc}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* PAIN POINT & BENEFITS */}
-      <section className="py-24 bg-stone-50 border-y border-stone-200">
-        <div className="max-w-[1440px] mx-auto px-6 md:px-8">
-          <div className="text-center mb-16">
-            <h2 className="font-serif text-4xl md:text-5xl text-stone-900 mb-6 italic">
-              Tại sao HR yêu thích Printz?
-            </h2>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {benefits.map((benefit, i) => {
-              const Icon = benefit.icon;
-              return (
-                <div
-                  key={i}
-                  className="p-8 bg-white border border-stone-200 rounded-2xl hover:border-blue-500 hover:shadow-lg transition-all"
-                >
-                  <div className="w-12 h-12 bg-stone-100 rounded-lg flex items-center justify-center mb-6 text-stone-900">
-                    <Icon className="w-6 h-6" strokeWidth={1.5} />
-                  </div>
-                  <h3 className="font-bold text-xl text-stone-900 mb-3">
-                    {benefit.title}
-                  </h3>
-                  <p className="text-stone-600 leading-relaxed">
-                    {benefit.desc}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* SOCIAL PROOF */}
-      <LPSocialProof />
-
-      {/* OCCASIONS - KEEPING THIS AS IT IS GOOD CONTEXT */}
-      <section className="py-24 bg-white">
-        <div className="max-w-[1440px] mx-auto px-6 md:px-8">
-          <div className="text-center mb-16">
-            <h2 className="font-serif text-4xl text-stone-900 mb-6 italic">
-              Một nền tảng cho mọi dịp
-            </h2>
-            <p className="text-lg text-stone-600 max-w-2xl mx-auto">
-              Không cần tìm 10 nhà cung cấp khác nhau. Printz có đủ quà cho cả
-              năm hoạt động của bạn.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {occasions.map((occasion, i) => (
-              <div
-                key={i}
-                className="p-6 bg-stone-50 rounded-xl border border-stone-200 hover:border-blue-800 hover:bg-blue-50/30 transition-all"
-              >
-                <h3 className="font-bold text-lg text-stone-900 mb-4 pb-3 border-b border-stone-200/60">
-                  {occasion.title}
-                </h3>
-                <ul className="space-y-3">
-                  {occasion.items.map((item, j) => (
-                    <li key={j} className="flex items-start gap-3">
-                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
-                      <span className="text-stone-700 text-sm font-medium">
-                        {item}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* STATS */}
-      <section className="py-20 bg-blue-900 text-white border-y border-blue-800 overflow-hidden relative">
-        {/* Background Pattern */}
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage: "radial-gradient(#ffffff 1px, transparent 1px)",
-            backgroundSize: "30px 30px",
-          }}
-        ></div>
-
-        <div className="max-w-[1440px] mx-auto px-6 md:px-8 relative z-10">
-          <div className="grid md:grid-cols-3 gap-12 text-center divide-y md:divide-y-0 md:divide-x divide-blue-800/50">
-            <div className="p-4">
-              <div className="text-5xl font-serif font-bold text-blue-200 mb-2">
-                500+
-              </div>
-              <p className="text-blue-100 font-medium tracking-wide uppercase text-sm">
-                Doanh nghiệp tin dùng
+            {/* Card 1 */}
+            <div className="group p-8 border border-stone-200 hover:border-amber-800/30 transition-all duration-500 bg-[#FBFBF9]">
+              <h3 className="font-serif text-xl text-stone-900 mb-3 group-hover:text-amber-800 transition-colors">
+                Đối tác Nhật Bản & Hàn Quốc
+              </h3>
+              <p className="text-stone-600 text-sm leading-relaxed font-light mb-4">
+                Họ trọng nghi thức và bao bì. Một món quà được gói ghém bằng
+                khăn lụa (Furoshiki) hay hộp gỗ mộc sẽ được đánh giá cao hơn
+                những thứ phô trương vàng son.
               </p>
+              <ul className="text-xs text-stone-500 space-y-1 list-disc list-inside">
+                <li>Gợi ý: Gốm men mộc, Trà, Hộp sơn mài tối giản.</li>
+                <li>Tránh: Số lượng 4, màu trắng tang tóc.</li>
+              </ul>
             </div>
-            <div className="p-4">
-              <div className="text-5xl font-serif font-bold text-blue-200 mb-2">
-                50K+
-              </div>
-              <p className="text-blue-100 font-medium tracking-wide uppercase text-sm">
-                Hộp quà được trao
+
+            {/* Card 2 */}
+            <div className="group p-8 border border-stone-200 hover:border-amber-800/30 transition-all duration-500 bg-[#FBFBF9]">
+              <h3 className="font-serif text-xl text-stone-900 mb-3 group-hover:text-amber-800 transition-colors">
+                Đối tác Âu - Mỹ
+              </h3>
+              <p className="text-stone-600 text-sm leading-relaxed font-light mb-4">
+                Họ yêu thích câu chuyện (Storytelling) và tính thủ công
+                (Handmade). Họ muốn biết ai là người làm ra nó, ở ngôi làng nào,
+                quy trình ra sao.
               </p>
+              <ul className="text-xs text-stone-500 space-y-1 list-disc list-inside">
+                <li>Gợi ý: Tranh khắc gỗ, Lụa tơ tằm tự nhiên.</li>
+                <li>Tránh: Quà quá đắt tiền (vi phạm chính sách nhận quà).</li>
+              </ul>
             </div>
-            <div className="p-4">
-              <div className="text-5xl font-serif font-bold text-blue-200 mb-2">
-                99%
-              </div>
-              <p className="text-blue-100 font-medium tracking-wide uppercase text-sm">
-                Nhận hàng đúng hạn
+
+            {/* Card 3 */}
+            <div className="group p-8 border border-stone-200 hover:border-amber-800/30 transition-all duration-500 bg-[#FBFBF9]">
+              <h3 className="font-serif text-xl text-stone-900 mb-3 group-hover:text-amber-800 transition-colors">
+                Đối tác Trung Hoa & Á Đông
+              </h3>
+              <p className="text-stone-600 text-sm leading-relaxed font-light mb-4">
+                Họ quan tâm đến Phong thủy, ý nghĩa biểu tượng và sự thịnh
+                vượng. Màu đỏ, vàng kim và các biểu tượng may mắn luôn được đón
+                nhận.
               </p>
+              <ul className="text-xs text-stone-500 space-y-1 list-disc list-inside">
+                <li>Gợi ý: Gốm vẽ vàng, Trầm hương, Tượng linh vật.</li>
+                <li>Tránh: Đồng hồ, vật sắc nhọn.</li>
+              </ul>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA - HIGH CONTRAST & DEPTH */}
-      <section className="py-24 bg-stone-950 text-white text-center relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/20 rounded-full blur-[120px] pointer-events-none" />
-
-        <div className="max-w-3xl mx-auto px-6 relative z-10">
-          <h2 className="font-serif text-4xl md:text-5xl mb-6 italic text-white">
-            Bạn đã sẵn sàng đổi mới cách tặng quà?
+      {/* THE PROCESS: Quy trình từ tốn */}
+      <section className="py-24 px-4">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="font-serif text-3xl text-stone-900 mb-12 text-center">
+            Buổi trò chuyện bắt đầu thế nào?
           </h2>
-          <p className="text-xl text-stone-400 mb-10 leading-relaxed">
-            Đừng để việc tặng quà trở thành gánh nặng của bộ phận Hành chính.{" "}
-            <br />
-            Hãy biến nó thành niềm vui với công nghệ của Printz.
+
+          <div className="space-y-10 border-l border-stone-300 ml-4 pl-8 relative">
+            {/* Step 1 */}
+            <div className="relative">
+              <span className="absolute -left-[41px] top-0 w-5 h-5 rounded-full bg-stone-200 border-4 border-[#F9F8F6]"></span>
+              <h4 className="font-bold text-stone-900 mb-2 flex items-center gap-2">
+                <Coffee className="w-4 h-4 text-amber-800" />
+                Trà đàm & Thấu hiểu
+              </h4>
+              <p className="text-stone-600 font-light leading-relaxed text-sm">
+                Chúng tôi mời bạn một chén trà (hoặc qua một cuộc gọi thân mật).
+                Không có catalog dày cộm, không chèo kéo. Chỉ có những câu hỏi
+                để hiểu rõ "đề bài" ngoại giao của bạn.
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="relative">
+              <span className="absolute -left-[41px] top-0 w-5 h-5 rounded-full bg-stone-200 border-4 border-[#F9F8F6]"></span>
+              <h4 className="font-bold text-stone-900 mb-2 flex items-center gap-2">
+                <Feather className="w-4 h-4 text-amber-800" />
+                Soạn thảo Giải pháp
+              </h4>
+              <p className="text-stone-600 font-light leading-relaxed text-sm">
+                Đội ngũ giám tuyển sẽ lục tìm trong kho tàng các làng nghề để
+                chọn ra 2-3 phương án tinh tế nhất. Chúng tôi chuẩn bị cả câu
+                chuyện văn hóa đi kèm (bằng tiếng Anh/Việt) để bạn kể lại với
+                đối tác.
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="relative">
+              <span className="absolute -left-[41px] top-0 w-5 h-5 rounded-full bg-stone-200 border-4 border-[#F9F8F6]"></span>
+              <h4 className="font-bold text-stone-900 mb-2 flex items-center gap-2">
+                <MessageSquareHeart className="w-4 h-4 text-amber-800" />
+                Trao gửi & Dặn dò
+              </h4>
+              <p className="text-stone-600 font-light leading-relaxed text-sm">
+                Món quà được đóng gói chỉn chu. Chúng tôi sẽ dặn dò bạn kỹ lưỡng
+                về cách trao, thời điểm trao và những lưu ý nhỏ để món quà phát
+                huy hết giá trị tinh thần.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA: Nhẹ nhàng, mời gọi */}
+      <section className="py-24 bg-stone-900 text-center px-4">
+        <div className="max-w-2xl mx-auto">
+          <p className="text-stone-400 text-sm mb-6 uppercase tracking-widest font-light">
+            An Nam Curator
           </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Button
-              onClick={() => navigate("/contact")}
-              className="bg-white text-stone-950 hover:bg-blue-400 hover:text-stone-950 rounded-full px-12 py-8 text-lg font-bold shadow-xl transition-all border-2 border-transparent"
-            >
-              Tư vấn miễn phí
-            </Button>
-            <Button
-              onClick={() => navigate("/signup")}
-              variant="outline"
-              className="bg-transparent border-2 border-stone-700 text-stone-300 hover:text-white hover:border-white rounded-full px-12 py-8 text-lg font-bold transition-all"
-            >
-              Xem Demo
-            </Button>
+          <h2 className="font-serif text-3xl md:text-4xl text-[#F9F8F6] mb-8 italic leading-snug">
+            "Nếu bạn đang tìm một món quà để nói thay lòng mình..."
+          </h2>
+          <p className="text-stone-300 font-light mb-10 leading-relaxed">
+            Hãy để lại thông tin. Chúng tôi sẽ liên hệ để lắng nghe câu chuyện
+            của bạn một cách riêng tư và tận tâm nhất.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to="/contact">
+              <Button className="bg-[#F9F8F6] text-stone-900 hover:bg-stone-200 px-8 py-6 rounded-sm font-bold uppercase tracking-widest text-xs transition-all w-full sm:w-auto">
+                Đặt hẹn tư vấn
+              </Button>
+            </Link>
+            <Link to="/shop">
+              <Button
+                variant="outline"
+                className="border-stone-600 text-stone-400 hover:text-white hover:border-white px-8 py-6 rounded-sm font-bold uppercase tracking-widest text-xs transition-all w-full sm:w-auto"
+              >
+                Xem Thư Viện Quà <ArrowRight className="w-3 h-3 ml-2" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

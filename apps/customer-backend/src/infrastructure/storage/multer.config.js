@@ -199,10 +199,11 @@ export const uploadDieline = createMulter(dielineStorage, {
   fileSize: 5 * 1024 * 1024, // 5MB
 });
 
+// ❌ REMOVED: Design features
 // 5. Dùng cho API đăng bán template (Đa trường)
-export const uploadDesignTemplate = createMulter(designStorage, {
-  fileSize: 10 * 1024 * 1024, // 10MB
-});
+// export const uploadDesignTemplate = createMulter(designStorage, {
+//   fileSize: 10 * 1024 * 1024, // 10MB
+// });
 
 // 6. Dùng cho upload tài liệu xác thực
 export const uploadLegalDocs = createMulter(legalDocStorage, {

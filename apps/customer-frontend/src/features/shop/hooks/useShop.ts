@@ -88,6 +88,13 @@ const fetchPaginatedProducts = async ({
   search: string;
 }) => {
   try {
+    console.log("🔍 [useShop] Fetching products:", {
+      pageParam,
+      category,
+      sort,
+      search,
+    });
+
     const res = await api.get("/products", {
       params: {
         page: pageParam,
@@ -97,17 +104,18 @@ const fetchPaginatedProducts = async ({
         search: search || undefined,
       },
     });
-    
+
+    console.log("📦 [useShop] Raw response:", res.data);
+
     // ✅ Backend trả về: { success: true, data: { data: [], page: 1, totalPages: 5 } }
     // data.data là mảng products trực tiếp, không phải data.data.products
     const products: PrinterProduct[] = res.data?.data?.data || [];
     const page = res.data?.data?.page || pageParam;
     const totalPages = res.data?.data?.totalPages || 1;
-    
-    // Debug: Chỉ log khi dev mode
-    if (import.meta.env.DEV) {
-      console.log(`📊 Products: ${products.length} items (page ${page}/${totalPages})`);
-    }
+
+    console.log(
+      `📊 [useShop] Parsed: ${products.length} products (page ${page}/${totalPages})`
+    );
 
     const productsWithAssets: Product[] = products.map((p) => ({
       ...p,
