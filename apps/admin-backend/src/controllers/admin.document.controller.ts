@@ -5,7 +5,7 @@
 import { Request, Response, NextFunction } from "express";
 import { DocumentService } from "../services/document.service.js";
 import { Logger } from "../shared/utils/logger.js";
-import { API_CODES } from "../shared/constants";
+import { API_CODES } from "../shared/constants/index.js";
 
 // ============================================
 // DOCUMENT CONTROLLER

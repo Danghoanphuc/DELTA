@@ -5,7 +5,7 @@
 import { Request, Response, NextFunction } from "express";
 import { shippingService } from "../services/shipping.service.js";
 import { Logger } from "../shared/utils/logger.js";
-import { API_CODES, ApiResponse } from "../shared/utils/api-response";
+import { API_CODES, ApiResponse } from "../shared/utils/api-response.js";
 
 /**
  * Shipping Controller

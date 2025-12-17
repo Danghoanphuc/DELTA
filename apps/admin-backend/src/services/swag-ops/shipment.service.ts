@@ -3,7 +3,7 @@
 
 import { Logger } from "../../shared/utils/logger.js";
 import { SwagOrderRepository } from "../../repositories/swag-order.repository.js";
-import { CarrierFactory } from "../carriers/carrier.factory";
+import { CarrierFactory } from "../carriers/carrier.factory.js";
 import {
   ShipmentUpdate,
   ORDER_STATUS,
