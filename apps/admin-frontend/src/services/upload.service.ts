@@ -54,14 +54,17 @@ class UploadService {
    */
   async uploadDocument(file: File): Promise<UploadResponse> {
     // Step 1: Get presigned upload URL from backend
+    console.log("[UploadService] Step 1: Getting presigned URL...");
     const { data } = await api.post("/admin/upload/document-url", {
       fileName: file.name,
       fileType: file.type,
     });
 
     const { uploadUrl, fileKey } = data.data;
+    console.log("[UploadService] Got presigned URL, fileKey:", fileKey);
 
     // Step 2: Upload directly to R2 using presigned URL
+    console.log("[UploadService] Step 2: Uploading to R2...");
     const uploadResponse = await fetch(uploadUrl, {
       method: "PUT",
       body: file,
@@ -70,9 +73,13 @@ class UploadService {
       },
     });
 
+    console.log("[UploadService] R2 response status:", uploadResponse.status);
     if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error("[UploadService] R2 upload failed:", errorText);
       throw new Error("Failed to upload file to R2");
     }
+    console.log("[UploadService] Step 3: Upload successful!");
 
     // Step 3: Return download URL (will be proxied through backend)
     return {

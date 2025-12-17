@@ -1,85 +1,34 @@
 // src/services/productService.ts
-// ✅ BÀN GIAO: Sửa lỗi 404 endpoint và chuyển sang FormData
+// ✅ Updated to use CatalogProduct from admin-backend
 
 import api from "@/shared/lib/axios";
-import { PrinterProduct, Product } from "@/types/product";
-
-// Kiểu dữ liệu trả về từ API
-type MyProductsResponse = {
-  success: boolean;
-  data: {
-    data: PrinterProduct[]; // Backend trả về { data: { data: products[], page, limit, ... } }
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-};
-
-type ProductResponse = {
-  data: {
-    product: PrinterProduct;
-  };
-};
+import { Product } from "@/types/product";
+import {
+  CatalogProduct,
+  catalogProductToProduct,
+} from "@/types/catalog-product";
 
 type GetProductResponse = {
+  success: boolean;
   data: {
-    product: Product; // Dùng kiểu 'Product' chi tiết
+    product: CatalogProduct;
   };
 };
 
 /**
- * Lấy chi tiết sản phẩm bằng ID (dùng cho cả editor và admin)
+ * Lấy chi tiết sản phẩm bằng ID hoặc slug (dùng cho shop)
+ * ✅ Uses CatalogProduct from admin-backend public API
  */
 export const getProductById = async (productId: string): Promise<Product> => {
   const res = await api.get<GetProductResponse>(`/products/${productId}`);
-  const product = res.data?.data?.product;
-  if (!product) {
+  const catalogProduct = res.data?.data?.product;
+  if (!catalogProduct) {
     throw new Error("Không tìm thấy sản phẩm.");
   }
-  return product;
+  // Convert CatalogProduct to Product format
+  return catalogProductToProduct(catalogProduct);
 };
 
-/**
- * Lấy danh sách sản phẩm của nhà in
- */
-export const getMyProducts = async (): Promise<PrinterProduct[]> => {
-  // ✅ SỬA: Endpoint đúng là /products/my-products
-  // Backend trả về: { success: true, data: { data: products[], page, limit, ... } }
-  const res = await api.get<MyProductsResponse>("/products/my-products");
-  return res.data?.data?.data || [];
-};
-
-/**
- * Xóa một sản phẩm
- */
-export const deleteProduct = async (productId: string): Promise<void> => {
-  await api.delete(`/products/${productId}`);
-};
-
-/**
- * Cập nhật một sản phẩm
- * (Giữ nguyên logic FormData)
- */
-export const updateProduct = async (
-  productId: string,
-  data: FormData
-): Promise<PrinterProduct> => {
-  const res = await api.put<ProductResponse>(`/products/${productId}`, data, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-  return res.data?.data?.product;
-};
-
-/**
- * Tạo một sản phẩm (phôi) mới
- * (Giữ nguyên logic FormData)
- */
-export const createNewProduct = async (
-  productData: FormData
-): Promise<PrinterProduct> => {
-  const res = await api.post<ProductResponse>("/products", productData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-  return res.data?.data?.product;
-};
+// ✅ REMOVED: Printer product functions (getMyProducts, deleteProduct, updateProduct, createNewProduct)
+// These were for printer dashboard which is no longer used.
+// Products are now managed via admin-backend CatalogProduct.

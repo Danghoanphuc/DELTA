@@ -1,19 +1,24 @@
 // features/shop/hooks/useProductDetail.ts
-// ✅ BÀN GIAO: Gỡ bỏ toast.success trùng lặp
+// ✅ Updated to use CatalogProduct from admin-backend
 
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Product, PrinterProduct } from "@/types/product";
+import { Product } from "@/types/product";
 import { PrinterProfile } from "@/types/printerProfile";
+import {
+  CatalogProduct,
+  catalogProductToProduct,
+} from "@/types/catalog-product";
 import api from "@/shared/lib/axios";
 import { toast } from "@/shared/utils/toast";
 import { useCartStore } from "@/stores/useCartStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-// (Import Logger - nếu Phúc đã tạo file logger.util.ts)
-// import { Logger } from "@/shared/utils/logger.util";
 
 interface ProductWithPrinter extends Product {
   printerInfo?: PrinterProfile;
+  // Additional fields from CatalogProduct
+  supplier?: any;
+  categoryInfo?: any;
 }
 
 export const useProductDetail = () => {
@@ -42,11 +47,14 @@ export const useProductDetail = () => {
       setLoading(true);
       try {
         const res = await api.get(`/products/${productId}`);
-        if (!res.data?.data) {
-          // Kiểm tra xem res.data.data có tồn tại không
+        if (!res.data?.data?.product) {
           throw new Error("Product data not found");
         }
-        const fetchedProduct = res.data.data as ProductWithPrinter; // Gán trực tiếp res.data.data
+        // ✅ Convert CatalogProduct to Product format
+        const catalogProduct = res.data.data.product as CatalogProduct;
+        const fetchedProduct = catalogProductToProduct(
+          catalogProduct
+        ) as ProductWithPrinter;
 
         setProduct(fetchedProduct);
         // ✅ Bắt đầu từ minQuantity để đảm bảo valid, nhưng nếu minQuantity quá lớn thì dùng 1

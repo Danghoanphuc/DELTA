@@ -11,7 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { supplierApi } from "@/services/catalog.service";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { PostEditorSelector } from "./PostEditorSelector";
 import { QuickEditMetadataModal } from "./QuickEditMetadataModal";
 
@@ -61,7 +61,6 @@ interface SupplierPostsListProps {
 }
 
 export function SupplierPostsList({ supplierId }: SupplierPostsListProps) {
-  const { toast } = useToast();
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showMenu, setShowMenu] = useState<string | null>(null);
@@ -81,11 +80,7 @@ export function SupplierPostsList({ supplierId }: SupplierPostsListProps) {
       const result = await supplierApi.getPostsBySupplier(supplierId);
       setPosts(result.posts || []);
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: error.response?.data?.message || "Không thể tải bài viết",
-        variant: "destructive",
-      });
+      toast.error(error.response?.data?.message || "Không thể tải bài viết");
     } finally {
       setIsLoading(false);
     }
@@ -120,18 +115,11 @@ export function SupplierPostsList({ supplierId }: SupplierPostsListProps) {
 
     try {
       await supplierApi.updatePost(quickEditingPost._id, updates);
-      toast({
-        title: "✨ Thành công",
-        description: "Đã cập nhật metadata!",
-      });
+      toast.success("✨ Đã cập nhật metadata!");
       setQuickEditingPost(null);
       fetchPosts(); // Refresh list
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: error.response?.data?.message || "Không thể cập nhật",
-        variant: "destructive",
-      });
+      toast.error(error.response?.data?.message || "Không thể cập nhật");
       throw error;
     }
   };
@@ -141,20 +129,14 @@ export function SupplierPostsList({ supplierId }: SupplierPostsListProps) {
 
     try {
       await supplierApi.updatePost(editingPost._id, data);
-      toast({
-        title: "Thành công",
-        description: "Đã cập nhật bài viết!",
-      });
+      toast.success("Đã cập nhật bài viết!");
       setShowEditModal(false);
       setEditingPost(null);
       fetchPosts(); // Refresh list
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description:
-          error.response?.data?.message || "Không thể cập nhật bài viết",
-        variant: "destructive",
-      });
+      toast.error(
+        error.response?.data?.message || "Không thể cập nhật bài viết"
+      );
       throw error;
     }
   };
@@ -170,19 +152,12 @@ export function SupplierPostsList({ supplierId }: SupplierPostsListProps) {
 
     try {
       await supplierApi.deletePost(deletingPostId);
-      toast({
-        title: "Thành công",
-        description: "Đã xóa bài viết!",
-      });
+      toast.success("Đã xóa bài viết!");
       setShowDeleteConfirm(false);
       setDeletingPostId(null);
       fetchPosts(); // Refresh list
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: error.response?.data?.message || "Không thể xóa bài viết",
-        variant: "destructive",
-      });
+      toast.error(error.response?.data?.message || "Không thể xóa bài viết");
     }
   };
 

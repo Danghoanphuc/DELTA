@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { Loader2, Save, ArrowLeft, Settings } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useArtisanBlocks } from "@/hooks/useArtisanBlocks";
 import { ArtisanBlockEditor } from "./artisan-blocks";
 import { PostFormSidebarSimplified } from "./PostFormSidebarSimplified";
@@ -42,7 +42,6 @@ export function CreateArtisanPostModal({
   initialData,
   supplierInfo,
 }: CreateArtisanPostModalProps) {
-  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
@@ -124,21 +123,13 @@ export function CreateArtisanPostModal({
   const handleSubmit = async () => {
     // Validate
     if (!title.trim()) {
-      toast({
-        title: "Thiếu tiêu đề",
-        description: "Vui lòng nhập tiêu đề bài viết",
-        variant: "destructive",
-      });
+      toast.error("Vui lòng nhập tiêu đề bài viết");
       return;
     }
 
     const { valid, errors } = validateBlocks();
     if (!valid) {
-      toast({
-        title: "Nội dung chưa hợp lệ",
-        description: errors[0],
-        variant: "destructive",
-      });
+      toast.error(errors[0]);
       return;
     }
 
@@ -156,17 +147,10 @@ export function CreateArtisanPostModal({
           content: contentText,
           category,
         });
-        toast({
-          title: "✨ AI đã tạo metadata",
-          description: "Excerpt, tags, slug, SEO đã được tạo tự động",
-        });
+        toast.success("✨ AI đã tạo metadata tự động");
       } catch (aiError) {
         console.error("AI metadata error:", aiError);
-        toast({
-          title: "⚠️ AI không khả dụng",
-          description: "Sử dụng metadata thủ công",
-          variant: "default",
-        });
+        toast.warning("⚠️ AI không khả dụng - sử dụng metadata thủ công");
         aiMetadata = {
           excerpt: "",
           tags: tags,
@@ -220,29 +204,19 @@ export function CreateArtisanPostModal({
       };
 
       if (pendingMediaList.length > 0) {
-        toast({
-          title: "⏳ Đang upload media",
-          description: `Đang upload ${pendingMediaList.length} file...`,
-        });
+        toast.loading(`Đang upload ${pendingMediaList.length} file...`);
       }
 
       await onSubmit(postData);
 
-      toast({
-        title: "🎉 Thành công",
-        description: "Bài viết đã được đăng!",
-      });
+      toast.success("🎉 Bài viết đã được đăng!");
 
       // Cleanup
       clearPendingMedia();
       resetBlocks();
       onClose();
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: error.message || "Không thể lưu bài viết",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Không thể lưu bài viết");
     } finally {
       setIsSubmitting(false);
       setIsAiProcessing(false);

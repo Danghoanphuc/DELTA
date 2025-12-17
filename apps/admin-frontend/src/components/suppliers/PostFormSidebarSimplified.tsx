@@ -182,14 +182,20 @@ export function PostFormSidebarSimplified({
                       </option>
                     </optgroup>
                     <optgroup label="5 Trụ Cột Ngũ Hành">
-                      <option value="ngu-hanh-kim">💎 Kim - Gốm & Sứ</option>
-                      <option value="ngu-hanh-moc">🌿 Mộc - Trà & Hương</option>
-                      <option value="ngu-hanh-thuy">💧 Thủy - Lụa & Vải</option>
+                      <option value="ngu-hanh-kim">
+                        💎 Hành Kim - Đồng & Kim Loại
+                      </option>
+                      <option value="ngu-hanh-moc">
+                        🍃 Hành Mộc - Gỗ & Tre
+                      </option>
+                      <option value="ngu-hanh-thuy">
+                        🌊 Hành Thủy - Sơn Mài & Thủy Tinh
+                      </option>
                       <option value="ngu-hanh-hoa">
-                        🔥 Hỏa - Sơn Mài & Gỗ
+                        🔥 Hành Hỏa - Trầm & Gốm Hỏa Biến
                       </option>
                       <option value="ngu-hanh-tho">
-                        ⛰️ Thổ - Đá & Thủ Công
+                        🏔️ Hành Thổ - Gốm Sứ & Đá
                       </option>
                     </optgroup>
                   </select>

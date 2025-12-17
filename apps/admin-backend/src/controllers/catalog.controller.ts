@@ -223,11 +223,14 @@ export const productController = {
       const product = await productService.createProduct(req.body);
       res.status(201).json({ success: true, data: product });
     } catch (error: any) {
+      console.error("[ProductController] Error creating product:", error);
+
       // Handle Mongoose validation errors
       if (error.name === "ValidationError") {
         const errors = Object.values(error.errors).map(
           (err: any) => err.message
         );
+        console.error("[ProductController] Validation errors:", errors);
         return res.status(400).json({
           success: false,
           error: "Validation failed",
@@ -239,6 +242,7 @@ export const productController = {
       // Handle duplicate key errors
       if (error.code === 11000) {
         const field = Object.keys(error.keyPattern)[0];
+        console.error("[ProductController] Duplicate key:", field);
         return res.status(400).json({
           success: false,
           error: "Duplicate value",

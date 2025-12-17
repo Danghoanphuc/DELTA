@@ -49,7 +49,9 @@ async function cleanupSupplierMappings() {
 
     // Connect to database
     const mongoUri =
-      process.env.MONGODB_URI || "mongodb://localhost:27017/delta-swag";
+      process.env.MONGODB_CONNECTIONSTRING ||
+      process.env.MONGODB_URI ||
+      "mongodb://localhost:27017/delta-swag";
     await mongoose.connect(mongoUri);
     Logger.success("[Cleanup] Connected to database");
 

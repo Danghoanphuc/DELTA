@@ -21,7 +21,7 @@ import {
   SupplierProfile,
   supplierApi,
 } from "@/services/catalog.service";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useFileUpload } from "@/hooks/useFileUpload";
 
 interface SupplierProfileEditorProps {
@@ -33,7 +33,6 @@ export function SupplierProfileEditor({
   supplier,
   onUpdate,
 }: SupplierProfileEditorProps) {
-  const { toast } = useToast();
   const { uploadImage, isUploading } = useFileUpload();
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingField, setUploadingField] = useState<
@@ -88,16 +87,9 @@ export function SupplierProfileEditor({
     try {
       const updated = await supplierApi.update(supplier._id, { profile });
       onUpdate(updated);
-      toast({
-        title: "Thành công",
-        description: "Đã cập nhật profile công khai",
-      });
+      toast.success("Đã cập nhật profile công khai");
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: error.response?.data?.message || "Không thể cập nhật",
-        variant: "destructive",
-      });
+      toast.error(error.response?.data?.message || "Không thể cập nhật");
     } finally {
       setIsSaving(false);
     }
@@ -110,21 +102,13 @@ export function SupplierProfileEditor({
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng chọn file ảnh",
-        variant: "destructive",
-      });
+      toast.error("Vui lòng chọn file ảnh");
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "Lỗi",
-        description: "Ảnh không được vượt quá 5MB",
-        variant: "destructive",
-      });
+      toast.error("Ảnh không được vượt quá 5MB");
       return;
     }
 
@@ -147,20 +131,12 @@ export function SupplierProfileEditor({
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng chọn file ảnh",
-        variant: "destructive",
-      });
+      toast.error("Vui lòng chọn file ảnh");
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "Lỗi",
-        description: "Ảnh cover không được vượt quá 10MB",
-        variant: "destructive",
-      });
+      toast.error("Ảnh cover không được vượt quá 10MB");
       return;
     }
 

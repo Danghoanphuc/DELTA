@@ -7,13 +7,12 @@ import { useState, useEffect } from "react";
 import { StorytellingProductForm } from "../components/products/StorytellingProductForm";
 import { StorytellingProductFormData } from "../types/storytelling-product";
 import { catalogService } from "../services/catalog.service";
-import { useToast } from "../hooks/use-toast";
+import { toast } from "sonner";
 
 export default function ProductFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
-  const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
@@ -88,12 +87,9 @@ export default function ProductFormPage() {
         isFeatured: product.isFeatured || false,
       });
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description:
-          error.response?.data?.message || "Không thể tải thông tin sản phẩm",
-        variant: "destructive",
-      });
+      toast.error(
+        error.response?.data?.message || "Không thể tải thông tin sản phẩm"
+      );
       navigate("/catalog/products");
     } finally {
       setIsFetching(false);
@@ -150,16 +146,10 @@ export default function ProductFormPage() {
 
       if (isEdit && id) {
         await catalogService.updateProduct(id, productData);
-        toast({
-          title: "Thành công",
-          description: "Đã cập nhật sản phẩm thành công!",
-        });
+        toast.success("Đã cập nhật sản phẩm thành công!");
       } else {
         await catalogService.createProduct(productData);
-        toast({
-          title: "Thành công",
-          description: "Đã tạo sản phẩm mới thành công!",
-        });
+        toast.success("Đã tạo sản phẩm mới thành công!");
       }
       navigate("/catalog/products");
     } catch (error: any) {
@@ -168,11 +158,7 @@ export default function ProductFormPage() {
         error.response?.data?.message ||
         error.response?.data?.error ||
         `Không thể ${isEdit ? "cập nhật" : "tạo"} sản phẩm`;
-      toast({
-        title: "Lỗi",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

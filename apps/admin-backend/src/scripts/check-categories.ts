@@ -8,7 +8,9 @@ dotenv.config();
 async function checkCategories() {
   try {
     const mongoUri =
-      process.env.MONGODB_URI || "mongodb://localhost:27017/delta-swag";
+      process.env.MONGODB_CONNECTIONSTRING ||
+      process.env.MONGODB_URI ||
+      "mongodb://localhost:27017/delta-swag";
     await mongoose.connect(mongoUri);
     console.log("✅ Connected to MongoDB");
 

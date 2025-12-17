@@ -72,7 +72,7 @@ const FontSize = Extension.create({
   },
 });
 import { useEffect, useState, useRef } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   Bold,
   Italic,
@@ -133,7 +133,6 @@ export function RichTextEditor({
   contentPlaceholder = "Bắt đầu câu chuyện của bạn...",
   onAddPendingImage,
 }: RichTextEditorProps) {
-  const { toast } = useToast();
   const [isAddingImage, setIsAddingImage] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -222,11 +221,7 @@ export function RichTextEditor({
       setLinkUrl(previousUrl || "");
       setShowLinkDialog(true);
     } else {
-      toast({
-        title: "Chưa chọn text",
-        description: "Bôi đen text trước khi thêm link nhé",
-        variant: "default",
-      });
+      toast.info("Bôi đen text trước khi thêm link nhé");
     }
   };
 
@@ -251,11 +246,9 @@ export function RichTextEditor({
     }
 
     if (!isValidUrl(linkUrl)) {
-      toast({
-        title: "URL không hợp lệ",
-        description: "Vui lòng nhập đúng định dạng (vd: google.com)",
-        variant: "destructive",
-      });
+      toast.error(
+        "URL không hợp lệ - vui lòng nhập đúng định dạng (vd: google.com)"
+      );
       return;
     }
 
@@ -272,31 +265,19 @@ export function RichTextEditor({
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      toast({
-        title: "File không hợp lệ",
-        description: "Vui lòng chọn file ảnh (JPG, PNG, WebP...)",
-        variant: "destructive",
-      });
+      toast.error("Vui lòng chọn file ảnh (JPG, PNG, WebP...)");
       return;
     }
 
     // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "File quá lớn",
-        description: "Kích thước tối đa là 10MB",
-        variant: "destructive",
-      });
+      toast.error("Kích thước tối đa là 10MB");
       return;
     }
 
     // Nếu không có callback, không thể thêm ảnh
     if (!onAddPendingImage) {
-      toast({
-        title: "Lỗi",
-        description: "Chức năng thêm ảnh chưa được cấu hình",
-        variant: "destructive",
-      });
+      toast.error("Chức năng thêm ảnh chưa được cấu hình");
       return;
     }
 
@@ -314,16 +295,9 @@ export function RichTextEditor({
         })
         .run();
 
-      toast({
-        title: "📷 Ảnh đã thêm",
-        description: "Ảnh sẽ được upload khi bạn đăng bài",
-      });
+      toast.success("📷 Ảnh đã thêm - sẽ được upload khi bạn đăng bài");
     } catch {
-      toast({
-        title: "Lỗi",
-        description: "Không thể thêm ảnh",
-        variant: "destructive",
-      });
+      toast.error("Không thể thêm ảnh");
     } finally {
       setIsAddingImage(false);
     }

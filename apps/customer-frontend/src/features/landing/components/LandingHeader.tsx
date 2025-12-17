@@ -18,37 +18,50 @@ import { Logo } from "@/shared/components/ui/Logo";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { cn } from "@/shared/lib/utils";
 
-// --- MENU DATA: TỪ ĐIỂN GIÁM TUYỂN ---
+// --- MENU DATA: NGŨ HÀNH TINH HOA ---
 
-// 1. KHO TÀNG TÁC PHẨM (Collections)
+// 1. KHO TÀNG TÁC PHẨM (Collections) - Chia theo Ngũ Hành
 const COLLECTIONS_MENU = {
   title: "Kho Tàng Tác Phẩm",
   groups: [
     {
-      name: "Tĩnh Tại (Zen)",
+      name: "Hành Kim (Metal)",
       items: [
-        { label: "Ấm Hồng Sa / Hỏa Biến", status: "hot" },
-        { label: "Trà Shan Tuyết Cổ Thụ", status: "available" },
-        { label: "Trầm Hương & Lư Đốt", status: "soon" },
-        { label: "Pháp Phục Thiền", status: "soon" },
+        { label: "Chuông Đồng An Hội", status: "hot" },
+        { label: "Khánh Đồng Để Bàn", status: "available" },
+        { label: "Lư Đồng Thủ Công", status: "soon" },
       ],
     },
     {
-      name: "Dòng Chảy (Flow)",
+      name: "Hành Mộc (Wood)",
       items: [
-        { label: "Sơn Mài Hạ Thái", status: "hot" },
-        { label: "Quạt Giấy Dó", status: "available" },
-        { label: "Khăn Lụa Thêu Tay", status: "soon" },
-        { label: "Tranh Khắc Gỗ", status: "soon" },
+        { label: "Mô Hình Thuyền Gỗ", status: "hot" },
+        { label: "Nón Lá Mật Cật", status: "available" },
+        { label: "Khay Mây Tre Đan", status: "soon" },
       ],
     },
     {
-      name: "Thổ Nhưỡng (Earth)",
+      name: "Hành Thủy (Water)",
       items: [
-        { label: "Gốm Hỏa Biến Độc Bản", status: "hot" },
-        { label: "Bình Hút Lộc", status: "available" },
-        { label: "Gốm Chu Đậu Vẽ Vàng", status: "available" },
-        { label: "Linh Vật Dát Vàng", status: "soon" },
+        { label: "Sơn Mài Tương Bình Hiệp", status: "hot" },
+        { label: "Vẽ Trong Chai Thủy Tinh", status: "available" },
+        { label: "Tranh Cẩn Ốc Xà Cừ", status: "soon" },
+      ],
+    },
+    {
+      name: "Hành Hỏa (Fire)",
+      items: [
+        { label: "Trầm Hương Bình Phước", status: "hot" },
+        { label: "Gốm Men Hỏa Biến", status: "available" },
+        { label: "Đèn Gốm Thấu Quang", status: "soon" },
+      ],
+    },
+    {
+      name: "Hành Thổ (Earth)",
+      items: [
+        { label: "Gốm Biên Hòa (Vert)", status: "hot" },
+        { label: "Điêu Khắc Đá Bửu Long", status: "available" },
+        { label: "Lu Sành Đại Hưng", status: "available" },
       ],
     },
   ],
@@ -60,9 +73,9 @@ const SERVICES_MENU = {
   items: [
     {
       icon: MessageSquare,
-      title: "Tư vấn Quà Ngoại giao",
-      desc: "Thiết kế set quà theo cấp bậc & văn hóa đối tác.",
-      href: "/solutions/corporate-gifting",
+      title: "Quà Tặng Phong Thủy",
+      desc: "Tư vấn quà tặng B2B theo mệnh & ý nghĩa.",
+      href: "/solutions/feng-shui-gifting",
     },
     {
       icon: PenTool,
@@ -157,9 +170,6 @@ export function Header({ transparent = false }: HeaderProps) {
   const isTransparentMode =
     transparent && !scrolled && !activeMenu && !mobileMenuOpen;
 
-  // Style Class Logic
-  const HARD_SHADOW = "shadow-[3px_3px_0px_0px_rgba(28,25,23,1)]";
-
   const navItemClass = (isActiveItem: boolean) =>
     cn(
       "flex items-center gap-1.5 py-2 px-5 rounded-full text-xs font-bold uppercase tracking-[0.15em] transition-all duration-300 ease-out border border-transparent",
@@ -176,13 +186,13 @@ export function Header({ transparent = false }: HeaderProps) {
     if (status === "soon")
       return (
         <span className="ml-2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-stone-400 border border-stone-200 rounded-sm bg-stone-50">
-          Sắp ra mắt
+          Sắp ra
         </span>
       );
     if (status === "hot")
       return (
         <span className="ml-2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700 border border-amber-200 rounded-sm bg-amber-50">
-          Ưu chuộng
+          Hot
         </span>
       );
     return null;
@@ -322,7 +332,7 @@ export function Header({ transparent = false }: HeaderProps) {
 
         {/* --- MEGA MENUS --- */}
 
-        {/* 1. PANEL: TÁC PHẨM (COLLECTIONS) - Style: Standard Grid */}
+        {/* 1. PANEL: TÁC PHẨM (COLLECTIONS) - Style: FIVE COLUMNS GRID */}
         <div
           onMouseEnter={handleHeaderEnter}
           className={cn(
@@ -332,24 +342,25 @@ export function Header({ transparent = false }: HeaderProps) {
               : "max-h-0 opacity-0 -translate-y-4 invisible"
           )}
         >
-          <div className="max-w-5xl mx-auto px-8 py-12 grid grid-cols-3 gap-x-20 gap-y-8">
+          {/* LƯỚI 5 CỘT CHO NGŨ HÀNH */}
+          <div className="max-w-[1440px] mx-auto px-8 py-12 grid grid-cols-1 md:grid-cols-5 gap-x-8 gap-y-8">
             {COLLECTIONS_MENU.groups.map((group, idx) => (
               <div key={idx} className="group/col">
-                <h4 className="font-sans text-base font-bold text-stone-900 mb-5 border-b border-stone-300 pb-2 inline-block">
+                <h4 className="font-sans text-sm font-bold text-stone-900 mb-5 border-b border-stone-300 pb-2 inline-block uppercase tracking-wide">
                   {group.name}
                 </h4>
                 <ul className="space-y-3">
                   {group.items.map((item, i) => (
                     <li key={i}>
                       {item.status === "soon" ? (
-                        <span className="flex items-center text-sm text-stone-400 cursor-not-allowed py-1 font-light">
+                        <span className="flex items-center text-xs text-stone-400 cursor-not-allowed py-1 font-light">
                           {item.label}
                           {renderBadge(item.status)}
                         </span>
                       ) : (
                         <Link
                           to="/shop"
-                          className="flex items-center text-sm text-stone-600 hover:text-amber-800 hover:font-bold hover:translate-x-1 transition-all duration-200 block py-1 font-normal"
+                          className="flex items-center text-xs text-stone-600 hover:text-amber-800 hover:font-bold hover:translate-x-1 transition-all duration-200 block py-1 font-normal"
                         >
                           {item.label}
                           {renderBadge(item.status)}
@@ -384,13 +395,13 @@ export function Header({ transparent = false }: HeaderProps) {
               <div className="absolute inset-0 bg-stone-900/40" />
               <div className="absolute bottom-0 left-0 p-10 text-white z-10">
                 <p className="font-sans text-2xl font-medium mb-4 leading-tight">
-                  "Chúng tôi không bán hàng.
+                  "Chọn Quà là chọn Mệnh.
                   <br />
-                  Chúng tôi kiến tạo di sản."
+                  Trao đi là Hanh thông."
                 </p>
                 <div className="w-12 h-[1px] bg-white/60 mb-4"></div>
                 <span className="text-[10px] uppercase tracking-[0.2em] text-white/80">
-                  The Bespoke Process
+                  Feng Shui Gifting
                 </span>
               </div>
             </div>

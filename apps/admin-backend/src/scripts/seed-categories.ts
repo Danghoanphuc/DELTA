@@ -8,7 +8,62 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
-const categories = [
+// Ngũ Hành Categories (Delta Swag)
+const nguHanhCategories = [
+  {
+    name: "Hành Kim",
+    slug: "hanh-kim",
+    description: "Chuông Đồng, Khánh Đồng, Lư Đồng - Đồng & Kim Loại",
+    path: "hanh-kim",
+    level: 0,
+    icon: "💎",
+    isActive: true,
+    sortOrder: 1,
+  },
+  {
+    name: "Hành Mộc",
+    slug: "hanh-moc",
+    description: "Mô Hình Thuyền Gỗ, Nón Lá, Khay Mây Tre Đan - Gỗ & Tre",
+    path: "hanh-moc",
+    level: 0,
+    icon: "🍃",
+    isActive: true,
+    sortOrder: 2,
+  },
+  {
+    name: "Hành Thủy",
+    slug: "hanh-thuy",
+    description: "Sơn Mài, Vẽ Trong Chai, Tranh Cẩn Ốc - Sơn Mài & Thủy Tinh",
+    path: "hanh-thuy",
+    level: 0,
+    icon: "🌊",
+    isActive: true,
+    sortOrder: 3,
+  },
+  {
+    name: "Hành Hỏa",
+    slug: "hanh-hoa",
+    description: "Trầm Hương, Gốm Men Hỏa Biến, Đèn Gốm - Trầm & Gốm Hỏa Biến",
+    path: "hanh-hoa",
+    level: 0,
+    icon: "🔥",
+    isActive: true,
+    sortOrder: 4,
+  },
+  {
+    name: "Hành Thổ",
+    slug: "hanh-tho",
+    description: "Gốm Biên Hòa, Điêu Khắc Đá, Lu Sành - Gốm Sứ & Đá",
+    path: "hanh-tho",
+    level: 0,
+    icon: "🏔️",
+    isActive: true,
+    sortOrder: 5,
+  },
+];
+
+// Legacy SwagUp-style categories
+const legacyCategories = [
   {
     name: "Apparel",
     slug: "apparel",
@@ -16,7 +71,7 @@ const categories = [
     path: "apparel",
     level: 0,
     isActive: true,
-    sortOrder: 1,
+    sortOrder: 10,
   },
   {
     name: "Drinkware",
@@ -25,7 +80,7 @@ const categories = [
     path: "drinkware",
     level: 0,
     isActive: true,
-    sortOrder: 2,
+    sortOrder: 11,
   },
   {
     name: "Bags",
@@ -34,7 +89,7 @@ const categories = [
     path: "bags",
     level: 0,
     isActive: true,
-    sortOrder: 3,
+    sortOrder: 12,
   },
   {
     name: "Tech Accessories",
@@ -43,7 +98,7 @@ const categories = [
     path: "tech-accessories",
     level: 0,
     isActive: true,
-    sortOrder: 4,
+    sortOrder: 13,
   },
   {
     name: "Stationery",
@@ -52,7 +107,7 @@ const categories = [
     path: "stationery",
     level: 0,
     isActive: true,
-    sortOrder: 5,
+    sortOrder: 14,
   },
   {
     name: "Home & Living",
@@ -61,7 +116,7 @@ const categories = [
     path: "home-living",
     level: 0,
     isActive: true,
-    sortOrder: 6,
+    sortOrder: 15,
   },
   {
     name: "Other",
@@ -74,26 +129,56 @@ const categories = [
   },
 ];
 
+const categories = [...nguHanhCategories, ...legacyCategories];
+
 async function seedCategories() {
   try {
     // Connect to MongoDB
     const mongoUri =
-      process.env.MONGODB_URI || "mongodb://localhost:27017/delta-swag";
+      process.env.MONGODB_CONNECTIONSTRING ||
+      process.env.MONGODB_URI ||
+      "mongodb://localhost:27017/delta-swag";
     await mongoose.connect(mongoUri);
-    console.log("✅ Connected to MongoDB");
+    console.log("✅ Connected to MongoDB:", mongoUri.substring(0, 50) + "...");
 
-    // Check if categories already exist
-    const existingCount = await ProductCategory.countDocuments();
-    if (existingCount > 0) {
+    // Check if ALL Ngũ Hành categories exist
+    const nguHanhSlugs = [
+      "hanh-kim",
+      "hanh-moc",
+      "hanh-thuy",
+      "hanh-hoa",
+      "hanh-tho",
+    ];
+    const existingNguHanh = await ProductCategory.find({
+      slug: { $in: nguHanhSlugs },
+    });
+
+    console.log(
+      `ℹ️  Found ${existingNguHanh.length}/${nguHanhSlugs.length} Ngũ Hành categories.`
+    );
+    if (existingNguHanh.length > 0) {
       console.log(
-        `ℹ️  Found ${existingCount} existing categories. Skipping seed.`
+        "   Existing:",
+        existingNguHanh.map((c) => c.slug).join(", ")
       );
-      process.exit(0);
     }
 
-    // Insert categories
-    const result = await ProductCategory.insertMany(categories);
-    console.log(`✅ Seeded ${result.length} categories successfully!`);
+    // Always upsert to ensure all categories exist
+    console.log("ℹ️  Will upsert all categories...");
+
+    // Check for legacy categories
+    const existingCount = await ProductCategory.countDocuments();
+    console.log(`ℹ️  Found ${existingCount} existing categories.`);
+
+    // Insert categories (upsert to avoid duplicates)
+    for (const cat of categories) {
+      await ProductCategory.findOneAndUpdate({ slug: cat.slug }, cat, {
+        upsert: true,
+        new: true,
+      });
+    }
+    console.log(`✅ Seeded ${categories.length} categories successfully!`);
+    const result = await ProductCategory.find({}).lean();
 
     // Display created categories
     console.log("\nCreated categories:");

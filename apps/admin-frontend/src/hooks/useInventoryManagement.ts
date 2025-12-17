@@ -2,7 +2,7 @@
 // ✅ SOLID: Single Responsibility - State management cho Inventory
 
 import { useState, useEffect, useCallback } from "react";
-import { useToast } from "./use-toast";
+import { toast } from "sonner";
 import {
   adminInventoryService,
   InventoryOverview,
@@ -12,7 +12,6 @@ import {
 } from "@/services/admin.inventory.service";
 
 export function useInventoryManagement() {
-  const { toast } = useToast();
   const [overview, setOverview] = useState<InventoryOverview | null>(null);
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,34 +24,24 @@ export function useInventoryManagement() {
       setOverview(data);
     } catch (error: any) {
       console.error("Error fetching inventory overview:", error);
-      toast({
-        title: "Lỗi",
-        description:
-          error.response?.data?.message || "Không thể tải tổng quan tồn kho",
-        variant: "destructive",
-      });
+      toast.error(
+        error.response?.data?.message || "Không thể tải tổng quan tồn kho"
+      );
     }
-  }, [toast]);
+  }, []);
 
   // Fetch low stock items
-  const fetchLowStockItems = useCallback(
-    async (threshold?: number) => {
-      try {
-        const data = await adminInventoryService.getLowStockItems(threshold);
-        setLowStockItems(data);
-      } catch (error: any) {
-        console.error("Error fetching low stock items:", error);
-        toast({
-          title: "Lỗi",
-          description:
-            error.response?.data?.message ||
-            "Không thể tải danh sách sắp hết hàng",
-          variant: "destructive",
-        });
-      }
-    },
-    [toast]
-  );
+  const fetchLowStockItems = useCallback(async (threshold?: number) => {
+    try {
+      const data = await adminInventoryService.getLowStockItems(threshold);
+      setLowStockItems(data);
+    } catch (error: any) {
+      console.error("Error fetching low stock items:", error);
+      toast.error(
+        error.response?.data?.message || "Không thể tải danh sách sắp hết hàng"
+      );
+    }
+  }, []);
 
   // Initial load
   useEffect(() => {
@@ -81,15 +70,12 @@ export function useInventoryManagement() {
         reason,
         notes,
       });
-      toast({ title: "Thành công", description: "Đã điều chỉnh tồn kho" });
+      toast.success("Đã điều chỉnh tồn kho");
       await Promise.all([fetchOverview(), fetchLowStockItems()]);
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description:
-          error.response?.data?.message || "Không thể điều chỉnh tồn kho",
-        variant: "destructive",
-      });
+      toast.error(
+        error.response?.data?.message || "Không thể điều chỉnh tồn kho"
+      );
       throw error;
     } finally {
       setIsOperating(false);
@@ -112,15 +98,12 @@ export function useInventoryManagement() {
         purchaseOrderNumber,
         notes,
       });
-      toast({ title: "Thành công", description: "Đã ghi nhận nhập hàng" });
+      toast.success("Đã ghi nhận nhập hàng");
       await Promise.all([fetchOverview(), fetchLowStockItems()]);
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description:
-          error.response?.data?.message || "Không thể ghi nhận nhập hàng",
-        variant: "destructive",
-      });
+      toast.error(
+        error.response?.data?.message || "Không thể ghi nhận nhập hàng"
+      );
       throw error;
     } finally {
       setIsOperating(false);
@@ -141,7 +124,6 @@ export function useInventoryManagement() {
 
 // Hook for variant details
 export function useVariantInventory(variantId: string | null) {
-  const { toast } = useToast();
   const [variant, setVariant] = useState<SkuVariant | null>(null);
   const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
   const [pagination, setPagination] = useState({
@@ -161,16 +143,13 @@ export function useVariantInventory(variantId: string | null) {
       setVariant(data);
     } catch (error: any) {
       console.error("Error fetching variant:", error);
-      toast({
-        title: "Lỗi",
-        description:
-          error.response?.data?.message || "Không thể tải thông tin variant",
-        variant: "destructive",
-      });
+      toast.error(
+        error.response?.data?.message || "Không thể tải thông tin variant"
+      );
     } finally {
       setIsLoading(false);
     }
-  }, [variantId, toast]);
+  }, [variantId]);
 
   // Fetch transactions
   const fetchTransactions = useCallback(
@@ -190,17 +169,14 @@ export function useVariantInventory(variantId: string | null) {
         setPagination(data.pagination);
       } catch (error: any) {
         console.error("Error fetching transactions:", error);
-        toast({
-          title: "Lỗi",
-          description:
-            error.response?.data?.message || "Không thể tải lịch sử giao dịch",
-          variant: "destructive",
-        });
+        toast.error(
+          error.response?.data?.message || "Không thể tải lịch sử giao dịch"
+        );
       } finally {
         setIsLoading(false);
       }
     },
-    [variantId, toast]
+    [variantId]
   );
 
   useEffect(() => {

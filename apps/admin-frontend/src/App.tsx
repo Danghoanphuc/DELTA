@@ -2,6 +2,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AdminProtectedRoute } from "@/router/AdminProtectedRoute";
 import AdminLayout from "@/components/AdminLayout";
+import { Toaster } from "./components/ui/sonner";
 
 import LoginPage from "@/pages/LoginPage";
 import UserListPage from "@/pages/UserListPage";
@@ -33,6 +34,7 @@ import OrderTrendsPage from "@/pages/OrderTrendsPage";
 function App() {
   return (
     <BrowserRouter>
+      <Toaster />
       <Routes>
         {/* === 1. Route Công khai (Public) === */}
         <Route path="/login" element={<LoginPage />} />

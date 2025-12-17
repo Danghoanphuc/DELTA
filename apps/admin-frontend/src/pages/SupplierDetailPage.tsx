@@ -19,7 +19,7 @@ import {
   SupplierPerformanceMetrics,
   LeadTimeRecord,
 } from "@/services/catalog.service";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 // Components
 import { SupplierInfoCard } from "@/components/suppliers/SupplierInfoCard";
@@ -40,7 +40,6 @@ const TABS: { id: TabType; label: string; icon: React.ElementType }[] = [
 ];
 
 export default function SupplierDetailPage() {
-  const { toast } = useToast();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -75,13 +74,9 @@ export default function SupplierDetailPage() {
       setPerformance(performanceData);
       setLeadTimeHistory(leadTimeData || []);
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description:
-          error.response?.data?.message ||
-          "Không thể tải thông tin nhà cung cấp",
-        variant: "destructive",
-      });
+      toast.error(
+        error.response?.data?.message || "Không thể tải thông tin nhà cung cấp"
+      );
       console.error("Error fetching supplier data:", error);
     } finally {
       setIsLoading(false);
@@ -97,14 +92,10 @@ export default function SupplierDetailPage() {
 
     try {
       await supplierApi.createPost(id, data);
-      toast({ title: "Thành công", description: "Đã đăng bài thành công!" });
+      toast.success("Đã đăng bài thành công!");
       setRefreshPosts((prev) => prev + 1);
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: error.response?.data?.message || "Không thể đăng bài",
-        variant: "destructive",
-      });
+      toast.error(error.response?.data?.message || "Không thể đăng bài");
       throw error;
     }
   };

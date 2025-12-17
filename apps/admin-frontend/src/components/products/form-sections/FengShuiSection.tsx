@@ -1,9 +1,12 @@
 // apps/admin-frontend/src/components/products/form-sections/FengShuiSection.tsx
 // Section 6: Feng Shui & Application
 
-import { Upload, X } from "lucide-react";
+import { useState, useRef } from "react";
+import { Upload, X, Loader2 } from "lucide-react";
 import { StorytellingProductFormData } from "../../../types/storytelling-product";
 import { FENG_SHUI_ELEMENTS } from "../../../constants/product-categories";
+import { uploadService } from "../../../services/upload.service";
+import { toast } from "sonner";
 
 interface FengShuiSectionProps {
   formData: StorytellingProductFormData;
@@ -16,6 +19,46 @@ export function FengShuiSection({
   updateFormData,
   errors,
 }: FengShuiSectionProps) {
+  const [isUploading, setIsUploading] = useState(false);
+  const lifestyleInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLifestyleUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Vui lòng chọn file ảnh");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Kích thước ảnh không được vượt quá 5MB");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const url = await uploadService.uploadImage(file, "lifestyle");
+      updateFormData({
+        fengShui: {
+          suitableElements: formData.fengShui?.suitableElements || [],
+          placement: formData.fengShui?.placement,
+          meaning: formData.fengShui?.meaning,
+          message: formData.fengShui?.message,
+          lifestyleImage: url,
+        },
+      });
+      toast.success("Upload ảnh Lifestyle thành công!");
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      toast.error(error.message || "Upload ảnh thất bại");
+    } finally {
+      setIsUploading(false);
+      if (lifestyleInputRef.current) lifestyleInputRef.current.value = "";
+    }
+  };
   const toggleElement = (element: string) => {
     const current = formData.fengShui?.suitableElements || [];
     const updated = current.includes(element as any)
@@ -143,24 +186,31 @@ export function FengShuiSection({
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Ảnh Lifestyle (sản phẩm trong không gian thực tế)
         </label>
+        <input
+          ref={lifestyleInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleLifestyleUpload}
+          className="hidden"
+        />
         {!formData.fengShui?.lifestyleImage ? (
           <button
             type="button"
-            onClick={() =>
-              updateFormData({
-                fengShui: {
-                  suitableElements: formData.fengShui?.suitableElements || [],
-                  placement: formData.fengShui?.placement,
-                  meaning: formData.fengShui?.meaning,
-                  message: formData.fengShui?.message,
-                  lifestyleImage: "https://placehold.co/800x600?text=Lifestyle",
-                },
-              })
-            }
-            className="w-full border-2 border-dashed border-gray-300 rounded-lg p-8 hover:border-gray-400"
+            onClick={() => lifestyleInputRef.current?.click()}
+            disabled={isUploading}
+            className="w-full border-2 border-dashed border-gray-300 rounded-lg p-8 hover:border-gray-400 disabled:opacity-50"
           >
-            <Upload className="mx-auto h-8 w-8 text-gray-400" />
-            <p className="mt-2 text-sm text-gray-600">Upload ảnh</p>
+            {isUploading ? (
+              <>
+                <Loader2 className="mx-auto h-8 w-8 text-orange-500 animate-spin" />
+                <p className="mt-2 text-sm text-gray-600">Đang upload...</p>
+              </>
+            ) : (
+              <>
+                <Upload className="mx-auto h-8 w-8 text-gray-400" />
+                <p className="mt-2 text-sm text-gray-600">Upload ảnh</p>
+              </>
+            )}
           </button>
         ) : (
           <div className="relative">

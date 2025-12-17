@@ -4,6 +4,21 @@
 import { v2 as cloudinary } from "cloudinary";
 import { Logger } from "../../shared/utils/index.js";
 
+// Retry config for network errors
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  initialDelayMs: 1000, // 1 second
+  maxDelayMs: 10000, // 10 seconds
+  backoffMultiplier: 2,
+  retryableErrors: [
+    "ECONNRESET",
+    "ETIMEDOUT",
+    "ECONNREFUSED",
+    "EPIPE",
+    "EAI_AGAIN",
+  ],
+};
+
 // Watermark config - watermark phải được upload lên Cloudinary trước
 // Upload 1 lần với public_id: "watermarks/printz-logo"
 const WATERMARK_CONFIG = {
@@ -72,7 +87,39 @@ class CloudinaryService {
   }
 
   /**
-   * Upload image buffer to Cloudinary
+   * Check if error is retryable (network errors)
+   * @param {Error} error - Error to check
+   * @returns {boolean}
+   */
+  isRetryableError(error) {
+    if (!error) return false;
+    const errorCode = error.code || error.errno;
+    return RETRY_CONFIG.retryableErrors.includes(errorCode);
+  }
+
+  /**
+   * Sleep for specified milliseconds
+   * @param {number} ms - Milliseconds to sleep
+   * @returns {Promise<void>}
+   */
+  sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Calculate delay for retry with exponential backoff
+   * @param {number} attempt - Current attempt number (0-indexed)
+   * @returns {number} Delay in milliseconds
+   */
+  getRetryDelay(attempt) {
+    const delay =
+      RETRY_CONFIG.initialDelayMs *
+      Math.pow(RETRY_CONFIG.backoffMultiplier, attempt);
+    return Math.min(delay, RETRY_CONFIG.maxDelayMs);
+  }
+
+  /**
+   * Upload image buffer to Cloudinary with retry logic
    * @param {Buffer} buffer - Image buffer
    * @param {Object} options - Upload options
    * @param {boolean} options.withWatermark - Có thêm watermark không (default: false)
@@ -102,32 +149,74 @@ class CloudinaryService {
       }
     }
 
-    return new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
+    // Retry logic for network errors
+    let lastError;
+    for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+      try {
+        const result = await this._doUpload(buffer, {
           folder: uploadOptions.folder || "products",
           transformation: transformation,
           resource_type: "image",
-          // Đảm bảo chất lượng cao
           quality: "auto:best",
           format: "webp",
-        },
+          timeout: 60000, // 60 second timeout
+        });
+
+        Logger.success(
+          `[Cloudinary] Uploaded: ${result.public_id} (${result.bytes} bytes)${
+            actuallyAddedWatermark ? " [with watermark]" : ""
+          }${attempt > 0 ? ` [retry ${attempt}]` : ""}`
+        );
+        result.hasWatermark = actuallyAddedWatermark;
+        return result;
+      } catch (error) {
+        lastError = error;
+
+        if (this.isRetryableError(error) && attempt < RETRY_CONFIG.maxRetries) {
+          const delay = this.getRetryDelay(attempt);
+          Logger.warn(
+            `[Cloudinary] Upload failed with ${
+              error.code || error.message
+            }, retrying in ${delay}ms (attempt ${attempt + 1}/${
+              RETRY_CONFIG.maxRetries
+            })`
+          );
+          await this.sleep(delay);
+        } else {
+          // Non-retryable error or max retries reached
+          Logger.error("[Cloudinary] Upload failed:", {
+            message: error.message,
+            code: error.code,
+            attempts: attempt + 1,
+          });
+          throw error;
+        }
+      }
+    }
+
+    throw lastError;
+  }
+
+  /**
+   * Internal method to perform actual upload
+   * @private
+   */
+  _doUpload(buffer, uploadOptions) {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        uploadOptions,
         (error, result) => {
           if (error) {
-            Logger.error("[Cloudinary] Upload failed:", error);
             reject(error);
           } else {
-            Logger.success(
-              `[Cloudinary] Uploaded: ${result.public_id} (${
-                result.bytes
-              } bytes)${actuallyAddedWatermark ? " [with watermark]" : ""}`
-            );
-            // Thêm flag để caller biết watermark có được thêm không
-            result.hasWatermark = actuallyAddedWatermark;
             resolve(result);
           }
         }
       );
+
+      uploadStream.on("error", (err) => {
+        reject(err);
+      });
 
       uploadStream.end(buffer);
     });

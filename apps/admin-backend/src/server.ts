@@ -55,6 +55,7 @@ import adminSupplierRoutes from "./routes/admin.supplier.routes.js";
 import supplierPostRoutes from "./routes/supplier-post.routes.js";
 import publicMagazineRoutes from "./routes/public-magazine.routes.js";
 import publicArtisanRoutes from "./routes/public-artisan.routes.js";
+import publicCatalogRoutes from "./routes/public-catalog.routes.js";
 import adminShippingRoutes from "./routes/admin.shipping.routes.js";
 import adminAnalyticsRoutes from "./routes/admin.analytics.routes.js";
 import adminCostTrackingRoutes from "./routes/admin.cost-tracking.routes.js";
@@ -196,6 +197,7 @@ app.use("/api/admin/suppliers", adminSupplierRoutes);
 app.use("/api/admin/supplier-posts", supplierPostRoutes);
 app.use("/api/magazine", publicMagazineRoutes); // Public endpoint - no auth
 app.use("/api/artisans", publicArtisanRoutes); // Public endpoint - no auth
+app.use("/api", publicCatalogRoutes); // Public catalog - no auth (products, categories)
 app.use("/api/admin/shipments", adminShippingRoutes);
 app.use("/api/admin/analytics", adminAnalyticsRoutes);
 app.use("/api/admin/costs", adminCostTrackingRoutes);
@@ -290,8 +292,29 @@ process.on("uncaughtException", (err) => {
   gracefulShutdown("uncaughtException");
 });
 
-process.on("unhandledRejection", (reason, promise) => {
+process.on("unhandledRejection", (reason: any, promise) => {
   Logger.error("UNHANDLED REJECTION", { reason, promise });
+
+  // Check if this is a recoverable network error (e.g., Cloudinary upload failure)
+  // Don't shutdown server for transient network errors
+  const errorCode = reason?.code || reason?.error?.code;
+  const recoverableErrors = [
+    "ECONNRESET",
+    "ETIMEDOUT",
+    "ECONNREFUSED",
+    "EPIPE",
+    "EAI_AGAIN",
+  ];
+
+  if (recoverableErrors.includes(errorCode)) {
+    Logger.warn(
+      `[Process] Recoverable network error (${errorCode}) - NOT shutting down server. ` +
+        "This is likely a transient issue with external service."
+    );
+    return; // Don't shutdown for recoverable errors
+  }
+
+  // For other unhandled rejections, still shutdown to be safe
   gracefulShutdown("unhandledRejection");
 });
 

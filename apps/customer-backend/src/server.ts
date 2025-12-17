@@ -206,7 +206,7 @@ async function startServer() {
       connectionRoutes,
       printerRoutes,
       locationRoutes;
-    let productRoutes, assetRoutes, mediaAssetRoutes;
+    let assetRoutes, mediaAssetRoutes;
     let cartRoutes, orderRoutes, studioRoutes, pdfRenderRoutes;
     let chatRoutes,
       uploadRoutes,
@@ -241,8 +241,7 @@ async function startServer() {
       ).default;
       printerRoutes = (await import("./modules/printers/printer.routes.js"))
         .default;
-      productRoutes = (await import("./modules/products/product.routes.js"))
-        .default;
+      // ✅ REMOVED: productRoutes - Products now served from admin-backend via public catalog API
       assetRoutes = (await import("./modules/assets/asset.routes.js")).default;
       mediaAssetRoutes = (
         await import("./modules/media-assets/media-asset.routes.js")
@@ -530,7 +529,7 @@ async function startServer() {
     apiRouter.use("/users", protect, userRoutes);
     apiRouter.use("/connections", protect, connectionRoutes); // ✅ SOCIAL: Connection routes
     apiRouter.use("/printers", printerRoutes);
-    apiRouter.use("/products", productRoutes);
+    // ✅ REMOVED: /products route - Now served from admin-backend public catalog API
     apiRouter.use("/assets", protect, assetRoutes);
     apiRouter.use("/media-assets", protect, mediaAssetRoutes);
     apiRouter.use("/cart", protect, cartRoutes);

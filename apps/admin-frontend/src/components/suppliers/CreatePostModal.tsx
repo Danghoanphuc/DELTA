@@ -1,7 +1,7 @@
 // apps/admin-frontend/src/components/suppliers/CreatePostModal.tsx
 import { useState } from "react";
 import { Loader2, Save, ArrowLeft, Eye, Maximize2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { usePostForm } from "@/hooks/usePostForm";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { PostFormSidebarSimplified } from "./PostFormSidebarSimplified";
@@ -41,7 +41,6 @@ export function CreatePostModal({
   initialData,
   supplierInfo,
 }: CreatePostModalProps) {
-  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
 
@@ -80,16 +79,9 @@ export function CreatePostModal({
       const { id, preview } = await addPendingImage(file);
       // Lưu cả id và preview vào media để track
       addMedia({ type: "image", url: preview, tempId: id });
-      toast({
-        title: "📷 Ảnh đã thêm",
-        description: "Ảnh sẽ được upload khi bạn đăng bài",
-      });
+      toast.success("📷 Ảnh đã thêm - sẽ được upload khi bạn đăng bài");
     } catch (error) {
-      toast({
-        title: "Lỗi",
-        description: "Không thể thêm ảnh",
-        variant: "destructive",
-      });
+      toast.error("Không thể thêm ảnh");
     }
   };
 
@@ -110,20 +102,12 @@ export function CreatePostModal({
     if (e) e.preventDefault();
 
     if (!formData.title.trim()) {
-      toast({
-        title: "Thiếu tiêu đề",
-        description: "Vui lòng nhập tiêu đề bài viết",
-        variant: "destructive",
-      });
+      toast.error("Vui lòng nhập tiêu đề bài viết");
       return;
     }
 
     if (!formData.content.trim()) {
-      toast({
-        title: "Thiếu nội dung",
-        description: "Vui lòng nhập nội dung bài viết",
-        variant: "destructive",
-      });
+      toast.error("Vui lòng nhập nội dung bài viết");
       return;
     }
 
@@ -140,17 +124,10 @@ export function CreatePostModal({
           category: formData.category,
         });
 
-        toast({
-          title: "✨ AI đã tạo metadata",
-          description: "Excerpt, tags, slug, SEO đã được tạo tự động",
-        });
+        toast.success("✨ AI đã tạo metadata tự động");
       } catch (aiError) {
         console.error("AI metadata error:", aiError);
-        toast({
-          title: "⚠️ AI không khả dụng",
-          description: "Sử dụng metadata thủ công",
-          variant: "default",
-        });
+        toast.warning("⚠️ AI không khả dụng - sử dụng metadata thủ công");
         // Fallback: use existing formData or empty
         aiMetadata = {
           excerpt: formData.excerpt || "",
@@ -216,28 +193,18 @@ export function CreatePostModal({
 
       // Show upload progress if has pending images
       if (pendingImages.length > 0) {
-        toast({
-          title: "⏳ Đang upload ảnh",
-          description: `Đang upload ${pendingImages.length} ảnh...`,
-        });
+        toast.loading(`Đang upload ${pendingImages.length} ảnh...`);
       }
 
       await onSubmit(postData);
-      toast({
-        title: "🎉 Thành công",
-        description: "Bài viết đã được đăng với metadata tự động!",
-      });
+      toast.success("🎉 Bài viết đã được đăng thành công!");
 
       // Clear pending images sau khi submit thành công
       clearPendingImages();
       reset();
       onClose();
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: error.message || "Không thể lưu",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Không thể lưu");
     } finally {
       setIsSubmitting(false);
       setIsAiProcessing(false);

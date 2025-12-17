@@ -9,6 +9,104 @@ import "../catalog/catalog-product.model.js";
 const router = Router();
 
 /**
+ * DEBUG: Check if post exists (regardless of visibility)
+ * @route GET /api/magazine/debug/:slug
+ */
+router.get("/debug/:slug", async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+
+    // Find post regardless of visibility
+    const post = await SupplierPost.findOne({ slug })
+      .select("title slug visibility category createdAt")
+      .lean();
+
+    if (!post) {
+      // Try to find all posts with similar slug
+      const allPosts = await SupplierPost.find({})
+        .select("title slug visibility")
+        .limit(10)
+        .lean();
+
+      return res.status(200).json({
+        success: false,
+        message: `Post with slug "${slug}" not found`,
+        availablePosts: allPosts.map((p) => ({
+          slug: p.slug,
+          title: p.title,
+          visibility: p.visibility,
+        })),
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        slug: post.slug,
+        title: post.title,
+        visibility: post.visibility,
+        category: post.category,
+        isPublic: post.visibility === "public",
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Get post by slug (public)
+ * IMPORTANT: This route MUST be defined BEFORE /:category to avoid route conflict
+ * @route GET /api/magazine/post/:slug
+ */
+router.get("/post/:slug", async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+
+    const post = await SupplierPost.findOne({
+      slug,
+      visibility: "public",
+    })
+      .select(
+        "supplierId title excerpt slug category subcategory readTime featured content blocks editorMode media tags " +
+          "metaTitle metaDescription ogImage schemaType highlightQuote authorProfile " +
+          "relatedProducts relatedPosts views likes createdAt updatedAt videoUrl videoInfo"
+      )
+      .populate("supplierId", "code name type")
+      .populate("relatedProducts", "name slug images thumbnailUrl basePrice")
+      .populate("relatedPosts", "title slug excerpt category ogImage media")
+      .lean();
+
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy bài viết",
+      });
+    }
+
+    // Increment views
+    await SupplierPost.findByIdAndUpdate(post._id, { $inc: { views: 1 } });
+
+    // Extract supplier info for author link
+    const supplierInfo = post.supplierId as any;
+    const responsePost = {
+      ...post,
+      supplierCode: supplierInfo?.code || null,
+      supplierName: supplierInfo?.name || null,
+      supplierType: supplierInfo?.type || null,
+      supplierId: supplierInfo?._id || post.supplierId,
+    };
+
+    res.status(200).json({
+      success: true,
+      data: { post: responsePost },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * Get posts by category (public)
  * @route GET /api/magazine/:category
  */
@@ -55,57 +153,6 @@ router.get("/:category", async (req, res, next) => {
           totalPages: Math.ceil(total / Number(limit)),
         },
       },
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * Get post by slug (public)
- * @route GET /api/magazine/post/:slug
- */
-router.get("/post/:slug", async (req, res, next) => {
-  try {
-    const { slug } = req.params;
-
-    const post = await SupplierPost.findOne({
-      slug,
-      visibility: "public",
-    })
-      .select(
-        "supplierId title excerpt slug category subcategory readTime featured content blocks editorMode media tags " +
-          "metaTitle metaDescription ogImage schemaType highlightQuote authorProfile " +
-          "relatedProducts relatedPosts views likes createdAt updatedAt videoUrl videoInfo"
-      )
-      .populate("supplierId", "code name type")
-      .populate("relatedProducts", "name slug images thumbnailUrl basePrice")
-      .populate("relatedPosts", "title slug excerpt category ogImage media")
-      .lean();
-
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy bài viết",
-      });
-    }
-
-    // Increment views
-    await SupplierPost.findByIdAndUpdate(post._id, { $inc: { views: 1 } });
-
-    // Extract supplier info for author link
-    const supplierInfo = post.supplierId as any;
-    const responsePost = {
-      ...post,
-      supplierCode: supplierInfo?.code || null,
-      supplierName: supplierInfo?.name || null,
-      supplierType: supplierInfo?.type || null,
-      supplierId: supplierInfo?._id || post.supplierId,
-    };
-
-    res.status(200).json({
-      success: true,
-      data: { post: responsePost },
     });
   } catch (error) {
     next(error);

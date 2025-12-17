@@ -15,7 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Supplier, supplierApi } from "@/services/catalog.service";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 const SUPPLIER_TYPES = [
   { value: "manufacturer", label: "Nhà sản xuất" },
@@ -34,7 +34,6 @@ export function SupplierInfoCard({
   supplier,
   onUpdate,
 }: SupplierInfoCardProps) {
-  const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -63,11 +62,7 @@ export function SupplierInfoCard({
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      toast({
-        title: "Lỗi",
-        description: "Tên không được để trống",
-        variant: "destructive",
-      });
+      toast.error("Tên không được để trống");
       return;
     }
 
@@ -76,13 +71,9 @@ export function SupplierInfoCard({
       const updated = await supplierApi.update(supplier._id, formData);
       onUpdate(updated);
       setIsEditing(false);
-      toast({ title: "Thành công", description: "Đã cập nhật thông tin" });
+      toast.success("Đã cập nhật thông tin");
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: error.response?.data?.message || "Không thể cập nhật",
-        variant: "destructive",
-      });
+      toast.error(error.response?.data?.message || "Không thể cập nhật");
     } finally {
       setIsSaving(false);
     }
@@ -105,13 +96,9 @@ export function SupplierInfoCard({
       await supplierApi.updateRating(supplier._id, newRating);
       setRating(newRating);
       onUpdate({ ...supplier, rating: newRating });
-      toast({ title: "Thành công", description: "Đã cập nhật đánh giá" });
+      toast.success("Đã cập nhật đánh giá");
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: error.response?.data?.message || "Không thể cập nhật",
-        variant: "destructive",
-      });
+      toast.error(error.response?.data?.message || "Không thể cập nhật");
     }
   };
 

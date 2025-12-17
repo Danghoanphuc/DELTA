@@ -106,7 +106,7 @@ class MagazineService {
 
   /**
    * Get post by slug or ID
-   * Backend supports both slug and ObjectId at /magazine/posts/:id
+   * Backend route: /magazine/posts/:id (admin-backend)
    */
   async getPostBySlug(slugOrId: string) {
     const { data } = await api.get(`/magazine/posts/${slugOrId}`);

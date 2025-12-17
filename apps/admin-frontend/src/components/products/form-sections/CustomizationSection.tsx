@@ -1,9 +1,12 @@
 // apps/admin-frontend/src/components/products/form-sections/CustomizationSection.tsx
 // Section 7: Customization & Packaging
 
-import { Upload, X } from "lucide-react";
+import { useState, useRef } from "react";
+import { Upload, X, Loader2 } from "lucide-react";
 import { StorytellingProductFormData } from "../../../types/storytelling-product";
 import { LOGO_CUSTOMIZATION_METHODS } from "../../../constants/product-categories";
+import { uploadService } from "../../../services/upload.service";
+import { toast } from "sonner";
 
 interface CustomizationSectionProps {
   formData: StorytellingProductFormData;
@@ -16,6 +19,9 @@ export function CustomizationSection({
   updateFormData,
   errors,
 }: CustomizationSectionProps) {
+  const [isUploading, setIsUploading] = useState(false);
+  const packagingInputRef = useRef<HTMLInputElement>(null);
+
   const toggleMethod = (method: string) => {
     const current = formData.customization?.logoMethods || [];
     const updated = current.includes(method)
@@ -32,20 +38,45 @@ export function CustomizationSection({
     });
   };
 
-  const addPackagingImage = () => {
-    const mockUrl = `https://placehold.co/800x600?text=Packaging`;
-    updateFormData({
-      customization: {
-        allowLogoCustomization:
-          formData.customization?.allowLogoCustomization || false,
-        logoMethods: formData.customization?.logoMethods || [],
-        packagingImages: [
-          ...(formData.customization?.packagingImages || []),
-          mockUrl,
-        ],
-        packagingDescription: formData.customization?.packagingDescription,
-      },
-    });
+  const handlePackagingUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Vui lòng chọn file ảnh");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Kích thước ảnh không được vượt quá 5MB");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const url = await uploadService.uploadImage(file, "packaging");
+      updateFormData({
+        customization: {
+          allowLogoCustomization:
+            formData.customization?.allowLogoCustomization || false,
+          logoMethods: formData.customization?.logoMethods || [],
+          packagingImages: [
+            ...(formData.customization?.packagingImages || []),
+            url,
+          ],
+          packagingDescription: formData.customization?.packagingDescription,
+        },
+      });
+      toast.success("Upload ảnh bao bì thành công!");
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      toast.error(error.message || "Upload ảnh thất bại");
+    } finally {
+      setIsUploading(false);
+      if (packagingInputRef.current) packagingInputRef.current.value = "";
+    }
   };
 
   const removePackagingImage = (index: number) => {
@@ -146,6 +177,13 @@ export function CustomizationSection({
         <label className="block text-sm font-medium text-gray-700 mb-3">
           Ảnh bao bì
         </label>
+        <input
+          ref={packagingInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handlePackagingUpload}
+          className="hidden"
+        />
         <div className="grid grid-cols-4 gap-4">
           {formData.customization?.packagingImages?.map((img, index) => (
             <div key={index} className="relative group">
@@ -165,11 +203,18 @@ export function CustomizationSection({
           ))}
           <button
             type="button"
-            onClick={addPackagingImage}
-            className="h-32 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 flex flex-col items-center justify-center"
+            onClick={() => packagingInputRef.current?.click()}
+            disabled={isUploading}
+            className="h-32 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 flex flex-col items-center justify-center disabled:opacity-50"
           >
-            <Upload className="h-6 w-6 text-gray-400" />
-            <span className="mt-1 text-xs text-gray-600">Thêm ảnh</span>
+            {isUploading ? (
+              <Loader2 className="h-6 w-6 text-orange-500 animate-spin" />
+            ) : (
+              <>
+                <Upload className="h-6 w-6 text-gray-400" />
+                <span className="mt-1 text-xs text-gray-600">Thêm ảnh</span>
+              </>
+            )}
           </button>
         </div>
       </div>

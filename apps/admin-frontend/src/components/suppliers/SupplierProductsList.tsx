@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { Package, ExternalLink, Eye, Tag, RefreshCw } from "lucide-react";
 import { productApi, Product } from "@/services/catalog.service";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface SupplierProductsListProps {
   supplierId: string;
@@ -15,7 +15,6 @@ export function SupplierProductsList({
   supplierId,
   supplierName,
 }: SupplierProductsListProps) {
-  const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pagination, setPagination] = useState({
@@ -44,11 +43,7 @@ export function SupplierProductsList({
         totalPages: result.pagination.totalPages,
       }));
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: error.response?.data?.message || "Không thể tải sản phẩm",
-        variant: "destructive",
-      });
+      toast.error(error.response?.data?.message || "Không thể tải sản phẩm");
     } finally {
       setIsLoading(false);
     }

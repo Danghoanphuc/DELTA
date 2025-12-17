@@ -1,56 +1,56 @@
 // apps/admin-frontend/src/constants/product-categories.ts
-// 5 Danh mục sản phẩm theo Ngũ Hành
+// 5 Danh mục sản phẩm theo Ngũ Hành (đồng bộ với LandingHeader)
 
 export const PRODUCT_CATEGORIES = {
-  TINH_TAI: {
-    id: "tinh-tai",
-    name: "Tinh Tài",
-    subtitle: "TRẦM & TRÀ",
+  HANH_KIM: {
+    id: "hanh-kim",
+    name: "Hành Kim",
+    subtitle: "ĐỒNG & KIM LOẠI",
     element: "Kim",
     icon: "💎",
     color: "#C0C0C0", // Silver
-    description: "Trầm hương, Tràng hạt, Đồ trang sức",
+    description: "Chuông Đồng, Khánh Đồng, Lư Đồng",
     keywords: ["Sang trọng", "Tinh tế", "Quý phái"],
   },
-  DONG_CHAY: {
-    id: "dong-chay",
-    name: "Dòng Chảy",
-    subtitle: "SƠN MÀI & LỤA",
-    element: "Thủy",
-    icon: "🌊",
-    color: "#1E3A8A", // Deep Blue
-    description: "Sơn mài, Lụa, Đồ gốm men rạn",
-    keywords: ["Linh hoạt", "Mềm mại", "Thanh lịch"],
-  },
-  THO_NHUONG: {
-    id: "tho-nhuong",
-    name: "Thổ Nhưỡng",
-    subtitle: "GỐM SỨ",
-    element: "Thổ",
-    icon: "🏔️",
-    color: "#92400E", // Brown
-    description: "Gốm sứ, Đá, Đồ gỗ",
-    keywords: ["Vững chãi", "Bền vững", "Truyền thống"],
-  },
-  MOC_BAN: {
-    id: "moc-ban",
-    name: "Mộc Bản",
+  HANH_MOC: {
+    id: "hanh-moc",
+    name: "Hành Mộc",
     subtitle: "GỖ & TRE",
     element: "Mộc",
     icon: "🍃",
     color: "#166534", // Green
-    description: "Gỗ & Tre, Thảo mộc, Đồ thủ công",
+    description: "Mô Hình Thuyền Gỗ, Nón Lá, Khay Mây Tre Đan",
     keywords: ["Tự nhiên", "Sinh động", "Phát triển"],
   },
-  KIM_HOAN: {
-    id: "kim-hoan",
-    name: "Kim Hoàn",
-    subtitle: "ĐỒNG & VÀNG",
-    element: "Kim",
-    icon: "💍",
-    color: "#B45309", // Gold
-    description: "Đồng & Vàng, Trang sức, Đồ thờ cúng",
-    keywords: ["Quý giá", "Bền bỉ", "Giá trị"],
+  HANH_THUY: {
+    id: "hanh-thuy",
+    name: "Hành Thủy",
+    subtitle: "SƠN MÀI & THỦY TINH",
+    element: "Thủy",
+    icon: "🌊",
+    color: "#1E3A8A", // Deep Blue
+    description: "Sơn Mài, Vẽ Trong Chai, Tranh Cẩn Ốc",
+    keywords: ["Linh hoạt", "Mềm mại", "Thanh lịch"],
+  },
+  HANH_HOA: {
+    id: "hanh-hoa",
+    name: "Hành Hỏa",
+    subtitle: "TRẦM & GỐM HỎA BIẾN",
+    element: "Hỏa",
+    icon: "🔥",
+    color: "#DC2626", // Red
+    description: "Trầm Hương, Gốm Men Hỏa Biến, Đèn Gốm",
+    keywords: ["Nhiệt huyết", "Năng lượng", "Sáng tạo"],
+  },
+  HANH_THO: {
+    id: "hanh-tho",
+    name: "Hành Thổ",
+    subtitle: "GỐM SỨ & ĐÁ",
+    element: "Thổ",
+    icon: "🏔️",
+    color: "#92400E", // Brown
+    description: "Gốm Biên Hòa, Điêu Khắc Đá, Lu Sành",
+    keywords: ["Vững chãi", "Bền vững", "Truyền thống"],
   },
 } as const;
 

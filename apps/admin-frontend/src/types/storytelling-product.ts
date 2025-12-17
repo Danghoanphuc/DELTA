@@ -76,6 +76,9 @@ export interface StorytellingProductFormData {
     bio: string;
   };
 
+  // === Supplier Reference (for imported artisan) ===
+  supplierId?: string;
+
   // === Social Proof ===
   clientLogos: string[];
 

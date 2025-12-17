@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from "react";
 import { uploadService } from "@/services/upload.service";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 
 // Interface cho pending images
@@ -20,7 +20,6 @@ export interface PendingImage {
 }
 
 export function useFileUpload() {
-  const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>("");
 
@@ -36,25 +35,15 @@ export function useFileUpload() {
     setUploadStatus("Đang xử lý ảnh...");
 
     try {
-      toast({
-        title: "⏳ Đang xử lý",
-        description: "Resize, watermark, convert WebP...",
-      });
+      toast.loading("Đang xử lý ảnh...");
 
       const url = await uploadService.uploadImage(file, slug);
 
-      toast({
-        title: "✅ Thành công",
-        description: "Ảnh đã được tối ưu và tải lên!",
-      });
+      toast.success("Ảnh đã được tối ưu và tải lên!");
 
       return url;
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: error.message || "Không thể tải ảnh lên",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Không thể tải ảnh lên");
       throw error;
     } finally {
       setIsUploading(false);
@@ -165,14 +154,10 @@ export function useFileUpload() {
     setIsUploading(true);
     try {
       const url = await uploadService.uploadVideo(file);
-      toast({ title: "Thành công", description: "Đã tải video lên!" });
+      toast.success("Đã tải video lên!");
       return url;
     } catch (error: any) {
-      toast({
-        title: "Lỗi",
-        description: error.message || "Không thể tải video lên",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Không thể tải video lên");
       throw error;
     } finally {
       setIsUploading(false);

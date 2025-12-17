@@ -1,12 +1,16 @@
 // src/features/shop/hooks/useShop.ts (CẬP NHẬT)
+// ✅ Updated to use CatalogProduct from admin-backend
 
 import { useState, useMemo } from "react";
-// ✅ THÊM: Import useInfiniteQuery
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import { Product, PrinterProduct } from "@/types/product";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { Product } from "@/types/product";
+import {
+  CatalogProduct,
+  catalogProductToProduct,
+} from "@/types/catalog-product";
 import api from "@/shared/lib/axios";
 import { toast } from "@/shared/utils/toast";
-import { categoryIcons } from "../utils/categoryIcons"; // ✅ Import
+import { categoryIcons } from "../utils/categoryIcons";
 
 // (Định nghĩa Taxonomy và categories)
 export interface SubCategory {
@@ -108,19 +112,19 @@ const fetchPaginatedProducts = async ({
     console.log("📦 [useShop] Raw response:", res.data);
 
     // ✅ Backend trả về: { success: true, data: { data: [], page: 1, totalPages: 5 } }
-    // data.data là mảng products trực tiếp, không phải data.data.products
-    const products: PrinterProduct[] = res.data?.data?.data || [];
+    // data.data là mảng CatalogProduct từ admin-backend
+    const catalogProducts: CatalogProduct[] = res.data?.data?.data || [];
     const page = res.data?.data?.page || pageParam;
     const totalPages = res.data?.data?.totalPages || 1;
 
     console.log(
-      `📊 [useShop] Parsed: ${products.length} products (page ${page}/${totalPages})`
+      `📊 [useShop] Parsed: ${catalogProducts.length} products (page ${page}/${totalPages})`
     );
 
-    const productsWithAssets: Product[] = products.map((p) => ({
-      ...p,
-      assets: (p as any).assets || { surfaces: [] },
-    }));
+    // ✅ Convert CatalogProduct to Product format for compatibility
+    const productsWithAssets: Product[] = catalogProducts.map((p) =>
+      catalogProductToProduct(p)
+    );
 
     return {
       products: productsWithAssets,

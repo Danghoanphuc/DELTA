@@ -1,11 +1,22 @@
 // apps/admin-frontend/src/components/products/form-sections/GallerySection.tsx
-// Section 5: Product Gallery
+// Section 5: Product Gallery - With Import from Supplier
 
-import { useState } from "react";
-import { Upload, X, Star, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import {
+  Upload,
+  X,
+  Star,
+  Loader2,
+  User,
+  ChevronDown,
+  Check,
+  Search,
+  ImagePlus,
+} from "lucide-react";
 import { StorytellingProductFormData } from "../../../types/storytelling-product";
 import { uploadService } from "../../../services/upload.service";
-import { useToast } from "@/hooks/use-toast";
+import { supplierApi, Supplier } from "../../../services/catalog.service";
+import { toast } from "sonner";
 
 interface GallerySectionProps {
   formData: StorytellingProductFormData;
@@ -16,33 +27,108 @@ interface GallerySectionProps {
 export function GallerySection({
   formData,
   updateFormData,
-  errors,
 }: GallerySectionProps) {
-  const { toast } = useToast();
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // Import from supplier state
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
+  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+  const [supplierSearch, setSupplierSearch] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch suppliers on mount
+  useEffect(() => {
+    fetchSuppliers();
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowSupplierDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const fetchSuppliers = async () => {
+    setIsLoadingSuppliers(true);
+    try {
+      const data = await supplierApi.getAll({ activeOnly: true });
+      setSuppliers(data);
+    } catch (error) {
+      console.error("Error fetching suppliers:", error);
+    } finally {
+      setIsLoadingSuppliers(false);
+    }
+  };
+
+  // Filter suppliers that have profile images
+  const suppliersWithImages = suppliers.filter(
+    (s) => s.profile?.avatar || s.profile?.coverImage
+  );
+
+  const filteredSuppliers = suppliersWithImages.filter(
+    (s) =>
+      s.name.toLowerCase().includes(supplierSearch.toLowerCase()) ||
+      s.code.toLowerCase().includes(supplierSearch.toLowerCase())
+  );
+
+  // Import images from supplier
+  const handleImportFromSupplier = (supplier: Supplier) => {
+    const newImages: Array<{ url: string; isPrimary: boolean; alt?: string }> =
+      [];
+
+    // Add cover image first (as primary if no images exist)
+    if (supplier.profile?.coverImage) {
+      newImages.push({
+        url: supplier.profile.coverImage,
+        isPrimary: formData.images.length === 0 && newImages.length === 0,
+        alt: `${supplier.name} - Cover`,
+      });
+    }
+
+    // Add avatar
+    if (supplier.profile?.avatar) {
+      newImages.push({
+        url: supplier.profile.avatar,
+        isPrimary: formData.images.length === 0 && newImages.length === 0,
+        alt: `${supplier.name} - Avatar`,
+      });
+    }
+
+    if (newImages.length === 0) {
+      toast.error("Đối tác này chưa có ảnh để import");
+      return;
+    }
+
+    updateFormData({
+      images: [...formData.images, ...newImages],
+    });
+
+    setShowSupplierDropdown(false);
+    setSupplierSearch("");
+    toast.success(`Đã import ${newImages.length} ảnh từ ${supplier.name}`);
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng chọn file ảnh",
-        variant: "destructive",
-      });
+      toast.error("Vui lòng chọn file ảnh");
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "Lỗi",
-        description: "Kích thước ảnh không được vượt quá 5MB",
-        variant: "destructive",
-      });
+      toast.error("Kích thước ảnh không được vượt quá 5MB");
       return;
     }
 
@@ -59,19 +145,13 @@ export function GallerySection({
           },
         ],
       });
-      toast({
-        title: "Thành công",
-        description: "Upload ảnh thành công!",
-      });
+      toast.success("Upload ảnh thành công!");
     } catch (error: any) {
       console.error("Upload error:", error);
-      toast({
-        title: "Lỗi",
-        description: error.message || "Upload ảnh thất bại",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Upload ảnh thất bại");
     } finally {
       setIsUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = "";
     }
   };
 
@@ -82,23 +162,13 @@ export function GallerySection({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (file.type !== "application/pdf") {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng chọn file PDF",
-        variant: "destructive",
-      });
+      toast.error("Vui lòng chọn file PDF");
       return;
     }
 
-    // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "Lỗi",
-        description: "Kích thước file không được vượt quá 10MB",
-        variant: "destructive",
-      });
+      toast.error("Kích thước file không được vượt quá 10MB");
       return;
     }
 
@@ -109,22 +179,15 @@ export function GallerySection({
         documents: {
           ...formData.documents,
           [type]: {
-            url: result,
-            filename: file.name,
+            url: result.url,
+            filename: result.filename,
           },
         },
       });
-      toast({
-        title: "Thành công",
-        description: `Upload ${type} thành công!`,
-      });
+      toast.success(`Upload ${type} thành công!`);
     } catch (error: any) {
       console.error("Upload error:", error);
-      toast({
-        title: "Lỗi",
-        description: error.message || "Upload file thất bại",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Upload file thất bại");
     } finally {
       setUploadingDoc(null);
     }
@@ -132,6 +195,10 @@ export function GallerySection({
 
   const removeImage = (index: number) => {
     const newImages = formData.images.filter((_, i) => i !== index);
+    // If removed image was primary, set first remaining as primary
+    if (formData.images[index]?.isPrimary && newImages.length > 0) {
+      newImages[0].isPrimary = true;
+    }
     updateFormData({ images: newImages });
   };
 
@@ -143,30 +210,105 @@ export function GallerySection({
     updateFormData({ images: newImages });
   };
 
-  const addImage = () => {
-    const mockUrl = `https://placehold.co/800x600?text=Product+${
-      formData.images.length + 1
-    }`;
-    updateFormData({
-      images: [
-        ...formData.images,
-        {
-          url: mockUrl,
-          isPrimary: formData.images.length === 0,
-          alt: `Product ${formData.images.length + 1}`,
-        },
-      ],
-    });
-  };
-
   return (
     <div className="space-y-8">
       {/* Product Images */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Hình ảnh sản phẩm</h3>
-        <p className="text-sm text-gray-600">
-          Upload ảnh chi tiết sản phẩm. Ảnh đầu tiên sẽ là ảnh chính.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">Hình ảnh sản phẩm</h3>
+            <p className="text-sm text-gray-600">
+              Upload ảnh chi tiết sản phẩm. Ảnh đầu tiên sẽ là ảnh chính.
+            </p>
+          </div>
+
+          {/* Import from Supplier button */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setShowSupplierDropdown(!showSupplierDropdown)}
+              className="px-3 py-2 text-sm bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 transition-colors flex items-center gap-2"
+            >
+              <ImagePlus className="w-4 h-4" />
+              Import từ Đối tác
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${
+                  showSupplierDropdown ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {/* Supplier dropdown */}
+            {showSupplierDropdown && (
+              <div className="absolute right-0 z-50 w-80 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-hidden">
+                {/* Search input */}
+                <div className="p-3 border-b border-gray-200">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={supplierSearch}
+                      onChange={(e) => setSupplierSearch(e.target.value)}
+                      placeholder="Tìm đối tác có ảnh..."
+                      className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                {/* Supplier list */}
+                <div className="max-h-60 overflow-y-auto">
+                  {isLoadingSuppliers ? (
+                    <div className="p-4 text-center">
+                      <Loader2 className="w-6 h-6 mx-auto text-orange-500 animate-spin" />
+                      <p className="text-sm text-gray-500 mt-2">Đang tải...</p>
+                    </div>
+                  ) : filteredSuppliers.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">
+                      {suppliersWithImages.length === 0
+                        ? "Chưa có đối tác nào có ảnh"
+                        : "Không tìm thấy đối tác"}
+                    </div>
+                  ) : (
+                    filteredSuppliers.map((supplier) => (
+                      <button
+                        key={supplier._id}
+                        type="button"
+                        onClick={() => handleImportFromSupplier(supplier)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-orange-50 transition-colors"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {supplier.profile?.avatar ? (
+                            <img
+                              src={supplier.profile.avatar}
+                              alt={supplier.name}
+                              className="w-10 h-10 object-cover"
+                            />
+                          ) : (
+                            <User className="w-5 h-5 text-gray-400" />
+                          )}
+                        </div>
+                        <div className="flex-1 text-left">
+                          <p className="font-medium text-gray-900">
+                            {supplier.name}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {[
+                              supplier.profile?.avatar && "Avatar",
+                              supplier.profile?.coverImage && "Cover",
+                            ]
+                              .filter(Boolean)
+                              .join(" + ")}
+                          </p>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         <div className="grid grid-cols-3 gap-4">
           {formData.images.map((img, index) => (
@@ -205,13 +347,32 @@ export function GallerySection({
           ))}
 
           {/* Add Image Button */}
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
           <button
             type="button"
-            onClick={addImage}
-            className="h-48 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors flex flex-col items-center justify-center"
+            onClick={() => imageInputRef.current?.click()}
+            disabled={isUploadingImage}
+            className="h-48 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors flex flex-col items-center justify-center disabled:opacity-50"
           >
-            <Upload className="h-8 w-8 text-gray-400" />
-            <span className="mt-2 text-sm text-gray-600">Thêm ảnh</span>
+            {isUploadingImage ? (
+              <>
+                <Loader2 className="h-8 w-8 text-orange-500 animate-spin" />
+                <span className="mt-2 text-sm text-gray-600">
+                  Đang upload...
+                </span>
+              </>
+            ) : (
+              <>
+                <Upload className="h-8 w-8 text-gray-400" />
+                <span className="mt-2 text-sm text-gray-600">Thêm ảnh</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -257,7 +418,11 @@ export function GallerySection({
                   onChange={(e) => handleDocumentUpload("portfolio", e)}
                   className="hidden"
                 />
-                <Upload className="w-4 h-4 inline mr-2" />
+                {uploadingDoc === "portfolio" ? (
+                  <Loader2 className="w-4 h-4 inline mr-2 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 inline mr-2" />
+                )}
                 Upload PDF
               </label>
             )}
@@ -296,7 +461,11 @@ export function GallerySection({
                   onChange={(e) => handleDocumentUpload("catalogue", e)}
                   className="hidden"
                 />
-                <Upload className="w-4 h-4 inline mr-2" />
+                {uploadingDoc === "catalogue" ? (
+                  <Loader2 className="w-4 h-4 inline mr-2 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 inline mr-2" />
+                )}
                 Upload PDF
               </label>
             )}
@@ -335,7 +504,11 @@ export function GallerySection({
                   onChange={(e) => handleDocumentUpload("certificate", e)}
                   className="hidden"
                 />
-                <Upload className="w-4 h-4 inline mr-2" />
+                {uploadingDoc === "certificate" ? (
+                  <Loader2 className="w-4 h-4 inline mr-2 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 inline mr-2" />
+                )}
                 Upload PDF
               </label>
             )}

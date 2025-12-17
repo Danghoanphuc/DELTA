@@ -294,20 +294,60 @@ export class ProductService {
     const slug = this.generateSlug(data.name!);
     const sku = data.sku || this.generateSku(data.name!);
 
-    // Get category path
+    // Get category - support both ObjectId and slug
     let categoryPath = "";
-    if (data.categoryId) {
-      const category = await ProductCategory.findById(data.categoryId);
-      if (!category) {
-        throw new Error("Danh mục không tồn tại");
-      }
-      categoryPath = category.path;
+    let categoryObjectId = data.categoryId;
+
+    // Check if categoryId is a valid ObjectId (24 hex chars) or a slug
+    const categoryIdStr = String(data.categoryId);
+    const isObjectId =
+      mongoose.Types.ObjectId.isValid(categoryIdStr) &&
+      categoryIdStr.length === 24 &&
+      /^[a-f0-9]{24}$/i.test(categoryIdStr);
+
+    console.log("[ProductService] Category lookup:", {
+      categoryIdStr,
+      isObjectId,
+    });
+
+    let category;
+
+    if (isObjectId) {
+      category = await ProductCategory.findById(data.categoryId);
+    } else {
+      // Lookup by slug
+      category = await ProductCategory.findOne({
+        slug: categoryIdStr,
+      });
+      console.log(
+        "[ProductService] Slug lookup result:",
+        category?._id || "NOT FOUND"
+      );
     }
+
+    // Debug: List all categories if not found
+    if (!category) {
+      const allCategories = await ProductCategory.find(
+        {},
+        { slug: 1, name: 1 }
+      ).lean();
+      console.log(
+        "[ProductService] Available categories:",
+        allCategories.map((c) => c.slug)
+      );
+      throw new Error(
+        `Danh mục không tồn tại: ${data.categoryId}. Vui lòng chạy seed-categories trước.`
+      );
+    }
+
+    categoryPath = category.path;
+    categoryObjectId = category._id;
 
     const product = new CatalogProduct({
       ...data,
       slug,
       sku,
+      categoryId: categoryObjectId,
       categoryPath,
     });
 
@@ -315,11 +355,9 @@ export class ProductService {
     console.log("[ProductService] Product created successfully:", saved._id);
 
     // Update category product count
-    if (data.categoryId) {
-      await ProductCategory.findByIdAndUpdate(data.categoryId, {
-        $inc: { productCount: 1 },
-      });
-    }
+    await ProductCategory.findByIdAndUpdate(categoryObjectId, {
+      $inc: { productCount: 1 },
+    });
 
     return saved;
   }
