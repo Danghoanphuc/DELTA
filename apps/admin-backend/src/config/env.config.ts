@@ -54,6 +54,15 @@ const normalizeAdminCorsOrigins = (): string[] => {
       .forEach((url) => origins.add(url));
   }
 
+  // Add production origins (customer frontend)
+  if (process.env.NODE_ENV === "production") {
+    [
+      "https://printz.vn",
+      "https://www.printz.vn",
+      "https://admin.printz.vn",
+    ].forEach((url) => origins.add(url));
+  }
+
   // Add default dev origins only in development
   if (process.env.NODE_ENV !== "production") {
     [
