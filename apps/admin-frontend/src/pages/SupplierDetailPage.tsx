@@ -12,7 +12,6 @@ import {
   BarChart3,
   User,
   Plus,
-  TrendingUp,
 } from "lucide-react";
 import {
   supplierApi,
@@ -29,16 +28,15 @@ import { SupplierProductsList } from "@/components/suppliers/SupplierProductsLis
 import { SupplierPerformanceCard } from "@/components/suppliers/SupplierPerformanceCard";
 import { SupplierProfileEditor } from "@/components/suppliers/SupplierProfileEditor";
 import { PostEditorSelector } from "@/components/suppliers/PostEditorSelector";
-import { SupplierOverviewDashboard } from "@/components/suppliers/SupplierOverviewDashboard";
 
-type TabType = "overview" | "profile" | "posts" | "products" | "performance";
+type TabType = "intro" | "profile" | "posts" | "products" | "performance";
 
 const TABS: { id: TabType; label: string; icon: React.ElementType }[] = [
-  { id: "overview", label: "Tổng quan", icon: BarChart3 },
+  { id: "intro", label: "Giới thiệu", icon: User },
   { id: "profile", label: "Profile Công khai", icon: User },
   { id: "posts", label: "Bài viết", icon: FileText },
   { id: "products", label: "Tác phẩm", icon: Package },
-  { id: "performance", label: "Hiệu suất", icon: TrendingUp },
+  { id: "performance", label: "Hiệu suất", icon: BarChart3 },
 ];
 
 export default function SupplierDetailPage() {
@@ -51,7 +49,7 @@ export default function SupplierDetailPage() {
     useState<SupplierPerformanceMetrics | null>(null);
   const [leadTimeHistory, setLeadTimeHistory] = useState<LeadTimeRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>("overview");
+  const [activeTab, setActiveTab] = useState<TabType>("intro");
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [refreshPosts, setRefreshPosts] = useState(0);
 
@@ -213,23 +211,52 @@ export default function SupplierDetailPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-6">
-        {/* Tab: Tổng quan */}
-        {activeTab === "overview" && (
-          <SupplierOverviewDashboard supplier={supplier} />
-        )}
-
-        {/* Tab: Profile Công khai */}
-        {activeTab === "profile" && (
+        {/* Tab: Giới thiệu */}
+        {activeTab === "intro" && (
           <div className="space-y-6">
             <SupplierInfoCard
               supplier={supplier}
               onUpdate={handleSupplierUpdate}
             />
-            <SupplierProfileEditor
-              supplier={supplier}
-              onUpdate={handleSupplierUpdate}
-            />
+
+            {/* Quick Stats */}
+            {performance && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white rounded-xl shadow-sm p-4 text-center">
+                  <p className="text-2xl font-bold text-gray-900">
+                    {performance.totalOrders || 0}
+                  </p>
+                  <p className="text-sm text-gray-500">Tổng đơn hàng</p>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm p-4 text-center">
+                  <p className="text-2xl font-bold text-green-600">
+                    {(performance.onTimeDeliveryRate || 0).toFixed(0)}%
+                  </p>
+                  <p className="text-sm text-gray-500">Giao đúng hạn</p>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm p-4 text-center">
+                  <p className="text-2xl font-bold text-blue-600">
+                    {(performance.qualityScore || 0).toFixed(0)}%
+                  </p>
+                  <p className="text-sm text-gray-500">Chất lượng</p>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm p-4 text-center">
+                  <p className="text-2xl font-bold text-purple-600">
+                    {(performance.averageLeadTime || 0).toFixed(1)}
+                  </p>
+                  <p className="text-sm text-gray-500">Lead time (ngày)</p>
+                </div>
+              </div>
+            )}
           </div>
+        )}
+
+        {/* Tab: Profile Công khai */}
+        {activeTab === "profile" && (
+          <SupplierProfileEditor
+            supplier={supplier}
+            onUpdate={handleSupplierUpdate}
+          />
         )}
 
         {/* Tab: Bài viết */}
