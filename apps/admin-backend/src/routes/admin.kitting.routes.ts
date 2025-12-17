@@ -3,8 +3,8 @@
 // API endpoints cho kitting operations
 
 import { Router } from "express";
-import { KittingController } from "../controllers/admin.kitting.controller";
-import { authenticate } from "../middleware/admin.auth.middleware";
+import { KittingController } from "../controllers/admin.kitting.controller.js";
+import { authenticate } from "../middleware/admin.auth.middleware.js";
 
 const router = Router();
 const controller = new KittingController();
