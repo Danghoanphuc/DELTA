@@ -37,26 +37,37 @@ jobs:
         # Build các gói phụ thuộc trước (quan trọng cho TypeScript)
         run: pnpm --filter "@printz/types" build
 
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Pull Vercel Environment
+        working-directory: apps/customer-frontend
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+          else
+            vercel pull --yes --environment=preview --token=$VERCEL_TOKEN
+          fi
+        shell: bash
+
+      - name: Build Project
+        working-directory: apps/customer-frontend
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            vercel build --prod --token=$VERCEL_TOKEN
+          else
+            vercel build --token=$VERCEL_TOKEN
+          fi
+        shell: bash
+
       - name: Deploy to Vercel
         working-directory: apps/customer-frontend
         run: |
-          # Cài Vercel CLI tạm thời
-          npm install -g vercel
-
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "🚀 Deploying to PRODUCTION..."
-            # 1. Pull Config Prod
-            vercel pull --yes --environment=production --token=$VERCEL_TOKEN
-            # 2. Build Artifacts (chạy build script của app)
-            vercel build --prod --token=$VERCEL_TOKEN
-            # 3. Deploy Artifacts đã build lên Vercel
             vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
           else
-            echo "cw Deploying to PREVIEW (Staging)..."
-            # 1. Pull Config Preview
-            vercel pull --yes --environment=preview --token=$VERCEL_TOKEN
-            # 2. Build Artifacts
-            vercel build --token=$VERCEL_TOKEN
-            # 3. Deploy Artifacts
+            echo "🔄 Deploying to PREVIEW..."
             vercel deploy --prebuilt --token=$VERCEL_TOKEN
           fi
+        shell: bash
