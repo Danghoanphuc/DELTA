@@ -11,7 +11,6 @@ import {
   ProductionLogEntry,
   ProductionTimeline,
 } from "../repositories/production-status.repository.js";
-import { productionEventEmitter } from "./production-event-emitter.service.js";
 import { Logger } from "../utils/logger.js";
 import {
   NotFoundException,
@@ -101,17 +100,6 @@ export class ProductionStatusService {
     if (!updatedOrder) {
       throw new Error("Không thể cập nhật trạng thái đơn hàng");
     }
-
-    // Emit real-time event
-    await productionEventEmitter.emitStatusUpdate({
-      orderId,
-      status: status.stage,
-      substage: status.substage,
-      progress: status.progress,
-      notes: status.notes,
-      operatorId,
-      timestamp: new Date(),
-    });
 
     Logger.success(
       `[ProductionStatusSvc] Updated status for order ${orderId} to ${status.stage}`
@@ -234,15 +222,6 @@ export class ProductionStatusService {
     if (!order) {
       throw new NotFoundException("Production Order", orderId);
     }
-
-    // Emit issue event for real-time notification
-    await productionEventEmitter.emitIssue({
-      orderId,
-      issueType: issue.issueType,
-      description: issue.description,
-      reportedBy: issue.reportedBy.toString(),
-      timestamp: new Date(),
-    });
 
     // TODO: Create issue record in database
     // TODO: Send notification to assigned Sales

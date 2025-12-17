@@ -20,9 +20,8 @@ import { Server as SocketIOServer } from "socket.io";
 import { config } from "./config/env.config.js";
 import { Logger } from "./utils/logger.js";
 
-// --- Import Socket.IO middleware and services ---
+// --- Import Socket.IO middleware ---
 import { socketAuthMiddleware } from "./middleware/socket-auth.middleware.js";
-import { productionEventEmitter } from "./services/production-event-emitter.service.js";
 
 // --- Import shared models (register with mongoose) ---
 import "./models/shared.models.js";
@@ -85,9 +84,6 @@ const io = new SocketIOServer(httpServer, {
 
 // Apply authentication middleware to Socket.IO
 io.use(socketAuthMiddleware);
-
-// Initialize production event emitter with Socket.IO
-productionEventEmitter.initializeSocketIO(io);
 
 // Socket.IO connection handler
 io.on("connection", (socket) => {
@@ -266,9 +262,6 @@ const gracefulShutdown = async (signal: string) => {
     io.close(() => {
       Logger.info("Socket.IO server closed");
     });
-
-    // Close production event emitter
-    await productionEventEmitter.close();
 
     // Close database connection
     await mongoose.connection.close();

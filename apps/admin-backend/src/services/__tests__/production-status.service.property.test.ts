@@ -12,14 +12,6 @@ import {
 import { ProductionOrder } from "../../models/production-order.model.js";
 import mongoose from "mongoose";
 
-// Mock the production event emitter to avoid Redis dependency in tests
-jest.mock("../production-event-emitter.service.js", () => ({
-  productionEventEmitter: {
-    emitStatusUpdate: jest.fn().mockResolvedValue(undefined),
-    emitIssue: jest.fn().mockResolvedValue(undefined),
-  },
-}));
-
 // Mock the Logger to avoid ES module issues
 jest.mock("../../infrastructure/logger.js", () => ({
   Logger: {
