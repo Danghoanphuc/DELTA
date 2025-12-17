@@ -4,7 +4,7 @@
 // Tuân thủ SOLID: SRP, DIP
 
 import { Logger } from "../shared/utils/logger.js";
-import { carrierService } from "./carrier-integration.service";
+import { carrierService } from "./carrier-integration.service.js";
 import { SwagOrderRepository } from "../repositories/swag-order.repository.js";
 import {
   ValidationException,

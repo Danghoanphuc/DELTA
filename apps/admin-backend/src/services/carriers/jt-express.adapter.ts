@@ -6,7 +6,7 @@ import {
   ShipmentRequest,
   ShipmentResponse,
   TrackingResponse,
-} from "../../interfaces/carrier.interface";
+} from "../../interfaces/carrier.interface.js";
 
 export class JTExpressAdapter extends BaseCarrierAdapter {
   readonly carrierId = "jt";

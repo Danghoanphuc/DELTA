@@ -8,7 +8,7 @@ import {
   ShipmentResponse,
   TrackingResponse,
   FeeCalculation,
-} from "../../interfaces/carrier.interface";
+} from "../../interfaces/carrier.interface.js";
 
 /**
  * BaseCarrierAdapter - Abstract base class cho tất cả carriers

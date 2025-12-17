@@ -6,7 +6,7 @@ import {
   ShipmentRequest,
   ShipmentResponse,
   TrackingResponse,
-} from "../../interfaces/carrier.interface";
+} from "../../interfaces/carrier.interface.js";
 
 export class GHNAdapter extends BaseCarrierAdapter {
   readonly carrierId = "ghn";

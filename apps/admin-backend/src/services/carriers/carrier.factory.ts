@@ -4,12 +4,12 @@
 import {
   ICarrierAdapter,
   CarrierInfo,
-} from "../../interfaces/carrier.interface";
-import { GHNAdapter } from "./ghn.adapter";
-import { GHTKAdapter } from "./ghtk.adapter";
-import { ViettelPostAdapter } from "./viettel-post.adapter";
-import { JTExpressAdapter } from "./jt-express.adapter";
-import { NinjaVanAdapter } from "./ninja-van.adapter";
+} from "../../interfaces/carrier.interface.js";
+import { GHNAdapter } from "./ghn.adapter.js";
+import { GHTKAdapter } from "./ghtk.adapter.js";
+import { ViettelPostAdapter } from "./viettel-post.adapter.js";
+import { JTExpressAdapter } from "./jt-express.adapter.js";
+import { NinjaVanAdapter } from "./ninja-van.adapter.js";
 
 /**
  * CarrierFactory - Factory để tạo carrier adapters

@@ -6,7 +6,7 @@ import {
   ShipmentRequest,
   ShipmentResponse,
   TrackingResponse,
-} from "../../interfaces/carrier.interface";
+} from "../../interfaces/carrier.interface.js";
 
 export class NinjaVanAdapter extends BaseCarrierAdapter {
   readonly carrierId = "ninja";
