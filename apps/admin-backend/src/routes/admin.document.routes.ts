@@ -3,8 +3,8 @@
 // API endpoints cho document operations
 
 import { Router } from "express";
-import { DocumentController } from "../controllers/admin.document.controller";
-import { authenticate } from "../middleware/admin.auth.middleware";
+import { DocumentController } from "../controllers/admin.document.controller.js";
+import { authenticate } from "../middleware/admin.auth.middleware.js";
 
 const router = Router();
 const controller = new DocumentController();
