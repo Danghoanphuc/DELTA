@@ -57,9 +57,9 @@ router.get("/debug/:slug", async (req, res, next) => {
 /**
  * Get post by slug (public)
  * IMPORTANT: This route MUST be defined BEFORE /:category to avoid route conflict
- * @route GET /api/magazine/post/:slug
+ * @route GET /api/magazine/posts/:slug
  */
-router.get("/post/:slug", async (req, res, next) => {
+router.get("/posts/:slug", async (req, res, next) => {
   try {
     const { slug } = req.params;
 

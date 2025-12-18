@@ -10,6 +10,55 @@ import { CatalogProduct } from "../catalog/catalog-product.model.js";
 const router = Router();
 
 /**
+ * Get list of featured artisans
+ * IMPORTANT: This route MUST be defined BEFORE /:code to avoid route conflict
+ * @route GET /api/artisans
+ */
+router.get("/", async (req, res, next) => {
+  try {
+    const { type, page = 1, limit = 20 } = req.query;
+
+    const query: any = {
+      isActive: true,
+    };
+
+    // Filter by type if provided
+    if (type) {
+      query.type = type;
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const [artisans, total] = await Promise.all([
+      Supplier.find(query)
+        .sort({ isPreferred: -1, rating: -1, name: 1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .select(
+          "name code type contactInfo.city contactInfo.country capabilities rating isPreferred profile"
+        )
+        .lean(),
+      Supplier.countDocuments(query),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        artisans,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          totalPages: Math.ceil(total / Number(limit)),
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * Get artisan/supplier public profile by code
  * @route GET /api/artisans/:code
  */
@@ -150,54 +199,6 @@ router.get("/:code/products", async (req, res, next) => {
       success: true,
       data: {
         products,
-        pagination: {
-          page: Number(page),
-          limit: Number(limit),
-          total,
-          totalPages: Math.ceil(total / Number(limit)),
-        },
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * Get list of featured artisans
- * @route GET /api/artisans
- */
-router.get("/", async (req, res, next) => {
-  try {
-    const { type, page = 1, limit = 20 } = req.query;
-
-    const query: any = {
-      isActive: true,
-    };
-
-    // Filter by type if provided
-    if (type) {
-      query.type = type;
-    }
-
-    const skip = (Number(page) - 1) * Number(limit);
-
-    const [artisans, total] = await Promise.all([
-      Supplier.find(query)
-        .sort({ isPreferred: -1, rating: -1, name: 1 })
-        .skip(skip)
-        .limit(Number(limit))
-        .select(
-          "name code type contactInfo.city contactInfo.country capabilities rating isPreferred"
-        )
-        .lean(),
-      Supplier.countDocuments(query),
-    ]);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        artisans,
         pagination: {
           page: Number(page),
           limit: Number(limit),

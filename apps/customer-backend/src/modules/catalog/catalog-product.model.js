@@ -13,6 +13,8 @@ const CatalogProductSchema = new mongoose.Schema(
     slug: { type: String, required: true, unique: true, index: true },
     sku: { type: String, required: true, unique: true, index: true },
     description: { type: String, trim: true },
+    shortDescription: { type: String, trim: true, maxlength: 200 },
+    thumbnailUrl: { type: String },
 
     // Category
     categoryId: {
@@ -65,14 +67,22 @@ const CatalogProductSchema = new mongoose.Schema(
     lowStockThreshold: { type: Number, default: 10 },
 
     // Status
+    status: {
+      type: String,
+      enum: ["draft", "active", "inactive", "discontinued"],
+      default: "active",
+      index: true,
+    },
     isActive: { type: Boolean, default: true, index: true },
     isPublished: { type: Boolean, default: true, index: true },
     isFeatured: { type: Boolean, default: false, index: true },
 
     // Stats
     totalSold: { type: Number, default: 0 },
+    totalOrders: { type: Number, default: 0 },
     views: { type: Number, default: 0 },
     rating: { type: Number, default: 0, min: 0, max: 5 },
+    averageRating: { type: Number, default: 0, min: 0, max: 5 },
     reviewCount: { type: Number, default: 0 },
 
     // SEO

@@ -281,6 +281,10 @@ async function startServer() {
         .default;
       var artisanRoutes = (await import("./modules/artisan/artisan.routes.js"))
         .default;
+      // ✅ PUBLIC CATALOG: Products & Categories (same as admin-backend)
+      var publicCatalogRoutes = (
+        await import("./modules/catalog/public-catalog.routes.js")
+      ).default;
       organizationRoutes = (
         await import("./modules/organizations/organization.routes.js")
       ).default;
@@ -606,6 +610,8 @@ async function startServer() {
     apiRouter.use("/magazine", magazineRoutes);
     // ✅ ARTISAN: Public artisan/supplier profiles (public)
     apiRouter.use("/artisans", artisanRoutes);
+    // ✅ PUBLIC CATALOG: Products & Categories (public - same as admin-backend)
+    apiRouter.use("/", publicCatalogRoutes);
     // ✅ ORGANIZATION: B2B Organization routes
     apiRouter.use("/organizations", organizationRoutes);
     // ✅ ORGANIZATION MEMBERS: Team membership management
