@@ -4,8 +4,11 @@
 import axios from "axios";
 import { useAdminAuthStore } from "@/store/useAdminAuthStore";
 
+// ✅ FIX: Use VITE_API_URL in production, proxy in development
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+
 const api = axios.create({
-  baseURL: "/api",
+  baseURL: API_BASE_URL ? `${API_BASE_URL}/api` : "/api",
   withCredentials: true, // ✅ STANDARDIZED: Send cookies for refresh token
   timeout: 10000,
 });

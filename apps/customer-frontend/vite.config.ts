@@ -52,11 +52,11 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // ✅ FIX: Proxy config để đảm bảo cookies được forward đúng cách
         "/api": {
-          // ✅ FIX: Dùng localhost:5004 trong dev mode (admin-backend port)
+          // ✅ FIX: Dùng localhost:5001 trong dev mode (customer-backend port)
           target:
             mode === "development"
-              ? "http://localhost:5004"
-              : env.VITE_BACKEND_URL || "http://localhost:5004",
+              ? "http://localhost:5001"
+              : env.VITE_BACKEND_URL || "http://localhost:5001",
           changeOrigin: true,
           secure: false,
           // ✅ FIX: Thêm timeout và retry để tránh lỗi khi backend chưa sẵn sàng
