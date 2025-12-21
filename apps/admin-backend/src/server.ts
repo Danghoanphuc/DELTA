@@ -159,9 +159,6 @@ app.use(
   })
 );
 
-// --- ✅ MONITORING: Add Sentry handlers ---
-Sentry.setupExpressErrorHandler(app);
-
 // --- ✅ SECURITY: Apply general rate limiting to all routes ---
 app.use(generalRateLimiter);
 
@@ -217,6 +214,9 @@ app.use((req: Request, res: Response) => {
     message: `Route not found: ${req.method} ${req.originalUrl}`,
   });
 });
+
+// --- ✅ MONITORING: Add Sentry error handler (MUST be after routes, before custom error handler) ---
+Sentry.setupExpressErrorHandler(app);
 
 // --- Error Handler (phải đặt cuối cùng) ---
 app.use(errorHandler);
