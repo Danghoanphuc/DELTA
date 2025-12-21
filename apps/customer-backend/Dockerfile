@@ -59,9 +59,13 @@ RUN apk add --no-cache \
 # Copy kết quả build
 COPY --from=builder --chown=expressjs:expressjs /app/apps/customer-backend/package.json ./apps/customer-backend/package.json
 COPY --from=builder --chown=expressjs:expressjs /app/apps/customer-backend/dist ./apps/customer-backend/dist
+# Copy packages (shared types, utils, etc.)
+COPY --from=builder --chown=expressjs:expressjs /app/packages ./packages
 # Copy node_modules đã cài (production only nếu prune kỹ, ở đây copy full cho an toàn monorepo link)
 COPY --from=builder --chown=expressjs:expressjs /app/node_modules ./node_modules
 COPY --from=builder --chown=expressjs:expressjs /app/apps/customer-backend/node_modules ./apps/customer-backend/node_modules
+# Copy package.json for workspace resolution
+COPY --from=builder --chown=expressjs:expressjs /app/package.json ./package.json
 
 ENV NODE_ENV=production
 ENV PORT=3000
