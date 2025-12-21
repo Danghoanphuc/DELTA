@@ -42,7 +42,7 @@ const adminSchema = new Schema<IAdmin>(
       unique: true,
       lowercase: true,
       trim: true,
-      match: [/\\S+@\\S+\.\\S+/, "Email không hợp lệ"],
+      match: [/\S+@\S+\.\S+/, "Email không hợp lệ"],
     },
     password: {
       type: String,

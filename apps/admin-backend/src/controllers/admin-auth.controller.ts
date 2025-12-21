@@ -114,7 +114,9 @@ export class AdminAuthController {
           `Chào mừng ${admin.displayName}!`
         )
       );
-    } catch (error) {
+    } catch (error: any) {
+      Logger.error(`[AdminAuth] SignIn error: ${error.message}`);
+      Logger.error(`[AdminAuth] Stack: ${error.stack}`);
       next(error);
     }
   };
