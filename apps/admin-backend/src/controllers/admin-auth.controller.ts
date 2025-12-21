@@ -98,22 +98,28 @@ export class AdminAuthController {
 
       Logger.success(`[AdminAuth] Login success: ${email}`);
 
-      // Return response
-      res.status(API_CODES.SUCCESS).json(
-        ApiResponse.success(
-          {
-            accessToken,
-            admin: {
-              _id: admin._id,
-              email: admin.email,
-              displayName: admin.displayName,
-              role: admin.role,
-              permissions: this.getAdminPermissions(admin.role),
-            },
-          },
-          `Chào mừng ${admin.displayName}!`
-        )
+      // Build response data
+      const responseData = {
+        accessToken,
+        admin: {
+          _id: admin._id,
+          email: admin.email,
+          displayName: admin.displayName,
+          role: admin.role,
+          permissions: this.getAdminPermissions(admin.role),
+        },
+      };
+
+      Logger.debug(
+        `[AdminAuth] Response data: ${JSON.stringify(responseData)}`
       );
+
+      // Return response
+      return res
+        .status(API_CODES.SUCCESS)
+        .json(
+          ApiResponse.success(responseData, `Chào mừng ${admin.displayName}!`)
+        );
     } catch (error: any) {
       Logger.error(`[AdminAuth] SignIn error: ${error.message}`);
       Logger.error(`[AdminAuth] Stack: ${error.stack}`);
