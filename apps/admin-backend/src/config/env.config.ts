@@ -60,6 +60,10 @@ const normalizeAdminCorsOrigins = (): string[] => {
       "https://printz.vn",
       "https://www.printz.vn",
       "https://admin.printz.vn",
+      // Vercel domains
+      "https://printz-admin.vercel.app",
+      "https://printz-admin-frontend.vercel.app",
+      "https://delta-admin.vercel.app",
     ].forEach((url) => origins.add(url));
   }
 
