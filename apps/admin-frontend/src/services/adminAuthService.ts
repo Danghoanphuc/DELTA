@@ -10,9 +10,8 @@ export const signIn = async (
   setStatus("loading");
   try {
     const res = await api.post("/admin/auth/signin", { email, password });
-    const { token, data } = res.data;
-    const admin: IAdmin = data.admin;
-    setToken(token);
+    const { accessToken, admin } = res.data.data;
+    setToken(accessToken);
     setAdmin(admin);
     setStatus("success");
     return admin;
