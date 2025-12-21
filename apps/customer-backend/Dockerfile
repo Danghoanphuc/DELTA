@@ -21,6 +21,9 @@ FROM base AS builder
 RUN apk add --no-cache libc6-compat python3 make g++
 WORKDIR /app
 
+# Install turbo globally
+RUN npm install -g turbo
+
 # Tăng RAM cho node build (quan trọng cho Canvas/Fabric)
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
