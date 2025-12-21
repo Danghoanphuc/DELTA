@@ -3,7 +3,7 @@
 
 import { Logger } from "../shared/utils/index.js";
 import { notificationService } from "../modules/notifications/notification.service.js";
-import { novuService } from "../infrastructure/notifications/novu.service.ts";
+import { novuService } from "../infrastructure/notifications/novu.service.js";
 import { zaloService } from "../modules/notifications/zalo.service.js";
 import { Thread } from "../shared/models/thread.model.js";
 import { ThreadedMessage } from "../shared/models/threaded-message.model.js";
